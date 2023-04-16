@@ -1,0 +1,38 @@
+.email_logo {
+    width: 25px;
+    /* height: 25px; */
+    background-size: cover;
+    background-image: url('../ModalHelp/email.png');
+    margin-top: -10px;
+}
+
+.email_logo a {
+    color: #000;
+    padding-left: 33px;
+}
+
+.email_logo a:hover {
+    color: rgb(104, 99, 99);
+    text-decoration: none;
+}
+
+.phone_logo {
+    width: 23px;
+    height: 25px;
+    background-size: cover;
+    background-image: url('../../img/facebook.svg');
+}
+
+.phone_logo_block {
+    margin-top: -15px;
+}
+
+.phone_logo a {
+    color: #000;
+    padding-left: 33px;
+}
+
+.phone_logo a:hover {
+    color: rgb(104, 99, 99);
+    text-decoration: none;
+}

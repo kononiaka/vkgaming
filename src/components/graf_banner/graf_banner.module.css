@@ -1,0 +1,35 @@
+.footer-href {
+    color: #000;
+}
+
+.footer-href:hover {
+    color: #000;
+    cursor: pointer;
+}
+
+.footer {
+    height: 0px;
+    width: 300px;
+    border-bottom: 30px solid rgb(248, 246, 246);
+    border-left: 30px solid transparent;
+    border-right: 30px solid transparent;
+    border-top: 50px solid transparent;
+    transform: rotate(270deg);
+    position: fixed;
+    top: 400px;
+    right: -110px;
+}
+
+.footer span {
+    font-size: 12px;
+    margin: 0 10px;
+}
+
+.footer span #text {
+    color: blue;
+    margin-top: -10px;
+}
+
+.footer img {
+    width: 20%;
+}

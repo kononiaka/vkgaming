@@ -1,0 +1,43 @@
+.header {
+  width: 100%;
+  height: 5rem;
+  padding: 0 10%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #252424;
+}
+
+.navLink {
+  display: flex;
+}
+
+.navLink li {
+  list-style: none;
+
+}
+
+.navLink li a {
+  color: #1ad1b9;
+  text-decoration: none;
+  margin-left: 50px;
+}
+
+.navLink li a:hover {
+  color: #1a8ed1;
+  /* text-decoration: underline; */
+}
+
+.logo img {
+  width: 75%;
+}
+
+.header h1 {
+  color: white;
+}
+
+.header ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
