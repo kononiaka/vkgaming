@@ -17,17 +17,18 @@
     transform: rotate(270deg);
     position: fixed;
     top: 400px;
+    font-size: 16px;
     right: -110px;
 }
 
-.footer span {
-    font-size: 12px;
-    margin: 0 10px;
+.footer-logo-text {
+    margin: -35px 20px;
 }
 
-.footer span #text {
-    color: blue;
-    margin-top: -10px;
+.footer-logo-span {
+    font-size: 12px;
+    margin-left: 25px;
+    margin-right: 15px;
 }
 
 .footer img {

@@ -1,14 +1,10 @@
-import Modal from '../UI/Modal';
-
-import { useMediaQuery } from 'react-responsive';
+import Modal from '../../UI/Modal/Modal';
 
 import classes from './modalGraf.module.css';
 
 const GrafHelp = (props) => {
     // console.log(props);
-    const isDesktopOrLaptop = useMediaQuery({
-        query: '(min-width: 900px)'
-    });
+
 
     return (
         <Modal onClick={props.onClose} graf={props.graf} >

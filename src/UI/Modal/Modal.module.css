@@ -1,0 +1,169 @@
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 20;
+    background-color: rgba(219, 216, 216, 0.75);
+    opacity: 0.8;
+}
+
+.modal {
+    position: fixed;
+    top: 70vh;
+    left: calc(50% + 20rem);
+    width: 30em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}
+
+.submitModal {
+    position: fixed;
+    top: 25vh;
+    left: calc(50% - 20rem);
+    width: 40em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}
+
+.submitModalEnroll {
+    position: fixed;
+    top: 25vh;
+    left: calc(50% - 20rem);
+    width: 35em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}
+
+/* 
+.submitModalCongrats {
+    background-image: url("../../img/congrats.jpg");
+    position: fixed;
+    top: 25vh;
+    left: calc(25%);
+    width: 65em;
+    height: 25em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+} */
+
+/* 
+@media (min-width: 768px) {
+    .modal {
+        width: 40rem;
+        left: calc(50% - 20rem); 
+    }
+} */
+
+
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-3rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.submitModal__responsive {
+    position: fixed;
+    top: 25vh;
+    left: calc(50% - 10rem);
+    top: calc(50% - 20rem);
+    width: 20em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}
+
+.modal_graf {
+    position: fixed;
+    top: 40vh;
+    left: calc(50% + 20rem);
+    width: 30em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-left 300ms ease-out forwards;
+}
+
+@keyframes slide-left {
+    from {
+        opacity: 0;
+        transform: translateX(3rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* RESPONSIVE */
+
+.modal__responsive {
+    margin-left: 10px;
+    position: fixed;
+    top: 70vh;
+    /* left: calc(50% + 20rem); */
+    width: 22em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}
+
+.submitModalEnroll__responsive {
+    margin-left: 10px;
+    position: fixed;
+    top: 20vh;
+    /* left: calc(50% + 20rem); */
+    width: 23em;
+    background-color: white;
+    padding: 0.5rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}
+
+.modal_graf__responsive {
+    margin-left: 10px;
+    position: fixed;
+    top: 30vh;
+    /* left: calc(50% + 20rem); */
+    width: 22em;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-down 300ms ease-out forwards;
+}

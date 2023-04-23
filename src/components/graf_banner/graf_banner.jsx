@@ -11,8 +11,10 @@ const GrafBanner = (props) => {
     return (
         <a className={classes["footer-href"]} onClick={props.handleGrafClick}>
             <h6 className={classes["footer"]}>
-                <span><img src={logo} alt={"logo"} />powered by </span>
-                Graf Studio
+                <img src={logo} alt={"logo"} />
+                <div className={classes["footer-logo-text"]}>
+                    <span className={classes["footer-logo-span"]}>powered by</span>
+                    Graf Studio </div>
             </h6>
         </a>
     );
