@@ -1,21 +1,17 @@
 .button {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
   background-color: transparent;
-  border-color: #1ad1b9;
   color: #1ad1b9;
+  border: 1px solid #1ad1b9;
+  text-decoration: none;
 }
 
 .button:hover,
 .button:active {
+  background-color: #1ac5d1;
+  border-color: #1ac5d1;
   color: white;
-}
-
-.button span {
-  margin: 0 0.5rem;
-}
-
-.badge {
-  background-color: #1ad1b9;
-  border-radius: 30px;
-  padding: 0.15rem 1.25rem;
-  color: #1d1d1d;
 }
