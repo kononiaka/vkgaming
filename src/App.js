@@ -26,6 +26,7 @@ function App() {
   };
 
   const authCtx = useContext(AuthContext);
+  console.log('app.js', authCtx.isLogged);
 
   return (
     <div className={classes.main}>

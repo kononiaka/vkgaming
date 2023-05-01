@@ -7,6 +7,7 @@ import classes from './AuthForm.module.css';
 const AuthForm = () => {
   const emailRef = useRef();
   const passwordRef = useRef();
+  const nicknameRef = useRef();
   const authCtx = useContext(AuthContext);
   const login = authCtx.login;
 
@@ -16,6 +17,7 @@ const AuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const switchAuthModeHandler = () => {
+
     setIsLogin((prevState) => !prevState);
   };
 
@@ -24,19 +26,23 @@ const AuthForm = () => {
 
     const enteredEmail = emailRef.current.value;
     const enteredPassword = passwordRef.current.value;
+    // const enteredNickname = nicknameRef.current.value;
 
     setIsLoading(true);
+
     let url;
     if (isLogin) {
       url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
     } else {
       url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
+
     }
     fetch(url, {
       method: "POST",
       body: JSON.stringify({
         email: enteredEmail,
         password: enteredPassword,
+        // nickname: enteredNickname,
         returnSecureToken: true
       }),
       headers: {
@@ -50,17 +56,16 @@ const AuthForm = () => {
         return res.json().then((data) => {
           let errorMessage = "Authentification error";
 
-          // if (data && data.error && data.error.message) {
-          //   errorMessage = data.error.message;
-          // }
-
+          if (data && data.error && data.error.message) {
+            errorMessage = data.error.message;
+          }
           throw new Error(errorMessage);
         });
       }
     }).then((data) => {
       const expirationTime = new Date(new Date().getTime() + (+data.expiresIn * 1000));
       login(data.idToken, expirationTime.toISOString());
-      navigate.replace('/');
+      navigate('/');
     }).catch(err => {
       alert(err.message);
     });
@@ -69,6 +74,12 @@ const AuthForm = () => {
     <section className={classes.auth}>
       <h1>{isLogin ? 'Login' : 'Sign Up'}</h1>
       <form onSubmit={submitFormHandler}>
+        {!isLogin ?
+          <div className={classes.control}>
+            <label htmlFor='nickname' >Your Nickname</label>
+            <input type='name' id='nickname' ref={nicknameRef} required />
+          </div>
+          : null}
         <div className={classes.control}>
           <label htmlFor='email' >Your Email</label>
           <input type='email' id='email' ref={emailRef} required />

@@ -3,9 +3,6 @@ import Modal from '../../UI/Modal/Modal';
 import classes from './modalGraf.module.css';
 
 const GrafHelp = (props) => {
-    // console.log(props);
-
-
     return (
         <Modal onClick={props.onClose} graf={props.graf} >
             <p><b>Wanna same one?</b> Email Now:</p>
