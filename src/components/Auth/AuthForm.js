@@ -17,8 +17,32 @@ const AuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const switchAuthModeHandler = () => {
-
     setIsLogin((prevState) => !prevState);
+  };
+
+  const addUserHandler = async (user) => {
+    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
+      method: 'POST',
+      body: JSON.stringify(user),
+      'Content-Type': 'application/json'
+    });
+
+    const data = await response.json();
+    console.log(data);
+  };
+
+  const lookForNickname = async (email) => {
+    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
+      method: 'GET',
+    });
+
+    const data = await response.json();
+
+    const userObj = Object.values(data).find(obj => obj.enteredEmail === email);
+    const nickNameVal = userObj?.enteredNickname;
+    localStorage.setItem("userName", nickNameVal);
+
+    return nickNameVal;
   };
 
   const submitFormHandler = (event) => {
@@ -26,14 +50,18 @@ const AuthForm = () => {
 
     const enteredEmail = emailRef.current.value;
     const enteredPassword = passwordRef.current.value;
-    // const enteredNickname = nicknameRef.current.value;
-
+    let enteredNickname;
+    if (!isLogin) {
+      enteredNickname = nicknameRef.current.value;
+    }
     setIsLoading(true);
 
     let url;
     if (isLogin) {
+      //LOGIN
       url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
     } else {
+      //SIGNUP
       url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
 
     }
@@ -42,15 +70,23 @@ const AuthForm = () => {
       body: JSON.stringify({
         email: enteredEmail,
         password: enteredPassword,
-        // nickname: enteredNickname,
+        nickname: enteredNickname,
         returnSecureToken: true
       }),
       headers: {
         'Content-Type': "application/json"
       }
-    }).then((res) => {
+    }).then(async (res) => {
+      console.log('enteredNickname', enteredNickname);
+      enteredNickname = await lookForNickname(enteredEmail);
+      console.log('enteredNickname-2', enteredNickname);
       setIsLoading(false);
       if (res.ok) {
+        if (!isLogin) {
+          let user = { enteredNickname, enteredEmail };
+          addUserHandler(user);
+        }
+
         return res.json();
       } else {
         return res.json().then((data) => {
@@ -64,7 +100,7 @@ const AuthForm = () => {
       }
     }).then((data) => {
       const expirationTime = new Date(new Date().getTime() + (+data.expiresIn * 1000));
-      login(data.idToken, expirationTime.toISOString());
+      login(data.idToken, expirationTime.toISOString(), enteredNickname);
       navigate('/');
     }).catch(err => {
       alert(err.message);

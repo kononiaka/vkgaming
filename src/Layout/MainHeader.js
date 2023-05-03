@@ -26,11 +26,11 @@ const MainHeader = (props) => {
       <nav>
         <nav >
           <ul className={classes.navLink}>
-            <li><a href="#">Games</a></li>
-            <li><a href="#">Videos</a></li>
-            <li><a href="#">Players</a></li>
-            <li><a href="#">Leaderboard</a></li>
-            <li><a href="#">Contact</a></li>
+            <li><a href="/#">Games</a></li>
+            <li><a href="/#">Videos</a></li>
+            <li><a href="/#">Players</a></li>
+            <li><a href="/#">Leaderboard</a></li>
+            <li><a href="/#">Contact</a></li>
             {isLogged &&
               <li>
                 <Link to='/profile'>Profile</Link>

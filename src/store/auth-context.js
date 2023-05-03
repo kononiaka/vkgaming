@@ -20,6 +20,7 @@ const calculateRemainingTime = (expirationTime) => {
 const retrieveInitToken = () => {
     const initToken = localStorage.getItem("token");
     const initExpirationTime = localStorage.getItem("expirationTime");
+    const nickNameValue = localStorage.getItem("userName");
 
     const remainingTime = calculateRemainingTime(initExpirationTime);
 
@@ -30,7 +31,8 @@ const retrieveInitToken = () => {
     }
     return {
         token: initToken,
-        duration: remainingTime
+        duration: remainingTime,
+        nickNameValue: nickNameValue
     };
 };
 
@@ -38,9 +40,15 @@ let logoutTimer;
 
 export const AuthContextProvider = (props) => {
     const tokenData = retrieveInitToken();
+
+    console.log('tokenData', tokenData);
+
     let initToken;
+    let userNickName;
+
     if (tokenData) {
         initToken = tokenData.token;
+        userNickName = tokenData.nickNameValue;
     }
     const [token, setToken] = useState(initToken);
     const userIsLoggedIn = !!token;
@@ -56,10 +64,11 @@ export const AuthContextProvider = (props) => {
         }
     }, []);
 
-    const loginHandler = (token, expirationTime) => {
+    const loginHandler = (token, expirationTime, userName) => {
         setToken(token);
         localStorage.setItem("token", token);
         localStorage.setItem("expirationTime", expirationTime);
+        localStorage.setItem("userName", userName);
 
         const remainingTime = calculateRemainingTime(expirationTime);
 
@@ -68,7 +77,7 @@ export const AuthContextProvider = (props) => {
 
     useEffect(() => {
         if (tokenData) {
-            console.log(tokenData.duration);
+            // console.log(tokenData.duration);
             logoutTimer = setTimeout(logoutHandler, tokenData.duration);
         }
     }, [tokenData, logoutHandler]);
@@ -77,7 +86,8 @@ export const AuthContextProvider = (props) => {
         token: token,
         isLogged: userIsLoggedIn,
         login: loginHandler,
-        logout: logoutHandler
+        logout: logoutHandler,
+        userNickName: userNickName
     };
 
     return <AuthContext.Provider value={contextValue}>{props.children}</AuthContext.Provider>;
