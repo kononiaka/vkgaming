@@ -39,7 +39,7 @@ const AuthForm = () => {
     const data = await response.json();
 
     const userObj = Object.values(data).find(obj => obj.enteredEmail === email);
-    const nickNameVal = userObj?.enteredNickname;
+    const nickNameVal = userObj.enteredNickname;
     localStorage.setItem("userName", nickNameVal);
 
     return nickNameVal;
@@ -70,20 +70,20 @@ const AuthForm = () => {
       body: JSON.stringify({
         email: enteredEmail,
         password: enteredPassword,
-        nickname: enteredNickname,
         returnSecureToken: true
       }),
       headers: {
         'Content-Type': "application/json"
       }
     }).then(async (res) => {
-      console.log('enteredNickname', enteredNickname);
-      enteredNickname = await lookForNickname(enteredEmail);
-      console.log('enteredNickname-2', enteredNickname);
+      if (isLogin) {
+        enteredNickname = await lookForNickname(enteredEmail);
+      }
       setIsLoading(false);
       if (res.ok) {
         if (!isLogin) {
           let user = { enteredNickname, enteredEmail };
+
           addUserHandler(user);
         }
 

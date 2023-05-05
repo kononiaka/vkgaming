@@ -9,6 +9,7 @@ const GrafBanner = (props) => {
     // });
 
     return (
+        //TODO: make ticker
         <a className={classes["footer-href"]} onClick={props.handleGrafClick}>
             <h6 className={classes["footer"]}>
                 <img src={logo} alt={"logo"} />

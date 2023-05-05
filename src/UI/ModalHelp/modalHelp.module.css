@@ -1,0 +1,99 @@
+.email_logo {
+    width: 25px;
+    height: 25px;
+    background-size: cover;
+    background-image: url('./email.png');
+}
+
+.email_logo a {
+    color: #000;
+    padding-left: 33px;
+    text-decoration: none;
+}
+
+.email_logo a:hover {
+    color: rgb(104, 99, 99);
+    text-decoration: none;
+}
+
+.phone_logo {
+    width: 20px;
+    height: 20px;
+    background-size: cover;
+    background-image: url('./phone-call.png');
+}
+
+.phone_logo_block {
+    margin-top: 5px;
+}
+
+.phone_logo a {
+    color: #000;
+    padding-left: 33px;
+    text-decoration: none;
+}
+
+.phone_logo a:hover {
+    color: rgb(104, 99, 99);
+    text-decoration: none;
+}
+
+.tg_logo_block {
+    display: flex;
+    margin-top: 5px;
+    /* width: 50%; */
+}
+
+.tg_logo {
+    width: 25px;
+    height: 25px;
+    background-size: cover;
+    background-image: url('./tg_bcg.png');
+}
+
+.tg_logo_block a {
+    text-decoration: none;
+    color: #000;
+    padding-left: 6px;
+}
+
+.viber_logo_block {
+    display: flex;
+    margin-left: -3px;
+    /* margin-top: 5px; */
+    /* width: 50%; */
+}
+
+.viber_logo {
+    width: 30px;
+    height: 30px;
+    background-size: cover;
+    background-image: url('./viber_bcg.png');
+}
+
+.viber_logo_block a {
+    text-decoration: none;
+    color: #000;
+    padding-left: 5px;
+}
+
+.whatsapp_logo_block {
+    display: flex;
+    margin-left: -3px;
+    margin-top: -5px;
+    /* margin-top: 5px; */
+    /* width: 50%; */
+}
+
+.whatsapp_logo {
+    width: 30px;
+    height: 30px;
+    background-size: cover;
+    background-image: url('./whatsapp_bcg.png');
+}
+
+.whatsapp_logo_block a {
+    text-decoration: none;
+    color: #000;
+    padding-left: 6px;
+}
