@@ -17,14 +17,17 @@ const CartButton = (props) => {
 
   const toggleHandler = () => { };
 
-  const content = !isLogged ?
+  const btnContent = !isLogged ?
     <Link to='/auth' className={classes.button} onClick={toggleHandler}>
       <span>Login</span>
     </Link> :
-    <Link className={classes.button} onClick={logoutHandler}>Logout</Link>;
+    <div>
+      <Link className={classes.button} to="/profile">Profile</Link>
+      <Link className={classes.button} onClick={logoutHandler}>Logout</Link>;
+    </div>;
 
   return (
-    content
+    btnContent
   );
 };
 

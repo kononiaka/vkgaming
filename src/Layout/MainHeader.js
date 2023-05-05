@@ -1,15 +1,15 @@
 import CartButton from '../UI/LoginBtn/CartButton';
-import { useContext } from 'react';
+// import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 
 import logo from '../image/logo.png';
-import AuthContext from '../store/auth-context';
+// import AuthContext from '../store/auth-context';
 
 import classes from './MainHeader.module.css';
 
 const MainHeader = (props) => {
-  const authCtx = useContext(AuthContext);
-  const isLogged = authCtx.isLogged;
+  // const authCtx = useContext(AuthContext);
+  // const isLogged = authCtx.isLogged;
 
   // const logoutHandler = () => {
   //   authCtx.logout();
@@ -31,11 +31,6 @@ const MainHeader = (props) => {
             <li><a href="/#">Players</a></li>
             <li><a href="/#">Leaderboard</a></li>
             <li><a href="/#">Contact</a></li>
-            {isLogged &&
-              <li>
-                <Link to='/profile'>Profile</Link>
-              </li>
-            }
             <li><CartButton /></li>
           </ul>
         </nav>
