@@ -6,8 +6,6 @@ import classes from "./Modal.module.css";
 
 const Modal = (props) => {
 
-    console.log('props', props);
-
     const Backdrop = () => {
         return <div className={classes.backdrop} onClick={props.onClick}></div >;
     };

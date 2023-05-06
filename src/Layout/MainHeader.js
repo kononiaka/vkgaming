@@ -30,7 +30,7 @@ const MainHeader = (props) => {
             <li><a href="/#">Videos</a></li>
             <li><a href="/#">Players</a></li>
             <li><a href="/#">Leaderboard</a></li>
-            <li><a href="/#">Contact</a></li>
+            <li><a href="/#">Tournaments</a></li>
             <li><CartButton /></li>
           </ul>
         </nav>
