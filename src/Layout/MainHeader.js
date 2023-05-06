@@ -16,7 +16,6 @@ const MainHeader = (props) => {
   // };
 
   return (
-
     <header className={classes.header}>
       <Link to='/'>
         <div className={classes.logo}>
@@ -26,11 +25,11 @@ const MainHeader = (props) => {
       <nav>
         <nav >
           <ul className={classes.navLink}>
-            <li><a href="/#">Games</a></li>
-            <li><a href="/#">Videos</a></li>
-            <li><a href="/#">Players</a></li>
-            <li><a href="/#">Leaderboard</a></li>
-            <li><a href="/#">Tournaments</a></li>
+            <li><a href="/aa">Games</a></li>
+            <li><a href="/aa">Videos</a></li>
+            <li><a href="/aa">Players</a></li>
+            <li><a href="/aa">Leaderboard</a></li>
+            <li><a href="/aa">Tournaments</a></li>
             <li><CartButton /></li>
           </ul>
         </nav>
