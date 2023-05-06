@@ -2,8 +2,8 @@
     width: 25px;
     /* height: 25px; */
     background-size: cover;
-    /* background-image: url('../ModalHelp/email.png'); */
-    margin-top: -10px;
+    background-image: url('../../UI/ModalHelp/email.png');
+    margin-top: -5px;
 }
 
 .email_logo a {
@@ -20,7 +20,7 @@
     width: 23px;
     height: 25px;
     background-size: cover;
-    /* background-image: url('../../img/facebook.svg'); */
+    background-image: url('../../image/facebook.svg');
 }
 
 .phone_logo_block {

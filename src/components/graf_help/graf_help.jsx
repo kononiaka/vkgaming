@@ -5,7 +5,7 @@ import classes from './modalGraf.module.css';
 const GrafHelp = (props) => {
     return (
         <Modal onClick={props.onClose} graf={props.graf} >
-            <p><b>Wanna same one?</b> Email Now:</p>
+            <p><b>Have any ideas how to make website better?</b> Email Now:</p>
             <div>
                 <div className={classes.email_logo}>
                     <a href="mailto:kononiaka.vladimir@gmail.com">kononiaka.vladimir@gmail.com</a>
