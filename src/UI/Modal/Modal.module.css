@@ -12,8 +12,9 @@
 .modal {
     position: fixed;
     top: 70vh;
-    left: calc(50% + 20rem);
-    width: 30em;
+    font-size: 10px;
+    left: calc(50% + 35rem);
+    width: 35em;
     background-color: white;
     padding: 1rem;
     border-radius: 14px;
@@ -22,7 +23,11 @@
     animation: slide-down 300ms ease-out forwards;
 }
 
-.submitModal {
+.modal a {
+    margin-top: 6px;
+}
+
+/* .submitModal {
     position: fixed;
     top: 25vh;
     left: calc(50% - 20rem);
@@ -46,7 +51,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     z-index: 30;
     animation: slide-down 300ms ease-out forwards;
-}
+} */
 
 /* 
 .submitModalCongrats {
@@ -101,6 +106,8 @@
 
 .modal_graf {
     position: fixed;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 16px;
     top: 40vh;
     left: calc(50% + 20rem);
     width: 30em;

@@ -1,3 +1,4 @@
+import React from 'react';
 import CartButton from '../UI/LoginBtn/CartButton';
 // import { useContext } from 'react';
 import { Link } from 'react-router-dom';
@@ -14,26 +15,38 @@ const MainHeader = (props) => {
   // const logoutHandler = () => {
   //   authCtx.logout();
   // };
-
   return (
     <header className={classes.header}>
-      <Link to='/'>
-        <div className={classes.logo}>
-          <img src={logo} alt="Logo" />
-        </div>
-      </Link>
-      <nav>
-        <nav >
-          <ul className={classes.navLink}>
-            <li><a href="/aa">Games</a></li>
-            <li><a href="/aa">Videos</a></li>
-            <li><a href="/aa">Players</a></li>
-            <li><a href="/aa">Leaderboard</a></li>
-            <li><a href="/aa">Tournaments</a></li>
-            <li><CartButton /></li>
+      <div>
+        <Link to='/'>
+          <div className={classes.logo} style={{ width: '300px', height: '45px' }}>
+            <img src={logo} alt="Logo" style={{ height: '100%' }} />
+          </div>
+        </Link>
+        <div className={classes["logo-credo"]}>Play with us!</div>
+      </div>
+      <ul className={classes.navLink}>
+        <li className={classes['navLink-item']}>
+          <Link to='/games' className={classes['navLink-link']}>Games</Link>
+          <ul className={classes['navLink-dropdown']}>
+            <Link to='/games/homm3' className={classes['navLink-dropdown-item']}>Heroes of Might & Magic III</Link>
+            <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link>
           </ul>
-        </nav>
-      </nav>
+        </li>
+        <li className={classes['navLink-item']}>
+          <Link to='/videos' className={classes['navLink-link']}>Videos</Link>
+        </li>
+        {/* <Link to='/players' className={classes['navLink-link']}>Players</Link> */}
+        <li className={classes['navLink-item']}>
+          <Link to='leaderboard' className={classes['navLink-link']}>Leaderboard</Link>
+        </li>
+        <li className={classes['navLink-item']}>
+          <Link to='/tournaments' className={classes['navLink-link']}>Tournaments</Link>
+        </li>
+        <li className={classes['navLink-item-btn']}>
+          <li className={classes['navLink-link']}><CartButton /></li>
+        </li>
+      </ul>
     </header>
   );
 };

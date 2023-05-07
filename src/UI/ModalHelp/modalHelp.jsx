@@ -5,15 +5,16 @@ import classes from './modalHelp.module.css';
 const ModalHelp = (props) => {
     return (
         <Modal onClick={props.onClose}>
-            <p><b>Need Help?</b> Reach or Email Now:</p>
-            <div>
-                <div className={classes.email_logo}>
-                    <a href="mailto:kononiaka.vladimir@gmail.com">kononiaka.vladimir@gmail.com</a>
-                </div>
+            <p><b >Need Help?</b> </p>
+            <p style={{ marginBottom: '15px' }}>Reach or Email Now:</p>
+            <div className={classes.discord_logo_block}>
+                <div className={classes.discord_logo}></div>
+                <a href="https://discord.gg/9edXZJZZ" target="_blank">Contact us in Discord</a>
+
             </div>
             <div className={classes.tg_logo_block}>
                 <div className={classes.tg_logo}></div>
-                <a href="https://t.me/vkgamingplay" target="_blank">Concact us in Telegram</a>
+                <a href="https://t.me/vkgamingplay" target="_blank">Contact us in Telegram</a>
             </div>
             <div className={classes.youtube_logo_block}>
                 <div className={classes.youtube_logo}></div>

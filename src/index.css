@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
 
 * {
@@ -5,7 +6,8 @@
 }
 
 html {
-  font-family: 'Noto Sans JP', sans-serif;
+  font-family: 'Press Start 2P';
+  font-size: 12px;
 }
 
 body {

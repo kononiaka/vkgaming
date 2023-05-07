@@ -1,7 +1,7 @@
 const NotFound = () => {
   return (
     <div className='centered'>
-      <p>Sorry. Page still in development!</p>
+      <p style={{ fontSize: '18px' }}>Sorry. Page still in development!</p>
     </div>
   );
 };

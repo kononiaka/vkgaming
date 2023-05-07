@@ -1,17 +1,23 @@
-.email_logo {
+.discord_logo_block {
+    display: flex;
+    margin-top: 5px;
+    /* width: 50%; */
+}
+
+.discord_logo {
     width: 25px;
     height: 25px;
     background-size: cover;
-    background-image: url('./email.png');
+    background-image: url('./discord.png');
 }
 
-.email_logo a {
+.discord_logo_block a {
     color: #000;
-    padding-left: 33px;
+    margin-left: 10px;
     text-decoration: none;
 }
 
-.email_logo a:hover {
+.discord_logo_block a:hover {
     color: rgb(104, 99, 99);
     text-decoration: none;
 }
@@ -32,12 +38,17 @@
 .tg_logo_block a {
     text-decoration: none;
     color: #000;
-    padding-left: 6px;
+    margin-left: 11px;
+}
+
+.tg_logo_block a:hover {
+    color: rgb(104, 99, 99);
+    text-decoration: none;
 }
 
 .youtube_logo_block {
     display: flex;
-    margin-top: 5px;
+    margin-top: 3px;
     /* width: 50%; */
 }
 
@@ -51,5 +62,10 @@
 .youtube_logo_block a {
     text-decoration: none;
     color: #000;
-    padding-left: 6px;
+    margin-left: 14px;
+}
+
+.youtube_logo_block a:hover {
+    color: rgb(104, 99, 99);
+    text-decoration: none;
 }
