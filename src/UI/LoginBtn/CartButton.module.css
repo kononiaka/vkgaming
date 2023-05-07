@@ -1,3 +1,7 @@
+.button-block {
+  width: 150px;
+}
+
 .button {
   font: inherit;
   cursor: pointer;

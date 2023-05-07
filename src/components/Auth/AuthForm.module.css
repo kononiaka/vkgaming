@@ -1,21 +1,22 @@
 .auth {
-  margin: 3rem auto;
+  margin: 10rem auto;
   width: 95%;
-  max-width: 25rem;
+  max-width: 35rem;
   border-radius: 6px;
   background-color: #38015c;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  padding: 1rem;
+  padding: 3rem;
   text-align: center;
 }
 
 .auth h1 {
   text-align: center;
   color: white;
+  margin-bottom: 50px;
 }
 
 .control {
-  margin-bottom: 0.5rem;
+  margin-bottom: 3rem;
 }
 
 .control label {
@@ -33,7 +34,7 @@
   border: 1px solid white;
   width: 100%;
   text-align: left;
-  padding: 0.25rem;
+  padding: 0.5rem;
 }
 
 .actions {
@@ -59,11 +60,12 @@
 }
 
 .actions .toggle {
-  margin-top: 1rem;
+  margin-top: 2rem;
   background-color: transparent;
   color: #9f5ccc;
   border: none;
   padding: 0.15rem 1.5rem;
+  font-size: 10px;
 }
 
 .actions .toggle:hover {

@@ -22,8 +22,8 @@ const CartButton = (props) => {
       <span>Login</span>
     </Link> :
     <div>
-      <Link className={classes.button} to="/profile">Profile</Link>
-      <Link className={classes.button} onClick={logoutHandler}>Logout</Link>;
+      <Link style={{ marginRight: '10px' }} className={classes.button} to="/profile">Profile</Link>
+      <Link className={classes.button} onClick={logoutHandler}>Logout</Link>
     </div>;
 
   return (

@@ -1,0 +1,17 @@
+.help-info {
+    padding: 50px;
+}
+
+.help-ico {
+    /* display: flex; */
+    position: fixed;
+    right: 40px;
+    bottom: 50px;
+    box-sizing: content-box;
+    width: 3%;
+    background-color: #fff;
+    border-radius: 50%;
+    border: 1px solid #38546E;
+    padding: 10px;
+    cursor: pointer;
+}
