@@ -6,6 +6,8 @@ import classes from "./Modal.module.css";
 
 const Modal = (props) => {
 
+    console.log(props.donate);
+
     const Backdrop = () => {
         return <div className={classes.backdrop} onClick={props.onClick}></div >;
     };
@@ -19,6 +21,9 @@ const Modal = (props) => {
         if (props.graf) {
             return <div className={classes.modal_graf}>{props.children}</div>;
         }
+        if (props.donate) {
+            return <div className={classes.modal_donate}>{props.children}</div>;
+        }
         return <div className={classes.modal}>{props.children}</div>;
     };
 
@@ -28,7 +33,9 @@ const Modal = (props) => {
             <Backdrop />
             <ModalOverlay
                 // onSubmit={props.onSubmit} onEnroll={props.onEnroll} 
-                graf={props.graf} onCongrats={props.onCongrats}>{props.children}</ModalOverlay>
+                graf={props.graf} onCongrats={props.onCongrats} donate={props.donate}>
+                {props.children}
+            </ModalOverlay>
         </Fragment>
     );
 };

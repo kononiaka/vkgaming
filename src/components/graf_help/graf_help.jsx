@@ -4,7 +4,7 @@ import classes from './modalGraf.module.css';
 
 const GrafHelp = (props) => {
     return (
-        <Modal onClick={props.onClose} graf={props.graf} >
+        <Modal onClick={props.onClose} graf={props.graf}>
             <p><b>Have any ideas how to make this website better?</b> <br /> Email Now:</p>
             <div>
                 <div className={classes.email_logo}>
