@@ -6,6 +6,7 @@ import GrafBanner from "../components/graf_banner/graf_banner";
 import GrafHelp from "../components/graf_help/graf_help";
 import ModalHelp from '../UI/ModalHelp/modalHelp';
 import ModalDonate from '../UI/modalDonate/modalDonate';
+import Notification from '../components/Notification/Notification';
 
 import help_ico from '../image/help_icon.png';
 import donate_ico from '../image/donation.png';
@@ -36,6 +37,7 @@ const Layout = (props) => {
   return (
     <Fragment>
       <MainHeader />
+      <Notification message="Congrats! You recieved 1 score point for the registration!" type="success" />;
       <Container>
         {props.children}
       </Container>
