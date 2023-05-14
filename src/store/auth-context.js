@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 const AuthContext = React.createContext({
     token: '',
     isLogged: false,
+    score: null,
     login: (token) => { },
     logout: () => { }
 });
@@ -41,7 +42,7 @@ let logoutTimer;
 export const AuthContextProvider = (props) => {
     const tokenData = retrieveInitToken();
 
-    console.log('tokenData', tokenData);
+    // console.log('tokenData', tokenData);
 
     let initToken;
     let userNickName;

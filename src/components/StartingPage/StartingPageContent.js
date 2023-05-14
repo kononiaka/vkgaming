@@ -6,7 +6,7 @@ import classes from './StartingPageContent.module.css';
 const StartingPageContent = () => {
   const authCtx = useContext(AuthContext);
   let { userNickName, isLogged } = authCtx;
-  console.log('StartingPageContent userNickName', userNickName);
+  // console.log('StartingPageContent userNickName', userNickName);
 
   if (userNickName === 'undefined') {
     userNickName = localStorage.getItem("userName");

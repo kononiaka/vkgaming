@@ -6,6 +6,7 @@ import Layout from './Layout/Layout';
 
 import HomePage from './pages/HomePage';
 import UserProfile from './components/Profile/UserProfile';
+import Leaderboard from './components/Leaderboard/Leaderboard';
 import { useContext } from 'react';
 import AuthPage from './pages/AuthPage';
 import AuthContext from './store/auth-context';
@@ -22,6 +23,7 @@ function App(props) {
     <div className={classes.main}>
       <Layout>
         <Routes>
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/" element={<HomePage />} />
           {!authCtx.isLogged && (
             <Route path="/auth" element={<AuthPage />} />

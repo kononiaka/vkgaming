@@ -5,9 +5,6 @@ import React, { Fragment } from 'react';
 import classes from "./Modal.module.css";
 
 const Modal = (props) => {
-
-    console.log(props.donate);
-
     const Backdrop = () => {
         return <div className={classes.backdrop} onClick={props.onClick}></div >;
     };
