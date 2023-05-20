@@ -21,7 +21,7 @@ function App(props) {
 
   return (
     <div className={classes.main}>
-      <Layout>
+      <Layout >
         <Routes>
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/" element={<HomePage />} />

@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useContext } from 'react';
 import React, { useState } from "react";
 import MainHeader from './MainHeader';
 import Container from './Container';
@@ -7,6 +7,7 @@ import GrafHelp from "../components/graf_help/graf_help";
 import ModalHelp from '../UI/ModalHelp/modalHelp';
 import ModalDonate from '../UI/modalDonate/modalDonate';
 import Notification from '../components/Notification/Notification';
+import AuthContext from '../store/auth-context';
 
 import help_ico from '../image/help_icon.png';
 import donate_ico from '../image/donation.png';
@@ -16,6 +17,8 @@ const Layout = (props) => {
   const [showGraf, setShowGraf] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showDonate, setShowDonate] = useState(false);
+
+  const authCtx = useContext(AuthContext);
 
   const helpHandler = () => {
     setShowHelp(true);
@@ -30,14 +33,17 @@ const Layout = (props) => {
     setShowHelp(false);
     setShowDonate(false);
   };
+
   const donateHandler = () => {
     setShowDonate(true);
   };
 
+  console.log('Layout js authCtx.notificationShown', authCtx.notificationShown);
+
   return (
     <Fragment>
       <MainHeader />
-      <Notification message="Congrats! You recieved 1 score point for the registration!" type="success" />;
+      {authCtx.notificationShown && <Notification message="Congrats! You recieved 1 score point for the registration!" type="success" />}
       <Container>
         {props.children}
       </Container>

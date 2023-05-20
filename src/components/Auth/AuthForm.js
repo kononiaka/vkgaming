@@ -34,13 +34,14 @@ const AuthForm = () => {
 
       const data = await response.json();
       await addScoreToUser(data.name, 1);
-      // authCtx.notificationShown = true;
+      authCtx.setNotificationShown(true);
     } catch (error) {
       console.error(error);
     }
   };
 
   const addScoreToUser = async (userId, score) => {
+    console.log('addScoreToUser started');
     try {
       const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
         method: 'PATCH',
@@ -50,6 +51,7 @@ const AuthForm = () => {
         }
       });
 
+      authCtx.notificationShown = true;
       await response.json();
     } catch (error) {
       console.error(error);
@@ -107,7 +109,6 @@ const AuthForm = () => {
       if (res.ok) {
         if (!isLogin) {
           let user = { enteredNickname, enteredEmail };
-
           addUserHandler(user);
         }
         return res.json();
