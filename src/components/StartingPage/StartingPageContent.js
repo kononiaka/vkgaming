@@ -5,16 +5,24 @@ import classes from './StartingPageContent.module.css';
 
 const StartingPageContent = () => {
   const authCtx = useContext(AuthContext);
-  let { userNickName, isLogged } = authCtx;
-  // console.log('StartingPageContent userNickName', userNickName);
+  let { userNickName, isLogged, notificationShown } = authCtx;
 
   if (userNickName === 'undefined') {
     userNickName = localStorage.getItem("userName");
   }
 
+  let greeting = '';
+  if (isLogged && !notificationShown) {
+    greeting = `Welcome on Board, ${userNickName} to VKGaming!`;
+  } else if (isLogged && notificationShown) {
+    greeting = `Welcome back, ${userNickName} to VKGaming!`;
+  } else {
+    greeting = `Welcome to VKGaming!`;
+  }
+
   return (
     <section className={classes.starting}>
-      <h1>{`Welcome ${isLogged ? `on Board, ${userNickName}` : 'to VKGaming'}!`}</h1>
+      <h1>{greeting}</h1>
     </section>
   );
 };
