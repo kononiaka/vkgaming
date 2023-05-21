@@ -12,9 +12,9 @@ const StartingPageContent = () => {
   }
 
   let greeting = '';
-  if (isLogged && !notificationShown) {
+  if (isLogged && notificationShown) {
     greeting = `Welcome on Board, ${userNickName} to VKGaming!`;
-  } else if (isLogged && notificationShown) {
+  } else if (isLogged && !notificationShown) {
     greeting = `Welcome back, ${userNickName} to VKGaming!`;
   } else {
     greeting = `Welcome to VKGaming!`;
