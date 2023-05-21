@@ -30,7 +30,7 @@ const MainHeader = (props) => {
           <Link to='/games' className={classes['navLink-link']}>Games</Link>
           <ul className={classes['navLink-dropdown']}>
             <Link to='/games/homm3' className={classes['navLink-dropdown-item']}>Heroes of Might & Magic III</Link>
-            <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link>
+            {/* <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link> */}
             <Link to='/games/civ_vi' className={classes['navLink-dropdown-item']}>Civilization VI</Link>
           </ul>
         </li>

@@ -14,6 +14,7 @@ import NotFound from './pages/NotFound';
 
 
 import classes from './App.module.css';
+import Heroes3Games from "./components/Games/Heroes3/Heroes3";
 
 
 function App(props) {
@@ -23,6 +24,7 @@ function App(props) {
     <div className={classes.main}>
       <Layout >
         <Routes>
+          <Route path="/games/homm3" element={<Heroes3Games />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/" element={<HomePage />} />
           {!authCtx.isLogged && (

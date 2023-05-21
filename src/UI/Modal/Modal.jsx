@@ -9,17 +9,15 @@ const Modal = (props) => {
         return <div className={classes.backdrop} onClick={props.onClick}></div >;
     };
     const ModalOverlay = (props) => {
-        // if (props.onSubmit && props.onEnroll && !props.onCongrats) {
-        //     return <div className={classes.submitModalEnroll}>{props.children}</div>;
-        // }
-        // if (props.onSubmit && !props.onEnroll) {
-        //     return <div className={classes.submitModal}>{props.children}</div>;
-        // }
+
         if (props.graf) {
             return <div className={classes.modal_graf}>{props.children}</div>;
         }
         if (props.donate) {
             return <div className={classes.modal_donate}>{props.children}</div>;
+        }
+        if (props.addGame) {
+            return <div className={classes.modal_addGame}>{props.children}</div>;
         }
         return <div className={classes.modal}>{props.children}</div>;
     };
@@ -30,7 +28,7 @@ const Modal = (props) => {
             <Backdrop />
             <ModalOverlay
                 // onSubmit={props.onSubmit} onEnroll={props.onEnroll} 
-                graf={props.graf} onCongrats={props.onCongrats} donate={props.donate}>
+                graf={props.graf} onCongrats={props.onCongrats} donate={props.donate} addGame={props.addGame}>
                 {props.children}
             </ModalOverlay>
         </Fragment>
