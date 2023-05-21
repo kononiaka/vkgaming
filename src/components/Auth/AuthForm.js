@@ -1,6 +1,8 @@
 import { useState, useRef, useContext } from 'react';
+
 import AuthContext from '../../store/auth-context';
 import { useNavigate } from 'react-router-dom';
+
 
 import classes from './AuthForm.module.css';
 
@@ -21,14 +23,39 @@ const AuthForm = () => {
   };
 
   const addUserHandler = async (user) => {
-    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
-      method: 'POST',
-      body: JSON.stringify(user),
-      'Content-Type': 'application/json'
-    });
+    try {
+      const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
+        method: 'POST',
+        body: JSON.stringify(user),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-    const data = await response.json();
-    console.log(data);
+      const data = await response.json();
+      await addScoreToUser(data.name, 1);
+      authCtx.setNotificationShown(true);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const addScoreToUser = async (userId, score) => {
+    console.log('addScoreToUser started');
+    try {
+      const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ score }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      authCtx.notificationShown = true;
+      await response.json();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const lookForNickname = async (email) => {
@@ -63,7 +90,6 @@ const AuthForm = () => {
     } else {
       //SIGNUP
       url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
-
     }
     fetch(url, {
       method: "POST",
@@ -83,10 +109,8 @@ const AuthForm = () => {
       if (res.ok) {
         if (!isLogin) {
           let user = { enteredNickname, enteredEmail };
-
           addUserHandler(user);
         }
-
         return res.json();
       } else {
         return res.json().then((data) => {

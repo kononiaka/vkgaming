@@ -119,10 +119,25 @@
     animation: slide-left 300ms ease-out forwards;
 }
 
+.modal_donate {
+    position: fixed;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 16px;
+    bottom: 15vh;
+    right: calc(50% + 25rem);
+    width: 30em;
+    background-color: white;
+    padding: 1rem 1rem 1rem 3rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    animation: slide-left 300ms ease-out forwards;
+}
+
 @keyframes slide-left {
     from {
         opacity: 0;
-        transform: translateX(3rem);
+        transform: translateX(-5rem);
     }
 
     to {
