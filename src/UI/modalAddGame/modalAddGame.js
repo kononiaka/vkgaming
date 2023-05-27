@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { addScoreToUser, lookForUserId, lookForUserPrevScore } from '../../api/api';
 import Modal from '../Modal/Modal';
 
@@ -13,23 +13,23 @@ function AddGameModal(props) {
     const [opponent2Castle, setOpponent2Castle] = useState('');
     const [opponent2Score, setOpponent2Score] = useState('');
     const [opponentList, setOpponentList] = useState([]);
-    const [gameName, setGameName] = useState('');
+    let [gameName, setGameName] = useState('');
     const [gameType, setGameType] = useState('');
-    const [score, setScore] = useState("");
-    const [winner, setWinner] = useState("");
+    const [score, setScore] = useState('');
+    const [winner, setWinner] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
     const castleTypes = [
-        "Castle-Замок",
-        "Rampart-Оплот",
-        "Tower-Башня",
-        "Inferno-Инферно",
-        "Necropolis-Некрополис",
-        "Dungeon-Подземелье",
-        "Stronghold-Цитадель",
-        "Fortress-Болото",
-        "Conflux-Сопряжение",
-        "Cove-Пиратская бухта"
+        'Castle-Замок',
+        'Rampart-Оплот',
+        'Tower-Башня',
+        'Inferno-Инферно',
+        'Necropolis-Некрополис',
+        'Dungeon-Подземелье',
+        'Stronghold-Цитадель',
+        'Fortress-Болото',
+        'Conflux-Сопряжение',
+        'Cove-Пиратская бухта'
     ];
 
     const gameNameRef = useRef(null);
@@ -109,7 +109,7 @@ function AddGameModal(props) {
     const handleSave = async () => {
         // Save game data to database
 
-        const gameName = gameNameRef.current.value;
+        gameName = gameNameRef.current.value;
 
         let game = {
             opponent1: opponent1,
@@ -123,13 +123,13 @@ function AddGameModal(props) {
             winner: winner
         };
 
-        console.log('opponent1Score', opponent1Score);
-        console.log('opponent2Score', opponent2Score);
+        // console.log('opponent1Score', opponent1Score);
+        // console.log('opponent2Score', opponent2Score);
 
         const opponent1Id = await lookForUserId(opponent1);
         const opponent2Id = await lookForUserId(opponent2);
-        console.log('opponent1Id', opponent1Id);
-        console.log('opponent2Id', opponent2Id);
+        // console.log('opponent1Id', opponent1Id);
+        // console.log('opponent2Id', opponent2Id);
 
         const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json', {
             method: 'POST',
@@ -142,14 +142,22 @@ function AddGameModal(props) {
         await response.json();
 
         // Add score to players
-        const opponent1PrevScore = await lookForUserPrevScore(opponent1Id);
-        const opponent2PrevScore = await lookForUserPrevScore(opponent2Id);
+        const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
+        const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
 
-        console.log('score1', opponent1PrevScore);
-        console.log('score2', opponent2PrevScore);
+        console.log('score1', opponent1PrevData);
+        console.log('score2', opponent2PrevData);
 
-        await addScoreToUser(opponent1Id, Number(opponent1PrevScore) + Number(opponent1Score));
-        await addScoreToUser(opponent2Id, Number(opponent2PrevScore) + Number(opponent2Score));
+        await addScoreToUser(
+            opponent1Id,
+            Number(opponent1PrevData.score) + Number(opponent1Score),
+            Number(opponent1PrevData.games) + 1
+        );
+        await addScoreToUser(
+            opponent2Id,
+            Number(opponent2PrevData.score) + Number(opponent2Score),
+            Number(opponent1PrevData.games) + 1
+        );
 
         props.onClose();
     };
@@ -177,7 +185,7 @@ function AddGameModal(props) {
                     </select>
                     <br />
                     <label htmlFor="opponent1">Opponent #1:</label>
-                    <select id="opponent1" value={opponent1} onChange={handleOpponent1Change} >
+                    <select id="opponent1" value={opponent1} onChange={handleOpponent1Change}>
                         <option value="">Opponent #1</option>
                         {opponentList.map((opponent) => (
                             <option key={opponent} value={opponent}>
@@ -185,7 +193,7 @@ function AddGameModal(props) {
                             </option>
                         ))}
                     </select>
-                    <select id="opponent1Castle" value={opponent1Castle} onChange={handleOpponent1CastleChange} >
+                    <select id="opponent1Castle" value={opponent1Castle} onChange={handleOpponent1CastleChange}>
                         <option value="">Castle Opponent #1</option>
                         {castleTypes.map((castle) => (
                             <option key={castle} value={castle}>
@@ -195,7 +203,7 @@ function AddGameModal(props) {
                     </select>
                     <br />
                     <label htmlFor="opponent2">Opponent #2:</label>
-                    <select id="opponent2" value={opponent2} onChange={handleOpponent2Change} >
+                    <select id="opponent2" value={opponent2} onChange={handleOpponent2Change}>
                         <option value="">Opponent #2</option>
                         {opponentList.map((opponent) => (
                             <option key={opponent} value={opponent}>
@@ -203,7 +211,7 @@ function AddGameModal(props) {
                             </option>
                         ))}
                     </select>
-                    <select id="opponent2Castle" value={opponent2Castle} onChange={handleOpponent2CastleChange} >
+                    <select id="opponent2Castle" value={opponent2Castle} onChange={handleOpponent2CastleChange}>
                         <option value="">Castle Opponent #2</option>
                         {castleTypes.map((castle) => (
                             <option key={castle} value={castle}>

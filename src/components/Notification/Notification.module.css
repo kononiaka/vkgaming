@@ -18,6 +18,9 @@
 .custom-notification-success {
     background-color: #4caf50;
 }
+.custom-notification-warning {
+    background-color: #e48e1f;
+}
 
 .custom-notification-error {
     background-color: #f44336;

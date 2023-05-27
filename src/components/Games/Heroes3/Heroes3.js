@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import classes from './Heroes3.module.css';
 
 const Heroes3Games = () => {
-    const [games, setGames] = useState([]);
+    let [games, setGames] = useState([]);
 
     useEffect(() => {
         // Fetch Heroes 3 games from database
@@ -12,7 +12,7 @@ const Heroes3Games = () => {
                 const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json');
                 const data = await response.json();
 
-                const games = Object.entries(data).map(([id, game]) => ({
+                games = Object.entries(data).map(([id, game]) => ({
                     id: id,
                     date: game.date,
                     gameName: game.gameName,
@@ -40,11 +40,15 @@ const Heroes3Games = () => {
         <div>
             <h2>Heroes 3 Games</h2>
             <ul className={classes['games-list']}>
-                {games.map(game => (
+                {games.map((game) => (
                     <li key={game.id}>
                         <p>Date: {game.date}</p>
-                        <p>Opponent 1: {game.opponent1} {game.opponent1Castle}</p>
-                        <p>Opponent 2: {game.opponent2} {game.opponent2Castle}</p>
+                        <p>
+                            Opponent 1: {game.opponent1} {game.opponent1Castle}
+                        </p>
+                        <p>
+                            Opponent 2: {game.opponent2} {game.opponent2Castle}
+                        </p>
                         <p>Score: {game.score}</p>
                         <p>Winner: {game.winner}</p>
                     </li>
