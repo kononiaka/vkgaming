@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { addScoreToUser, lookForUserId, lookForUserPrevScore } from '../../api/api';
+import { addScoreToUser, lookForCastleStats, lookForUserId, lookForUserPrevScore } from '../../api/api';
 import Modal from '../Modal/Modal';
 
 import classes from './modalAddGame.module.css';
@@ -123,13 +123,12 @@ function AddGameModal(props) {
             winner: winner
         };
 
-        // console.log('opponent1Score', opponent1Score);
-        // console.log('opponent2Score', opponent2Score);
+        let winnerId = null;
+        let winnerCastle = null;
+        let lostCastle = null;
 
         const opponent1Id = await lookForUserId(opponent1);
         const opponent2Id = await lookForUserId(opponent2);
-        // console.log('opponent1Id', opponent1Id);
-        // console.log('opponent2Id', opponent2Id);
 
         const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json', {
             method: 'POST',
@@ -141,23 +140,24 @@ function AddGameModal(props) {
 
         await response.json();
 
-        // Add score to players
+        if (opponent1 === winner) {
+            winnerId = opponent1Id;
+            winnerCastle = opponent1Castle;
+            lostCastle = opponent2Castle;
+        } else if (opponent2 === winner) {
+            winnerId = opponent2Id;
+            winnerCastle = opponent2Castle;
+            lostCastle = opponent1Castle;
+        }
+
+        lookForCastleStats(winnerCastle, 'win');
+        lookForCastleStats(lostCastle, 'lost');
+
         const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
         const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
 
-        console.log('score1', opponent1PrevData);
-        console.log('score2', opponent2PrevData);
-
-        await addScoreToUser(
-            opponent1Id,
-            Number(opponent1PrevData.score) + Number(opponent1Score),
-            Number(opponent1PrevData.games) + 1
-        );
-        await addScoreToUser(
-            opponent2Id,
-            Number(opponent2PrevData.score) + Number(opponent2Score),
-            Number(opponent1PrevData.games) + 1
-        );
+        await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
+        await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
         props.onClose();
     };

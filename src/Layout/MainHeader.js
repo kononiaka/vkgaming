@@ -29,19 +29,29 @@ const MainHeader = (props) => (
                 <Link to="/games" className={classes['navLink-link']}>
                     Games
                 </Link>
-                <ul className={classes['navLink-dropdown']}>
+                <div className={classes['navLink-dropdown']}>
                     <Link to="/games/homm3" className={classes['navLink-dropdown-item']}>
                         Heroes of Might & Magic III
                     </Link>
+                    <div className={classes['navLink-dropdown-statistic']}>
+                        <Link to="/games/homm3/statistics" className={classes['navLink-dropdown-statistic-item']}>
+                            Statistics
+                        </Link>
+                    </div>
                     {/* <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link> */}
                     <Link to="/games/civ_vi" className={classes['navLink-dropdown-item']}>
                         Civilization VI
                     </Link>
-                </ul>
+                </div>
             </li>
             <li className={classes['navLink-item']}>
                 <Link to="/videos" className={classes['navLink-link']}>
                     Videos
+                </Link>
+            </li>
+            <li className={classes['navLink-item']}>
+                <Link to="/players" className={classes['navLink-link']}>
+                    Players
                 </Link>
             </li>
             {/* <Link to='/players' className={classes['navLink-link']}>Players</Link> */}
@@ -54,23 +64,23 @@ const MainHeader = (props) => (
                 <Link to="/tournaments" className={classes['navLink-link']}>
                     Tournaments
                 </Link>
-                <ul className={classes['navLink-dropdown']}>
+                <div className={classes['navLink-dropdown']}>
                     <Link to="/tournaments/homm3" className={classes['navLink-dropdown-item']}>
                         Heroes of Might & Magic III
                     </Link>
                     <Link to="/tournaments/civ_vi" className={classes['navLink-dropdown-item']}>
                         Civilization VI
                     </Link>
-                    <Link to="/tournaments/cs_go" className={classes['navLink-dropdown-item']}>
+                    {/* <Link to="/tournaments/cs_go" className={classes['navLink-dropdown-item']}>
                         Counter-Strike
-                    </Link>
-                </ul>
+                    </Link> */}
+                </div>
             </li>
-            <li className={classes['navLink-item-btn']}>
+            <ul className={classes['navLink-item-btn']}>
                 <li className={classes['navLink-link']}>
                     <CartButton />
                 </li>
-            </li>
+            </ul>
         </ul>
     </header>
 );

@@ -1,11 +1,18 @@
-export const addScoreToUser = async (userId, score, games) => {
-    console.log('userId', userId);
-    console.log('score', score);
-    console.log('games', games);
+export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
+    const { score, games } = data;
     try {
         const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
             method: 'PATCH',
-            body: JSON.stringify({ score, playedGames: { heroes3: games } }),
+            body: JSON.stringify({
+                score: Number(score) + Number(scoreToAdd),
+                gamesPlayed: {
+                    heroes3: {
+                        total: games.heroes3.total + 1,
+                        win: userId === winner ? games.heroes3.win + 1 : null,
+                        lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
+                    }
+                }
+            }),
             headers: {
                 'Content-Type': 'application/json'
             }
@@ -26,8 +33,6 @@ export const lookForUserId = async (nickname) => {
 
     const userObj = Object.entries(data).find(([id, obj]) => obj.enteredNickname === nickname);
 
-    // console.log('userObj upd', userObj);
-
     if (userObj) {
         return userObj[0]; // Return the ID of the matching user object
     } else {
@@ -43,13 +48,52 @@ export const lookForUserPrevScore = async (userId) => {
 
     const data = await response.json();
 
-    console.log('data', data);
-    console.log('data gamesPlayed', data.gamesPlayed.heroes3);
-
     if (data && data.score) {
         results.score = data.score; // Return the score of the user object
-        results.games = data.gamesPlayed.heroes3;
+        results.games = data.gamesPlayed;
     }
 
     return results;
+};
+
+export const lookForCastleStats = async (castle, action) => {
+    let body;
+    const response = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${castle}.json`,
+        {
+            method: 'GET'
+        }
+    );
+
+    const castleData = await response.json();
+    if (action === 'win') {
+        body = JSON.stringify({
+            total: castleData.total + 1,
+            win: castleData.win + 1,
+            lose: castleData.lose
+        });
+    } else {
+        body = JSON.stringify({
+            total: castleData.total + 1,
+            win: castleData.win,
+            lose: castleData.lose + 1
+        });
+    }
+
+    try {
+        const response = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${castle}.json`,
+            {
+                method: 'PATCH',
+                body: body,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        return await response.json();
+    } catch (error) {
+        console.error(error);
+    }
 };

@@ -9,7 +9,9 @@ const Heroes3Games = () => {
         // Fetch Heroes 3 games from database
         const fetchGamesList = async () => {
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json');
+                const response = await fetch(
+                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
+                );
                 const data = await response.json();
 
                 games = Object.entries(data).map(([id, game]) => ({
@@ -25,7 +27,7 @@ const Heroes3Games = () => {
                     winner: game.winner
                 }));
 
-                console.log('games', games);
+                // console.log('games', games);
 
                 setGames(games);
             } catch (error) {

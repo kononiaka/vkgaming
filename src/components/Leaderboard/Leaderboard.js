@@ -17,7 +17,7 @@ const Leaderboard = () => {
                     id,
                     enteredNickname: player.enteredNickname,
                     score: player.score,
-                    games: player.gamesPlayed.heroes3
+                    games: player.gamesPlayed.heroes3.total
                 }));
                 scores.sort((a, b) => b.score - a.score);
                 setPlayerScores(scores);
