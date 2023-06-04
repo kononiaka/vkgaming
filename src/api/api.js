@@ -24,14 +24,22 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
     }
 };
 
-export const lookForUserId = async (nickname) => {
+export const lookForUserId = async (nickname, full) => {
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
         method: 'GET'
     });
 
     const data = await response.json();
 
+    // console.log('lookForUserId', nickname);
+
     const userObj = Object.entries(data).find(([id, obj]) => obj.enteredNickname === nickname);
+
+    if (full === 'full') {
+        if (userObj) {
+            return { name: userObj[1].enteredNickname };
+        }
+    }
 
     if (userObj) {
         return userObj[0]; // Return the ID of the matching user object

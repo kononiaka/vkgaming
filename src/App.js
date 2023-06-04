@@ -9,6 +9,7 @@ import Heroes3Games from './components/Games/Heroes3/Heroes3';
 import Heroes3Stats from './components/Games/Heroes3/Stats/Heroes3Stats';
 import Leaderboard from './components/Leaderboard/Leaderboard';
 import UserProfile from './components/Profile/UserProfile';
+import TournamentList from './components/tournaments/homm3/Tournaments';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
@@ -16,7 +17,7 @@ import AuthContext from './store/auth-context';
 
 import classes from './App.module.css';
 
-function App(props) {
+function App() {
     const authCtx = useContext(AuthContext);
 
     return (
@@ -24,6 +25,8 @@ function App(props) {
             <Layout>
                 <Routes>
                     <Route path="/games/homm3" element={<Heroes3Games />} />
+                    <Route path="/tournaments/homm3" element={<TournamentList />} />
+                    {/* <Route path="/tournaments/homm3" element={<Heroes3Games />} /> */}
                     <Route path="/games/homm3/statistics" element={<Heroes3Stats />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />
                     <Route path="/" element={<HomePage />} />

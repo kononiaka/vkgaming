@@ -41,7 +41,7 @@ const Heroes3Games = () => {
     return (
         <div>
             <h2>Heroes 3 Games</h2>
-            <ul className={classes['games-list']}>
+            <ul className={`${classes['games-list']} ${classes['scrollable-list']}`}>
                 {games.map((game) => (
                     <li key={game.id}>
                         <p>Date: {game.date}</p>

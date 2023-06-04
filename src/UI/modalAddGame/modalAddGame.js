@@ -130,7 +130,7 @@ function AddGameModal(props) {
         const opponent1Id = await lookForUserId(opponent1);
         const opponent2Id = await lookForUserId(opponent2);
 
-        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json', {
+        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
             method: 'POST',
             body: JSON.stringify(game),
             headers: {
