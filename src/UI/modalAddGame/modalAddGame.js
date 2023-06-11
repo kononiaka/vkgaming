@@ -160,6 +160,7 @@ function AddGameModal(props) {
         await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
         props.onClose();
+        window.location.reload();
     };
 
     return (

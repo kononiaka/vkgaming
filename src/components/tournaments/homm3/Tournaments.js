@@ -9,7 +9,9 @@ const TournamentList = () => {
     const [tournamentId, setTournamentId] = useState([]);
     const [showDetails, setShowDetails] = useState(false);
     const authCtx = useContext(AuthContext);
-    let { userNickName } = authCtx;
+    let { userNickName, isLogged } = authCtx;
+
+    console.log('isLogged', isLogged);
 
     const fetchTournaments = async () => {
         try {
@@ -102,9 +104,11 @@ const TournamentList = () => {
                                         <p>You are already registered!</p>
                                     </div>
                                 ) : (
-                                    <button onClick={() => addUserTournament(tournamentId, userNickName)}>
-                                        Register
-                                    </button>
+                                    isLogged && (
+                                        <button onClick={() => addUserTournament(tournamentId, userNickName)}>
+                                            Register
+                                        </button>
+                                    )
                                 )
                             ) : (
                                 <p>Registration finished!</p>
@@ -114,9 +118,11 @@ const TournamentList = () => {
                             ) : (
                                 <>
                                     <p>No players registered.</p>
-                                    <button onClick={() => addUserTournament(tournamentId, userNickName)}>
-                                        Register
-                                    </button>
+                                    {isLogged && (
+                                        <button onClick={() => addUserTournament(tournamentId, userNickName)}>
+                                            Register
+                                        </button>
+                                    )}
                                 </>
                             )}
                         </li>
@@ -133,7 +139,9 @@ const TournamentList = () => {
             <h2>Current Tournaments</h2>
             {/* <h2>Future Tournaments</h2> */}
             {tournamentList}
-            {showDetails && <TournamentBracket maxPlayers={currentPlayers}></TournamentBracket>}
+            {showDetails && (
+                <TournamentBracket maxPlayers={currentPlayers} tournamentId={tournamentId}></TournamentBracket>
+            )}
         </div>
     );
 };
