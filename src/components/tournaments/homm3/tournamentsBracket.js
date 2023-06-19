@@ -32,14 +32,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             labels = ['1/16 Final', '1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
         }
 
-        // setStageLabels(labels);
+        setStageLabels(labels);
 
         setGamesPerStage({
-            '1/8 Final': 8,
-            'Quater-final': 4,
-            'Semi-final': 2,
-            'Third Place': 1,
-            Final: 1,
+            '1/32 Final': 64,
+            '1/16 Final': 32,
+            '1/8 Final': 16,
+            'Quater-final': 8,
+            'Semi-final': 4,
+            'Third Place': 2,
+            Final: 2,
             Winner: 1
         });
     }, [maxPlayers]);
@@ -49,40 +51,43 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
         setShuffledNames([...uniquePlayerNames]);
     }, [uniquePlayerNames]);
 
-    useEffect(() => {
-        // console.log('==============playoffPairs==============', playoffPairs);
-    }, [playoffPairs]);
-
     const shuffleArray = () => {
         const shuffledArray = [...shuffledNames];
+        const remainingPlayers = maxPlayers.length - shuffledNames.length;
+
+        // Check if there are remaining spots and add players as TBA
+        if (remainingPlayers > 0) {
+            for (let i = 0; i < remainingPlayers; i++) {
+                shuffledArray.push('TBA');
+            }
+        }
+
         for (let i = shuffledArray.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
         }
-        setShuffledNames(shuffledArray);
+        setShuffledNames([...shuffledArray]); // Update the state with the shuffled array
+        setPlayoffPairs(shuffledNames);
+        createPlayoffPairs();
     };
 
     useEffect(() => {
         const fetchPlayoffPairs = async () => {
             try {
                 const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/pairs/.json`
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
 
                 if (response.ok) {
                     const data = await response.json();
-                    const key = Object.keys(data)[0];
 
-                    console.log('data[key]', data[key]);
-
-                    let semiFinals = data[key].playoffPairs[0];
-                    let stageLabelsArray = data[key].stageLabels;
-                    console.log('quarterFinals', semiFinals);
-                    console.log('stageLabelsArray', stageLabelsArray);
-
-                    // const updatedPairs = [data['0'], data['1']];
-                    setPlayoffPairs(data[key].playoffPairs);
-                    setStageLabels(data[key].stageLabels);
+                    if (data === null) {
+                        return false;
+                        // Tournament registration hasn't started
+                    }
+                    setStartTournament(true);
+                    // Parse the object
+                    setPlayoffPairs(data?.playoffPairs);
                 } else {
                     console.log('Failed to fetch playoff pairs');
                 }
@@ -90,11 +95,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                 console.error('Error fetching playoff pairs:', error);
             }
         };
-
         fetchPlayoffPairs();
     }, []);
 
-    useEffect(() => {
+    const createPlayoffPairs = () => {
         const updatedPairs = [];
         stageLabels.forEach((stage, index) => {
             const numGames = gamesPerStage[stage];
@@ -102,9 +106,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
 
             for (let i = 0; i < numGames; i++) {
                 let team1 = 'TBA';
-                let score1 = undefined;
+                let score1 = 0;
                 let team2 = 'TBA';
-                let score2 = undefined;
+                let score2 = 0;
 
                 if (index === 0) {
                     team1 = shuffledNames[i * 2] || 'TBA';
@@ -119,10 +123,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             }
 
             updatedPairs.push(pairs);
+            console.log('updatedPairs', updatedPairs);
         });
 
-        // setPlayoffPairs(updatedPairs);
-    }, [stageLabels, gamesPerStage, shuffledNames]);
+        setPlayoffPairs(updatedPairs);
+    };
+    // [stageLabels, gamesPerStage, shuffledNames]);
 
     // useEffect(() => {
     //     shuffleArray(uniquePlayerNames);
@@ -132,9 +138,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
         const score1 = parseInt(pair.score1) || 0;
         const score2 = parseInt(pair.score2) || 0;
 
-        if (score1 < score2) {
+        if (score1 > score2) {
             return `${pair.team1} wins`;
-        } else if (score1 > score2) {
+        } else if (score1 < score2) {
             return `${pair.team2} wins`;
         } else {
             return 'Tie';
@@ -154,9 +160,39 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
 
         try {
             const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/pairs/.json`,
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
                 {
                     method: 'POST',
+                    body: JSON.stringify(tournamentData),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (response.ok) {
+                console.log('Pairs posted to Firebase successfully');
+            } else {
+                console.log('Failed to post pairs to Firebase');
+            }
+        } catch (error) {
+            console.error('Error posting pairs to Firebase:', error);
+        }
+    };
+
+    const updateTournament = async () => {
+        // playoffPairs()
+        const tournamentData = {
+            playoffPairs: playoffPairs
+        };
+
+        console.log('tournamentData', tournamentData);
+
+        try {
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                {
+                    method: 'PUT',
                     body: JSON.stringify(tournamentData),
                     headers: {
                         'Content-Type': 'application/json'
@@ -181,12 +217,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
 
             if (teamIndex === 1) {
                 pair.score1 = newScore;
-                console.log('pair1', pair);
-                console.log('pair.score1', pair.score1);
             } else if (teamIndex === 2) {
-                console.log('pair2', pair);
                 pair.score2 = newScore;
-                console.log('pair.score2', pair.score2);
             }
 
             if (pair.score1 !== null && pair.score2 !== null) {
@@ -198,47 +230,57 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     };
 
     return (
-        <div className={classes['scrollable-list']}>
+        <div className={`${classes['scrollable-list']} ${classes['brackets']}`}>
             {!startTournament && <button onClick={handleStartTournament}>Start Tournament</button>}
             {!startTournament && <button onClick={() => shuffleArray(uniquePlayerNames)}>Shuffle</button>}
-            {stageLabels.map((stage, index) => (
-                <div key={stage} className={`${classes.brackets} ${index === currentStageIndex ? classes.active : ''}`}>
-                    <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
-                    {playoffPairs[index]?.map((pair, pairIndex) => (
-                        <div key={pairIndex}>
-                            <p>{`Match ${pairIndex + 1}`}</p>
-                            <div>
-                                <label htmlFor={`score-team1-${pairIndex}`}>{pair.team1}</label>
-                                <input
-                                    type="text"
-                                    id={`score-team1-${pairIndex}`}
-                                    value={pair.score1 || ''}
-                                    onChange={(event) => handleScoreChange(pairIndex, 1, event.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor={`score-team2-${pairIndex}`}>{pair.team2}</label>
-                                <input
-                                    type="text"
-                                    id={`score-team2-${pairIndex}`}
-                                    value={pair.score2 || ''}
-                                    onChange={(event) => handleScoreChange(pairIndex, 2, event.target.value)}
-                                />
-                            </div>
+            {startTournament && <button onClick={() => updateTournament()}>Update Tournament</button>}
+            {stageLabels.length === 0 ? (
+                <h6>Tournament registration hasn't started</h6>
+            ) : (
+                stageLabels.map((stage, index) => {
+                    console.log('playoffPairs', playoffPairs);
+                    return (
+                        <div
+                            key={stage}
+                            className={`${classes.brackets} ${index === currentStageIndex ? classes.active : ''}`}
+                        >
+                            <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
+                            {playoffPairs[index]?.map((pair, pairIndex) => {
+                                const { team1, team2, score1, score2 } = pair;
+                                return (
+                                    <div key={pairIndex}>
+                                        <p>{`Match ${pairIndex + 1}`}</p>
+                                        <div>
+                                            <label htmlFor={`score-team1-${pairIndex}`}>{team1}</label>
+                                            <input
+                                                type="text"
+                                                id={`score-team1-${pairIndex}`}
+                                                value={score1}
+                                                onChange={(event) =>
+                                                    handleScoreChange(pairIndex, 1, event.target.value)
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor={`score-team2-${pairIndex}`}>{team2}</label>
+                                            <input
+                                                type="text"
+                                                id={`score-team2-${pairIndex}`}
+                                                value={score2}
+                                                onChange={(event) =>
+                                                    handleScoreChange(pairIndex, 2, event.target.value)
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    ))}
-                </div>
-            ))}
+                    );
+                })
+            )}
         </div>
     );
-};
-
-export const checkRegisterUser = (authCtx, players) => {
-    console.log('players', players);
-    let { userNickName } = authCtx;
-    console.log(userNickName);
-
-    return true;
 };
 
 export const renderPlayerList = (players) => {
@@ -250,6 +292,7 @@ export const renderPlayerList = (players) => {
         if (!uniquePlayerNames.includes(name) && name) {
             uniquePlayerNames.push(name);
         }
+        console.log('uniquePlayerNames', uniquePlayerNames);
     });
 
     return (
