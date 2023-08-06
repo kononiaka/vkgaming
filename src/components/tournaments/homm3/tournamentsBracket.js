@@ -35,13 +35,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
         setStageLabels(labels);
 
         setGamesPerStage({
-            '1/32 Final': 64,
-            '1/16 Final': 32,
-            '1/8 Final': 16,
-            'Quater-final': 8,
-            'Semi-final': 4,
-            'Third Place': 2,
-            Final: 2,
+            '1/32 Final': 32,
+            '1/16 Final': 16,
+            '1/8 Final': 8,
+            'Quater-final': 4,
+            'Semi-final': 2,
+            'Third Place': 1,
+            Final: 1,
             Winner: 1
         });
     }, [maxPlayers]);
@@ -139,9 +139,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
         const score2 = parseInt(pair.score2) || 0;
 
         if (score1 > score2) {
-            return `${pair.team1} wins`;
+            return `${pair.team1}`;
         } else if (score1 < score2) {
-            return `${pair.team2} wins`;
+            return `${pair.team2}`;
         } else {
             return 'Tie';
         }
@@ -181,7 +181,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     };
 
     const updateTournament = async () => {
-        // playoffPairs()
         const tournamentData = {
             playoffPairs: playoffPairs
         };
@@ -202,12 +201,79 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
 
             if (response.ok) {
                 console.log('Pairs posted to Firebase successfully');
+
+                retrieveWinnersFromDatabase();
             } else {
                 console.log('Failed to post pairs to Firebase');
             }
         } catch (error) {
             console.error('Error posting pairs to Firebase:', error);
         }
+    };
+
+    const retrieveWinnersFromDatabase = async () => {
+        try {
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+
+                let collectedPlayoffPairs = data?.playoffPairs || [];
+                let firstStagePlayoffPairs = collectedPlayoffPairs[0];
+
+                console.log('firstStagePlayoffPairs', firstStagePlayoffPairs);
+
+                // Collect the winners from the playoffPairs data
+                const winners = firstStagePlayoffPairs.map((pair) => pair.winner);
+
+                console.log('Winners:', winners);
+
+                // // Process the winners and determine the next stage pairings
+                const nextStagePairings = determineNextStagePairings(winners);
+
+                console.log('nextStagePairings', nextStagePairings);
+
+                collectedPlayoffPairs[1] = nextStagePairings;
+
+                console.log('collectedPlayoffPairs[1]', collectedPlayoffPairs[1]);
+                console.log('collectedPlayoffPairs-hererere', collectedPlayoffPairs);
+
+                setPlayoffPairs(collectedPlayoffPairs);
+
+                // // Update the pairings for the next stage in the database
+                // await updateNextStagePairingsInDatabase(nextStagePairings);
+
+                // // Optionally, update the state in your application to reflect the updated pairings
+                // setPlayoffPairs(nextStagePairings);
+
+                // console.log('Next stage pairings:', nextStagePairings);
+            } else {
+                console.log('Failed to retrieve winners from the database');
+            }
+        } catch (error) {
+            console.error('Error retrieving winners from the database:', error);
+        }
+    };
+
+    // Example functions for processing winners and updating the next stage pairings in the database
+    const determineNextStagePairings = (winners) => {
+        const nextPairings = [];
+
+        // Iterate through the winners array and create pairings for the next stage
+        for (let i = 0; i < winners.length; i += 2) {
+            const pair = {
+                team1: winners[i] || 'TBA',
+                team2: winners[i + 1] || 'TBA',
+                score1: undefined,
+                score2: undefined
+            };
+
+            nextPairings.push(pair);
+        }
+
+        return nextPairings;
     };
 
     const handleScoreChange = (pairIndex, teamIndex, newScore) => {
@@ -239,6 +305,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             ) : (
                 stageLabels.map((stage, index) => {
                     console.log('playoffPairs', playoffPairs);
+                    console.log('stage', stage);
+                    console.log('currentStageIndex', currentStageIndex);
                     return (
                         <div
                             key={stage}
@@ -246,11 +314,23 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                         >
                             <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
                             {playoffPairs[index]?.map((pair, pairIndex) => {
-                                const { team1, team2, score1, score2 } = pair;
+                                const { team1, team2, score1, score2, winner } = pair;
                                 return (
-                                    <div key={pairIndex}>
+                                    <div
+                                        key={pairIndex}
+                                        // style={{ position: 'relative' }}
+                                    >
                                         <p>{`Match ${pairIndex + 1}`}</p>
-                                        <div>
+                                        <div className={classes.player_bracket}>
+                                            {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
+                                            {pair.team1 === winner ? (
+                                                <div className={classes['green-indicator']}></div>
+                                            ) : winner === 'Tie' || winner === undefined ? (
+                                                <div className={classes['grey-indicator']}></div>
+                                            ) : (
+                                                <div className={classes['red-indicator']}></div>
+                                            )}
+
                                             <label htmlFor={`score-team1-${pairIndex}`}>{team1}</label>
                                             <input
                                                 type="text"
@@ -261,7 +341,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                                 }
                                             />
                                         </div>
-                                        <div>
+                                        <div className={classes.player_bracket}>
+                                            {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
+                                            {pair.team2 === winner ? (
+                                                <div className={classes['green-indicator']}></div>
+                                            ) : winner === 'Tie' || winner === undefined ? (
+                                                <div className={classes['grey-indicator']}></div>
+                                            ) : (
+                                                <div className={classes['red-indicator']}></div>
+                                            )}
+
                                             <label htmlFor={`score-team2-${pairIndex}`}>{team2}</label>
                                             <input
                                                 type="text"
@@ -283,6 +372,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     );
 };
 
+function moveWinnerToNextStage(index, user) {
+    console.log('Something here');
+}
+
 export const renderPlayerList = (players) => {
     const playerNames = Object.values(players)
         .filter((player) => player !== null)
@@ -292,7 +385,7 @@ export const renderPlayerList = (players) => {
         if (!uniquePlayerNames.includes(name) && name) {
             uniquePlayerNames.push(name);
         }
-        console.log('uniquePlayerNames', uniquePlayerNames);
+        // console.log('uniquePlayerNames', uniquePlayerNames);
     });
 
     return (

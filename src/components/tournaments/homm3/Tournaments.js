@@ -8,10 +8,11 @@ const TournamentList = () => {
     const [tournaments, setTournaments] = useState([]);
     const [tournamentId, setTournamentId] = useState([]);
     const [showDetails, setShowDetails] = useState(false);
+    const [firstStagePairs, setFirstStagePairs] = useState([]);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
-    console.log('isLogged', isLogged);
+    // console.log('isLogged', isLogged);
 
     const fetchTournaments = async () => {
         try {
@@ -29,6 +30,8 @@ const TournamentList = () => {
                 setTournaments(tournamentList);
                 // Update tournament ID outside the map function
                 if (tournamentList.length > 0) {
+                    // console.log('tournamentList', tournamentList[0].bracket.playoffPairs[0]);
+                    setFirstStagePairs(tournamentList[0].bracket.playoffPairs[0]);
                     setTournamentId(tournamentList[0].id);
                 }
             } else {
@@ -51,8 +54,10 @@ const TournamentList = () => {
     const addUserTournament = async (tourId, nickname) => {
         const user = await lookForUserId(nickname, 'full');
 
-        // console.log('user', user);
-        // console.log('tourId', tourId);
+        console.log('user', user);
+        console.log('tourId', tourId);
+
+        substituteTBDPlayer(user);
 
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
@@ -68,6 +73,50 @@ const TournamentList = () => {
         if (response.ok) {
             // Reload the page if the response is successful
             window.location.reload();
+        }
+    };
+
+    const substituteTBDPlayer = async (user) => {
+        // Find the index of the first occurrence of 'TBA' team in the array
+        const index = firstStagePairs.findIndex((pair) => pair.team1 === 'TBA' || pair.team2 === 'TBA');
+
+        if (index !== -1) {
+            // If 'TBA' team is found, substitute it with the 'user' value
+            if (firstStagePairs[index].team1 === 'TBA') {
+                firstStagePairs[index].team1 = user.name;
+            } else {
+                firstStagePairs[index].team2 = user.name;
+            }
+
+            console.log('firstStagePairs[index]', firstStagePairs[index]);
+
+            try {
+                const response = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/0.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(firstStagePairs),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    console.log('Pairs posted to Firebase successfully');
+
+                    // retrieveWinnersFromDatabase();
+                } else {
+                    console.log('Failed to post pairs to Firebase');
+                }
+            } catch (e) {
+                console.error(e.message);
+            }
+            // Log the updated firstStagePairs
+            console.log('firstStagePairs', firstStagePairs);
+        } else {
+            // If 'TBA' team is not found, handle the case (e.g., display a message)
+            console.log('No TBA team found in firstStagePairs.');
         }
     };
 
