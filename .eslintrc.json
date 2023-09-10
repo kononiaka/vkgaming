@@ -10,6 +10,7 @@
         "jest": true
     },
     "rules": {
+        "no-prototype-builtins": "off",
         "no-unreachable": "off",
         "no-autofix/no-unreachable": "warn",
         "prefer-arrow-callback": 0,
@@ -23,7 +24,7 @@
         ],
         "no-restricted-syntax": [
             2,
-            "ForInStatement",
+            // "ForInStatement",
             "LabeledStatement",
             "WithStatement"
         ],

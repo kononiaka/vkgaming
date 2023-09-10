@@ -41,8 +41,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             'Quater-final': 4,
             'Semi-final': 2,
             'Third Place': 1,
-            Final: 1,
-            Winner: 1
+            Final: 1
         });
     }, [maxPlayers]);
 
@@ -74,6 +73,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     useEffect(() => {
         const fetchPlayoffPairs = async () => {
             try {
+                console.log('tournamentId', tournamentId);
                 const response = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
@@ -88,6 +88,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                     setStartTournament(true);
                     // Parse the object
                     setPlayoffPairs(data?.playoffPairs);
+                    console.log('data?.playoffPairs', data?.playoffPairs);
                 } else {
                     console.log('Failed to fetch playoff pairs');
                 }
@@ -156,7 +157,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             playoffPairs: playoffPairs
         };
 
-        console.log('tournamentData', tournamentData);
+        // console.log('tournamentData', tournamentData);
 
         try {
             const response = await fetch(
@@ -181,8 +182,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     };
 
     const updateTournament = async () => {
+        const retrievedWinners = await retrieveWinnersFromDatabase();
+
+        console.log('retrievedWinners', retrievedWinners);
+
         const tournamentData = {
-            playoffPairs: playoffPairs
+            playoffPairs: retrievedWinners
         };
 
         console.log('tournamentData', tournamentData);
@@ -201,8 +206,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
 
             if (response.ok) {
                 console.log('Pairs posted to Firebase successfully');
-
-                retrieveWinnersFromDatabase();
             } else {
                 console.log('Failed to post pairs to Firebase');
             }
@@ -221,26 +224,54 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                 const data = await response.json();
 
                 let collectedPlayoffPairs = data?.playoffPairs || [];
-                let firstStagePlayoffPairs = collectedPlayoffPairs[0];
 
-                console.log('firstStagePlayoffPairs', firstStagePlayoffPairs);
+                // =========>
+                let nextStagePairings;
 
-                // Collect the winners from the playoffPairs data
-                const winners = firstStagePlayoffPairs.map((pair) => pair.winner);
+                for (let currentStage = 0; currentStage < collectedPlayoffPairs.length - 1; currentStage++) {
+                    let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
+                    const currentStagePlayoffWinners = currentStagePlayoffPairs.map((pair) => pair.winner);
 
-                console.log('Winners:', winners);
+                    const nextStageIndex = currentStage + 1;
+                    let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
+                    const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
 
-                // // Process the winners and determine the next stage pairings
-                const nextStagePairings = determineNextStagePairings(winners);
+                    if (nextStagePlayoffWinners.includes(undefined)) {
+                        if (nextStageIndex === 2) {
+                            const losers = currentStagePlayoffPairs.map((match) =>
+                                nextStagePlayoffWinners.includes(match.team1) ? match.team1 : match.team2
+                            );
+                            nextStagePairings = determineNextStagePairings(currentStagePlayoffWinners);
+                            let thirdPlacePairing = determineNextStagePairings(losers);
+                            collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
+                            collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
+                        }
+                    }
+                }
+                console.log('collectedPlayoffPairs', collectedPlayoffPairs);
+                // =========>
+                // let firstStagePlayoffPairs = collectedPlayoffPairs[0];
 
-                console.log('nextStagePairings', nextStagePairings);
+                // // Collect the winners from the playoffPairs data
+                // const firstStagePlayoffWinners = firstStagePlayoffPairs.map((pair) => pair.winner);
 
-                collectedPlayoffPairs[1] = nextStagePairings;
+                // // // Process the winners and determine the next stage pairings
 
-                console.log('collectedPlayoffPairs[1]', collectedPlayoffPairs[1]);
-                console.log('collectedPlayoffPairs-hererere', collectedPlayoffPairs);
+                // let secondStagePlayoffPairs = collectedPlayoffPairs[1];
+                // const secondStagePlayoffWinners = secondStagePlayoffPairs.map((pair) => pair.winner);
+                // if (secondStagePlayoffWinners.length === 0) {
+                //     const nextStagePairings = determineNextStagePairings(firstStagePlayoffWinners);
+                //     console.log('nextStagePairings', nextStagePairings);
+                //     collectedPlayoffPairs[1] = nextStagePairings;
+                // }
+
+                // const test = determineNextStagePairings(secondStagePlayoffWinners);
+                // collectedPlayoffPairs[3] = test;
+
+                // let thirdStagePlayoffPairs = collectedPlayoffPairs[2];
 
                 setPlayoffPairs(collectedPlayoffPairs);
+                return collectedPlayoffPairs;
 
                 // // Update the pairings for the next stage in the database
                 // await updateNextStagePairingsInDatabase(nextStagePairings);
@@ -276,10 +307,27 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
         return nextPairings;
     };
 
-    const handleScoreChange = (pairIndex, teamIndex, newScore) => {
+    const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
+        const stageMappings = {
+            'Quater-final': 0,
+            'Semi-final': 1,
+            'Third Place': 2,
+            Final: 3
+            // Add more stages and their numerical values as needed
+        };
+
+        // Map the stage name to a numerical stage value
+        const stage = stageMappings[stageName]; // Convert to lowercase for case-insensitive matching
+
+        if (stage === undefined) {
+            // Handle the case where an invalid stage name is provided
+            console.error(`Invalid stage name: ${stageName}`);
+            return;
+        }
+
         setPlayoffPairs((prevPairs) => {
             const updatedPairs = [...prevPairs];
-            const pair = updatedPairs[currentStageIndex][pairIndex];
+            const pair = updatedPairs[stage][pairIndex];
 
             if (teamIndex === 1) {
                 pair.score1 = newScore;
@@ -303,10 +351,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             {stageLabels.length === 0 ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : (
-                stageLabels.map((stage, index) => {
-                    console.log('playoffPairs', playoffPairs);
-                    console.log('stage', stage);
-                    console.log('currentStageIndex', currentStageIndex);
+                stageLabels.map(function (stage, index) {
                     return (
                         <div
                             key={stage}
@@ -335,9 +380,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                             <input
                                                 type="text"
                                                 id={`score-team1-${pairIndex}`}
-                                                value={score1}
+                                                value={score1 || ''}
                                                 onChange={(event) =>
-                                                    handleScoreChange(pairIndex, 1, event.target.value)
+                                                    handleScoreChange(stage, pairIndex, 1, event.target.value)
                                                 }
                                             />
                                         </div>
@@ -355,9 +400,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                             <input
                                                 type="text"
                                                 id={`score-team2-${pairIndex}`}
-                                                value={score2}
+                                                value={score2 || ''}
                                                 onChange={(event) =>
-                                                    handleScoreChange(pairIndex, 2, event.target.value)
+                                                    handleScoreChange(stage, pairIndex, 2, event.target.value)
                                                 }
                                             />
                                         </div>
@@ -372,29 +417,24 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     );
 };
 
-function moveWinnerToNextStage(index, user) {
-    console.log('Something here');
-}
-
 export const renderPlayerList = (players) => {
     const playerNames = Object.values(players)
-        .filter((player) => player !== null)
+        .filter((player) => player !== null && player.name !== undefined && player.name.trim() !== '')
         .map((player) => player.name);
 
     playerNames.forEach((name) => {
         if (!uniquePlayerNames.includes(name) && name) {
             uniquePlayerNames.push(name);
         }
-        // console.log('uniquePlayerNames', uniquePlayerNames);
     });
 
     return (
         <>
             <h4>Players:</h4>
             <ul>
-                {playerNames.map((name, index) => (
-                    <li key={index}>{formatPlayerName({ name })}</li>
-                ))}
+                {playerNames.map(function (name, index) {
+                    return <li key={index}>{formatPlayerName({ name })}</li>;
+                })}
             </ul>
         </>
     );

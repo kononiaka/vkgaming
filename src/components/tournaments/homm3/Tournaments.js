@@ -30,7 +30,6 @@ const TournamentList = () => {
                 setTournaments(tournamentList);
                 // Update tournament ID outside the map function
                 if (tournamentList.length > 0) {
-                    // console.log('tournamentList', tournamentList[0].bracket.playoffPairs[0]);
                     setFirstStagePairs(tournamentList[0].bracket.playoffPairs[0]);
                     setTournamentId(tournamentList[0].id);
                 }
@@ -53,9 +52,6 @@ const TournamentList = () => {
 
     const addUserTournament = async (tourId, nickname) => {
         const user = await lookForUserId(nickname, 'full');
-
-        console.log('user', user);
-        console.log('tourId', tourId);
 
         substituteTBDPlayer(user);
 
@@ -88,8 +84,6 @@ const TournamentList = () => {
                 firstStagePairs[index].team2 = user.name;
             }
 
-            console.log('firstStagePairs[index]', firstStagePairs[index]);
-
             try {
                 const response = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/0.json`,
@@ -113,10 +107,10 @@ const TournamentList = () => {
                 console.error(e.message);
             }
             // Log the updated firstStagePairs
-            console.log('firstStagePairs', firstStagePairs);
+            // console.log('firstStagePairs', firstStagePairs);
         } else {
             // If 'TBA' team is not found, handle the case (e.g., display a message)
-            console.log('No TBA team found in firstStagePairs.');
+            console.log('No TBD team found in firstStagePairs.');
         }
     };
 
@@ -129,10 +123,9 @@ const TournamentList = () => {
         tournaments.length > 0 ? (
             <ul>
                 {tournaments.map((tournament) => {
+                    // console.log(tournaments);
                     // maxPlayers = tournament.maxPlayers;
                     currentPlayers = tournament.players;
-                    // console.log('tournament', tournament);
-                    // console.log('players in tournament ?', 'players' in tournament);
                     return (
                         <li key={tournament.id} className={classes.bracket}>
                             <h3>{tournament.name}</h3>
@@ -140,7 +133,10 @@ const TournamentList = () => {
                             <p>
                                 Players registered:&nbsp;
                                 {'players' in tournament &&
-                                    Object.values(tournament.players).filter((player) => player !== null).length}
+                                    Object.values(tournament.players).filter(
+                                        (player) =>
+                                            player !== null && player.name !== undefined && player.name.trim() !== ''
+                                    ).length}
                             </p>
                             <p>Max players: {tournament.maxPlayers}</p>
 

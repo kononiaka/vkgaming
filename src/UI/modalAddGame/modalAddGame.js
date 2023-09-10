@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { addScoreToUser, lookForCastleStats, lookForUserId, lookForUserPrevScore } from '../../api/api';
+import { fetchTournamentGames, fetchTournaments } from '../../components/tournaments/homm3/tournamentUtils';
 import Modal from '../Modal/Modal';
 
 import classes from './modalAddGame.module.css';
@@ -15,6 +16,9 @@ function AddGameModal(props) {
     const [opponentList, setOpponentList] = useState([]);
     let [gameName, setGameName] = useState('');
     const [gameType, setGameType] = useState('');
+    const [tournamentName, setTournamentName] = useState('');
+    const [tournamentId, setTournamentId] = useState('');
+    const [tournaments, setTournaments] = useState([]);
     const [score, setScore] = useState('');
     const [winner, setWinner] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -56,8 +60,21 @@ function AddGameModal(props) {
             }
         };
 
+        if (tournamentName) {
+            fetchTournaments('name');
+        }
         fetchOpponentList();
-    }, []);
+    }, [tournamentName]);
+
+    useEffect(() => {
+        // Fetch the list of tournaments when the component mounts
+        const fetchData = async () => {
+            const tournamentNames = await fetchTournaments('full');
+            setTournaments(tournamentNames);
+        };
+        fetchData();
+        console.log('tournaments', tournaments);
+    }, []); // The empty array [] ensures this effect runs once when the component mounts
 
     const handleOpponent1Change = (event) => {
         setOpponent1(event.target.value);
@@ -100,11 +117,24 @@ function AddGameModal(props) {
     const handleGameTypeChange = (event) => {
         setGameType(event.target.value);
     };
+    const handleTournamentNameChange = (event) => {
+        setTournamentName(event.target.value);
+    };
+    const handleTournamentIdChange = async (event) => {
+        setTournamentId(event.target.value);
+        console.log('event.target.value', event.target.value);
+        await fetchTournamentGames(event.target.value);
+    };
 
     const handleDateChange = (event) => {
         setDate(event.target.value);
         console.log(date);
     };
+
+    // const showAllTournaments = async () => {
+    //     const data = await fetchTournaments();
+    //     console.log('data', data);
+    // };
 
     const handleSave = async () => {
         // Save game data to database
@@ -116,6 +146,7 @@ function AddGameModal(props) {
             opponent2: opponent2,
             date: date,
             gameName: gameName,
+            tournamentName: tournamentName,
             gameType: gameType,
             opponent1Castle: opponent1Castle,
             opponent2Castle: opponent2Castle,
@@ -170,6 +201,28 @@ function AddGameModal(props) {
                 <p>Loading...</p>
             ) : (
                 <>
+                    <label htmlFor="tournamentName">Game Type:</label>
+                    <select id="tournamentName" value={tournamentName} onChange={handleTournamentNameChange}>
+                        <option value="">Select Game Type</option>
+                        <option value="friendly">Friendly</option>
+                        <option value="ratingGame">Rating Game</option>
+                        <option value="tournament">Tournament</option>
+                    </select>
+                    <br />
+                    {tournamentName ? (
+                        <>
+                            <label htmlFor="tournamentId">Tournament Name:</label>
+                            <select id="tournamentId" value={tournamentId} onChange={handleTournamentIdChange}>
+                                //TODO list tournament
+                                <option value="">Select a tournament</option> {/* Default empty option */}
+                                {tournaments.map((tournament) => (
+                                    <option key={tournament.id} value={tournament.id}>
+                                        {tournament.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </>
+                    ) : null}
                     <label htmlFor="date">Date:</label>
                     <input type="datetime-local" id="date" value={date} onChange={handleDateChange} step={1800} />
                     <br />
@@ -178,7 +231,7 @@ function AddGameModal(props) {
                         <option value="Heroes III">Heroes III</option>
                     </select>
                     <br />
-                    <label htmlFor="gameType">Game Type:</label>
+                    <label htmlFor="gameType">Games Per Game:</label>
                     <select id="gameType" value={gameType} onChange={handleGameTypeChange}>
                         <option value="">Select Game Type</option>
                         <option value="bo-1">bo-1</option>
@@ -222,7 +275,7 @@ function AddGameModal(props) {
                     </select>
                     <br />
                     <label htmlFor="score">Score:</label>
-                    {gameType === 'bo-1' ? (
+                    {gameType === 'bo-1' || gameType === 'vk-test01' ? (
                         <select id="score" value={score} onChange={handleScoreChange}>
                             <option value="">Select Score</option>
                             <option value="1-0">1-0</option>
