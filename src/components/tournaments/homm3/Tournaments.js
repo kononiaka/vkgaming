@@ -12,8 +12,6 @@ const TournamentList = () => {
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
-    // console.log('isLogged', isLogged);
-
     const fetchTournaments = async () => {
         try {
             const response = await fetch(
@@ -156,7 +154,8 @@ const TournamentList = () => {
                                     )
                                 )
                             ) : (
-                                <p>Registration finished!</p>
+                                // tournament.status = 'Registration finished'
+                                <p>{tournament.status}</p>
                             )}
                             {'players' in tournament ? (
                                 showDetails && renderPlayerList(tournament.players)

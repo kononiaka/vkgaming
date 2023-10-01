@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { loadUserById, lookForUserId } from '../../../api/api';
 import classes from './tournamentsBracket.module.css';
 
 const formatPlayerName = (player) => player.name;
@@ -73,7 +74,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     useEffect(() => {
         const fetchPlayoffPairs = async () => {
             try {
-                console.log('tournamentId', tournamentId);
+                // console.log('tournamentId', tournamentId);
                 const response = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
@@ -124,7 +125,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             }
 
             updatedPairs.push(pairs);
-            console.log('updatedPairs', updatedPairs);
         });
 
         setPlayoffPairs(updatedPairs);
@@ -150,8 +150,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
 
     const handleStartTournament = async () => {
         setStartTournament(true);
-        console.log(stageLabels);
+        // console.log(stageLabels);
         // Prepare the tournament data
+
         const tournamentData = {
             stageLabels: stageLabels,
             playoffPairs: playoffPairs
@@ -182,12 +183,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
     };
 
     const updateTournament = async () => {
-        const retrievedWinners = await retrieveWinnersFromDatabase();
-
-        console.log('retrievedWinners', retrievedWinners);
-
         const tournamentData = {
-            playoffPairs: retrievedWinners
+            playoffPairs: playoffPairs
         };
 
         console.log('tournamentData', tournamentData);
@@ -205,6 +202,29 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             );
 
             if (response.ok) {
+                const retrievedWinners = await retrieveWinnersFromDatabase();
+                //TOOD: check if the quantity of winners are the same => doing nothing
+                //else
+                const tournamentDataWithWinners = {
+                    playoffPairs: retrievedWinners
+                };
+
+                const response = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(tournamentDataWithWinners),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    console.log('retrievedWinners', retrievedWinners);
+                }
+
+                console.log('playoffPairs', playoffPairs);
                 console.log('Pairs posted to Firebase successfully');
             } else {
                 console.log('Failed to post pairs to Firebase');
@@ -224,6 +244,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                 const data = await response.json();
 
                 let collectedPlayoffPairs = data?.playoffPairs || [];
+
+                console.log('collectedPlayoffPairs', collectedPlayoffPairs);
 
                 // =========>
                 let nextStagePairings;
@@ -248,7 +270,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                         }
                     }
                 }
-                console.log('collectedPlayoffPairs', collectedPlayoffPairs);
+                // console.log('collectedPlayoffPairs', collectedPlayoffPairs);
                 // =========>
                 // let firstStagePlayoffPairs = collectedPlayoffPairs[0];
 
@@ -269,7 +291,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                 // collectedPlayoffPairs[3] = test;
 
                 // let thirdStagePlayoffPairs = collectedPlayoffPairs[2];
-
+                determineThirdPlaceWinner(collectedPlayoffPairs, stageLabels);
                 setPlayoffPairs(collectedPlayoffPairs);
                 return collectedPlayoffPairs;
 
@@ -285,6 +307,46 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             }
         } catch (error) {
             console.error('Error retrieving winners from the database:', error);
+        }
+    };
+
+    const determineThirdPlaceWinner = async (playOffPairs, stages) => {
+        const thirdPlaceIndex = stages.indexOf('Third Place');
+        const thirdPlace = playOffPairs[thirdPlaceIndex];
+        if (thirdPlace) {
+            let winner = thirdPlace[0].winner;
+            let userId = await lookForUserId(winner);
+            let userRecord = await loadUserById(userId);
+
+            // Check if "prizes" property exists and is an object
+            if (!userRecord || typeof userRecord.prizes !== 'object') {
+                // If not, initialize "prizes" as an object
+                userRecord.prizes = [];
+            }
+
+            userRecord.prizes.push({
+                tournamentName: 'VKGaming1',
+                prize: '3rd place'
+            });
+
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userRecord)
+                }
+            );
+
+            console.log('userId', userId);
+            console.log('userRecord', userRecord);
+            if (response.ok) {
+                console.log('User data updated successfully with prizes.');
+            } else {
+                console.error('Failed to update user data with prizes.');
+            }
         }
     };
 
@@ -329,6 +391,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             const updatedPairs = [...prevPairs];
             const pair = updatedPairs[stage][pairIndex];
 
+            console.log('pair', pair);
+
             if (teamIndex === 1) {
                 pair.score1 = newScore;
             } else if (teamIndex === 2) {
@@ -338,7 +402,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
             if (pair.score1 !== null && pair.score2 !== null) {
                 pair.winner = getWinner(pair);
             }
-
+            console.log('updatedPairs', updatedPairs);
             return updatedPairs;
         });
     };
@@ -365,7 +429,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                         key={pairIndex}
                                         // style={{ position: 'relative' }}
                                     >
-                                        <p>{`Match ${pairIndex + 1}`}</p>
+                                        {stage !== 'Third Place' && stage !== 'Final' && (
+                                            <p>{`Match ${pairIndex + 1}`}</p>
+                                        )}
+                                        <p>{`Best of ${1}`}</p>
                                         <div className={classes.player_bracket}>
                                             {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
                                             {pair.team1 === winner ? (

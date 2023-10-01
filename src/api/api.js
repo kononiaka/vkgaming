@@ -31,9 +31,7 @@ export const lookForUserId = async (nickname, full) => {
 
     const data = await response.json();
 
-    // console.log('lookForUserId', nickname);
-
-    const userObj = Object.entries(data).find(([id, obj]) => obj.enteredNickname === nickname);
+    const userObj = Object.entries(data).find(([, obj]) => obj.enteredNickname === nickname);
 
     if (full === 'full') {
         if (userObj) {
@@ -46,6 +44,17 @@ export const lookForUserId = async (nickname, full) => {
     } else {
         return null; // Return null if no matching user object is found
     }
+};
+
+export const loadUserById = async (userId) => {
+    const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+        method: 'GET'
+    });
+
+    const data = await response.json();
+
+    console.log('data', data);
+    return data;
 };
 
 export const lookForUserPrevScore = async (userId) => {
