@@ -68,3 +68,26 @@ export const fetchTournamentGames = async (tournamentId) => {
         return objectsWithoutWinner;
     }
 };
+
+// export const getTournamentWinner = async (stages, tournamentId) => {
+//     const finalIndex = stages.indexOf('Final');
+
+//     const tournamentData = await fetch(
+//         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/0.json`,
+//         {
+//             method: 'GET'
+//         }
+//     );
+
+//     if (tournamentData.ok) {
+//         console.log('Pairs posted to Firebase successfully');
+
+//         // retrieveWinnersFromDatabase();
+//     } else {
+//         console.log('Failed to post pairs to Firebase');
+//     }
+
+//     const tournamentWinner = tournamentData[finalIndex - 1].winner;
+
+//     console.log('Tournament Winner:', tournamentWinner);
+// };

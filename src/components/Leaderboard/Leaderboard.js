@@ -12,7 +12,7 @@ const Leaderboard = () => {
                     throw new Error('Unable to fetch data from the server.');
                 }
                 const data = await response.json();
-                console.log('data', data);
+                // console.log('data', data);
                 const scores = Object.entries(data).map(([id, player]) => ({
                     id,
                     enteredNickname: player.enteredNickname,

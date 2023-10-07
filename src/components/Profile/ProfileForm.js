@@ -66,7 +66,7 @@ const ProfileForm = () => {
                     return res.json();
                 } else {
                     const data = await res.json();
-                    console.log(data.error);
+                    console.log('ERROR', data.error);
                     let errorMessage = 'Custom error';
                     if (data && data.error && data.error.message) {
                         errorMessage = data.error.message;
