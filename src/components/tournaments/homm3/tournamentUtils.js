@@ -91,3 +91,20 @@ export const fetchTournamentGames = async (tournamentId) => {
 
 //     console.log('Tournament Winner:', tournamentWinner);
 // };
+
+// export const getTournamentPrizePull = async (tournamentId) => {
+//     console.log('here');
+//     const tournamentPricePullData = await fetch(
+//         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/pricePull`,
+//         {
+//             method: 'GET'
+//         }
+//     );
+//     if (tournamentPricePullData.ok) {
+//         const data = tournamentPricePullData.json();
+//         console.log('Pairs posted to Firebase successfully', data);
+//         // retrieveWinnersFromDatabase();
+//     } else {
+//         console.log('Failed to post pairs to Firebase');
+//     }
+// };

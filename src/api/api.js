@@ -114,3 +114,57 @@ export const lookForCastleStats = async (castle, action) => {
         console.error(error);
     }
 };
+
+export const getRating = async (opponentId) => {
+    let rating;
+    const response = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponentId}/gamesPlayed/heroes3.json`,
+        {
+            method: 'GET'
+        }
+    );
+
+    const data = await response.json();
+
+    if (data) {
+        const totalGames = data.total;
+        const victories = data.total - data.lose;
+        const winRatio = victories / totalGames;
+        console.log('winRatio', winRatio);
+
+        rating = winRatio * 5 + totalGames * 0.5;
+    }
+    console.log('rating', rating);
+
+    return rating;
+};
+
+export const updateRating = async (opponentId, rating, game) => {
+    //TODO: make ratings by game
+    const ratingResponse = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponentId}/ratings.json`,
+        {
+            method: 'PUT',
+            body: rating,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    if (ratingResponse.ok) {
+        console.log('rate updated');
+    }
+};
+
+//IS NOT WORKING DUE TO CORS ISSUE
+export const getAllUsers = async () => {
+    const ratingResponse = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/`, {
+        method: 'GET',
+        origin: ['*']
+    });
+
+    if (ratingResponse.ok) {
+        return response.json();
+    }
+};

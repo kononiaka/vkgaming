@@ -7,10 +7,10 @@ const formatPlayerName = (player) => player.name;
 const uniquePlayerNames = [];
 const currentStageIndex = 0;
 
-export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
+export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinner }) => {
     maxPlayers.length = 8;
     // maxPlayers.length = Object.keys(maxPlayers).length;
-    // console.log('tournamentId', tournamentId);
+    // console.log('tournamentWinner', tournamentWinner);
 
     const [stageLabels, setStageLabels] = useState([]);
     const [gamesPerStage, setGamesPerStage] = useState({});
@@ -35,6 +35,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
         }
 
         setStageLabels(labels);
+
+        if (tournamentStatus === 'Tournament Finished') {
+            setUpdateButtonVisible(false);
+        }
 
         setGamesPerStage({
             '1/32 Final': 32,
@@ -90,7 +94,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                     setStartTournament(true);
                     // Parse the object
                     setPlayoffPairs(data?.playoffPairs);
-                    console.log('data?.playoffPairs', data?.playoffPairs);
                 } else {
                     console.log('Failed to fetch playoff pairs');
                 }
@@ -253,13 +256,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                             let secondPlaceId = await lookForUserId(secondPlace);
 
                             let firstPlaceRecord = await loadUserById(firstPlaceId);
-
-                            console.log('firstPlaceRecord', firstPlaceRecord);
+                            let secondPlaceRecord = await loadUserById(secondPlaceId);
 
                             // Check if "prizes" property exists and is an object
 
                             //herehere
-                            const response = await fetch(
+                            const winnersResponse = await fetch(
                                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
                                 {
                                     method: 'PUT',
@@ -269,8 +271,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                     }
                                 }
                             );
-                            if (response.ok) {
-                                const response = await fetch(
+                            if (winnersResponse.ok) {
+                                const tournamentStatusResponse = await fetch(
                                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
                                     {
                                         method: 'PUT',
@@ -280,10 +282,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                         }
                                     }
                                 );
-                                if (response.ok) {
+                                if (tournamentStatusResponse.ok) {
                                     setUpdateButtonVisible(false);
 
-                                    if (response.ok) {
+                                    if (tournamentStatusResponse.ok) {
                                         if (!firstPlaceRecord || typeof firstPlaceRecord.prizes !== 'object') {
                                             // If not, initialize "prizes" as an object
                                             firstPlaceRecord.prizes = [];
@@ -294,7 +296,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                             prize: '1st place'
                                         });
 
-                                        const response = await fetch(
+                                        const firstPlaceResponse = await fetch(
                                             `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
                                             {
                                                 method: 'PUT',
@@ -304,14 +306,36 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                                                 body: JSON.stringify(firstPlaceRecord)
                                             }
                                         );
-                                        if (response.ok) {
-                                            console.log('userRecord', firstPlaceRecord);
+                                        if (firstPlaceResponse.ok) {
+                                            if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
+                                                // If not, initialize "prizes" as an object
+                                                secondPlaceRecord.prizes = [];
+                                            }
+
+                                            secondPlaceRecord.prizes.push({
+                                                tournamentName: 'VKGaming1',
+                                                prize: '2nd place'
+                                            });
+
+                                            const secondPlaceResponse = await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    headers: {
+                                                        'Content-Type': 'application/json'
+                                                    },
+                                                    body: JSON.stringify(secondPlaceRecord)
+                                                }
+                                            );
+                                            if (secondPlaceResponse.ok) {
+                                                console.log('updated finished');
+                                            }
                                         }
                                     }
                                 }
                             } else {
-                                const errorMessage = await response.text();
-                                console.error('Error:', response.status, errorMessage);
+                                const errorMessage = await winnersResponse.text();
+                                console.error('Error:', winnersResponse.status, errorMessage);
                             }
                         }
                     }
@@ -542,7 +566,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId }) => {
                             key={stage}
                             className={`${classes.brackets} ${index === currentStageIndex ? classes.active : ''}`}
                         >
-                            <h3 style={{ color: 'red', paddingBottom: '50px' }}>Stage: {stage}</h3>
+                            <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
+                            {stage === 'Winner' && tournamentWinner && (
+                                <p style={{ color: 'yellow' }}>{tournamentWinner}</p>
+                            )}
                             {playoffPairs[index]?.map((pair, pairIndex) => {
                                 const { team1, team2, score1, score2, winner } = pair;
                                 return (

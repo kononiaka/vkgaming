@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import classes from './Leaderboard.module.css';
 
 const Leaderboard = () => {
-    const [playerScores, setPlayerScores] = useState([]);
+    // const [playerScores, setPlayerScores] = useState([]);
+    const [playerRating, setPlayerRating] = useState([]);
 
     useEffect(() => {
         const fetchPlayerScores = async () => {
@@ -12,15 +13,26 @@ const Leaderboard = () => {
                     throw new Error('Unable to fetch data from the server.');
                 }
                 const data = await response.json();
-                // console.log('data', data);
-                const scores = Object.entries(data).map(([id, player]) => ({
+                // const scores = Object.entries(data).map(([id, player]) => ({
+                //     id,
+                //     enteredNickname: player.enteredNickname,
+                //     score: player.score,
+                //     games: player.gamesPlayed.heroes3.total
+                // }));
+
+                // scores.sort((a, b) => b.score - a.score);
+
+                // setPlayerScores(scores);
+                const rating = Object.entries(data).map(([id, player]) => ({
                     id,
                     enteredNickname: player.enteredNickname,
                     score: player.score,
+                    ratings: player.ratings ? player.ratings : 0,
                     games: player.gamesPlayed.heroes3.total
                 }));
-                scores.sort((a, b) => b.score - a.score);
-                setPlayerScores(scores);
+
+                rating.sort((a, b) => b.ratings - a.ratings);
+                setPlayerRating(rating);
             } catch (error) {
                 console.error(error);
             }
@@ -43,16 +55,21 @@ const Leaderboard = () => {
     const getRows = () => {
         const rows = [];
         for (let i = 0; i < 10; i++) {
-            const player = playerScores[i];
+            // const player = playerScores[i];
+            // console.log('playerScores[i]', playerScores[i]);
+            const player = playerRating[i];
+
             const enteredNickname = player ? player.enteredNickname : '-';
             const score = player ? player.score : '-';
             const games = player ? player.games : '-';
+            const rating = player ? player.ratings : '-';
             rows.push(
                 <tr key={i} className={getRankClass(i)}>
                     <td>{i + 1}</td>
                     <td>{enteredNickname}</td>
                     <td>{score}</td>
                     <td>{games}</td>
+                    <td>{rating}</td>
                 </tr>
             );
         }
@@ -69,6 +86,7 @@ const Leaderboard = () => {
                         <th>Player</th>
                         <th>Score</th>
                         <th>Games</th>
+                        <th>Rate</th>
                     </tr>
                 </thead>
                 <tbody>{getRows()}</tbody>
@@ -77,4 +95,24 @@ const Leaderboard = () => {
     );
 };
 
+//UPDATE ALL USERS RATING
+// const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+// if (!response.ok) {
+//     throw new Error('Unable to fetch data from the server.');
+// }
+// const data = await response.json();
+
+// const allIds = Object.keys(data);
+
+// console.log('allIds', allIds);
+
+// // Use Promise.all to await all promises in parallel
+// await Promise.all(
+//     allIds.map(async (id) => {
+//         let rate = await getRating(id);
+//         if (rate) {
+//             updateRating(id, rate);
+//         }
+//     })
+// );
 export default Leaderboard;

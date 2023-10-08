@@ -21,7 +21,7 @@ const ProfileForm = () => {
                 }
                 const data = await response.json();
                 const filteredScores = Object.entries(data)
-                    .filter(([id, player]) => player.enteredNickname === userNickName) // filter by entered nickname
+                    .filter(([, player]) => player.enteredNickname === userNickName) // filter by entered nickname
                     .map(([id, player]) => ({
                         id,
                         enteredNickname: player.enteredNickname,
@@ -66,7 +66,6 @@ const ProfileForm = () => {
                     return res.json();
                 } else {
                     const data = await res.json();
-                    console.log('ERROR', data.error);
                     let errorMessage = 'Custom error';
                     if (data && data.error && data.error.message) {
                         errorMessage = data.error.message;
