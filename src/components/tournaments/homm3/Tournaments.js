@@ -177,6 +177,7 @@ const TournamentList = () => {
                                 </>
                             )}
                             <p>Price Pull</p>
+                            {console.log(tournament)}
                             {Object.entries(tournament.pricePull).map(([place, prize]) => (
                                 <div key={place}>{`${place}: ${prize}$`}</div>
                             ))}

@@ -130,13 +130,35 @@ export const getRating = async (opponentId) => {
         const totalGames = data.total;
         const victories = data.total - data.lose;
         const winRatio = victories / totalGames;
-        console.log('winRatio', winRatio);
+        // console.log('winRatio', winRatio);
 
         rating = winRatio * 5 + totalGames * 0.5;
     }
+
     console.log('rating', rating);
 
     return rating;
+};
+
+export const calculateStarsFromRating = (rating, highestRating, lowestRating) => {
+    let cappedStars;
+    if (rating > 0) {
+        const totalStars = 5;
+        const range = highestRating - lowestRating;
+        const interval = range / totalStars;
+        const unroundedStars = (rating - lowestRating) / interval;
+        const rawStars = Math.round(unroundedStars * 2) / 2 + 0.5; // Start from 0.5
+        cappedStars = Math.min(rawStars, totalStars); // Cap stars at 5
+        // console.log('cappedStars', cappedStars);
+    } else {
+        cappedStars = 0.5;
+    }
+    return cappedStars;
+};
+
+export const getStarImageFilename = (stars) => {
+    const imageName = '../../image/ratings/' + stars + '.png';
+    return imageName;
 };
 
 export const updateRating = async (opponentId, rating, game) => {
@@ -146,6 +168,24 @@ export const updateRating = async (opponentId, rating, game) => {
         {
             method: 'PUT',
             body: rating,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    if (ratingResponse.ok) {
+        console.log('rate updated');
+    }
+};
+
+export const updateStars = async (opponentId, stars) => {
+    //TODO: make ratings by game
+    const ratingResponse = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponentId}/stars.json`,
+        {
+            method: 'PUT',
+            body: stars,
             headers: {
                 'Content-Type': 'application/json'
             }

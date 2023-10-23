@@ -7,7 +7,7 @@
     width: 3%;
     background-color: #fff;
     border-radius: 50%;
-    border: 1px solid #38546E;
+    border: 1px solid #38546e;
     padding: 10px;
     cursor: pointer;
 }
@@ -20,7 +20,7 @@
     width: 3%;
     background-color: #fff;
     border-radius: 50%;
-    border: 1px solid #38546E;
+    border: 1px solid #38546e;
     padding: 10px;
     cursor: pointer;
 }
@@ -32,6 +32,23 @@
     width: 50px;
     height: 50px;
     background-color: #30cc30;
+    border-radius: 50%;
+    border: 1px solid #ffffff;
+    font-size: 25px;
+    padding: 35px;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.add-tournament {
+    position: fixed;
+    right: 45px;
+    bottom: 250px;
+    width: 50px;
+    height: 50px;
+    background-color: #d12397;
     border-radius: 50%;
     border: 1px solid #ffffff;
     font-size: 25px;
@@ -59,5 +76,23 @@
 }
 
 .add-game::after {
+    transform: translate(-50%, -50%);
+}
+.add-tournament::before,
+.add-tournament::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    height: 5px;
+    background-color: #ffffff;
+}
+
+.add-tournament::before {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.add-tournament::after {
     transform: translate(-50%, -50%);
 }

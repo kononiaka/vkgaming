@@ -14,7 +14,7 @@ const Modal = (props) => {
         if (propsOverlay.donate) {
             return <div className={classes.modal_donate}>{propsOverlay.children}</div>;
         }
-        if (propsOverlay.addGame) {
+        if (propsOverlay.addGame || propsOverlay.addTournament) {
             return <div className={classes.modal_addGame}>{propsOverlay.children}</div>;
         }
         return <div className={classes.modal}>{propsOverlay.children}</div>;
@@ -29,6 +29,7 @@ const Modal = (props) => {
                 onCongrats={props.onCongrats}
                 donate={props.donate}
                 addGame={props.addGame}
+                addTournament={props.addTournament}
             >
                 {props.children}
             </ModalOverlay>
