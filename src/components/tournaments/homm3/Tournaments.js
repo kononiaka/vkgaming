@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { lookForUserId } from '../../../api/api';
 import AuthContext from '../../../store/auth-context';
 import classes from './Tournaments.module.css';
@@ -7,12 +7,16 @@ import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 const TournamentList = () => {
     const [tournaments, setTournaments] = useState([]);
     const [tournamentId, setTournamentId] = useState([]);
+    const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
     const [tournamentWinner, setTournamentWinner] = useState('');
     const [showDetails, setShowDetails] = useState(false);
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
+
+    const nicknameRef = useRef();
+    // console.log('nicknameRef', nicknameRef);
 
     const fetchTournaments = async () => {
         try {
@@ -52,6 +56,9 @@ const TournamentList = () => {
 
     const addUserTournament = async (tourId, nickname) => {
         const user = await lookForUserId(nickname, 'full');
+
+        console.log('user', user);
+        console.log('tourId', tourId);
 
         substituteTBDPlayer(user);
 
@@ -114,10 +121,15 @@ const TournamentList = () => {
         }
     };
 
-    const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinner) => {
+    const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinner, currentTournamentId) => {
+        setClickedId(currentTournamentId);
         setShowDetails((prevState) => !prevState);
         setTournamentStatus(currentTournamentStatus);
         setTournamentWinner(currentTournamentWinner);
+    };
+
+    const handleUserToAdd = () => {
+        console.log(nicknameRef.current.value);
     };
 
     let currentPlayers;
@@ -125,9 +137,12 @@ const TournamentList = () => {
         tournaments.length > 0 ? (
             <ul>
                 {tournaments.map((tournament) => {
-                    // console.log(tournament);
+                    // console.log('tournament', tournament);
                     // maxPlayers = tournament.maxPlayers;
-                    currentPlayers = tournament.players;
+                    // console.log('Object.values(tournament.players)', Object.values(tournament.players));
+                    // console.log('length 111', Object.values(tournament.players).length);
+                    currentPlayers = tournament.players ? tournament.players : {};
+
                     return (
                         <li key={tournament.id} className={classes.bracket}>
                             <h3>{tournament.name}</h3>
@@ -142,7 +157,13 @@ const TournamentList = () => {
                             </p>
                             <p>Max players: {tournament.maxPlayers}</p>
                             <button
-                                onClick={() => showDetailsHandler(tournament.status, tournament.winners['1st place'])}
+                                onClick={() =>
+                                    showDetailsHandler(
+                                        tournament.status,
+                                        tournament.winners['1st place'],
+                                        tournament.id
+                                    )
+                                }
                             >
                                 View details
                             </button>
@@ -155,8 +176,8 @@ const TournamentList = () => {
                                     </div>
                                 ) : (
                                     isLogged && (
-                                        <button onClick={() => addUserTournament(tournamentId, userNickName)}>
-                                            Register
+                                        <button onClick={() => addUserTournament(tournament.id, userNickName)}>
+                                            Register-1
                                         </button>
                                     )
                                 )
@@ -170,21 +191,32 @@ const TournamentList = () => {
                                 <>
                                     <p>No players registered.</p>
                                     {isLogged && (
-                                        <button onClick={() => addUserTournament(tournamentId, userNickName)}>
-                                            Register
+                                        <button onClick={() => addUserTournament(tournament.id, userNickName)}>
+                                            Register-2
                                         </button>
                                     )}
                                 </>
                             )}
                             <p>Price Pull</p>
-                            {console.log(tournament)}
+                            {tournament.status === 'Register' && (
+                                <div>
+                                    <label htmlFor="nickname">Player's Nickname</label>
+                                    <input type="name" id="nickname" ref={nicknameRef} required />
+                                    <button onClick={() => addUserTournament(tournament.id, nicknameRef.current.value)}>
+                                        Add Player
+                                    </button>
+                                </div>
+                            )}
+                            {/* {console.log(tournament)} */}
                             {Object.entries(tournament.pricePull).map(([place, prize]) => (
                                 <div key={place}>{`${place}: ${prize}$`}</div>
                             ))}
-                            <p>Winners</p>
-                            {Object.entries(tournament.winners).map(([place, winner]) => (
-                                <div key={place}>{`${place}: ${winner}`}</div>
-                            ))}
+                            {tournament.winner && <p>Winners</p>}
+                            {/* {console.log(tournament.winner)} */}
+                            {tournament.winner &&
+                                Object.entries(tournament.winners).map(([place, winner]) => (
+                                    <div key={place}>{`${place}: ${winner}`}</div>
+                                ))}
                         </li>
                     );
                 })}
@@ -199,10 +231,12 @@ const TournamentList = () => {
             <h2>Current Tournaments</h2>
             {/* <h2>Future Tournaments</h2> */}
             {tournamentList}
+            {/* {console.log('currentPlayers', currentPlayers)} */}
+            {/* {console.log('currentPlayers length', currentPlayers.length)} */}
             {showDetails && (
                 <TournamentBracket
                     maxPlayers={currentPlayers}
-                    tournamentId={tournamentId}
+                    tournamentId={clickedId}
                     tournamentStatus={tournamentStatus}
                     tournamentWinner={tournamentWinner}
                 ></TournamentBracket>

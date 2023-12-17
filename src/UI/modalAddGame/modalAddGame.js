@@ -190,6 +190,16 @@ function AddGameModal(props) {
         await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
         await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
+        // let opponent1rate = await getRating(opponent1Id);
+        // console.log('rate ' + opponent1Id, rate);
+        // let opponent2rate = await getRating(opponent2Id);
+        // console.log('rate ' + opponent2Id, rate);
+
+        // updateRating(opponent1Id, opponent1rate);
+        // updateStars(opponent1Id, player.stars);
+        // updateRating(opponent2Id, opponent2rate);
+        // updateStars(opponent2Id, player.stars);
+
         props.onClose();
         window.location.reload();
     };

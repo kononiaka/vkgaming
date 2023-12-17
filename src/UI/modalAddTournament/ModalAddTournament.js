@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { determineTournamentPrizes } from '../../api/api';
 import Modal from '../Modal/Modal';
 import classes from './ModalAddTournament.module.css';
 
@@ -46,7 +47,8 @@ const Bracket = (props) => {
         // Access the input value using the ref
         const tournamentPricePoolValue = tournamentPricePoolRef.current.value;
         if (tournamentPricePoolValue.length > 0) {
-            objTournament.pricePull = tournamentPricePoolValue;
+            objTournament.pricePull = determineTournamentPrizes(tournamentPricePoolValue);
+            // objTournament.pricePull = tournamentPricePoolValue;
             // setTournamentPlayer(tournamentPricePoolValue);
         }
     };
@@ -67,9 +69,9 @@ const Bracket = (props) => {
         objTournament.status = 'Register';
 
         objTournament.winners = {
-            '1st place': 3,
-            '2nd place': 2,
-            '3rd place': 1
+            '1st place': 'TBD',
+            '2nd place': 'TBD',
+            '3rd place': 'TBD'
         };
 
         const response = await fetch(

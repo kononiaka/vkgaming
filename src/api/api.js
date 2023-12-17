@@ -140,6 +140,17 @@ export const getRating = async (opponentId) => {
     return rating;
 };
 
+function calculateEloRating(winnerRating, loserRating, kFactor = 32) {
+    const expectedWinProbability = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
+
+    const winnerNewRating = winnerRating + kFactor * (1 - expectedWinProbability);
+    const loserNewRating = loserRating + kFactor * (0 - (1 - expectedWinProbability));
+    console.log('winnerNewRating', winnerNewRating);
+    console.log('loserNewRating', loserNewRating);
+
+    return { winner: winnerNewRating, loser: loserNewRating };
+}
+
 export const calculateStarsFromRating = (rating, highestRating, lowestRating) => {
     let cappedStars;
     if (rating > 0) {
@@ -205,6 +216,55 @@ export const getAllUsers = async () => {
     });
 
     if (ratingResponse.ok) {
-        return response.json();
+        return ratingResponse.json();
+    }
+};
+
+export const lookForTournamentName = async (tournamentId) => {
+    const tournamentResponse = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}.json`,
+        {
+            method: 'GET',
+            origin: ['*']
+        }
+    );
+
+    if (tournamentResponse.ok) {
+        return tournamentResponse.json();
+    }
+};
+
+export const determineTournamentPrizes = (total_prize) => {
+    let prizes = {};
+    // Calculate prize amounts for each place
+    prizes['1st Place'] = (total_prize * 0.6).toFixed(2);
+    prizes['2nd Place'] = (total_prize * 0.3).toFixed(2);
+    prizes['3rd Place'] = (total_prize * 0.1).toFixed(2);
+    return prizes;
+};
+
+export const pullTournamentPrizes = async (tournamentId) => {
+    const tournamentResponse = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/pricePull.json`,
+        {
+            method: 'GET',
+            origin: ['*']
+        }
+    );
+    if (tournamentResponse.ok) {
+        return tournamentResponse.json();
+    }
+};
+
+export const getPlayerPrizeTotal = async (userId) => {
+    const userResponse = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${userId}/totalPrize.json`,
+        {
+            method: 'GET',
+            origin: ['*']
+        }
+    );
+    if (userResponse.ok) {
+        return userResponse.json();
     }
 };

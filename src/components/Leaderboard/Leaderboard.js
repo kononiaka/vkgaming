@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { calculateStarsFromRating } from '../../api/api';
+import { calculateStarsFromRating, getRating, updateRating, updateStars } from '../../api/api';
 import StarsComponent from '../Stars/Stars';
 import classes from './Leaderboard.module.css';
 
@@ -30,7 +30,7 @@ const Leaderboard = () => {
                         id,
                         enteredNickname: player.enteredNickname,
                         score: player.score,
-                        ratings: player.ratings ? player.ratings : 0,
+                        ratings: player.ratings ? player.ratings.toFixed(2) : 0,
                         games: player.gamesPlayed.heroes3.total,
                         stars: player.stars
                     }))
@@ -40,7 +40,12 @@ const Leaderboard = () => {
 
                 const highestRating = playerObj[0].ratings;
                 const lowestRating = Math.min(
-                    ...playerObj.filter((player) => player.ratings > 0).map((player) => player.ratings)
+                    ...playerObj
+                        .filter((player) => player.ratings > 0)
+                        .map((player) => {
+                            console.log(player.ratings);
+                            return player.ratings;
+                        })
                 );
 
                 // Update each player's stars property
@@ -50,11 +55,11 @@ const Leaderboard = () => {
                 }));
 
                 playerObjWithStars.forEach(async (player) => {
-                    // let rate = await getRating(player.id);
-                    // console.log('rate', rate);
-                    console.log('player', player.stars);
-                    // updateRating(player.id, rate);
-                    // updateStars(player.id, player.stars);
+                    let rate = await getRating(player.id);
+                    console.log('rate ' + player.enteredNickname, rate);
+                    // console.log('player', player.stars);
+                    updateRating(player.id, rate);
+                    updateStars(player.id, player.stars);
                 });
 
                 // console.log('playerObjWithStars', playerObjWithStars);
