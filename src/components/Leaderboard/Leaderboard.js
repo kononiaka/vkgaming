@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { calculateStarsFromRating, getRating, updateRating, updateStars } from '../../api/api';
 import StarsComponent from '../Stars/Stars';
 import classes from './Leaderboard.module.css';
@@ -96,11 +97,16 @@ const Leaderboard = () => {
             const games = player ? player.games : '-';
             const rating = player ? player.ratings : '-';
             const stars = player ? player.stars : '-';
+            const playerId = player ? player.id : '-';
             // console.log('getStarImageFilename', getStarImageFilename(stars));
             rows.push(
                 <tr key={i} className={getRankClass(i)}>
                     <td>{i + 1}</td>
-                    <td>{enteredNickname}</td>
+                    {/* <td>{enteredNickname}</td> */}
+                    <td>
+                        {/* Wrap the content in a Link component */}
+                        <NavLink to={`/players/${playerId}`}>{enteredNickname}</NavLink>
+                    </td>
                     <td>{score}</td>
                     <td>{games}</td>
                     <td>{rating}</td>

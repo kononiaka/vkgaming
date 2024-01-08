@@ -219,6 +219,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             playoffPairs: playoffPairs
         };
 
+        console.log('playoffPairs-JSON', playoffPairs);
+        console.log('tournamentData', tournamentData);
+
         try {
             const response = await fetch(
                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
@@ -232,6 +235,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             );
 
             if (response.ok) {
+                const response = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+                );
+
+                console.log('const data = await response.json();', await response.json());
+
                 const retrievedWinners = await retrieveWinnersFromDatabase();
                 //TOOD: check if the quantity of winners are the same => doing nothing
                 const tournamentDataWithWinners = {
@@ -391,7 +400,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const retrieveWinnersFromDatabase = async () => {
-        // console.log('retrieveWinnersFromDatabase starts');
         try {
             const response = await fetch(
                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
@@ -402,43 +410,26 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                 let collectedPlayoffPairs = data?.playoffPairs || [];
 
-                // console.log('collectedPlayoffPairs-before-385', collectedPlayoffPairs);
-
                 let nextStagePairings;
+                let nextStageIndex = 0;
 
                 for (let currentStage = 0; currentStage < collectedPlayoffPairs.length - 1; currentStage++) {
-                    // console.log('currentStage', currentStage);
                     let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
                     const currentStagePlayoffWinners = currentStagePlayoffPairs.map((pair) => pair.winner);
-                    // console.log('currentStagePlayoffWinners', currentStagePlayoffWinners);
-                    let nextStageIndex = 0;
 
-                    if (!currentStagePlayoffWinners.includes(undefined)) {
-                        nextStageIndex = currentStage + 1;
-                        // console.log('nextStageIndex', nextStageIndex);
-                    }
-
+                    nextStageIndex = currentStage + 1;
                     let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
-                    // console.log(
-                    //     `currentStage: ${currentStage}; nextStagePlayoffPairs-402: ${JSON.stringify(
-                    //         nextStagePlayoffPairs
-                    //     )}:${JSON.stringify(collectedPlayoffPairs[currentStage])}`
-                    // );
 
                     let thirdPlaceWinner;
                     if (currentStage === 2) {
                         thirdPlaceWinner = collectedPlayoffPairs[currentStage][0].winner;
-                        // return;
-                        if (thirdPlaceWinner) {
-                            // console.log('winner-410', thirdPlaceWinner);
-                            // return;
-                        }
                     }
                     const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
-                    // console.log('nextStagePlayoffWinners-413', nextStagePlayoffWinners);
+                    const hasUndefinedTeam = nextStagePlayoffPairs.some(
+                        (pair) => pair.team1 === undefined || pair.team2 === undefined
+                    );
 
                     if (nextStagePlayoffWinners.includes(undefined) && !thirdPlaceWinner) {
-                        // console.log('currentStage!!', currentStage);
                         if (nextStageIndex === 2) {
                             const losers = currentStagePlayoffPairs.map((match) =>
                                 match.winner === match.team1
@@ -447,22 +438,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     ? match.team1
                                     : null
                             );
-                            // console.log('losers', losers);
                             let thirdPlacePairing = determineNextStagePairings(losers);
-                            // console.log('thirdPlacePairing-417', thirdPlacePairing);
                             nextStagePairings = determineNextStagePairings(currentStagePlayoffWinners, currentStage);
-                            // console.log('nextStagePairings-419', nextStagePairings);
                             collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
                             collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
                         } else {
-                            nextStagePairings = determineNextStagePairings(
-                                currentStagePlayoffWinners,
-                                currentStage,
-                                thirdPlaceWinner
-                            );
-                            collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
-                            console.log('nextStagePairings-424', JSON.stringify(nextStagePairings));
-                            console.log('nextPairs-425', nextStageIndex);
+                            if (hasUndefinedTeam) {
+                                nextStagePairings = determineNextStagePairings(
+                                    currentStagePlayoffWinners,
+                                    currentStage,
+                                    thirdPlaceWinner
+                                );
+                                collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
+                            }
                         }
                     }
                 }
@@ -489,6 +477,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 // let thirdStagePlayoffPairs = collectedPlayoffPairs[2];
                 // console.log('collectedPlayoffPairs-451', collectedPlayoffPairs);
                 determineThirdPlaceWinner(collectedPlayoffPairs, stageLabels);
+                console.log('collectedPlayoffPairs-JSON', JSON.stringify(collectedPlayoffPairs));
                 setPlayoffPairs(collectedPlayoffPairs);
                 return collectedPlayoffPairs;
 
