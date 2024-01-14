@@ -39,7 +39,13 @@ const PlayerDetails = () => {
                     <p>Name: {player.enteredNickname}</p>
                     <ul>
                         Statistic:
+                        <li>Win: {player.gamesPlayed.heroes3.total - player.gamesPlayed.heroes3.lose}</li>
                         <li>Lose: {player.gamesPlayed.heroes3.lose}</li>
+                        <li>Total: {player.gamesPlayed.heroes3.total}</li>
+                        <li>Rating: {player.ratings.toFixed(2)}</li>
+                        <li>Stars: {player.stars}</li>
+                        <li>Total win: {player.totalPrize}</li>
+                        <li>Place in Leaderboard: {player.totalPrize}</li>
                     </ul>
                     {/* Add more player details as needed */}
                 </div>

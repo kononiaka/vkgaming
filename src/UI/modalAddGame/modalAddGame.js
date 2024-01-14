@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { addScoreToUser, lookForCastleStats, lookForUserId, lookForUserPrevScore } from '../../api/api';
+import { getNewRating, lookForUserId, lookForUserPrevScore } from '../../api/api';
 import { fetchTournamentGames, fetchTournaments } from '../../components/tournaments/homm3/tournamentUtils';
 import Modal from '../Modal/Modal';
 
@@ -9,10 +9,10 @@ function AddGameModal(props) {
     const [date, setDate] = useState('');
     const [opponent1, setOpponent1] = useState('');
     const [opponent1Castle, setOpponent1Castle] = useState('');
-    const [opponent1Score, setOpponent1Score] = useState('');
+    const [opponent1PrevScore, setOpponent1Score] = useState('');
     const [opponent2, setOpponent2] = useState('');
     const [opponent2Castle, setOpponent2Castle] = useState('');
-    const [opponent2Score, setOpponent2Score] = useState('');
+    const [opponent2PrevScore, setOpponent2Score] = useState('');
     const [opponentList, setOpponentList] = useState([]);
     let [gameName, setGameName] = useState('');
     const [gameType, setGameType] = useState('');
@@ -161,15 +161,15 @@ function AddGameModal(props) {
         const opponent1Id = await lookForUserId(opponent1);
         const opponent2Id = await lookForUserId(opponent2);
 
-        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
-            method: 'POST',
-            body: JSON.stringify(game),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        // const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
+        //     method: 'POST',
+        //     body: JSON.stringify(game),
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        //     }
+        // });
 
-        await response.json();
+        // await response.json();
 
         if (opponent1 === winner) {
             winnerId = opponent1Id;
@@ -181,27 +181,28 @@ function AddGameModal(props) {
             lostCastle = opponent1Castle;
         }
 
-        lookForCastleStats(winnerCastle, 'win');
-        lookForCastleStats(lostCastle, 'lost');
+        // lookForCastleStats(winnerCastle, 'win');
+        // lookForCastleStats(lostCastle, 'lost');
 
         const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
         const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
 
-        await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
-        await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
+        console.log('opponent1PrevData', opponent1PrevData);
+        const didWinOpponent1 = winnerId === opponent1Id;
+        const didWinOpponent2 = winnerId === opponent2Id;
 
-        // let opponent1rate = await getRating(opponent1Id);
-        // console.log('rate ' + opponent1Id, rate);
-        // let opponent2rate = await getRating(opponent2Id);
-        // console.log('rate ' + opponent2Id, rate);
+        console.log('opponent1PrevData', opponent1PrevData.ratings);
+        console.log('opponent2PrevData', opponent2PrevData.ratings);
 
-        // updateRating(opponent1Id, opponent1rate);
-        // updateStars(opponent1Id, player.stars);
-        // updateRating(opponent2Id, opponent2rate);
-        // updateStars(opponent2Id, player.stars);
+        let opponent1Score = await getNewRating(opponent1PrevData.ratings, opponent2PrevData.ratings, didWinOpponent1);
+        let opponent2Score = await getNewRating(opponent2PrevData.ratings, opponent1PrevData.ratings, didWinOpponent2);
+        console.log('opponent1Score', opponent1Score);
+        console.log('opponent2Score', opponent2Score);
+        // await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
+        // await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
-        props.onClose();
-        window.location.reload();
+        // props.onClose();
+        // window.location.reload();
     };
 
     return (

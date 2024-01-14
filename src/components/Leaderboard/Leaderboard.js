@@ -26,13 +26,14 @@ const Leaderboard = () => {
                 // scores.sort((a, b) => b.score - a.score);
 
                 // setPlayerScores(scores);
+
                 const playerObj = Object.entries(data)
                     .map(([id, player]) => ({
                         id,
                         enteredNickname: player.enteredNickname,
                         score: player.score,
                         ratings: player.ratings ? player.ratings.toFixed(2) : 0,
-                        games: player.gamesPlayed.heroes3.total,
+                        games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
                         stars: player.stars
                     }))
 

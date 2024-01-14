@@ -1,17 +1,19 @@
 export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
-    const { score, games } = data;
+    const { score, games, ratings } = data;
+    console.log('games', games);
     try {
         const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
             method: 'PATCH',
             body: JSON.stringify({
-                score: Number(score) + Number(scoreToAdd),
+                // score: Number(score) + Number(scoreToAdd),
                 gamesPlayed: {
                     heroes3: {
                         total: games.heroes3.total + 1,
                         win: userId === winner ? games.heroes3.win + 1 : null,
                         lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
                     }
-                }
+                },
+                ratings: Number(ratings) + Number(scoreToAdd)
             }),
             headers: {
                 'Content-Type': 'application/json'
@@ -65,11 +67,27 @@ export const lookForUserPrevScore = async (userId) => {
 
     const data = await response.json();
 
-    if (data && data.score) {
-        results.score = data.score; // Return the score of the user object
-        results.games = data.gamesPlayed;
-    }
+    // console.log('data.ratings', data.ratings);
 
+    if (data && !!data.ratings) {
+        results.ratings = data.ratings; // Return the score of the user object
+        results.games = data.gamesPlayed;
+    } else {
+        // Add score property with default value if it doesn't exist
+        await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/ratings.json`, {
+            method: 'PUT',
+            body: JSON.stringify(0)
+        });
+    }
+    if (data && data.gamesPlayed) {
+        results.games = data.gamesPlayed;
+    } else {
+        // Add score property with default value if it doesn't exist
+        await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/gamesPlayed.json`, {
+            method: 'PUT',
+            body: JSON.stringify({ heroes3: { total: 0, win: 0, lose: 0 } })
+        });
+    }
     return results;
 };
 
@@ -130,26 +148,28 @@ export const getRating = async (opponentId) => {
         const totalGames = data.total;
         const victories = data.total - data.lose;
         const winRatio = victories / totalGames;
-        // console.log('winRatio', winRatio);
 
         rating = winRatio * 5 + totalGames * 0.5;
     }
 
-    console.log('rating', rating);
-
     return rating;
 };
 
-function calculateEloRating(winnerRating, loserRating, kFactor = 32) {
-    const expectedWinProbability = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
+export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) => {
+    console.log('playerRating', playerRating);
+    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
+    let actualScore;
+    if (didWin) {
+        actualScore = 1;
+    } else {
+        actualScore = 0.3;
+    }
+    const ratingChange = kFactor * (actualScore - expectedScore);
+    console.log('ratingChange', ratingChange);
+    const newRating = playerRating + ratingChange;
 
-    const winnerNewRating = winnerRating + kFactor * (1 - expectedWinProbability);
-    const loserNewRating = loserRating + kFactor * (0 - (1 - expectedWinProbability));
-    console.log('winnerNewRating', winnerNewRating);
-    console.log('loserNewRating', loserNewRating);
-
-    return { winner: winnerNewRating, loser: loserNewRating };
-}
+    return newRating;
+};
 
 export const calculateStarsFromRating = (rating, highestRating, lowestRating) => {
     let cappedStars;
@@ -187,6 +207,35 @@ export const updateRating = async (opponentId, rating, game) => {
 
     if (ratingResponse.ok) {
         console.log('rate updated');
+    }
+};
+export const updateAvatar = async (userId, avatar) => {
+    //TODO: make ratings by game
+    const avatarResponse = await fetch(
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/.json`,
+        {
+            method: 'PATCH',
+            body: JSON.stringify({ avatar }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    if (avatarResponse.ok) {
+        console.log('avatar updated');
+    }
+};
+
+export const getAvatar = async (userId) => {
+    const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/avatar.json`);
+
+    if (response.ok) {
+        const data = await response.json();
+        // console.log(JSON.stringify(data));
+        return data;
+    } else {
+        throw new Error('Failed to get avatar data');
     }
 };
 

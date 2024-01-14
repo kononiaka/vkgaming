@@ -219,8 +219,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             playoffPairs: playoffPairs
         };
 
-        console.log('playoffPairs-JSON', playoffPairs);
-        console.log('tournamentData', tournamentData);
+        const tournamentResponse = await lookForTournamentName(tournamentId);
+        setTournamentName(tournamentResponse.name);
+        // return;
 
         try {
             const response = await fetch(
@@ -235,12 +236,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             );
 
             if (response.ok) {
-                const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
-                );
-
-                console.log('const data = await response.json();', await response.json());
-
                 const retrievedWinners = await retrieveWinnersFromDatabase();
                 //TOOD: check if the quantity of winners are the same => doing nothing
                 const tournamentDataWithWinners = {
@@ -261,9 +256,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 if (winnerBracket.ok) {
                     let place;
                     let prizeAmount;
-                    const tournamentResponse = await lookForTournamentName(tournamentId);
-                    setTournamentName(tournamentResponse.name);
-                    // return;
 
                     const lastStage = retrievedWinners[retrievedWinners.length - 1];
                     const firstPlace = lastStage[lastStage.length - 1].winner;
