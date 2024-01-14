@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 const AuthContext = React.createContext({
     token: '',
     isLogged: false,
     score: null,
-    login: (token) => { },
-    logout: () => { },
+    login: (token) => {},
+    logout: () => {},
     notificationShown: false,
-    setNotificationShown: () => { }
+    message: '',
+    notificationStatus: '',
+    setNotificationShown: () => {},
+    setNotificationMessage: () => {}
 });
 
 const calculateRemainingTime = (expirationTime) => {
@@ -53,6 +56,8 @@ export const AuthContextProvider = (props) => {
     const [token, setToken] = useState(initToken);
     const userIsLoggedIn = !!token;
     const [notificationShown, setNotificationShown] = useState(false);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationStatus, setNotificationStatus] = useState('');
 
     const logoutHandler = useCallback(() => {
         setToken(null);
@@ -64,9 +69,9 @@ export const AuthContextProvider = (props) => {
         }
     }, []);
 
-    const loginHandler = (token, expirationTime, userName) => {
-        setToken(token);
-        localStorage.setItem('token', token);
+    const loginHandler = (tokenId, expirationTime, userName) => {
+        setToken(tokenId);
+        localStorage.setItem('token', tokenId);
         localStorage.setItem('expirationTime', expirationTime);
         localStorage.setItem('userName', userName);
 
@@ -81,8 +86,10 @@ export const AuthContextProvider = (props) => {
         }
     }, [tokenData, logoutHandler]);
 
-    const setNotificationShownHandler = (value) => {
+    const setNotificationShownHandler = (value, message, status) => {
+        setNotificationMessage(message);
         setNotificationShown(value);
+        setNotificationStatus(status);
     };
 
     const contextValue = {
@@ -92,6 +99,8 @@ export const AuthContextProvider = (props) => {
         logout: logoutHandler,
         userNickName: userNickName,
         notificationShown: notificationShown,
+        message: notificationMessage,
+        status: notificationStatus,
         setNotificationShown: setNotificationShownHandler
     };
 

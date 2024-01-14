@@ -1,62 +1,78 @@
-import { Fragment, useContext } from 'react';
-import React, { useState } from "react";
-import MainHeader from './MainHeader';
-import Container from './Container';
-import GrafBanner from "../components/graf_banner/graf_banner";
-import GrafHelp from "../components/graf_help/graf_help";
+import React, { Fragment, useContext, useState } from 'react';
 import ModalHelp from '../UI/ModalHelp/modalHelp';
+import ModalAddGame from '../UI/modalAddGame/modalAddGame';
+import ModalAddTournament from '../UI/modalAddTournament/ModalAddTournament';
 import ModalDonate from '../UI/modalDonate/modalDonate';
 import Notification from '../components/Notification/Notification';
-import AuthContext from '../store/auth-context';
-
-import help_ico from '../image/help_icon.png';
+import GrafBanner from '../components/graf_banner/graf_banner';
+import GrafHelp from '../components/graf_help/graf_help';
 import donate_ico from '../image/donation.png';
+import help_ico from '../image/help_icon.png';
+import AuthContext from '../store/auth-context';
+import Container from './Container';
 import classes from './Layout.module.css';
+import MainHeader from './MainHeader';
 
 const Layout = (props) => {
-  const [showGraf, setShowGraf] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showDonate, setShowDonate] = useState(false);
+    const [showGraf, setShowGraf] = useState(false);
+    const [showHelp, setShowHelp] = useState(false);
+    const [showDonate, setShowDonate] = useState(false);
+    const [showAddGame, showSetAddGame] = useState(false);
+    const [showAddTournament, showSetAddTournament] = useState(false);
 
-  const authCtx = useContext(AuthContext);
+    const authCtx = useContext(AuthContext);
 
-  const helpHandler = () => {
-    setShowHelp(true);
-  };
+    const helpHandler = () => {
+        setShowHelp(true);
+    };
 
-  const handleGrafClick = () => {
-    setShowGraf(true);
-  };
+    const handleGrafClick = () => {
+        setShowGraf(true);
+    };
 
-  const helpCloseHandler = () => {
-    setShowGraf(false);
-    setShowHelp(false);
-    setShowDonate(false);
-  };
+    const helpCloseHandler = () => {
+        setShowGraf(false);
+        setShowHelp(false);
+        setShowDonate(false);
+        showSetAddGame(false);
+        showSetAddTournament(false);
+    };
 
-  const donateHandler = () => {
-    setShowDonate(true);
-  };
+    const donateHandler = () => {
+        setShowDonate(true);
+    };
 
-  console.log('Layout js authCtx.notificationShown', authCtx.notificationShown);
+    const handleAddGame = () => {
+        showSetAddGame(true);
+    };
+    const handleAddTournament = () => {
+        showSetAddTournament(true);
+    };
 
-  return (
-    <Fragment>
-      <MainHeader />
-      {authCtx.notificationShown && <Notification message="Congrats! You recieved 1 score point for the registration!" type="success" />}
-      <Container>
-        {props.children}
-      </Container>
-      <GrafBanner handleGrafClick={handleGrafClick} onClose={helpCloseHandler}></GrafBanner >
-      {showGraf && <GrafHelp onClose={helpCloseHandler} graf />}
+    // console.log('authCtx', JSON.stringify(authCtx));
+    return (
+        <Fragment>
+            <MainHeader />
+            {authCtx.notificationShown && <Notification message={authCtx.message} type={authCtx.status} />}
+            <Container>{props.children}</Container>
+            <GrafBanner handleGrafClick={handleGrafClick} onClose={helpCloseHandler}></GrafBanner>
+            {showGraf && <GrafHelp onClose={helpCloseHandler} graf />}
 
-      <img className={classes["help-ico"]} src={help_ico} alt="help-ico" onClick={helpHandler} />
-      <img className={classes["donate-ico"]} src={donate_ico} alt="donate-ico" onClick={donateHandler} />
-      {/* TODO tooltips */}
-      {showHelp && <ModalHelp onClose={helpCloseHandler} />}
-      {showDonate && <ModalDonate onClose={helpCloseHandler} donate />}
-    </Fragment>
-  );
+            <button className={classes['add-game']} onClick={handleAddGame}>
+                +
+            </button>
+            <button className={classes['add-tournament']} onClick={handleAddTournament}>
+                +
+            </button>
+            <img className={classes['help-ico']} src={help_ico} alt="help-ico" onClick={helpHandler} />
+            <img className={classes['donate-ico']} src={donate_ico} alt="donate-ico" onClick={donateHandler} />
+            {/* TODO tooltips */}
+            {showHelp && <ModalHelp onClose={helpCloseHandler} />}
+            {showDonate && <ModalDonate onClose={helpCloseHandler} donate />}
+            {showAddGame && <ModalAddGame onClose={helpCloseHandler} addGame />}
+            {showAddTournament && <ModalAddTournament onClose={helpCloseHandler} addTournament />}
+        </Fragment>
+    );
 };
 
 export default Layout;
