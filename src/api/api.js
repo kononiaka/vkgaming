@@ -165,7 +165,6 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) 
         actualScore = 0.3;
     }
     const ratingChange = kFactor * (actualScore - expectedScore);
-    console.log('ratingChange', ratingChange);
     const newRating = playerRating + ratingChange;
 
     return newRating;
