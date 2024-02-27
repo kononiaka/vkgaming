@@ -1,3 +1,5 @@
+//testing
+
 export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
     const { score, games, ratings } = data;
     try {
