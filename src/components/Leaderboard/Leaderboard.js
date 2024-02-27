@@ -58,7 +58,7 @@ const Leaderboard = () => {
 
                 // console.log('playerObjWithStars', playerObjWithStars);
 
-                // setPlayerRating(playerObjWithStars);
+                setPlayerRating(playerObjWithStars);
             } catch (error) {
                 console.error(error);
             }
@@ -84,8 +84,9 @@ const Leaderboard = () => {
             // const player = playerScores[i];
             // console.log('playerScores[i]', playerScores[i]);
             const player = playerRating[i];
-
+            console.log('player', player);
             const enteredNickname = player ? player.enteredNickname : '-';
+            console.log('enteredNickname', enteredNickname);
             const score = player ? player.score : '-';
             const games = player ? player.games : '-';
             const rating = player ? player.ratings : '-';

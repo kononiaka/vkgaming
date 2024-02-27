@@ -156,10 +156,10 @@ export const getRating = async (opponentId) => {
 };
 
 export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) => {
-    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 6));
+    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 100));
     let actualScore;
     if (didWin) {
-        actualScore = 1;
+        actualScore = 0.7;
     } else {
         actualScore = 0.3;
     }
