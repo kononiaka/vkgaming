@@ -10,6 +10,7 @@ import Heroes3Stats from './components/Games/Heroes3/Stats/Heroes3Stats';
 import Leaderboard from './components/Leaderboard/Leaderboard';
 import Players from './components/Players/Players';
 import UserProfile from './components/Profile/UserProfile';
+import Videos from './components/Videos/Videos';
 import TournamentList from './components/tournaments/homm3/Tournaments';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
@@ -27,7 +28,7 @@ function App() {
                 <Routes>
                     <Route path="/games/homm3" element={<Heroes3Games />} />
                     <Route path="/tournaments/homm3" element={<TournamentList />} />
-                    {/* <Route path="/tournaments/homm3" element={<Heroes3Games />} /> */}
+                    <Route path="/videos" element={<Videos />} />
                     <Route path="/games/homm3/statistics" element={<Heroes3Stats />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />
                     {/* <Route path="/players" element={<Players />} /> */}

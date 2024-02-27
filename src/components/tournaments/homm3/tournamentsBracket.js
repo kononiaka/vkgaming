@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
+    addScoreToUser,
+    getNewRating,
     getPlayerPrizeTotal,
     loadUserById,
+    lookForCastleStats,
     lookForTournamentName,
     lookForUserId,
+    lookForUserPrevScore,
     pullTournamentPrizes
 } from '../../../api/api';
 import classes from './tournamentsBracket.module.css';
@@ -25,6 +29,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [shuffledNames, setShuffledNames] = useState([]);
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
+    const [startButton, setStartButton] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     const [tournamentName, setTournamentName] = useState('');
 
@@ -58,13 +63,57 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             'Third Place': 1,
             Final: 1
         });
-    }, [maxPlayers]);
 
-    // Shuffle the array using Fisher-Yates algorithm
-    useEffect(() => {
+        const fetchPlayoffPairs = async () => {
+            try {
+                // console.log('tournamentId', tournamentId);
+                const tournamentResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`
+                );
+
+                if (tournamentResponse.ok) {
+                    const data = await tournamentResponse.json();
+                    const registeredPlayer = Object.values(data.players).length.toString();
+                    const tournamentPlayers = data.maxPlayers;
+
+                    if (registeredPlayer === tournamentPlayers && data.status !== 'Registration finished!') {
+                        setStartButton(true);
+                    }
+                }
+                const bracketResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+                );
+
+                if (bracketResponse.ok) {
+                    const data = await bracketResponse.json();
+                    if (data) {
+                        // Parse the object
+                        const valuesArray = Object.values(data);
+                        let playoffPairsDetermined = data?.playoffPairs;
+
+                        if (!playoffPairsDetermined) {
+                            playoffPairsDetermined = valuesArray[0].playoffPairs;
+                        }
+                        setPlayoffPairs(playoffPairsDetermined);
+                    }
+                } else {
+                    console.log('Failed to fetch playoff pairs');
+                }
+            } catch (error) {
+                console.error('Error fetching playoff pairs:', error);
+            }
+        };
+
+        fetchPlayoffPairs();
+
         let shuffled = shufflePlayers([...uniquePlayerNames]);
         setShuffledNames(shuffled);
-    }, [uniquePlayerNames]);
+    }, [maxPlayers, uniquePlayerNames]);
+
+    // Shuffle the array using Fisher-Yates algorithm
+    // useEffect(() => {
+
+    // }, []);
 
     const shufflePlayers = (array) => {
         const shuffledArray = [...array];
@@ -77,8 +126,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         return shuffledArray;
     };
 
-    const shuffleArray = (Arg) => {
-        console.log('Arg', Arg);
+    const shuffleArray = () => {
         // setShuffledNames([...uniquePlayerNames]);
         const shuffledArray = [...shuffledNames];
         const remainingPlayers = maxPlayers.length - shuffledNames.length;
@@ -96,43 +144,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
         setShuffledNames([...shuffledArray]); // Update the state with the shuffled array
         setPlayoffPairs([...shuffledArray]);
+        console.log('shuffleArray', playoffPairs);
         createPlayoffPairs();
+
+        return playoffPairs;
     };
 
-    useEffect(() => {
-        const fetchPlayoffPairs = async () => {
-            try {
-                // console.log('tournamentId', tournamentId);
-                const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
-                );
+    // useEffect(() => {
 
-                if (response.ok) {
-                    const data = await response.json();
-
-                    if (data === null) {
-                        return false;
-                        // Tournament registration hasn't started
-                    }
-                    setStartTournament(true);
-                    // Parse the object
-                    const valuesArray = Object.values(data);
-                    let playoffPairsDetermined = data?.playoffPairs;
-
-                    if (!playoffPairsDetermined) {
-                        playoffPairsDetermined = valuesArray[0].playoffPairs;
-                    }
-                    setPlayoffPairs(playoffPairsDetermined);
-                } else {
-                    console.log('Failed to fetch playoff pairs');
-                }
-            } catch (error) {
-                console.error('Error fetching playoff pairs:', error);
-            }
-        };
-
-        fetchPlayoffPairs();
-    }, []);
+    // }, []);
 
     const createPlayoffPairs = () => {
         const updatedPairs = [];
@@ -155,7 +175,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     team2 = prevStagePairs[i * 2 + 1]?.winner || 'TBA';
                 }
 
-                pairs.push({ team1, team2, score1, score2 });
+                pairs.push({ team1, team2, score1, score2, gameStatus: 'Not Started' });
             }
 
             updatedPairs.push(pairs);
@@ -174,11 +194,18 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         const score2 = parseInt(pair.score2) || 0;
 
         if (score1 > score2) {
-            return `${pair.team1}`;
+            pair.winner = pair.team1;
+            pair.castleWinner = pair.castle1;
         } else if (score1 < score2) {
-            return `${pair.team2}`;
+            pair.winner = pair.team2;
+            pair.castleWinner = pair.castle2;
         } else {
             return 'Tie';
+        }
+        // pair.gameStatus = pair.gameStatus !== 'Finished' ? 'Finished' : 'Not Started';
+
+        if (pair.winner && pair.gameStatus !== 'Processed') {
+            pair.gameStatus = 'Finished';
         }
     };
 
@@ -186,18 +213,23 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         setStartTournament(true);
         // Prepare the tournament data
 
+        shuffleArray();
+
         const tournamentData = {
             stageLabels: stageLabels,
-            playoffPairs: playoffPairs,
-            status: 'Registration finished!'
+            playoffPairs: playoffPairs
+            // status: 'Registration finished!'
         };
 
         try {
             const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
                 {
-                    method: 'POST',
-                    body: JSON.stringify(tournamentData),
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        bracket: tournamentData,
+                        status: 'Registration finished!'
+                    }),
                     headers: {
                         'Content-Type': 'application/json'
                     }
@@ -221,7 +253,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const tournamentResponse = await lookForTournamentName(tournamentId);
         setTournamentName(tournamentResponse.name);
-        // return;
 
         try {
             const response = await fetch(
@@ -237,6 +268,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             if (response.ok) {
                 const retrievedWinners = await retrieveWinnersFromDatabase();
+
                 //TOOD: check if the quantity of winners are the same => doing nothing
                 const tournamentDataWithWinners = {
                     playoffPairs: retrievedWinners
@@ -256,14 +288,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 if (winnerBracket.ok) {
                     let place;
                     let prizeAmount;
-
                     const lastStage = retrievedWinners[retrievedWinners.length - 1];
-                    const firstPlace = lastStage[lastStage.length - 1].winner;
+                    const firstPlace = lastStage[lastStage.length - 1] ? lastStage[lastStage.length - 1].winner : null;
+
                     const secondPlace = firstPlace
                         ? firstPlace === lastStage[lastStage.length - 1].team1
                             ? lastStage[lastStage.length - 1].team2
                             : lastStage[lastStage.length - 1].team1
                         : undefined;
+
                     if (firstPlace) {
                         let prizes = await pullTournamentPrizes(tournamentId);
                         // console.log('prizes', prizes);
@@ -317,7 +350,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         place = '1st Place';
                                         prizeAmount = prizes[place];
                                         let firstPriceTotal = await getPlayerPrizeTotal(firstPlaceId);
-                                        console.log('firstPriceTotal', firstPriceTotal);
                                         firstPlaceRecord.totalPrize = +firstPriceTotal + +prizeAmount;
 
                                         firstPlaceRecord.prizes.push({
@@ -326,7 +358,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                             prizeAmount: prizeAmount
                                         });
 
-                                        console.log('place', place);
+                                        // console.log('place', place);
                                         const firstPlaceResponse = await fetch(
                                             `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
                                             {
@@ -338,7 +370,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                             }
                                         );
                                         if (firstPlaceResponse.ok) {
-                                            console.log('secondPlaceRecord', JSON.stringify(secondPlaceRecord));
+                                            // console.log('secondPlaceRecord', JSON.stringify(secondPlaceRecord));
                                             if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
                                                 // If not, initialize "prizes" as an object
                                                 console.log('prizeAmount-2nd', prizeAmount);
@@ -347,7 +379,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                             place = '2nd Place';
                                             prizeAmount = prizes[place];
                                             let secondPriceTotal = await getPlayerPrizeTotal(secondPlaceId);
-                                            console.log('secondPriceTotal', secondPriceTotal);
+                                            // console.log('secondPriceTotal', secondPriceTotal);
                                             secondPlaceRecord.totalPrize = +secondPriceTotal + +prizeAmount;
 
                                             secondPlaceRecord.prizes.push({
@@ -380,9 +412,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     }
                 }
 
-                console.log('playoffPairs', playoffPairs);
+                await processFinishedGames(playoffPairs);
+
                 console.log('Pairs posted to Firebase successfully');
-                // window.location.reload();
+                window.location.reload();
             } else {
                 console.log('Failed to post pairs to Firebase');
             }
@@ -405,9 +438,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 let nextStagePairings;
                 let nextStageIndex = 0;
 
+                //TODO: if the winner is not in the next stage => set it!
+                //TODO: if all the brackets have winners => do nothing!
+
                 for (let currentStage = 0; currentStage < collectedPlayoffPairs.length - 1; currentStage++) {
                     let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
-                    const currentStagePlayoffWinners = currentStagePlayoffPairs.map((pair) => pair.winner);
+                    let currentStagePlayoffWinners = currentStagePlayoffPairs
+                        .map((pair) => pair.winner)
+                        .filter((pair) => pair !== undefined || pair === 'TBA');
 
                     nextStageIndex = currentStage + 1;
                     let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
@@ -418,8 +456,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     }
                     const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
                     const hasUndefinedTeam = nextStagePlayoffPairs.some(
-                        (pair) => pair.team1 === undefined || pair.team2 === undefined
+                        (pair) => pair.team1 === 'TBA' || pair.team2 === 'TBA'
                     );
+
+                    //TODO: if no score for both pplayers set get to not started
 
                     if (nextStagePlayoffWinners.includes(undefined) && !thirdPlaceWinner) {
                         if (nextStageIndex === 2) {
@@ -428,64 +468,118 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     ? match.team2
                                     : match.winner === match.team2
                                     ? match.team1
-                                    : null
+                                    : 'TBA'
                             );
                             let thirdPlacePairing = determineNextStagePairings(losers);
-                            nextStagePairings = determineNextStagePairings(currentStagePlayoffWinners, currentStage);
-                            collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
-                            collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
-                        } else {
-                            if (hasUndefinedTeam) {
+                            if (currentStagePlayoffWinners.length > 0) {
                                 nextStagePairings = determineNextStagePairings(
                                     currentStagePlayoffWinners,
-                                    currentStage,
-                                    thirdPlaceWinner
+                                    currentStage
                                 );
-                                collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
+                                collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
+                                collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
+                            }
+                        } else {
+                            if (hasUndefinedTeam) {
+                                console.log('hasUndefinedTeam', hasUndefinedTeam);
+                                if (currentStagePlayoffWinners.length > 0) {
+                                    nextStagePairings = determineNextStagePairings(
+                                        currentStagePlayoffWinners,
+                                        currentStage,
+                                        thirdPlaceWinner
+                                    );
+                                    collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
+                                }
                             }
                         }
                     }
                 }
-                // console.log('collectedPlayoffPairs', collectedPlayoffPairs);
-                // =========>
-                // let firstStagePlayoffPairs = collectedPlayoffPairs[0];
 
-                // // Collect the winners from the playoffPairs data
-                // const firstStagePlayoffWinners = firstStagePlayoffPairs.map((pair) => pair.winner);
-
-                // // // Process the winners and determine the next stage pairings
-
-                // let secondStagePlayoffPairs = collectedPlayoffPairs[1];
-                // const secondStagePlayoffWinners = secondStagePlayoffPairs.map((pair) => pair.winner);
-                // if (secondStagePlayoffWinners.length === 0) {
-                //     const nextStagePairings = determineNextStagePairings(firstStagePlayoffWinners);
-                //     console.log('nextStagePairings', nextStagePairings);
-                //     collectedPlayoffPairs[1] = nextStagePairings;
-                // }
-
-                // const test = determineNextStagePairings(secondStagePlayoffWinners);
-                // collectedPlayoffPairs[3] = test;
-
-                // let thirdStagePlayoffPairs = collectedPlayoffPairs[2];
-                // console.log('collectedPlayoffPairs-451', collectedPlayoffPairs);
+                //TODO: check if the two winners in the stage === 2
                 determineThirdPlaceWinner(collectedPlayoffPairs, stageLabels);
-                console.log('collectedPlayoffPairs-JSON', JSON.stringify(collectedPlayoffPairs));
                 setPlayoffPairs(collectedPlayoffPairs);
                 return collectedPlayoffPairs;
-
-                // // Update the pairings for the next stage in the database
-                // await updateNextStagePairingsInDatabase(nextStagePairings);
-
-                // // Optionally, update the state in your application to reflect the updated pairings
-                // setPlayoffPairs(nextStagePairings);
-
-                // console.log('Next stage pairings:', nextStagePairings);
             } else {
                 console.log('Failed to retrieve winners from the database');
             }
         } catch (error) {
             console.error('Error retrieving winners from the database:', error);
         }
+    };
+
+    const processFinishedGames = async (collectedPlayoffPairs) => {
+        let finishedPairs = [];
+
+        collectedPlayoffPairs.forEach((pair) => {
+            pair.forEach((pairDetails) => {
+                if (pairDetails.gameStatus === 'Finished') {
+                    finishedPairs.push(pairDetails);
+                }
+            });
+        });
+        let { castle1, castle2, castleWinner, score1, score2, team1, team2, winner } = finishedPairs[0];
+
+        const opponent1Id = await lookForUserId(team1);
+        console.log('opponent1Id', opponent1Id);
+        const opponent2Id = await lookForUserId(team2);
+        console.log('opponent2Id', opponent2Id);
+
+        let game = {
+            opponent1: team1,
+            opponent2: team2,
+            date: new Date(),
+            // gameName: gameName,
+            tournamentName: tournamentName,
+            gameType: 'bo-1', //TODO: change dynamically
+            opponent1Castle: castle1,
+            opponent2Castle: castle2,
+            score: `${score1}-${score2}`,
+            winner: winner
+        };
+
+        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
+            method: 'POST',
+            body: JSON.stringify(game),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        await response.json();
+        let winnerId;
+        let winnerCastle;
+        let lostCastle;
+
+        if (team1 === winner) {
+            winnerId = opponent1Id;
+            winnerCastle = castle1;
+            lostCastle = castle2;
+        } else if (team2 === winner) {
+            winnerId = opponent2Id;
+            winnerCastle = castle2;
+            lostCastle = castle1;
+        }
+
+        lookForCastleStats(winnerCastle, 'win');
+        lookForCastleStats(lostCastle, 'lost');
+
+        const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
+        const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
+
+        const didWinOpponent1 = winnerId === opponent1Id;
+        const didWinOpponent2 = winnerId === opponent2Id;
+
+        let opponent1Score = await getNewRating(opponent1PrevData.ratings, opponent2PrevData.ratings, didWinOpponent1);
+        let opponent2Score = await getNewRating(opponent2PrevData.ratings, opponent1PrevData.ratings, didWinOpponent2);
+
+        await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
+        await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
+
+        finishedPairs[0].gameStatus = 'Processed';
+
+        //TODO: setPlayoffPairs(finishedPairs);
+
+        return finishedPairs;
     };
 
     const determineThirdPlaceWinner = async (playOffPairs, stages) => {
@@ -496,10 +590,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const thirdPlaceIndex = stages.indexOf('Third Place');
         const thirdPlace = playOffPairs[thirdPlaceIndex];
-        console.log('thirdPlace', thirdPlace);
-        if (thirdPlace) {
+        if (thirdPlace[0].winner) {
             let winner = thirdPlace[0].winner;
-            console.log('winner 3rd', winner);
             if (winner) {
                 let userId = await lookForUserId(winner);
                 let userRecord = await loadUserById(userId);
@@ -507,8 +599,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 let thirdPriceTotal = await getPlayerPrizeTotal(userId);
 
                 userRecord.totalPrize = +thirdPriceTotal + +prizeAmount;
-
-                // console.log('userRecord', userRecord);
 
                 // Check if "prizes" property exists and is an object
                 if (!userRecord || typeof userRecord.prizes !== 'object') {
@@ -618,18 +708,18 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             }
 
             if (pair.score1 !== null && pair.score2 !== null) {
-                pair.winner = getWinner(pair);
+                getWinner(pair);
             }
-            // console.log('updatedPairs', updatedPairs);
             return updatedPairs;
         });
+        console.log('playoffPairs', playoffPairs);
     };
 
     return (
-        <div className={`${classes['scrollable-list']} ${classes['brackets']}`}>
-            {!startTournament && <button onClick={handleStartTournament}>Start Tournament</button>}
-            {!startTournament && <button onClick={() => shuffleArray(uniquePlayerNames)}>Shuffle</button>}
-            {startTournament && isUpdateButtonVisible && (
+        <div className={`scrollable-list-class brackets-class`}>
+            {startButton && !startTournament && <button onClick={handleStartTournament}>Start Tournament</button>}
+            {startTournament && <button onClick={() => shuffleArray(uniquePlayerNames)}>Shuffle</button>}
+            {!startTournament && isUpdateButtonVisible && (
                 <button id="update-tournament" onClick={() => updateTournament()}>
                     Update Tournament
                 </button>
@@ -637,78 +727,168 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             {stageLabels.length === 0 ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : (
-                stageLabels.map(function (stage, index) {
-                    return (
-                        <div
-                            key={stage}
-                            className={`${classes.brackets} ${index === currentStageIndex ? classes.active : ''}`}
-                        >
-                            <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
-                            {stage === 'Winner' && tournamentWinner && (
-                                <p style={{ color: 'yellow' }}>{tournamentWinner}</p>
-                            )}
-                            {playoffPairs[index]?.map((pair, pairIndex) => {
-                                // console.log('pair ' + pair, 'pairIndex ' + pairIndex);
-                                const { team1, team2, score1, score2, winner } = pair;
-                                return (
-                                    <div
-                                        key={pairIndex}
-                                        // style={{ position: 'relative' }}
-                                    >
-                                        {stage !== 'Third Place' && stage !== 'Final' && (
-                                            <p>{`Match ${pairIndex + 1}`}</p>
-                                        )}
-                                        <p>{`Best of ${1}`}</p>
-                                        <div className={classes.player_bracket}>
-                                            {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
-                                            {pair.team1 === winner ? (
-                                                <div className={classes['green-indicator']}></div>
-                                            ) : winner === 'Tie' || winner === undefined ? (
-                                                <div className={classes['grey-indicator']}></div>
-                                            ) : (
-                                                <div className={classes['red-indicator']}></div>
-                                            )}
+                <>
+                    {!startTournament &&
+                        stageLabels.map(function (stage, stageIndex) {
+                            return (
+                                <div
+                                    key={stage}
+                                    className={`${classes.brackets} ${
+                                        stageIndex === currentStageIndex ? classes.active : ''
+                                    }`}
+                                >
+                                    <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
+                                    {stage === 'Winner' && tournamentWinner && (
+                                        <p style={{ color: 'yellow' }}>{tournamentWinner}</p>
+                                    )}
+                                    {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
+                                        // console.log('pair', pair);
+                                        const { team1, team2, score1, score2, winner, castle1, castle2 } = pair;
 
-                                            <label htmlFor={`score-team1-${pairIndex}`}>{team1}</label>
-                                            <input
-                                                type="text"
-                                                id={`score-team1-${pairIndex}`}
-                                                value={score1 || ''}
-                                                onChange={(event) =>
-                                                    handleScoreChange(stage, pairIndex, 1, event.target.value)
-                                                }
-                                            />
-                                        </div>
-                                        <div className={classes.player_bracket}>
-                                            {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
-                                            {pair.team2 === winner ? (
-                                                <div className={classes['green-indicator']}></div>
-                                            ) : winner === 'Tie' || winner === undefined ? (
-                                                <div className={classes['grey-indicator']}></div>
-                                            ) : (
-                                                <div className={classes['red-indicator']}></div>
-                                            )}
+                                        const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBA') || team2 !== 'TBA';
 
-                                            <label htmlFor={`score-team2-${pairIndex}`}>{team2}</label>
-                                            <input
-                                                type="text"
-                                                id={`score-team2-${pairIndex}`}
-                                                value={score2 || ''}
-                                                onChange={(event) =>
-                                                    handleScoreChange(stage, pairIndex, 2, event.target.value)
-                                                }
-                                            />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    );
-                })
+                                        return (
+                                            <div
+                                                key={pairIndex}
+                                                // style={{ position: 'relative' }}
+                                            >
+                                                {stage !== 'Third Place' && stage !== 'Final' && (
+                                                    <p>{`Match ${pairIndex + 1}`}</p>
+                                                )}
+                                                <p>{`Best of ${1}`}</p>
+                                                <div>Date:</div>
+                                                <div className={classes.player_bracket}>
+                                                    {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
+                                                    {pair.team1 === winner ? (
+                                                        <div className={classes['green-indicator']}></div>
+                                                    ) : winner === 'Tie' || winner === undefined ? (
+                                                        <div className={classes['grey-indicator']}></div>
+                                                    ) : (
+                                                        <div className={classes['red-indicator']}></div>
+                                                    )}
+                                                    <label htmlFor={`score-team1-${pairIndex}`}>{team1}</label>
+                                                    {/* TODO: add the stars image when the tournament just started */}
+                                                    <div>Stars img</div>
+                                                    {hasTruthyPlayers && (
+                                                        <div className="castle-dropdown-class">
+                                                            {/* <label htmlFor={`castle-team1-${pairIndex}`}>{team1}</label> */}
+                                                            <select
+                                                                id={`castle-team1-${pairIndex}`}
+                                                                value={castle1 ? castle1 : ''}
+                                                                onChange={(event) =>
+                                                                    handleCastleChange(
+                                                                        stageIndex,
+                                                                        pairIndex,
+                                                                        1,
+                                                                        event.target.value,
+                                                                        setPlayoffPairs
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">Select a castle</option>
+                                                                <option value="Castle-Замок">Castle</option>
+                                                                <option value="Rampart-Оплот">Rampart</option>
+                                                                <option value="Tower-Башня">Tower</option>
+                                                                <option value="Inferno-Инферно">Inferno</option>
+                                                                <option value="Necropolis-Некрополис">
+                                                                    Necropolis
+                                                                </option>
+                                                                <option value="Dungeon-Подземелье">Dungeon</option>
+                                                                <option value="Stronghold-Цитадель">Stronghold</option>
+                                                                <option value="Fortress-Болото">Fortress</option>
+                                                                <option value="Conflux-Сопряжение">Conflux</option>
+                                                                <option value="Cove-Пиратская бухта">Cove</option>
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                    <input
+                                                        type="text"
+                                                        id={`score-team1-${pairIndex}`}
+                                                        value={score1 || ''}
+                                                        onChange={(event) =>
+                                                            handleScoreChange(stage, pairIndex, 1, event.target.value)
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className={classes.player_bracket}>
+                                                    {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
+                                                    {pair.team2 === winner ? (
+                                                        <div className={classes['green-indicator']}></div>
+                                                    ) : winner === 'Tie' || winner === undefined ? (
+                                                        <div className={classes['grey-indicator']}></div>
+                                                    ) : (
+                                                        <div className={classes['red-indicator']}></div>
+                                                    )}
+
+                                                    <label htmlFor={`score-team2-${pairIndex}`}>{team2}</label>
+                                                    <div>Rate:</div>
+                                                    {hasTruthyPlayers && (
+                                                        <div className="castle-dropdown-class">
+                                                            {/* <label htmlFor={`castle-team2-${pairIndex}`}>{team2}</label> */}
+                                                            <select
+                                                                id={`castle-team2-${pairIndex}`}
+                                                                value={castle2 ? castle2 : ''}
+                                                                onChange={(event) =>
+                                                                    handleCastleChange(
+                                                                        stageIndex,
+                                                                        pairIndex,
+                                                                        2,
+                                                                        event.target.value,
+                                                                        setPlayoffPairs
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">Select a castle</option>
+                                                                <option value="Castle-Замок">Castle</option>
+                                                                <option value="Rampart-Оплот">Rampart</option>
+                                                                <option value="Tower-Башня">Tower</option>
+                                                                <option value="Inferno-Инферно">Inferno</option>
+                                                                <option value="Necropolis-Некрополис">
+                                                                    Necropolis
+                                                                </option>
+                                                                <option value="Dungeon-Подземелье">Dungeon</option>
+                                                                <option value="Stronghold-Цитадель">Stronghold</option>
+                                                                <option value="Fortress-Болото">Fortress</option>
+                                                                <option value="Conflux-Сопряжение">Conflux</option>
+                                                                <option value="Cove-Пиратская бухта">Cove</option>
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                    <input
+                                                        type="text"
+                                                        id={`score-team2-${pairIndex}`}
+                                                        value={score2 || ''}
+                                                        onChange={(event) =>
+                                                            handleScoreChange(stage, pairIndex, 2, event.target.value)
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                </>
             )}
         </div>
     );
 };
+
+function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPlayoffPairs) {
+    setPlayoffPairs((prevPairs) => {
+        const updatedPairs = [...prevPairs];
+        const pair = updatedPairs[stageIndex][pairIndex];
+
+        if (teamIndex === 1) {
+            pair.castle1 = castleName;
+        } else if (teamIndex === 2) {
+            pair.castle2 = castleName;
+        }
+
+        return updatedPairs;
+    });
+}
 
 export const renderPlayerList = (players) => {
     const playerNames = Object.values(players)

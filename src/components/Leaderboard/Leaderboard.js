@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { calculateStarsFromRating, getRating, updateRating, updateStars } from '../../api/api';
+import { calculateStarsFromRating } from '../../api/api';
 import StarsComponent from '../Stars/Stars';
 import classes from './Leaderboard.module.css';
 
@@ -56,14 +56,6 @@ const Leaderboard = () => {
                     stars: calculateStarsFromRating(player.ratings, highestRating, lowestRating)
                 }));
 
-                playerObjWithStars.forEach(async (player) => {
-                    let rate = await getRating(player.id);
-                    console.log('rate ' + player.enteredNickname, rate);
-                    // console.log('player', player.stars);
-                    updateRating(player.id, rate);
-                    updateStars(player.id, player.stars);
-                });
-
                 // console.log('playerObjWithStars', playerObjWithStars);
 
                 setPlayerRating(playerObjWithStars);
@@ -92,8 +84,9 @@ const Leaderboard = () => {
             // const player = playerScores[i];
             // console.log('playerScores[i]', playerScores[i]);
             const player = playerRating[i];
-
+            console.log('player', player);
             const enteredNickname = player ? player.enteredNickname : '-';
+            console.log('enteredNickname', enteredNickname);
             const score = player ? player.score : '-';
             const games = player ? player.games : '-';
             const rating = player ? player.ratings : '-';

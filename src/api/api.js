@@ -1,6 +1,5 @@
 export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
     const { score, games, ratings } = data;
-    console.log('games', games);
     try {
         const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
             method: 'PATCH',
@@ -13,7 +12,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
                         lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
                     }
                 },
-                ratings: Number(ratings) + Number(scoreToAdd)
+                ratings: Number(scoreToAdd)
             }),
             headers: {
                 'Content-Type': 'application/json'
@@ -27,6 +26,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
 };
 
 export const lookForUserId = async (nickname, full) => {
+    console.log('nickname', nickname);
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
         method: 'GET'
     });
@@ -55,7 +55,6 @@ export const loadUserById = async (userId) => {
 
     const data = await response.json();
 
-    // console.log('data', data);
     return data;
 };
 
@@ -66,8 +65,6 @@ export const lookForUserPrevScore = async (userId) => {
     });
 
     const data = await response.json();
-
-    // console.log('data.ratings', data.ratings);
 
     if (data && !!data.ratings) {
         results.ratings = data.ratings; // Return the score of the user object
@@ -101,6 +98,9 @@ export const lookForCastleStats = async (castle, action) => {
     );
 
     const castleData = await response.json();
+
+    // console.log('castleData-api-106', castleData);
+
     if (action === 'win') {
         body = JSON.stringify({
             total: castleData.total + 1,
@@ -156,16 +156,14 @@ export const getRating = async (opponentId) => {
 };
 
 export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) => {
-    console.log('playerRating', playerRating);
-    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
+    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 100));
     let actualScore;
     if (didWin) {
-        actualScore = 1;
+        actualScore = 0.7;
     } else {
         actualScore = 0.3;
     }
     const ratingChange = kFactor * (actualScore - expectedScore);
-    console.log('ratingChange', ratingChange);
     const newRating = playerRating + ratingChange;
 
     return newRating;

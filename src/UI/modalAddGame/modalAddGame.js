@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getNewRating, lookForUserId, lookForUserPrevScore } from '../../api/api';
+import { addScoreToUser, getNewRating, lookForCastleStats, lookForUserId, lookForUserPrevScore } from '../../api/api';
 import { fetchTournamentGames, fetchTournaments } from '../../components/tournaments/homm3/tournamentUtils';
 import Modal from '../Modal/Modal';
 
@@ -161,15 +161,15 @@ function AddGameModal(props) {
         const opponent1Id = await lookForUserId(opponent1);
         const opponent2Id = await lookForUserId(opponent2);
 
-        // const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
-        //     method: 'POST',
-        //     body: JSON.stringify(game),
-        //     headers: {
-        //         'Content-Type': 'application/json'
-        //     }
-        // });
+        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
+            method: 'POST',
+            body: JSON.stringify(game),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
 
-        // await response.json();
+        await response.json();
 
         if (opponent1 === winner) {
             winnerId = opponent1Id;
@@ -181,8 +181,8 @@ function AddGameModal(props) {
             lostCastle = opponent1Castle;
         }
 
-        // lookForCastleStats(winnerCastle, 'win');
-        // lookForCastleStats(lostCastle, 'lost');
+        lookForCastleStats(winnerCastle, 'win');
+        lookForCastleStats(lostCastle, 'lost');
 
         const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
         const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
@@ -198,11 +198,11 @@ function AddGameModal(props) {
         let opponent2Score = await getNewRating(opponent2PrevData.ratings, opponent1PrevData.ratings, didWinOpponent2);
         console.log('opponent1Score', opponent1Score);
         console.log('opponent2Score', opponent2Score);
-        // await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
-        // await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
+        await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
+        await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
-        // props.onClose();
-        // window.location.reload();
+        props.onClose();
+        window.location.reload();
     };
 
     return (
