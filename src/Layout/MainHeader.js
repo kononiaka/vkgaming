@@ -26,7 +26,7 @@ const MainHeader = (props) => (
         </div>
         <ul className={classes.navLink}>
             <li className={classes['navLink-item']}>
-                <Link to="/games" className={classes['navLink-link']}>
+                <Link to="/games/homm3" className={classes['navLink-link']}>
                     Games
                 </Link>
                 <div className={classes['navLink-dropdown']}>
@@ -39,9 +39,9 @@ const MainHeader = (props) => (
                         </Link>
                     </div>
                     {/* <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link> */}
-                    <Link to="/games/civ_vi" className={classes['navLink-dropdown-item']}>
+                    {/* <Link to="/games/civ_vi" className={classes['navLink-dropdown-item']}>
                         Civilization VI
-                    </Link>
+                    </Link> */}
                 </div>
             </li>
             <li className={classes['navLink-item']}>
@@ -49,11 +49,11 @@ const MainHeader = (props) => (
                     Videos
                 </Link>
             </li>
-            <li className={classes['navLink-item']}>
+            {/* <li className={classes['navLink-item']}>
                 <Link to="/players" className={classes['navLink-link']}>
                     Players
                 </Link>
-            </li>
+            </li> */}
             {/* <Link to='/players' className={classes['navLink-link']}>Players</Link> */}
             <li className={classes['navLink-item']}>
                 <Link to="leaderboard" className={classes['navLink-link']}>
@@ -61,16 +61,16 @@ const MainHeader = (props) => (
                 </Link>
             </li>
             <li className={classes['navLink-item']}>
-                <Link to="/tournaments" className={classes['navLink-link']}>
+                <Link to="/tournaments/homm3" className={classes['navLink-link']}>
                     Tournaments
                 </Link>
                 <div className={classes['navLink-dropdown']}>
                     <Link to="/tournaments/homm3" className={classes['navLink-dropdown-item']}>
                         Heroes of Might & Magic III
                     </Link>
-                    <Link to="/tournaments/civ_vi" className={classes['navLink-dropdown-item']}>
+                    {/* <Link to="/tournaments/civ_vi" className={classes['navLink-dropdown-item']}>
                         Civilization VI
-                    </Link>
+                    </Link> */}
                     {/* <Link to="/tournaments/cs_go" className={classes['navLink-dropdown-item']}>
                         Counter-Strike
                     </Link> */}

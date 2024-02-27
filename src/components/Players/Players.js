@@ -46,6 +46,9 @@ const PlayerDetails = () => {
                         <li>Stars: {player.stars}</li>
                         <li>Total win: {player.totalPrize}</li>
                         <li>Place in Leaderboard: {player.totalPrize}</li>
+                        <li>Twitch:</li>
+                        <li>Youtube:</li>
+                        <li>Telegram:</li>
                     </ul>
                     {/* Add more player details as needed */}
                 </div>
