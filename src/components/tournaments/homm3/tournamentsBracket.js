@@ -577,7 +577,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         finishedPairs[0].gameStatus = 'Processed';
 
-        //TODO: setPlayoffPairs(finishedPairs);
+        setPlayoffPairs(finishedPairs);
 
         return finishedPairs;
     };
