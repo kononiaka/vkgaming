@@ -10,8 +10,8 @@ import {
     lookForUserPrevScore,
     pullTournamentPrizes
 } from '../../../api/api';
+import { PlayerBracket } from './PlayerBracket/PlayerBracket';
 import classes from './tournamentsBracket.module.css';
-
 const formatPlayerName = (player) => player.name;
 
 const uniquePlayerNames = [];
@@ -32,7 +32,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [startButton, setStartButton] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     const [tournamentName, setTournamentName] = useState('');
-
+    let BO3_DEFAULT;
     // Determine the stage label based on the number of max players
     useEffect(() => {
         let labels = [];
@@ -90,7 +90,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         // Parse the object
                         const valuesArray = Object.values(data);
                         let playoffPairsDetermined = data?.playoffPairs;
-
                         if (!playoffPairsDetermined) {
                             playoffPairsDetermined = valuesArray[0].playoffPairs;
                         }
@@ -131,7 +130,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         const shuffledArray = [...shuffledNames];
         const remainingPlayers = maxPlayers.length - shuffledNames.length;
 
-        // Check if there are remaining spots and add players as TBA
+        // Check if there are remaining spots and add players as TBD
         if (remainingPlayers > 0) {
             for (let i = 0; i < remainingPlayers; i++) {
                 shuffledArray.push('TBD');
@@ -161,21 +160,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             const pairs = [];
 
             for (let i = 0; i < numGames; i++) {
-                let team1 = 'TBA';
+                let team1 = 'TBD';
                 let score1 = 0;
-                let team2 = 'TBA';
+                let team2 = 'TBD';
                 let score2 = 0;
 
                 if (index === 0) {
-                    team1 = shuffledNames[i * 2] || 'TBA';
-                    team2 = shuffledNames[i * 2 + 1] || 'TBA';
+                    team1 = shuffledNames[i * 2] || 'TBD';
+                    team2 = shuffledNames[i * 2 + 1] || 'TBD';
                 } else {
                     const prevStagePairs = updatedPairs[index - 1];
-                    team1 = prevStagePairs[i * 2]?.winner || 'TBA';
-                    team2 = prevStagePairs[i * 2 + 1]?.winner || 'TBA';
+                    team1 = prevStagePairs[i * 2]?.winner || 'TBD';
+                    team2 = prevStagePairs[i * 2 + 1]?.winner || 'TBD';
                 }
 
-                pairs.push({ team1, team2, score1, score2, gameStatus: 'Not Started' });
+                pairs.push({ team1, team2, score1, score2, type: 'bo-1', gameStatus: 'Not Started' });
             }
 
             updatedPairs.push(pairs);
@@ -190,22 +189,53 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     // }, []);
 
     const getWinner = (pair) => {
-        const score1 = parseInt(pair.score1) || 0;
-        const score2 = parseInt(pair.score2) || 0;
+        const score1 = pair.type === 'bo-3' ? parseInt(pair.score1) : parseInt(pair.score1) || 0;
+        const score2 = pair.type === 'bo-3' ? parseInt(pair.score2) : parseInt(pair.score1) || 0;
 
-        if (score1 > score2) {
-            pair.winner = pair.team1;
-            pair.castleWinner = pair.castle1;
-        } else if (score1 < score2) {
-            pair.winner = pair.team2;
-            pair.castleWinner = pair.castle2;
-        } else {
-            return 'Tie';
+        if (pair.type === 'bo-3') {
+            if (score1 > score2) {
+                pair.winner = pair.team1;
+                if (score2 === 0 && pair.games) {
+                    pair.games.forEach((game, index) => {
+                        pair.games[index].castleWinner = game.castle1;
+                    });
+                }
+            } else if (score1 < score2) {
+                if (score1 === 0 && pair.games) {
+                    console.log('pair.games', pair.games);
+
+                    pair.games.forEach((game, index) => {
+                        pair.games[index].castleWinner = game.castle2;
+                    });
+                }
+                pair.winner = pair.team2;
+            } else {
+                return 'Tie';
+            }
+        } else if (pair.type === 'bo-1') {
+            if (score1 > score2) {
+                pair.winner = pair.team1;
+                pair.castleWinner = pair.castle1;
+            } else if (score1 < score2) {
+                pair.winner = pair.team2;
+                pair.castleWinner = pair.castle1;
+            } else {
+                return 'Tie';
+            }
         }
         // pair.gameStatus = pair.gameStatus !== 'Finished' ? 'Finished' : 'Not Started';
 
         if (pair.winner && pair.gameStatus !== 'Processed') {
-            pair.gameStatus = 'Finished';
+            if (pair.type === 'bo-3') {
+                let results = ['2-0', '2-1', '1-2', '0-2'];
+                let combinedScore = `${score1}-${score2}`;
+
+                if (results.includes(combinedScore)) {
+                    pair.gameStatus = 'Finished';
+                }
+            } else {
+                pair.gameStatus = 'Finished';
+            }
         }
     };
 
@@ -512,34 +542,55 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         collectedPlayoffPairs.forEach((pair) => {
             pair.forEach((pairDetails) => {
+                console.log('pairDetails', pairDetails);
+                if (pairDetails.gameType === 'bo-3') {
+                    let results = ['2-0', '2-1', '1-2', '0-2'];
+
+                    let fullResult = pairDetails.score1 + pairDetails.score2;
+                    if (results.includes(fullResult)) {
+                        pairDetails.gameStatus = 'Finished';
+                    }
+                }
+                console.log('pairDetails-after', pairDetails);
                 if (pairDetails.gameStatus === 'Finished') {
+                    //TODO: pairDetails.gameType (bo-1 or bo-3)
+                    // if (pairDetails.gameType === 'bo-3') {
+
+                    // }
                     finishedPairs.push(pairDetails);
                 }
             });
         });
-        let { castle1, castle2, castleWinner, score1, score2, team1, team2, winner } = finishedPairs[0];
+
+        let { castle1, castle2, castleWinner, score1, score2, team1, team2, winner, gameType } = finishedPairs[0];
 
         const opponent1Id = await lookForUserId(team1);
         console.log('opponent1Id', opponent1Id);
         const opponent2Id = await lookForUserId(team2);
         console.log('opponent2Id', opponent2Id);
 
-        let game = {
-            opponent1: team1,
-            opponent2: team2,
-            date: new Date(),
-            // gameName: gameName,
-            tournamentName: tournamentName,
-            gameType: 'bo-1', //TODO: change dynamically
-            opponent1Castle: castle1,
-            opponent2Castle: castle2,
-            score: `${score1}-${score2}`,
-            winner: winner
-        };
+        let games;
+        if (gameType === 'bo-3') {
+            console.log('finishedPairs[0]', finishedPairs[0]);
+            //TODO: not sure how to handle multiple games
+        } else {
+            games = {
+                opponent1: team1,
+                opponent2: team2,
+                date: new Date(),
+                // gameName: gameName,
+                tournamentName: tournamentName,
+                gameType: 'bo-1', //TODO: pairDetails.gameType
+                opponent1Castle: castle1,
+                opponent2Castle: castle2,
+                score: `${score1}-${score2}`,
+                winner: winner
+            };
+        }
 
         const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
             method: 'POST',
-            body: JSON.stringify(game),
+            body: JSON.stringify(games),
             headers: {
                 'Content-Type': 'application/json'
             }
@@ -576,6 +627,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
         finishedPairs[0].gameStatus = 'Processed';
+
+        setPlayoffPairs(finishedPairs);
+
+        //TODO:post the setPlayoffPairs(finishedPairs);
 
         setPlayoffPairs(finishedPairs);
 
@@ -742,10 +797,76 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         <p style={{ color: 'yellow' }}>{tournamentWinner}</p>
                                     )}
                                     {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
-                                        // console.log('pair', pair);
-                                        const { team1, team2, score1, score2, winner, castle1, castle2 } = pair;
-
+                                        // console.log('pair-map', pair);
+                                        const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
+                                        // console.log('winner', winner);
                                         const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBA') || team2 !== 'TBA';
+
+                                        if (type === 'bo-3') {
+                                            BO3_DEFAULT = [
+                                                {
+                                                    gameId: 1,
+                                                    castle1: pair.games[0].castle1 ? pair.games[0].castle1 : null,
+                                                    castle2: pair.games[0].castle2 ? pair.games[0].castle2 : null,
+                                                    castleWinner: null
+                                                },
+                                                {
+                                                    gameId: 2,
+                                                    castle1: pair.games[1].castle1 ? pair.games[1].castle1 : null,
+                                                    castle2: pair.games[1].castle2 ? pair.games[1].castle2 : null,
+                                                    castleWinner: null
+                                                }
+                                            ];
+                                            if (score1 && score2) {
+                                                if (
+                                                    +score1 + +score2 !== 3 &&
+                                                    `${score1}-${score2}` !== '2-0' &&
+                                                    `${score1}-${score2}` !== '0-2'
+                                                ) {
+                                                    alert('is not bo-3 result');
+                                                } else if (+score1 + +score2 === 3) {
+                                                    BO3_DEFAULT = [
+                                                        {
+                                                            gameId: 1,
+                                                            castle1: pair.games[0].castle1
+                                                                ? pair.games[0].castle1
+                                                                : null,
+                                                            castle2: pair.games[0].castle2
+                                                                ? pair.games[0].castle2
+                                                                : null,
+                                                            castleWinner: null
+                                                        },
+                                                        {
+                                                            gameId: 2,
+                                                            castle1: pair.games[1].castle1
+                                                                ? pair.games[1].castle1
+                                                                : null,
+                                                            castle2: pair.games[1].castle2
+                                                                ? pair.games[1].castle2
+                                                                : null,
+                                                            castleWinner: null
+                                                        },
+                                                        {
+                                                            gameId: 3,
+                                                            castle1: pair.games[2].castle1
+                                                                ? pair.games[2].castle1
+                                                                : null,
+                                                            castle2: pair.games[2].castle2
+                                                                ? pair.games[2].castle2
+                                                                : null,
+                                                            castleWinner: null
+                                                        }
+                                                    ];
+                                                }
+                                            }
+                                        } else {
+                                            BO3_DEFAULT = {
+                                                gameId: 1,
+                                                castle1: castle1,
+                                                castle2: castle2,
+                                                castleWinner: null
+                                            };
+                                        }
 
                                         return (
                                             <div
@@ -755,114 +876,34 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 {stage !== 'Third Place' && stage !== 'Final' && (
                                                     <p>{`Match ${pairIndex + 1}`}</p>
                                                 )}
-                                                <p>{`Best of ${1}`}</p>
+                                                <p>{`Best of ${stage === 'Final' ? 3 : 1}`}</p>
                                                 <div>Date:</div>
-                                                <div className={classes.player_bracket}>
-                                                    {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
-                                                    {pair.team1 === winner ? (
-                                                        <div className={classes['green-indicator']}></div>
-                                                    ) : winner === 'Tie' || winner === undefined ? (
-                                                        <div className={classes['grey-indicator']}></div>
-                                                    ) : (
-                                                        <div className={classes['red-indicator']}></div>
-                                                    )}
-                                                    <label htmlFor={`score-team1-${pairIndex}`}>{team1}</label>
-                                                    {/* TODO: add the stars image when the tournament just started */}
-                                                    <div>Stars img</div>
-                                                    {hasTruthyPlayers && (
-                                                        <div className="castle-dropdown-class">
-                                                            {/* <label htmlFor={`castle-team1-${pairIndex}`}>{team1}</label> */}
-                                                            <select
-                                                                id={`castle-team1-${pairIndex}`}
-                                                                value={castle1 ? castle1 : ''}
-                                                                onChange={(event) =>
-                                                                    handleCastleChange(
-                                                                        stageIndex,
-                                                                        pairIndex,
-                                                                        1,
-                                                                        event.target.value,
-                                                                        setPlayoffPairs
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">Select a castle</option>
-                                                                <option value="Castle-Замок">Castle</option>
-                                                                <option value="Rampart-Оплот">Rampart</option>
-                                                                <option value="Tower-Башня">Tower</option>
-                                                                <option value="Inferno-Инферно">Inferno</option>
-                                                                <option value="Necropolis-Некрополис">
-                                                                    Necropolis
-                                                                </option>
-                                                                <option value="Dungeon-Подземелье">Dungeon</option>
-                                                                <option value="Stronghold-Цитадель">Stronghold</option>
-                                                                <option value="Fortress-Болото">Fortress</option>
-                                                                <option value="Conflux-Сопряжение">Conflux</option>
-                                                                <option value="Cove-Пиратская бухта">Cove</option>
-                                                            </select>
-                                                        </div>
-                                                    )}
-                                                    <input
-                                                        type="text"
-                                                        id={`score-team1-${pairIndex}`}
-                                                        value={score1 || ''}
-                                                        onChange={(event) =>
-                                                            handleScoreChange(stage, pairIndex, 1, event.target.value)
-                                                        }
-                                                    />
-                                                </div>
-                                                <div className={classes.player_bracket}>
-                                                    {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
-                                                    {pair.team2 === winner ? (
-                                                        <div className={classes['green-indicator']}></div>
-                                                    ) : winner === 'Tie' || winner === undefined ? (
-                                                        <div className={classes['grey-indicator']}></div>
-                                                    ) : (
-                                                        <div className={classes['red-indicator']}></div>
-                                                    )}
-
-                                                    <label htmlFor={`score-team2-${pairIndex}`}>{team2}</label>
-                                                    <div>Rate:</div>
-                                                    {hasTruthyPlayers && (
-                                                        <div className="castle-dropdown-class">
-                                                            {/* <label htmlFor={`castle-team2-${pairIndex}`}>{team2}</label> */}
-                                                            <select
-                                                                id={`castle-team2-${pairIndex}`}
-                                                                value={castle2 ? castle2 : ''}
-                                                                onChange={(event) =>
-                                                                    handleCastleChange(
-                                                                        stageIndex,
-                                                                        pairIndex,
-                                                                        2,
-                                                                        event.target.value,
-                                                                        setPlayoffPairs
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">Select a castle</option>
-                                                                <option value="Castle-Замок">Castle</option>
-                                                                <option value="Rampart-Оплот">Rampart</option>
-                                                                <option value="Tower-Башня">Tower</option>
-                                                                <option value="Inferno-Инферно">Inferno</option>
-                                                                <option value="Necropolis-Некрополис">
-                                                                    Necropolis
-                                                                </option>
-                                                                <option value="Dungeon-Подземелье">Dungeon</option>
-                                                                <option value="Stronghold-Цитадель">Stronghold</option>
-                                                                <option value="Fortress-Болото">Fortress</option>
-                                                                <option value="Conflux-Сопряжение">Conflux</option>
-                                                                <option value="Cove-Пиратская бухта">Cove</option>
-                                                            </select>
-                                                        </div>
-                                                    )}
-                                                    <input
-                                                        type="text"
-                                                        id={`score-team2-${pairIndex}`}
-                                                        value={score2 || ''}
-                                                        onChange={(event) =>
-                                                            handleScoreChange(stage, pairIndex, 2, event.target.value)
-                                                        }
-                                                    />
-                                                </div>
+                                                <PlayerBracket
+                                                    pair={pair}
+                                                    team={'team1'}
+                                                    pairIndex={pairIndex}
+                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                    stageIndex={stageIndex}
+                                                    setPlayoffPairs={setPlayoffPairs}
+                                                    handleCastleChange={handleCastleChange}
+                                                    handleScoreChange={handleScoreChange}
+                                                    stage={stage}
+                                                    games={BO3_DEFAULT}
+                                                    teamIndex={1}
+                                                />
+                                                <PlayerBracket
+                                                    pair={pair}
+                                                    team={'team2'}
+                                                    pairIndex={pairIndex}
+                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                    stageIndex={stageIndex}
+                                                    setPlayoffPairs={setPlayoffPairs}
+                                                    handleCastleChange={handleCastleChange}
+                                                    handleScoreChange={handleScoreChange}
+                                                    stage={stage}
+                                                    games={BO3_DEFAULT}
+                                                    teamIndex={2}
+                                                />
                                             </div>
                                         );
                                     })}
@@ -875,17 +916,30 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     );
 };
 
-function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPlayoffPairs) {
+function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPlayoffPairs, totalGames, index) {
     setPlayoffPairs((prevPairs) => {
         const updatedPairs = [...prevPairs];
         const pair = updatedPairs[stageIndex][pairIndex];
 
-        if (teamIndex === 1) {
-            pair.castle1 = castleName;
-        } else if (teamIndex === 2) {
-            pair.castle2 = castleName;
+        if (totalGames.length > 1) {
+            pair.games = pair.games ? pair.games : totalGames;
+
+            if (teamIndex === 1) {
+                pair.games[index].castle1 = castleName;
+                // pair.castle1 = castleName;
+            } else if (teamIndex === 2) {
+                pair.games[index].castle2 = castleName;
+                // pair.castle2 = castleName;
+            }
+        } else {
+            if (teamIndex === 1) {
+                pair.castle1 = castleName;
+            } else if (teamIndex === 2) {
+                pair.castle2 = castleName;
+            }
         }
 
+        console.log('updatedPairs', updatedPairs);
         return updatedPairs;
     });
 }

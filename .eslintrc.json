@@ -11,6 +11,7 @@
         "amd": true,
         "jest": true
     },
+    // "requireConfigFile": false,
     "rules": {
         "no-prototype-builtins": "off",
         "no-unreachable": "off",
@@ -119,7 +120,8 @@
     },
     "plugins": [
         "html",
-        "no-autofix"
+        "no-autofix",
+        "@babel"
     ],
     "globals": {
         "log": "readonly",

@@ -210,7 +210,6 @@ export const updateRating = async (opponentId, rating, game) => {
     }
 };
 export const updateAvatar = async (userId, avatar) => {
-    //TODO: make ratings by game
     const avatarResponse = await fetch(
         `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/.json`,
         {

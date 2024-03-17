@@ -1,0 +1,28 @@
+.player_bracket {
+    display: flex;
+}
+
+.green-indicator {
+    width: 10px;
+    background-color: green;
+    /* height: 100%; */
+    /* position: absolute; */
+    /* top: 0;
+    left: 0; */
+}
+
+.red-indicator {
+    width: 10px;
+    background-color: red;
+    /* position: absolute; */
+    /* top: 0;
+    left: 0; */
+}
+
+.grey-indicator {
+    width: 10px;
+    background-color: grey;
+    /* position: absolute; */
+    /* top: 0;
+    left: 0; */
+}
