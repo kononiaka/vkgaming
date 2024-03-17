@@ -143,10 +143,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
         setShuffledNames([...shuffledArray]); // Update the state with the shuffled array
         setPlayoffPairs([...shuffledArray]);
-        console.log('shuffleArray', playoffPairs);
-        createPlayoffPairs();
+        let playoffPairsDetermined = createPlayoffPairs();
 
-        return playoffPairs;
+        return playoffPairsDetermined;
     };
 
     // useEffect(() => {
@@ -181,6 +180,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         });
 
         setPlayoffPairs(updatedPairs);
+        return updatedPairs;
     };
     // [stageLabels, gamesPerStage, shuffledNames]);
 
@@ -242,12 +242,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const handleStartTournament = async () => {
         setStartTournament(true);
         // Prepare the tournament data
-
-        shuffleArray();
+        let readyBracket = shuffleArray(uniquePlayerNames);
 
         const tournamentData = {
             stageLabels: stageLabels,
-            playoffPairs: playoffPairs
+            playoffPairs: readyBracket
             // status: 'Registration finished!'
         };
 
@@ -570,8 +569,24 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         console.log('opponent2Id', opponent2Id);
 
         let games;
-        if (gameType === 'bo-3') {
+        if (finishedPairs[0].type === 'bo-3') {
             console.log('finishedPairs[0]', finishedPairs[0]);
+
+            //TODO: tournamentName is null here
+
+            games = {
+                opponent1: team1,
+                opponent2: team2,
+                date: new Date(),
+                games: finishedPairs[0].games,
+                // gameName: gameName,
+                tournamentName: tournamentName,
+                gameType: 'bo-3', //TODO: pairDetails.gameType
+                opponent1Castle: castle1,
+                opponent2Castle: castle2,
+                score: `${score1}-${score2}`,
+                winner: winner
+            };
             //TODO: not sure how to handle multiple games
         } else {
             games = {
@@ -601,16 +616,31 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         let winnerCastle;
         let lostCastle;
 
-        if (team1 === winner) {
-            winnerId = opponent1Id;
-            winnerCastle = castle1;
-            lostCastle = castle2;
-        } else if (team2 === winner) {
-            winnerId = opponent2Id;
-            winnerCastle = castle2;
-            lostCastle = castle1;
+        if (finishedPairs[0].type === 'bo-3') {
+            finishedPairs[0].games.forEach((game) => {
+                if (team1 === game.gameWinner) {
+                    winnerId = opponent1Id;
+                    winnerCastle = game.castle1;
+                    lostCastle = game.castle2;
+                } else if (team2 === game.gameWinner) {
+                    winnerId = opponent2Id;
+                    winnerCastle = castle2;
+                    lostCastle = castle1;
+                }
+                lookForCastleStats(winnerCastle, 'win');
+                lookForCastleStats(lostCastle, 'lost');
+            });
+        } else {
+            if (team1 === winner) {
+                winnerId = opponent1Id;
+                winnerCastle = castle1;
+                lostCastle = castle2;
+            } else if (team2 === winner) {
+                winnerId = opponent2Id;
+                winnerCastle = castle2;
+                lostCastle = castle1;
+            }
         }
-
         lookForCastleStats(winnerCastle, 'win');
         lookForCastleStats(lostCastle, 'lost');
 
@@ -772,7 +802,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     return (
         <div className={`scrollable-list-class brackets-class`}>
-            {startButton && !startTournament && <button onClick={handleStartTournament}>Start Tournament</button>}
+            {startButton && !startTournament && tournamentStatus !== 'Tournament Finished' && (
+                <button onClick={handleStartTournament}>Start Tournament</button>
+            )}
             {startTournament && <button onClick={() => shuffleArray(uniquePlayerNames)}>Shuffle</button>}
             {!startTournament && isUpdateButtonVisible && (
                 <button id="update-tournament" onClick={() => updateTournament()}>
