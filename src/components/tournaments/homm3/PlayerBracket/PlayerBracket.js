@@ -103,6 +103,8 @@ export const PlayerBracket = ({
                                             pairIndex
                                         )
                                     }
+
+                                    //TODO: if gameWinner && game.team === gameWinner set value to true
                                 />
                             )}
                         </div>

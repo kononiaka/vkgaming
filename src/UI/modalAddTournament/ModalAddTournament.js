@@ -23,6 +23,8 @@ const Bracket = (props) => {
     const tournamentNameRef = useRef(null);
     const tournamentPlayerRef = useRef(null);
     const tournamentPricePoolRef = useRef(null);
+    const tournamentPlayoffGames = useRef(null);
+    const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentDateRef = useRef(null);
 
     const objTournament = {};
@@ -59,6 +61,12 @@ const Bracket = (props) => {
             objTournament.date = tournamentDateValue;
             // setTournamentPlayer(tournamentDateValue);
         }
+    };
+    const tournamentPlayoffGamesBlur = () => {
+        objTournament.tournamentPlayoffGames = tournamentPlayoffGames.current.value;
+    };
+    const tournamentPlayoffGamesFinalBlur = () => {
+        objTournament.tournamentPlayoffGamesFinal = tournamentPlayoffGamesFinal.current.value;
     };
 
     const handleSave = async () => {
@@ -118,6 +126,22 @@ const Bracket = (props) => {
                     <div>
                         <label htmlFor="tournamentPricePool">Tournament Price:</label>
                         <input id="tournamentPricePool" ref={tournamentPricePoolRef} onBlur={tournamentPricePoolBlur} />
+                    </div>
+                    <div>
+                        <label htmlFor="tournamentPlayoffGames">Tournament PlayOff Games:</label>
+                        <input
+                            id="tournamentPlayoffGames"
+                            ref={tournamentPlayoffGames}
+                            onBlur={tournamentPlayoffGamesBlur}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="tournamentPlayoffGamesFinal">Tournament PlayOff Final Games:</label>
+                        <input
+                            id="tournamentPlayoffGamesFinal"
+                            ref={tournamentPlayoffGamesFinal}
+                            onBlur={tournamentPlayoffGamesFinalBlur}
+                        />
                     </div>
                 </>
             )}

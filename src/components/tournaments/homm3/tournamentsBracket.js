@@ -128,8 +128,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         return shuffledArray;
     };
 
-    const shuffleArray = () => {
+    const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal) => {
         // setShuffledNames([...uniquePlayerNames]);
+
         const shuffledArray = [...shuffledNames];
         const remainingPlayers = maxPlayers.length - shuffledNames.length;
 
@@ -146,7 +147,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
         setShuffledNames([...shuffledArray]); // Update the state with the shuffled array
         setPlayoffPairs([...shuffledArray]);
-        let playoffPairsDetermined = createPlayoffPairs();
+        let playoffPairsDetermined = createPlayoffPairs(playoffsGames, tournamentPlayoffGamesFinal);
 
         return playoffPairsDetermined;
     };
@@ -155,13 +156,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     // }, []);
 
-    const createPlayoffPairs = () => {
+    const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal) => {
         const updatedPairs = [];
         stageLabels.forEach((stage, index) => {
             const numGames = gamesPerStage[stage];
             const pairs = [];
-
             for (let i = 0; i < numGames; i++) {
+                let games = [];
                 let team1 = 'TBD';
                 let score1 = 0;
                 let team2 = 'TBD';
@@ -175,9 +176,44 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     team1 = prevStagePairs[i * 2]?.winner || 'TBD';
                     team2 = prevStagePairs[i * 2 + 1]?.winner || 'TBD';
                 }
-
-                pairs.push({ team1, team2, score1, score2, type: 'bo-1', gameStatus: 'Not Started' });
+                if (playoffsGames > 1) {
+                    //final
+                    if (index === stageLabels.length - 2) {
+                        for (let j = 0; j < tournamentPlayoffGamesFinal; j++) {
+                            // Add your game properties here
+                            games.push({
+                                castle1: '',
+                                castle2: '',
+                                castleWinner: '',
+                                gameId: j,
+                                gameWinner: ''
+                            });
+                        }
+                    } else {
+                        for (let j = 0; j < playoffsGames; j++) {
+                            // Add your game properties here
+                            games.push({
+                                castle1: '',
+                                castle2: '',
+                                castleWinner: '',
+                                gameId: j,
+                                gameWinner: ''
+                            });
+                        }
+                    }
+                }
+                pairs.push({
+                    team1,
+                    team2,
+                    score1,
+                    score2,
+                    type: `bo-${playoffsGames}`,
+                    gameStatus: 'Not Started',
+                    games: playoffsGames > 1 ? games : null
+                });
             }
+
+            console.log('pairs', pairs);
 
             updatedPairs.push(pairs);
         });
@@ -243,39 +279,52 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const handleStartTournament = async () => {
-        setStartTournament(true);
-        // Prepare the tournament data
-        let readyBracket = shuffleArray(uniquePlayerNames);
-
-        const tournamentData = {
-            stageLabels: stageLabels,
-            playoffPairs: readyBracket
-            // status: 'Registration finished!'
-        };
-
-        try {
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
-                {
-                    method: 'PATCH',
-                    body: JSON.stringify({
-                        bracket: tournamentData,
-                        status: 'Registration finished!'
-                    }),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            if (response.ok) {
-                console.log('Pairs posted to Firebase successfully');
-            } else {
-                console.log('Failed to post pairs to Firebase');
+        const tournamentResponse = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+            {
+                method: 'GET'
             }
-        } catch (error) {
-            console.error('Error posting pairs to Firebase:', error);
+        );
+        if (tournamentResponse.ok) {
+            const data = await tournamentResponse.json();
+            const playoffsGames = data.tournamentPlayoffGames;
+            const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
+
+            setStartTournament(true);
+            // Prepare the tournament data
+            let readyBracket = shuffleArray(uniquePlayerNames, playoffsGames, tournamentPlayoffGamesFinal);
+
+            const tournamentData = {
+                stageLabels: stageLabels,
+                playoffPairs: readyBracket,
+                status: 'Registration finished!'
+            };
+
+            try {
+                const response = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+                    {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            bracket: tournamentData,
+                            status: 'Registration finished!'
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    console.log('Pairs posted to Firebase successfully');
+                } else {
+                    console.log('Failed to post pairs to Firebase');
+                }
+            } catch (error) {
+                console.error('Error posting pairs to Firebase:', error);
+            }
         }
+        window.location.reload();
     };
 
     const updateTournament = async () => {

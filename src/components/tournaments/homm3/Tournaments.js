@@ -176,7 +176,11 @@ const TournamentList = () => {
                                     </div>
                                 ) : (
                                     isLogged && (
-                                        <button onClick={() => addUserTournament(tournament.id, userNickName)}>
+                                        <button
+                                            onClick={() =>
+                                                addUserTournament(tournament.id, userNickName, tournament.players)
+                                            }
+                                        >
                                             Register-1
                                         </button>
                                     )
@@ -190,7 +194,7 @@ const TournamentList = () => {
                             ) : (
                                 <>
                                     <p>No players registered.</p>
-                                    {isLogged && (
+                                    {isLogged && +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
                                         <button onClick={() => addUserTournament(tournament.id, userNickName)}>
                                             Register-2
                                         </button>
@@ -198,15 +202,18 @@ const TournamentList = () => {
                                 </>
                             )}
                             <p>Price Pull</p>
-                            {tournament.status === 'Register' && (
-                                <div>
-                                    <label htmlFor="nickname">Player's Nickname</label>
-                                    <input type="name" id="nickname" ref={nicknameRef} required />
-                                    <button onClick={() => addUserTournament(tournament.id, nicknameRef.current.value)}>
-                                        Add Player
-                                    </button>
-                                </div>
-                            )}
+                            {tournament.status === 'Register' &&
+                                tournament.maxPlayers === Object.keys(tournament.players).length && (
+                                    <div>
+                                        <label htmlFor="nickname">Player's Nickname</label>
+                                        <input type="name" id="nickname" ref={nicknameRef} required />
+                                        <button
+                                            onClick={() => addUserTournament(tournament.id, nicknameRef.current.value)}
+                                        >
+                                            Add Player
+                                        </button>
+                                    </div>
+                                )}
                             {/* {console.log(tournament)} */}
                             {Object.entries(tournament.pricePull).map(([place, prize]) => (
                                 <div key={place}>{`${place}: ${prize}$`}</div>
