@@ -31,9 +31,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [startTournament, setStartTournament] = useState(false);
     const [startButton, setStartButton] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
-    const [tournamentName, setTournamentName] = useState('');
     let BO3_DEFAULT;
+    let tournamentName;
+
     // Determine the stage label based on the number of max players
+
+    //TODO when there is a winner move him to the prior stage
     useEffect(() => {
         let labels = [];
         // let gamesPerStageData = {};
@@ -190,35 +193,35 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     const getWinner = (pair) => {
         const score1 = pair.type === 'bo-3' ? parseInt(pair.score1) : parseInt(pair.score1) || 0;
-        const score2 = pair.type === 'bo-3' ? parseInt(pair.score2) : parseInt(pair.score1) || 0;
+        const score2 = pair.type === 'bo-3' ? parseInt(pair.score2) : parseInt(pair.score2) || 0;
 
         if (pair.type === 'bo-3') {
-            if (score1 > score2) {
+            if (+score1 > +score2) {
                 pair.winner = pair.team1;
                 if (score2 === 0 && pair.games) {
                     pair.games.forEach((game, index) => {
-                        pair.games[index].castleWinner = game.castle1;
+                        pair.games[index].gameWinner = game.castle1;
                     });
                 }
-            } else if (score1 < score2) {
-                if (score1 === 0 && pair.games) {
+            } else if (+score1 < +score2) {
+                if (+score1 === 0 && pair.games) {
                     console.log('pair.games', pair.games);
 
                     pair.games.forEach((game, index) => {
-                        pair.games[index].castleWinner = game.castle2;
+                        pair.games[index].gameWinner = game.castle2;
                     });
                 }
                 pair.winner = pair.team2;
             } else {
-                return 'Tie';
+                pair.winner = 'Tie';
             }
         } else if (pair.type === 'bo-1') {
-            if (score1 > score2) {
+            if (+score1 > +score2) {
                 pair.winner = pair.team1;
-                pair.castleWinner = pair.castle1;
-            } else if (score1 < score2) {
+                pair.gameWinner = pair.castle1;
+            } else if (+score1 < +score2) {
                 pair.winner = pair.team2;
-                pair.castleWinner = pair.castle1;
+                pair.gameWinner = pair.castle1;
             } else {
                 return 'Tie';
             }
@@ -280,8 +283,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             playoffPairs: playoffPairs
         };
 
+        // console.log('tournamentData', tournamentData);
+
         const tournamentResponse = await lookForTournamentName(tournamentId);
-        setTournamentName(tournamentResponse.name);
+        tournamentName = tournamentResponse.name;
 
         try {
             const response = await fetch(
@@ -302,6 +307,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 const tournamentDataWithWinners = {
                     playoffPairs: retrievedWinners
                 };
+
+                //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
+                const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
 
                 const winnerBracket = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
@@ -474,7 +482,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
                     let currentStagePlayoffWinners = currentStagePlayoffPairs
                         .map((pair) => pair.winner)
-                        .filter((pair) => pair !== undefined || pair === 'TBA');
+                        .filter((pair) => pair !== undefined || pair === 'TBD');
 
                     nextStageIndex = currentStage + 1;
                     let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
@@ -485,7 +493,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     }
                     const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
                     const hasUndefinedTeam = nextStagePlayoffPairs.some(
-                        (pair) => pair.team1 === 'TBA' || pair.team2 === 'TBA'
+                        (pair) => pair.team1 === 'TBD' || pair.team2 === 'TBD'
                     );
 
                     //TODO: if no score for both pplayers set get to not started
@@ -497,7 +505,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     ? match.team2
                                     : match.winner === match.team2
                                     ? match.team1
-                                    : 'TBA'
+                                    : 'TBD'
                             );
                             let thirdPlacePairing = determineNextStagePairings(losers);
                             if (currentStagePlayoffWinners.length > 0) {
@@ -561,7 +569,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             });
         });
 
-        let { castle1, castle2, castleWinner, score1, score2, team1, team2, winner, gameType } = finishedPairs[0];
+        let { castle1, castle2, gameWinner, score1, score2, team1, team2, winner, gameType } = finishedPairs[0];
 
         const opponent1Id = await lookForUserId(team1);
         console.log('opponent1Id', opponent1Id);
@@ -570,10 +578,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         let games;
         if (finishedPairs[0].type === 'bo-3') {
-            console.log('finishedPairs[0]', finishedPairs[0]);
-
-            //TODO: tournamentName is null here
-
             games = {
                 opponent1: team1,
                 opponent2: team2,
@@ -587,14 +591,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 score: `${score1}-${score2}`,
                 winner: winner
             };
-            //TODO: not sure how to handle multiple games
         } else {
             games = {
                 opponent1: team1,
                 opponent2: team2,
                 date: new Date(),
                 // gameName: gameName,
-                tournamentName: tournamentName,
+                tournamentName: tournamentName, //TODO: tournamentName is null here
                 gameType: 'bo-1', //TODO: pairDetails.gameType
                 opponent1Castle: castle1,
                 opponent2Castle: castle2,
@@ -624,8 +627,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     lostCastle = game.castle2;
                 } else if (team2 === game.gameWinner) {
                     winnerId = opponent2Id;
-                    winnerCastle = castle2;
-                    lostCastle = castle1;
+                    winnerCastle = game.castle2;
+                    lostCastle = game.castle1;
                 }
                 lookForCastleStats(winnerCastle, 'win');
                 lookForCastleStats(lostCastle, 'lost');
@@ -640,9 +643,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 winnerCastle = castle2;
                 lostCastle = castle1;
             }
+            lookForCastleStats(winnerCastle, 'win');
+            lookForCastleStats(lostCastle, 'lost');
         }
-        lookForCastleStats(winnerCastle, 'win');
-        lookForCastleStats(lostCastle, 'lost');
 
         const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
         const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
@@ -662,7 +665,22 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         //TODO:post the setPlayoffPairs(finishedPairs);
 
-        setPlayoffPairs(finishedPairs);
+        // const responseFinishedPair = await fetch(
+        //     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+        //     {
+        //         method: 'PUT',
+        //         body: JSON.stringify(finishedPairs),
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         }
+        //     }
+        // );
+
+        // if (responseFinishedPair.ok) {
+        //     console.log('Finished pairs successfully');
+        // }
+
+        // setPlayoffPairs(finishedPairs);
 
         return finishedPairs;
     };
@@ -750,8 +768,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         // Iterate through the winners array and create pairings for the next stage
         for (let i = 0; i < winners.length; i += 2) {
             const pair = {
-                team1: winners[i] || 'TBA',
-                team2: winners[i + 1] || 'TBA',
+                team1: winners[i] || 'TBD',
+                team2: winners[i + 1] || 'TBD',
                 score1: undefined,
                 score2: undefined
             };
@@ -784,20 +802,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             const updatedPairs = [...prevPairs];
             const pair = updatedPairs[stage][pairIndex];
 
-            // console.log('pair', pair);
-
             if (teamIndex === 1) {
                 pair.score1 = newScore;
             } else if (teamIndex === 2) {
                 pair.score2 = newScore;
             }
 
-            if (pair.score1 !== null && pair.score2 !== null) {
+            if (pair.score1 && pair.score2) {
                 getWinner(pair);
             }
             return updatedPairs;
         });
-        console.log('playoffPairs', playoffPairs);
     };
 
     return (
@@ -831,22 +846,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
                                         // console.log('pair-map', pair);
                                         const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
-                                        // console.log('winner', winner);
-                                        const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBA') || team2 !== 'TBA';
+                                        const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
 
-                                        if (type === 'bo-3') {
+                                        if (type === 'bo-3' && pair.games) {
                                             BO3_DEFAULT = [
                                                 {
                                                     gameId: 1,
                                                     castle1: pair.games[0].castle1 ? pair.games[0].castle1 : null,
                                                     castle2: pair.games[0].castle2 ? pair.games[0].castle2 : null,
-                                                    castleWinner: null
+                                                    gameWinner: null
                                                 },
                                                 {
                                                     gameId: 2,
                                                     castle1: pair.games[1].castle1 ? pair.games[1].castle1 : null,
                                                     castle2: pair.games[1].castle2 ? pair.games[1].castle2 : null,
-                                                    castleWinner: null
+                                                    gameWinner: null
                                                 }
                                             ];
                                             if (score1 && score2) {
@@ -866,7 +880,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             castle2: pair.games[0].castle2
                                                                 ? pair.games[0].castle2
                                                                 : null,
-                                                            castleWinner: null
+                                                            gameWinner: null
                                                         },
                                                         {
                                                             gameId: 2,
@@ -876,7 +890,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             castle2: pair.games[1].castle2
                                                                 ? pair.games[1].castle2
                                                                 : null,
-                                                            castleWinner: null
+                                                            gameWinner: null
                                                         },
                                                         {
                                                             gameId: 3,
@@ -886,7 +900,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             castle2: pair.games[2].castle2
                                                                 ? pair.games[2].castle2
                                                                 : null,
-                                                            castleWinner: null
+                                                            gameWinner: null
                                                         }
                                                     ];
                                                 }
@@ -896,7 +910,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 gameId: 1,
                                                 castle1: castle1,
                                                 castle2: castle2,
-                                                castleWinner: null
+                                                gameWinner: null
                                             };
                                         }
 
@@ -919,8 +933,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     setPlayoffPairs={setPlayoffPairs}
                                                     handleCastleChange={handleCastleChange}
                                                     handleScoreChange={handleScoreChange}
+                                                    handleBlur={handleBlur}
+                                                    handleRadioChange={handleRadioChange}
                                                     stage={stage}
                                                     games={BO3_DEFAULT}
+                                                    totalGames={pair.totalGames}
                                                     teamIndex={1}
                                                 />
                                                 <PlayerBracket
@@ -932,8 +949,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     setPlayoffPairs={setPlayoffPairs}
                                                     handleCastleChange={handleCastleChange}
                                                     handleScoreChange={handleScoreChange}
+                                                    handleBlur={handleBlur}
+                                                    handleRadioChange={handleRadioChange}
                                                     stage={stage}
                                                     games={BO3_DEFAULT}
+                                                    totalGames={pair.totalGames}
                                                     teamIndex={2}
                                                 />
                                             </div>
@@ -946,6 +966,50 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             )}
         </div>
     );
+};
+
+const handleBlur = (stageName, pairIndex, setPlayoffPairs) => {
+    const stageMappings = {
+        'Quater-final': 0,
+        'Semi-final': 1,
+        'Third Place': 2,
+        Final: 3
+        // Add more stages and their numerical values as needed
+    };
+
+    // Map the stage name to a numerical stage value
+    const stage = stageMappings[stageName]; // Convert to lowercase for case-insensitive matching
+
+    if (stage === undefined) {
+        // Handle the case where an invalid stage name is provided
+        console.error(`Invalid stage name: ${stageName}`);
+        return;
+    }
+
+    setPlayoffPairs((prevPairs) => {
+        const updatedPairs = [...prevPairs];
+        const pair = updatedPairs[stage][pairIndex];
+
+        console.log('pair', pair);
+
+        if (
+            (pair.score1 && pair.score2 && `${pair.score1}-${pair.score2}` === '2-0') ||
+            `${pair.score1}-${pair.score2}` === '0-2' ||
+            +pair.score1 + +pair.score2 === 3
+        ) {
+            // if (+pair.score1 + +pair.score2 === 3) {
+            pair.totalGames = +pair.score1 + +pair.score2;
+            // }
+        } else {
+            if (pair.score1 && pair.score2) {
+                console.log('score', `${pair.score1}-${pair.score2}` === '0-2');
+                alert('is not bo-3 result');
+            }
+        }
+
+        console.log('updatedPairs', updatedPairs);
+        return updatedPairs;
+    });
 };
 
 function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPlayoffPairs, totalGames, index) {
@@ -972,6 +1036,24 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
         }
 
         console.log('updatedPairs', updatedPairs);
+        return updatedPairs;
+    });
+}
+
+function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex, pairIndex) {
+    setPlayoffPairs((prevPairs) => {
+        const updatedPairs = [...prevPairs];
+        const pair = updatedPairs[stageIndex][pairIndex];
+        const game = pair.games[gameId - 1];
+        if (teamIndex === 1 && value === 'on' && game.castle1) {
+            game.castleWinner = game.castle1;
+            game.gameWinner = pair.team1;
+        } else {
+            if (teamIndex === 2 && value === 'on' && game.castle2) {
+                game.castleWinner = game.castle2;
+                game.gameWinner = pair.team2;
+            }
+        }
         return updatedPairs;
     });
 }

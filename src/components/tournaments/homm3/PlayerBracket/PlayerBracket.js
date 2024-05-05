@@ -9,8 +9,11 @@ export const PlayerBracket = ({
     setPlayoffPairs,
     handleCastleChange,
     handleScoreChange,
+    handleBlur,
+    handleRadioChange,
     stage,
     games,
+    totalGames,
     teamIndex
 }) => {
     const { team1, team2, score1, score2, winner, castle1, castle2 } = pair;
@@ -22,6 +25,13 @@ export const PlayerBracket = ({
         numberOfGames = games;
     } else {
         numberOfGames = [1];
+    }
+    if (games.length !== totalGames && totalGames) {
+        numberOfGames = [];
+        for (let i = 0; i < totalGames; i++) {
+            numberOfGames.push({ gameId: i + 1, castle1: '', castle2: '', castleWinner: null });
+            pair.games = numberOfGames;
+        }
     }
 
     return (
@@ -61,7 +71,7 @@ export const PlayerBracket = ({
                                         teamIndex,
                                         event.target.value,
                                         setPlayoffPairs,
-                                        games,
+                                        pair.games,
                                         gameIndex
                                     )
                                 }
@@ -78,6 +88,23 @@ export const PlayerBracket = ({
                                 <option value="Conflux-Сопряжение">Conflux</option>
                                 <option value="Cove-Пиратская бухта">Cove</option>
                             </select>
+                            {totalGames > 2 && (
+                                <input
+                                    type="radio"
+                                    id={`radio-${game.gameId}-${teamIndex}`}
+                                    name={`radio-${game.gameId}`}
+                                    onChange={(event) =>
+                                        handleRadioChange(
+                                            game.gameId,
+                                            teamIndex,
+                                            event.target.value,
+                                            setPlayoffPairs,
+                                            stageIndex,
+                                            pairIndex
+                                        )
+                                    }
+                                />
+                            )}
                         </div>
                     );
                 })}
@@ -86,6 +113,7 @@ export const PlayerBracket = ({
                 id={`score-${team}-${pairIndex}`}
                 value={playerScore || ''}
                 onChange={(event) => handleScoreChange(stage, pairIndex, teamIndex, event.target.value)}
+                onBlur={(event) => handleBlur(stage, pairIndex, setPlayoffPairs, event.target.value)}
             />
         </div>
     );
