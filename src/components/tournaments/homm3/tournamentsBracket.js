@@ -236,7 +236,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 pair.winner = pair.team1;
                 if (score2 === 0 && pair.games) {
                     pair.games.forEach((game, index) => {
-                        pair.games[index].gameWinner = game.castle1;
+                        pair.games[index].gameWinner = game.team1;
+                        pair.games[index].castleWinner = game.castle1;
                     });
                 }
             } else if (+score1 < +score2) {
@@ -244,7 +245,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     console.log('pair.games', pair.games);
 
                     pair.games.forEach((game, index) => {
-                        pair.games[index].gameWinner = game.castle2;
+                        pair.games[index].gameWinner = game.team2;
+                        pair.games[index].castleWinner = game.castle2;
                     });
                 }
                 pair.winner = pair.team2;
@@ -903,57 +905,25 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     gameId: 1,
                                                     castle1: pair.games[0].castle1 ? pair.games[0].castle1 : null,
                                                     castle2: pair.games[0].castle2 ? pair.games[0].castle2 : null,
-                                                    gameWinner: null
+                                                    gameWinner: pair.games[0].gameWinner
+                                                        ? pair.games[0].gameWinner
+                                                        : null,
+                                                    castleWinner: pair.games[0].castleWinner
+                                                        ? pair.games[0].castleWinner
+                                                        : null
                                                 },
                                                 {
                                                     gameId: 2,
                                                     castle1: pair.games[1].castle1 ? pair.games[1].castle1 : null,
                                                     castle2: pair.games[1].castle2 ? pair.games[1].castle2 : null,
-                                                    gameWinner: null
+                                                    gameWinner: pair.games[1].gameWinner
+                                                        ? pair.games[1].gameWinner
+                                                        : null,
+                                                    castleWinner: pair.games[1].castleWinner
+                                                        ? pair.games[1].castleWinner
+                                                        : null
                                                 }
                                             ];
-                                            if (score1 && score2) {
-                                                if (
-                                                    +score1 + +score2 !== 3 &&
-                                                    `${score1}-${score2}` !== '2-0' &&
-                                                    `${score1}-${score2}` !== '0-2'
-                                                ) {
-                                                    alert('is not bo-3 result');
-                                                } else if (+score1 + +score2 === 3) {
-                                                    BO3_DEFAULT = [
-                                                        {
-                                                            gameId: 1,
-                                                            castle1: pair.games[0].castle1
-                                                                ? pair.games[0].castle1
-                                                                : null,
-                                                            castle2: pair.games[0].castle2
-                                                                ? pair.games[0].castle2
-                                                                : null,
-                                                            gameWinner: null
-                                                        },
-                                                        {
-                                                            gameId: 2,
-                                                            castle1: pair.games[1].castle1
-                                                                ? pair.games[1].castle1
-                                                                : null,
-                                                            castle2: pair.games[1].castle2
-                                                                ? pair.games[1].castle2
-                                                                : null,
-                                                            gameWinner: null
-                                                        },
-                                                        {
-                                                            gameId: 3,
-                                                            castle1: pair.games[2].castle1
-                                                                ? pair.games[2].castle1
-                                                                : null,
-                                                            castle2: pair.games[2].castle2
-                                                                ? pair.games[2].castle2
-                                                                : null,
-                                                            gameWinner: null
-                                                        }
-                                                    ];
-                                                }
-                                            }
                                         } else {
                                             BO3_DEFAULT = {
                                                 gameId: 1,
@@ -962,7 +932,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 gameWinner: null
                                             };
                                         }
-
                                         return (
                                             <div
                                                 key={pairIndex}
@@ -985,9 +954,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     handleBlur={handleBlur}
                                                     handleRadioChange={handleRadioChange}
                                                     stage={stage}
-                                                    games={BO3_DEFAULT}
-                                                    totalGames={pair.totalGames}
                                                     teamIndex={1}
+                                                    getWinner={getWinner}
                                                 />
                                                 <PlayerBracket
                                                     pair={pair}
@@ -1001,9 +969,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     handleBlur={handleBlur}
                                                     handleRadioChange={handleRadioChange}
                                                     stage={stage}
-                                                    games={BO3_DEFAULT}
-                                                    totalGames={pair.totalGames}
                                                     teamIndex={2}
+                                                    getWinner={getWinner}
                                                 />
                                             </div>
                                         );
@@ -1052,7 +1019,6 @@ const handleBlur = (stageName, pairIndex, setPlayoffPairs) => {
         } else {
             if (pair.score1 && pair.score2) {
                 console.log('score', `${pair.score1}-${pair.score2}` === '0-2');
-                alert('is not bo-3 result');
             }
         }
 
@@ -1084,24 +1050,45 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
             }
         }
 
-        console.log('updatedPairs', updatedPairs);
         return updatedPairs;
     });
 }
 
-function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex, pairIndex) {
+function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex, pairIndex, getWinner) {
     setPlayoffPairs((prevPairs) => {
         const updatedPairs = [...prevPairs];
         const pair = updatedPairs[stageIndex][pairIndex];
-        const game = pair.games[gameId - 1];
-        if (teamIndex === 1 && value === 'on' && game.castle1) {
-            game.castleWinner = game.castle1;
-            game.gameWinner = pair.team1;
-        } else {
-            if (teamIndex === 2 && value === 'on' && game.castle2) {
-                game.castleWinner = game.castle2;
-                game.gameWinner = pair.team2;
+        const game = pair.games[gameId];
+
+        const radioButton1 = document.getElementById(`radio-${gameId}-${1}`);
+        const radioButton2 = document.getElementById(`radio-${gameId}-${2}`);
+        const radioButtonValue1 = radioButton1.checked;
+        const radioButtonValue2 = radioButton2.checked;
+        if (game.gameStatus !== 'Processed') {
+            if (teamIndex === 1 && value === 'on' && game.castle1) {
+                game.castleWinner = game.castle1;
+                game.gameWinner = pair.team1;
+                pair.score1 = pair.score1 + 1;
+
+                if (pair.score2 > 0 && (radioButtonValue1 || radioButtonValue2) && !game.gameWinner) {
+                    pair.score2 = pair.score2 - 1;
+                }
+            } else {
+                if (teamIndex === 2 && value === 'on' && game.castle2) {
+                    game.castleWinner = game.castle2;
+                    game.gameWinner = pair.team2;
+                    pair.score2 = pair.score2 + 1;
+                    if (pair.score1 > 0 && (radioButtonValue1 || radioButtonValue2) && !game.gameWinner) {
+                        pair.score1 = pair.score1 - 1;
+                    }
+                }
             }
+            if (pair.score1 + pair.score2 >= 2) {
+                getWinner(pair);
+            }
+        } else {
+            //FOR DISPLAYING PURPOSES
+            //TODO: if castleWinner === castle => mark the radio button
         }
         return updatedPairs;
     });

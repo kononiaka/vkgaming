@@ -12,25 +12,24 @@ export const PlayerBracket = ({
     handleBlur,
     handleRadioChange,
     stage,
-    games,
-    totalGames,
-    teamIndex
+    teamIndex,
+    getWinner
 }) => {
     const { team1, team2, score1, score2, winner, castle1, castle2 } = pair;
     let teamPlayer = team === 'team1' ? team1 : team2;
     let playerScore = team === 'team1' ? score1 : score2;
     let playerCastle = team === 'team1' ? castle1 : castle2;
     let numberOfGames;
-    if (games && games.length > 1) {
-        numberOfGames = games;
+    if (pair.games && pair.games.length > 1) {
+        numberOfGames = pair.games;
     } else {
         numberOfGames = [1];
     }
-    if (games.length !== totalGames && totalGames) {
-        numberOfGames = [];
-        for (let i = 0; i < totalGames; i++) {
-            numberOfGames.push({ gameId: i + 1, castle1: '', castle2: '', castleWinner: null });
-            pair.games = numberOfGames;
+
+    if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
+        if (numberOfGames.length === 2) {
+            let extraGame = { gameId: 2, castle1: '', castle2: '', castleWinner: null, gameWinner: null };
+            numberOfGames.push(extraGame);
         }
     }
 
@@ -48,10 +47,10 @@ export const PlayerBracket = ({
             {/* TODO: add the stars image when the tournament just started */}
             <div>Stars img</div>
             {hasTruthyPlayers &&
-                games &&
+                pair.games &&
                 numberOfGames.map((game, gameIndex) => {
                     let castle =
-                        games.length > 1 && game
+                        pair.games.length > 1 && game
                             ? team === 'team1'
                                 ? game.castle1
                                 : game.castle2
@@ -62,7 +61,7 @@ export const PlayerBracket = ({
                     return (
                         <div key={game.gameId} className="castle-dropdown-class">
                             <select
-                                id={`castle-${team}-${pairIndex}${games > 1 ? '-' + game : ''}`}
+                                id={`castle-${team}-${pairIndex}${pair.games > 1 ? '-' + game : ''}`}
                                 value={castle}
                                 onChange={(event) =>
                                     handleCastleChange(
@@ -88,32 +87,30 @@ export const PlayerBracket = ({
                                 <option value="Conflux-Сопряжение">Conflux</option>
                                 <option value="Cove-Пиратская бухта">Cove</option>
                             </select>
-                            {totalGames > 2 && (
-                                <input
-                                    type="radio"
-                                    id={`radio-${game.gameId}-${teamIndex}`}
-                                    name={`radio-${game.gameId}`}
-                                    onChange={(event) =>
-                                        handleRadioChange(
-                                            game.gameId,
-                                            teamIndex,
-                                            event.target.value,
-                                            setPlayoffPairs,
-                                            stageIndex,
-                                            pairIndex
-                                        )
-                                    }
 
-                                    //TODO: if gameWinner && game.team === gameWinner set value to true
-                                />
-                            )}
+                            <input
+                                type="radio"
+                                id={`radio-${game.gameId}-${teamIndex}`}
+                                name={`radio-${game.gameId}`}
+                                onChange={(event) =>
+                                    handleRadioChange(
+                                        game.gameId,
+                                        teamIndex,
+                                        event.target.value,
+                                        setPlayoffPairs,
+                                        stageIndex,
+                                        pairIndex,
+                                        getWinner
+                                    )
+                                }
+                            />
                         </div>
                     );
                 })}
             <input
                 type="text"
                 id={`score-${team}-${pairIndex}`}
-                value={playerScore || ''}
+                value={playerScore || 0}
                 onChange={(event) => handleScoreChange(stage, pairIndex, teamIndex, event.target.value)}
                 onBlur={(event) => handleBlur(stage, pairIndex, setPlayoffPairs, event.target.value)}
             />
