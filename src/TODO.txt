@@ -1,0 +1,19 @@
+1. Loop through the finished games; mark them as finished. Process the castle stats only. 
+When all the games would be finished => process player stats;
+2. Apply color to the players;
+3. Apply gold difference;
+4. Check if the provided dataTournament the same as the data on DB => doing nothing
+line 362: const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
+line 579: determine third place should be in a mutual function determinePrizeWinner
+
+
+
+=== STATUSES FOR THE PLAYERS === (PROCESS PLAYERS)
+NOT STARTED
+IN PROGRESS
+FINISHED
+
+=== STATUSES FOR THE GAMES === (PROCESS CASTLES)
+NOT STARTED
+LIVE
+FINISHED
