@@ -13,12 +13,14 @@ export const PlayerBracket = ({
     handleRadioChange,
     stage,
     teamIndex,
-    getWinner
+    getWinner,
+    isManualScore
 }) => {
     const { team1, team2, score1, score2, winner, castle1, castle2 } = pair;
     let teamPlayer = team === 'team1' ? team1 : team2;
     let playerScore = team === 'team1' ? score1 : score2;
     let playerCastle = team === 'team1' ? castle1 : castle2;
+    let isLive = false;
     let numberOfGames;
     if (pair.games && pair.games.length > 1) {
         numberOfGames = pair.games;
@@ -49,6 +51,8 @@ export const PlayerBracket = ({
             {hasTruthyPlayers &&
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {
+                    isLive = game.gameStatus === 'In Progress';
+
                     let castle =
                         pair.games.length > 1 && game
                             ? team === 'team1'
@@ -57,7 +61,6 @@ export const PlayerBracket = ({
                             : playerCastle
                             ? playerCastle
                             : '';
-
                     return (
                         <div key={game.gameId} className="castle-dropdown-class">
                             <select
@@ -87,12 +90,14 @@ export const PlayerBracket = ({
                                 <option value="Conflux-Сопряжение">Conflux</option>
                                 <option value="Cove-Пиратская бухта">Cove</option>
                             </select>
-
+                            {game.castle1 && game.castle2 && console.log('game', game)}
+                            {game.castle1 && game.castle2 && console.log('castle', castle)}
+                            {game.castle1 && game.castle2 && console.log('isManualScore', isManualScore)}
                             <input
                                 type="radio"
                                 id={`radio-${game.gameId}-${teamIndex}`}
                                 name={`radio-${game.gameId}`}
-                                onChange={(event) =>
+                                onChange={(event) => {
                                     handleRadioChange(
                                         game.gameId,
                                         teamIndex,
@@ -101,8 +106,22 @@ export const PlayerBracket = ({
                                         stageIndex,
                                         pairIndex,
                                         getWinner
-                                    )
+                                    );
+                                }}
+                                checked={
+                                    (game.castle1 &&
+                                        game.castle2 &&
+                                        game.castleWinner === castle &&
+                                        game.gameStatus === 'Processed') ||
+                                    (game.castle1 && game.castle2 && game.castleWinner === castle)
                                 }
+                            />
+
+                            <div
+                                key={game.gameId}
+                                className={`${isLive ? classes.player_bracket_live : ''} ${
+                                    isLive ? classes.blink : ''
+                                }`}
                             />
                         </div>
                     );

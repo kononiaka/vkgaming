@@ -1,3 +1,5 @@
+0.1 For displaying purposes only: if the game is finished lock the game and set the radio button for displaying purposes only => DONE!
+0.2 Implement "lock" game just for displaying purposes only => Processed game status would be locked
 1. Loop through the finished games; mark them as finished. Process the castle stats only. 
 When all the games would be finished => process player stats;
 2. Apply color to the players;
@@ -12,8 +14,20 @@ line 579: determine third place should be in a mutual function determinePrizeWin
 NOT STARTED
 IN PROGRESS
 FINISHED
+PROCESSED
 
 === STATUSES FOR THE GAMES === (PROCESS CASTLES)
 NOT STARTED
 LIVE
 FINISHED
+PROCESSED
+
+
+TO CHECK
+
+1. THE BO-3 GAMES SHOULD START WITH 2 GAMES (ADDITIONAL GAME SHOULD BE ADDED IF NEEDED)
+
+
+TEST NEXT
+
+1. BO-1 GAMES TOURNAMENT AFTER CHANGES

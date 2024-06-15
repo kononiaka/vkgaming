@@ -16,6 +16,8 @@ const formatPlayerName = (player) => player.name;
 
 const uniquePlayerNames = [];
 const currentStageIndex = 0;
+let SHOULD_POSTING = true;
+let isManualScore = false;
 
 export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinner }) => {
     // console.log('tournamentId', tournamentId);
@@ -367,16 +369,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
 
                 //TODO: why do we need to PUT it the second time
-                const winnerBracket = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(tournamentDataWithWinners),
-                        headers: {
-                            'Content-Type': 'application/json'
+                let winnerBracket = {};
+                if (SHOULD_POSTING) {
+                    winnerBracket = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                        {
+                            method: 'PUT',
+                            body: JSON.stringify(tournamentDataWithWinners),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         }
-                    }
-                );
+                    );
+                } else {
+                    winnerBracket.ok = true;
+                }
 
                 if (winnerBracket.ok) {
                     let place;
@@ -409,28 +416,38 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                             let firstPlaceRecord = await loadUserById(firstPlaceId);
                             let secondPlaceRecord = await loadUserById(secondPlaceId);
+                            let winnersResponse = {};
 
-                            const winnersResponse = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
-                                {
-                                    method: 'PUT',
-                                    body: JSON.stringify(existingData),
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    }
-                                }
-                            );
-                            if (winnersResponse.ok) {
-                                const tournamentStatusResponse = await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                            if (SHOULD_POSTING) {
+                                winnersResponse = await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
                                     {
                                         method: 'PUT',
-                                        body: JSON.stringify('Tournament Finished'),
+                                        body: JSON.stringify(existingData),
                                         headers: {
                                             'Content-Type': 'application/json'
                                         }
                                     }
                                 );
+                            } else {
+                                winnersResponse.ok = true;
+                            }
+                            if (winnersResponse.ok) {
+                                let tournamentStatusResponse = {};
+                                if (SHOULD_POSTING) {
+                                    tournamentStatusResponse = await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify('Tournament Finished'),
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            }
+                                        }
+                                    );
+                                } else {
+                                    tournamentStatusResponse.ok = true;
+                                }
                                 if (tournamentStatusResponse.ok) {
                                     setUpdateButtonVisible(false);
 
@@ -452,16 +469,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         });
 
                                         // console.log('place', place);
-                                        const firstPlaceResponse = await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
-                                            {
-                                                method: 'PUT',
-                                                headers: {
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify(firstPlaceRecord)
-                                            }
-                                        );
+                                        let firstPlaceResponse = {};
+                                        if (SHOULD_POSTING) {
+                                            firstPlaceResponse = await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    headers: {
+                                                        'Content-Type': 'application/json'
+                                                    },
+                                                    body: JSON.stringify(firstPlaceRecord)
+                                                }
+                                            );
+                                        } else {
+                                            firstPlaceResponse.ok = true;
+                                        }
                                         if (firstPlaceResponse.ok) {
                                             if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
                                                 secondPlaceRecord.prizes = [];
@@ -476,17 +498,22 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 place: place,
                                                 prizeAmount: prizeAmount
                                             });
+                                            let secondPlaceResponse = {};
 
-                                            const secondPlaceResponse = await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
-                                                {
-                                                    method: 'PUT',
-                                                    headers: {
-                                                        'Content-Type': 'application/json'
-                                                    },
-                                                    body: JSON.stringify(secondPlaceRecord)
-                                                }
-                                            );
+                                            if (SHOULD_POSTING) {
+                                                secondPlaceResponse = await fetch(
+                                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
+                                                    {
+                                                        method: 'PUT',
+                                                        headers: {
+                                                            'Content-Type': 'application/json'
+                                                        },
+                                                        body: JSON.stringify(secondPlaceRecord)
+                                                    }
+                                                );
+                                            } else {
+                                                secondPlaceResponse.ok = true;
+                                            }
                                             if (secondPlaceResponse.ok) {
                                                 console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
                                             }
@@ -595,36 +622,33 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         collectedPlayoffPairs.forEach((pair) => {
             pair.forEach((pairDetails) => {
-                console.log('PROCESS_FINISHED_GAMES PAIR_DETAILS', pairDetails);
-                if (pairDetails.gameType === 'bo-3') {
-                    let results = ['2-0', '2-1', '1-2', '0-2'];
+                if (pairDetails.gameStatus !== 'Processed') {
+                    let fullResult = `${pairDetails.score1}-${pairDetails.score2}`;
+                    if (pairDetails.type === 'bo-3') {
+                        let results = ['2-0', '2-1', '1-2', '0-2'];
 
-                    let fullResult = pairDetails.score1 + pairDetails.score2;
-                    if (results.includes(fullResult)) {
-                        pairDetails.gameStatus = 'Finished';
-                        finishedPairs.push(pairDetails);
-                    } else {
-                        results = ['1-0', '1-1', '0-1'];
-                        fullResult = pairDetails.score1 + pairDetails.score2;
                         if (results.includes(fullResult)) {
-                            pairDetails.gameStatus = 'In Progress';
+                            pairDetails.gameStatus = 'Finished';
                             finishedPairs.push(pairDetails);
+                        } else {
+                            results = ['1-0', '1-1', '0-1'];
+                            if (results.includes(fullResult)) {
+                                pairDetails.gameStatus = 'In Progress';
+                                finishedPairs.push(pairDetails);
+                            }
                         }
                     }
                 }
-                console.log('PROCESS_FINISHED_GAMES PAIR_DETAILS_AFTER', pairDetails);
             });
         });
 
         //TODO: implement the gameStatus. If the gameWinner exists determine game as finished
-        let { castle1, castle2, gameWinner, score1, score2, team1, team2, winner, gameType } = finishedPairs[0];
-
+        let { castle1, castle2, gameWinner, score1, score2, team1, team2, winner, type } = finishedPairs[0];
         const opponent1Id = await lookForUserId(team1);
-        console.log('opponent1Id', opponent1Id);
         const opponent2Id = await lookForUserId(team2);
-        console.log('opponent2Id', opponent2Id);
 
         let games;
+        //TODO: could this be ommit?
         if (finishedPairs[0].type === 'bo-3') {
             games = {
                 opponent1: team1,
@@ -633,7 +657,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 games: finishedPairs[0].games,
                 // gameName: gameName,
                 tournamentName: tournamentName,
-                gameType: 'bo-3', //TODO: pairDetails.gameType
+                gameType: type,
                 opponent1Castle: castle1,
                 opponent2Castle: castle2,
                 score: `${score1}-${score2}`,
@@ -646,43 +670,56 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 date: new Date(),
                 // gameName: gameName,
                 tournamentName: tournamentName, //TODO: tournamentName is null here
-                gameType: 'bo-1', //TODO: pairDetails.gameType
+                gameType: type,
                 opponent1Castle: castle1,
                 opponent2Castle: castle2,
                 score: `${score1}-${score2}`,
                 winner: winner
             };
         }
-
-        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
-            method: 'POST',
-            body: JSON.stringify(games),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        await response.json();
+        let gameResponse = {};
+        if (SHOULD_POSTING) {
+            gameResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
+                method: 'POST',
+                body: JSON.stringify(games),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            await gameResponse.json();
+        }
         let winnerId;
         let winnerCastle;
         let lostCastle;
-
+        let needUpdate = false;
         if (finishedPairs[0].type === 'bo-3') {
             finishedPairs[0].games.forEach((game) => {
-                if (team1 === game.gameWinner) {
-                    winnerId = opponent1Id;
-                    winnerCastle = game.castle1;
-                    lostCastle = game.castle2;
-                    //TODO: single GameStatus = 'Finished'
-                } else if (team2 === game.gameWinner) {
-                    winnerId = opponent2Id;
-                    winnerCastle = game.castle2;
-                    lostCastle = game.castle1;
-                    //TODO: single GameStatus = 'Finished'
+                console.log('game', game);
+                if (game.gameWinner) {
+                    if (team1 === game.gameWinner) {
+                        winnerId = opponent1Id;
+                        winnerCastle = game.castle1;
+                        lostCastle = game.castle2;
+                    } else if (team2 === game.gameWinner) {
+                        winnerId = opponent2Id;
+                        winnerCastle = game.castle2;
+                        lostCastle = game.castle1;
+                    }
+                    game.gameStatus = 'Queued';
+                    needUpdate = true;
                 }
-                //TODO: check if the single gamesStatus is finished
-                lookForCastleStats(winnerCastle, 'win');
-                lookForCastleStats(lostCastle, 'lost');
+
+                if (
+                    // SHOULD_POSTING &&
+                    game.gameStatus === 'Queued'
+                ) {
+                    let firstCastleResponse = lookForCastleStats(winnerCastle, 'win');
+                    let secondCastleResponse = lookForCastleStats(lostCastle, 'lost');
+
+                    if (firstCastleResponse && secondCastleResponse) {
+                        game.gameStatus = 'Finished';
+                    }
+                }
             });
         } else {
             if (team1 === winner) {
@@ -695,9 +732,27 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 lostCastle = castle1;
             }
             //TODO: check if gamesStatus is finished.
+            // if (SHOULD_POSTING) {
             lookForCastleStats(winnerCastle, 'win');
             lookForCastleStats(lostCastle, 'lost');
+            // }
         }
+
+        //TODO: finishedPairs need to be injected into collectedPlayoffPairs and then PUT
+
+        // if (SHOULD_POSTING && needUpdate) {
+        //     let response = await fetch(
+        //         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+        //         {
+        //             method: 'PUT',
+        //             body: JSON.stringify(finishedPairs),
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             }
+        //         }
+        //     );
+        //     await response.json();
+        // }
 
         //TODO: check if all of the games has gameStatus of finished => then process player's rate
         const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
@@ -708,28 +763,31 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         let opponent1Score = await getNewRating(opponent1PrevData.ratings, opponent2PrevData.ratings, didWinOpponent1);
         let opponent2Score = await getNewRating(opponent2PrevData.ratings, opponent1PrevData.ratings, didWinOpponent2);
-
-        await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
-        await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
-
+        if (SHOULD_POSTING) {
+            await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
+            await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
+        }
         //TODO: if player's score was updated => set gameStatus to processed
         finishedPairs[0].gameStatus = 'Processed';
 
         setPlayoffPairs(finishedPairs);
 
         //TODO:post the setPlayoffPairs(finishedPairs);
-
-        // const responseFinishedPair = await fetch(
-        //     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-        //     {
-        //         method: 'PUT',
-        //         body: JSON.stringify(finishedPairs),
-        //         headers: {
-        //             'Content-Type': 'application/json'
+        let responseFinishedPair = {};
+        // if (SHOULD_POSTING) {
+        //     responseFinishedPair = await fetch(
+        //         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+        //         {
+        //             method: 'PUT',
+        //             body: JSON.stringify(finishedPairs),
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             }
         //         }
-        //     }
-        // );
-
+        //     );
+        // } else {
+        //     responseFinishedPair.ok = true;
+        // }
         // if (responseFinishedPair.ok) {
         //     console.log('Finished pairs successfully');
         // }
@@ -777,29 +835,40 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 const data = await response.json();
 
                 if (response.ok && data === 'TBD') {
-                    const response = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
-                        {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(winner)
-                        }
-                    );
-
-                    if (response.ok) {
-                        const response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                    let response = {};
+                    if (SHOULD_POSTING) {
+                        response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
                             {
                                 method: 'PUT',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify(userRecord)
+                                body: JSON.stringify(winner)
                             }
                         );
-                        if (response.ok) {
+                    } else {
+                        response.ok = true;
+                    }
+
+                    let responseUser = {};
+                    if (response.ok) {
+                        if (SHOULD_POSTING) {
+                            responseUser = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                                {
+                                    method: 'PUT',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(userRecord)
+                                }
+                            );
+                        } else {
+                            responseUser.ok = true;
+                        }
+
+                        if (responseUser.ok) {
                             console.log('USER RECORD THIRD PLACE WAS UPDATED:', userId);
                         }
                     }
@@ -954,6 +1023,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     stage={stage}
                                                     teamIndex={1}
                                                     getWinner={getWinner}
+                                                    isManualScore={isManualScore}
                                                 />
                                                 <PlayerBracket
                                                     pair={pair}
@@ -969,6 +1039,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     stage={stage}
                                                     teamIndex={2}
                                                     getWinner={getWinner}
+                                                    isManualScore={isManualScore}
                                                 />
                                             </div>
                                         );
@@ -1040,11 +1111,20 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
                 pair.games[index].castle2 = castleName;
                 // pair.castle2 = castleName;
             }
+
+            if (pair.games[index].castle2 && pair.games[index].castle1 && !pair.games[index].castleWinner) {
+                console.log('CHANGED', pair.games[index].gameStatus);
+                pair.games[index].gameStatus = 'In Progress';
+            }
         } else {
             if (teamIndex === 1) {
                 pair.castle1 = castleName;
             } else if (teamIndex === 2) {
                 pair.castle2 = castleName;
+            }
+
+            if (pair.castle2 && pair.castle1 && !pair.castleWinner) {
+                pair.gameStatus = 'In Progress';
             }
         }
 
@@ -1062,6 +1142,7 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
         const radioButton2 = document.getElementById(`radio-${gameId}-${2}`);
         const radioButtonValue1 = radioButton1.checked;
         const radioButtonValue2 = radioButton2.checked;
+        //TODO: check if game.gameWinner set correclty
         if (game.gameStatus !== 'Processed') {
             if (teamIndex === 1 && value === 'on' && game.castle1) {
                 game.castleWinner = game.castle1;
@@ -1071,6 +1152,8 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
                 if (pair.score2 > 0 && (radioButtonValue1 || radioButtonValue2) && !game.gameWinner) {
                     pair.score2 = pair.score2 - 1;
                 }
+                game.gameStatus = 'Finished';
+                isManualScore = true;
             } else {
                 if (teamIndex === 2 && value === 'on' && game.castle2) {
                     game.castleWinner = game.castle2;
@@ -1079,14 +1162,13 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
                     if (pair.score1 > 0 && (radioButtonValue1 || radioButtonValue2) && !game.gameWinner) {
                         pair.score1 = pair.score1 - 1;
                     }
+                    game.gameStatus = 'Finished';
                 }
+                isManualScore = true;
             }
             if (pair.score1 + pair.score2 >= 2) {
                 getWinner(pair);
             }
-        } else {
-            //FOR DISPLAYING PURPOSES
-            //TODO: if castleWinner === castle => mark the radio button
         }
         return updatedPairs;
     });
