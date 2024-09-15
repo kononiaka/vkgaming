@@ -54,29 +54,72 @@ const TournamentList = () => {
         return registeredPlayers.some((player) => player.name === currentUser);
     };
 
-    const addUserTournament = async (tourId, nickname) => {
+    const addUserTournament = async (tourId, nickname, tournamentPlayers, maxPlayers) => {
         const user = await lookForUserId(nickname, 'full');
+        const userId = await lookForUserId(nickname);
 
         console.log('user', user);
-        console.log('tourId', tourId);
+
+        const userResponse = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+            {
+                method: 'GET'
+            }
+        );
+
+        const data = await userResponse.json();
+        let userRatings = data.stars;
 
         substituteTBDPlayer(user);
+
+        const userData = {
+            name: user.name,
+            ratings: userRatings
+        };
 
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
             {
                 method: 'POST',
-                body: JSON.stringify(user),
+                body: JSON.stringify(userData),
                 headers: {
                     'Content-Type': 'application/json'
                 }
             }
         );
 
-        if (response.ok) {
-            // Reload the page if the response is successful
-            window.location.reload();
+        if (response.ok && +Object.keys(tournamentPlayers).length === +maxPlayers - 1) {
+            let tournamentStatusResponse = {};
+            let tournamentStatusResponseModal = confirmWindow(
+                `Are you sure you want to update tournament's status to 'Registration Finished'?`
+            );
+            if (tournamentStatusResponseModal) {
+                tournamentStatusResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Registration finished!'),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+            }
+            if (tournamentStatusResponse.ok) {
+                // Reload the page if the response is successful
+                window.location.reload();
+            }
         }
+    };
+
+    const confirmWindow = (message) => {
+        const response = window.confirm(message);
+        if (response) {
+            console.log('YES');
+        } else {
+            console.log('NO');
+        }
+        return response;
     };
 
     const substituteTBDPlayer = async (user) => {
@@ -178,7 +221,12 @@ const TournamentList = () => {
                                     isLogged && (
                                         <button
                                             onClick={() =>
-                                                addUserTournament(tournament.id, userNickName, tournament.players)
+                                                addUserTournament(
+                                                    tournament.id,
+                                                    userNickName,
+                                                    tournament.players,
+                                                    tournament.maxPlayers
+                                                )
                                             }
                                         >
                                             Register-1
@@ -195,20 +243,37 @@ const TournamentList = () => {
                                 <>
                                     <p>No players registered.</p>
                                     {isLogged && +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
-                                        <button onClick={() => addUserTournament(tournament.id, userNickName)}>
+                                        <button
+                                            onClick={() =>
+                                                addUserTournament(
+                                                    tournament.id,
+                                                    userNickName,
+                                                    tournament.players,
+                                                    tournament.maxPlayers
+                                                )
+                                            }
+                                        >
                                             Register-2
                                         </button>
                                     )}
                                 </>
                             )}
                             <p>Price Pull</p>
+
                             {tournament.status === 'Register' &&
-                                tournament.maxPlayers === Object.keys(tournament.players).length && (
+                                +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
                                     <div>
                                         <label htmlFor="nickname">Player's Nickname</label>
                                         <input type="name" id="nickname" ref={nicknameRef} required />
                                         <button
-                                            onClick={() => addUserTournament(tournament.id, nicknameRef.current.value)}
+                                            onClick={() =>
+                                                addUserTournament(
+                                                    tournament.id,
+                                                    nicknameRef.current.value,
+                                                    tournament.players,
+                                                    tournament.maxPlayers
+                                                )
+                                            }
                                         >
                                             Add Player
                                         </button>

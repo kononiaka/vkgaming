@@ -1,3 +1,4 @@
+import StarsComponent from '../../../Stars/Stars';
 import classes from './PlayerBracket.module.css';
 
 export const PlayerBracket = ({
@@ -14,19 +15,22 @@ export const PlayerBracket = ({
     stage,
     teamIndex,
     getWinner,
-    isManualScore
+    isManualScore,
+    clickedRadioButton
 }) => {
-    const { team1, team2, score1, score2, winner, castle1, castle2 } = pair;
+    const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;
     let teamPlayer = team === 'team1' ? team1 : team2;
+    let playerStars = team === 'team1' ? stars1 : stars2;
     let playerScore = team === 'team1' ? score1 : score2;
     let playerCastle = team === 'team1' ? castle1 : castle2;
     let isLive = false;
     let numberOfGames;
-    if (pair.games && pair.games.length > 1) {
-        numberOfGames = pair.games;
-    } else {
-        numberOfGames = [1];
-    }
+
+    // if (pair.games && pair.games.length > 1) {
+    numberOfGames = pair.games;
+    // } else {
+    //     numberOfGames = pair.games;
+    // }
 
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
@@ -47,20 +51,19 @@ export const PlayerBracket = ({
             )}
             <label htmlFor={`score-${team}-${pairIndex}`}>{teamPlayer}</label>
             {/* TODO: add the stars image when the tournament just started */}
-            <div>Stars img</div>
+            <div>{playerStars && <StarsComponent stars={playerStars} />}</div>
             {hasTruthyPlayers &&
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {
                     isLive = game.gameStatus === 'In Progress';
 
                     let castle =
-                        pair.games.length > 1 && game
-                            ? team === 'team1'
-                                ? game.castle1
-                                : game.castle2
-                            : playerCastle
-                            ? playerCastle
-                            : '';
+                        // pair.games.length > 1 &&
+                        game ? (team === 'team1' ? game.castle1 : game.castle2) : playerCastle ? playerCastle : '';
+
+                    let checked =
+                        game.castle1 && game.castle2 && game.castleWinner === castle && game.gameStatus === 'Processed';
+
                     return (
                         <div key={game.gameId} className="castle-dropdown-class">
                             <select
@@ -89,14 +92,12 @@ export const PlayerBracket = ({
                                 <option value="Fortress-Болото">Fortress</option>
                                 <option value="Conflux-Сопряжение">Conflux</option>
                                 <option value="Cove-Пиратская бухта">Cove</option>
+                                <option value="Factory-Фабрика">Factory</option>
                             </select>
-                            {game.castle1 && game.castle2 && console.log('game', game)}
-                            {game.castle1 && game.castle2 && console.log('castle', castle)}
-                            {game.castle1 && game.castle2 && console.log('isManualScore', isManualScore)}
                             <input
                                 type="radio"
-                                id={`radio-${game.gameId}-${teamIndex}`}
-                                name={`radio-${game.gameId}`}
+                                id={`radio-${stageIndex}-${pairIndex}-${game.gameId}-${teamIndex}`}
+                                name={`radio-${stageIndex}-${pairIndex}-${game.gameId}`}
                                 onChange={(event) => {
                                     handleRadioChange(
                                         game.gameId,
@@ -105,15 +106,15 @@ export const PlayerBracket = ({
                                         setPlayoffPairs,
                                         stageIndex,
                                         pairIndex,
-                                        getWinner
+                                        getWinner,
+                                        event.target.checked,
+                                        event.type
                                     );
                                 }}
                                 checked={
-                                    (game.castle1 &&
-                                        game.castle2 &&
-                                        game.castleWinner === castle &&
-                                        game.gameStatus === 'Processed') ||
-                                    (game.castle1 && game.castle2 && game.castleWinner === castle)
+                                    checked ||
+                                    `radio-${stageIndex}-${pairIndex}-${game.gameId}-${teamIndex}` ===
+                                        clickedRadioButton
                                 }
                             />
 

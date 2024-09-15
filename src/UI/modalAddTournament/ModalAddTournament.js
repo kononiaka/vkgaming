@@ -75,6 +75,7 @@ const Bracket = (props) => {
         console.log('objTournament', objTournament);
 
         objTournament.status = 'Register';
+        objTournament.players = 0;
 
         objTournament.winners = {
             '1st place': 'TBD',
