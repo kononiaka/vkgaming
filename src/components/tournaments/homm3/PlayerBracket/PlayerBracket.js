@@ -15,7 +15,6 @@ export const PlayerBracket = ({
     stage,
     teamIndex,
     getWinner,
-    isManualScore,
     clickedRadioButton
 }) => {
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;

@@ -752,6 +752,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 finishedPairs.push(pairDetails);
                             }
                         }
+                    } else {
+                        if (+pairDetails.score1 + +pairDetails.score2 === 1) {
+                            pairDetails.gameStatus = 'Finished';
+                            finishedPairs.push(pairDetails);
+                        }
                     }
                 }
             });
@@ -786,8 +791,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 // gameName: gameName,
                 tournamentName: tournamentName, //TODO: tournamentName is null here
                 gameType: type,
-                opponent1Castle: castle1,
-                opponent2Castle: castle2,
+                opponent1Castle: finishedPairs[0].games.castle1,
+                opponent2Castle: finishedPairs[0].games.castle2,
                 score: `${score1}-${score2}`,
                 winner: winner
             };
@@ -800,7 +805,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         let needUpdate = false;
         if (finishedPairs[0].type === 'bo-3') {
             finishedPairs[0].games.forEach((game) => {
-                console.log('game', game);
                 if (game.gameWinner) {
                     if (team1 === game.gameWinner) {
                         winnerId = opponent1Id;
@@ -846,18 +850,28 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         } else {
             if (team1 === winner) {
                 winnerId = opponent1Id;
-                winnerCastle = castle1;
-                lostCastle = castle2;
+                winnerCastle = finishedPairs[0].games[0].castle1;
+                lostCastle = finishedPairs[0].games[0].castle2;
             } else if (team2 === winner) {
                 winnerId = opponent2Id;
-                winnerCastle = castle2;
-                lostCastle = castle1;
+                winnerCastle = finishedPairs[0].games[0].castle2;
+                lostCastle = finishedPairs[0].games[0].castle1;
             }
             //TODO: check if gamesStatus is finished.
-            // if (SHOULD_POSTING) {
-            lookForCastleStats(winnerCastle, 'win');
-            lookForCastleStats(lostCastle, 'lost');
-            // }
+            let castleWinResponseModal = confirmWindow(
+                `Process Castles: Are you sure you want to process WIN castle? ${JSON.stringify(winnerCastle)}`
+            );
+
+            if (castleWinResponseModal) {
+                lookForCastleStats(winnerCastle, 'win');
+            }
+            let castleLoseResponseModal = confirmWindow(
+                `Process Castles: Are you sure you want to process LOSE castle? ${JSON.stringify(lostCastle)}`
+            );
+
+            if (castleLoseResponseModal) {
+                lookForCastleStats(lostCastle, 'lost');
+            }
         }
 
         if (winner) {
@@ -933,25 +947,24 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
         setPlayoffPairs(finishedPairs);
 
-        //TODO:post the setPlayoffPairs(finishedPairs);
-        let responseFinishedPair = {};
-        // if (SHOULD_POSTING) {
-        //     responseFinishedPair = await fetch(
-        //         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-        //         {
-        //             method: 'PUT',
-        //             body: JSON.stringify(finishedPairs),
-        //             headers: {
-        //                 'Content-Type': 'application/json'
-        //             }
-        //         }
-        //     );
-        // } else {
-        //     responseFinishedPair.ok = true;
-        // }
-        // if (responseFinishedPair.ok) {
-        //     console.log('Finished pairs successfully');
-        // }
+        let pushProcessedGame = confirmWindow(
+            `Process Games: Are you sure you want to push finished game ${JSON.stringify(finishedPairs)}`
+        );
+        if (pushProcessedGame) {
+            responseFinishedPair = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(playoffPairs),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+        }
+        if (responseFinishedPair.ok) {
+            console.log('Finished pairs PUT successfully');
+        }
 
         // setPlayoffPairs(finishedPairs);
 
@@ -1200,7 +1213,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     stage={stage}
                                                     teamIndex={1}
                                                     getWinner={getWinner}
-                                                    isManualScore={isManualScore}
                                                     clickedRadioButton={clickedRadioButton}
                                                 />
                                                 <PlayerBracket

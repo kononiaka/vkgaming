@@ -101,8 +101,6 @@ export const lookForCastleStats = async (castle, action) => {
 
     const castleData = await response.json();
 
-    // console.log('castleData-api-106', castleData);
-
     if (action === 'win') {
         body = JSON.stringify({
             total: castleData.total + 1,
