@@ -33,7 +33,8 @@ function AddGameModal(props) {
         'Stronghold-Цитадель',
         'Fortress-Болото',
         'Conflux-Сопряжение',
-        'Cove-Пиратская бухта'
+        'Cove-Пиратская бухта',
+        'Factory-Фабрика'
     ];
 
     const gameNameRef = useRef(null);
@@ -286,7 +287,7 @@ function AddGameModal(props) {
                     </select>
                     <br />
                     <label htmlFor="score">Score:</label>
-                    {gameType === 'bo-1' || gameType === 'vk-test01' ? (
+                    {gameType === 'bo-1' ? (
                         <select id="score" value={score} onChange={handleScoreChange}>
                             <option value="">Select Score</option>
                             <option value="1-0">1-0</option>
