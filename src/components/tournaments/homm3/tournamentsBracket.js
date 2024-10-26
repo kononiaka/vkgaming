@@ -943,6 +943,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 }
             }
             //TODO: if player's score was updated => set gameStatus to processed
+            //TODO: check if all games in 'Processed' status => update whole gameStatus to 'Processed' status
             finishedPairs[0].gameStatus = 'Processed';
         }
         setPlayoffPairs(finishedPairs);
