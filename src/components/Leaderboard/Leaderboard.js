@@ -40,7 +40,7 @@ const Leaderboard = () => {
                     // .filter((player) => player.ratings > 0)
                     .sort((a, b) => b.ratings - a.ratings);
 
-                    //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
+                //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
                 const lowestRating = Math.min(
                     ...playerObj

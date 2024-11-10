@@ -17,7 +17,11 @@ export const PlayerBracket = ({
     getWinner,
     clickedRadioButton
 }) => {
+    console.log('pair', pair);
+
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;
+    console.log('stars1', stars1);
+
     let teamPlayer = team === 'team1' ? team1 : team2;
     let playerStars = team === 'team1' ? stars1 : stars2;
     let playerScore = team === 'team1' ? score1 : score2;
@@ -50,7 +54,8 @@ export const PlayerBracket = ({
             )}
             <label htmlFor={`score-${team}-${pairIndex}`}>{teamPlayer}</label>
             {/* TODO: add the stars image when the tournament just started */}
-            <div>{playerStars && <StarsComponent stars={playerStars} />}</div>
+            {console.log('playerStars', playerStars)}
+            <div>{playerStars && playerStars !== 'TBD' && <StarsComponent stars={playerStars} />}</div>
             {hasTruthyPlayers &&
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {
@@ -119,9 +124,7 @@ export const PlayerBracket = ({
 
                             <div
                                 key={game.gameId}
-                                className={`${isLive ? classes.player_bracket_live : ''} ${
-                                    isLive ? classes.blink : ''
-                                }`}
+                                className={`${isLive ? classes.player_bracket_live : ''} ${isLive ? classes.blink : ''}`}
                             />
                         </div>
                     );

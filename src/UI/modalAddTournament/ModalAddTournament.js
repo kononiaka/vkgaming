@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { determineTournamentPrizes } from '../../api/api';
 import Modal from '../Modal/Modal';
 import classes from './ModalAddTournament.module.css';
+import { shuffleArray, setStageLabels } from '../../components/tournaments/tournament_api';
 
 const Bracket = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [date, setDate] = useState('');
     const [tournamentName, setTournamentName] = useState('');
     const [tournamentPlayer, setTournamentPlayer] = useState('');
+    const [prepareBracket, setPrepareBracket] = useState(false);
 
     useEffect(() => {
         const now = new Date();
@@ -26,8 +28,14 @@ const Bracket = (props) => {
     const tournamentPlayoffGames = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentDateRef = useRef(null);
+    const prepareBracketRef = useRef(null);
 
     const objTournament = {};
+
+    const handlePrepareBracketChange = (event) => {
+        event.preventDefault();
+        setPrepareBracket(event.target.checked);
+    };
 
     const tournamentNameBlur = () => {
         // Access the input value using the ref
@@ -71,10 +79,9 @@ const Bracket = (props) => {
 
     const handleSave = async () => {
         // Save game data to database
+        objTournament.preparedBracket = prepareBracket;
 
-        console.log('objTournament', objTournament);
-
-        objTournament.status = 'Register';
+        objTournament.status = 'Registration Started';
         objTournament.players = 0;
 
         objTournament.winners = {
@@ -82,6 +89,21 @@ const Bracket = (props) => {
             '2nd place': 'TBD',
             '3rd place': 'TBD'
         };
+        let playOffPairs;
+
+        if (prepareBracket) {
+            objTournament.bracket = {};
+            console.log('objTournament.', objTournament);
+            playOffPairs = shuffleArray(
+                null,
+                objTournament.tournamentPlayoffGames,
+                objTournament.tournamentPlayoffGamesFinal,
+                null,
+                objTournament.maxPlayers
+            );
+            objTournament.bracket.playoffPairs = playOffPairs;
+            objTournament.stageLabels = setStageLabels(objTournament.maxPlayers);
+        }
 
         const response = await fetch(
             'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json',
@@ -107,6 +129,17 @@ const Bracket = (props) => {
                 <p>Loading...</p>
             ) : (
                 <>
+                    <div>
+                        <label htmlFor="prepareBracketRef">Created PlayOff bracket:</label>
+                        <input
+                            type="checkbox"
+                            id="prepareBracket"
+                            label="Prepare Bracket"
+                            ref={prepareBracketRef}
+                            checked={prepareBracket}
+                            onChange={handlePrepareBracketChange}
+                        />
+                    </div>
                     <div>
                         <label htmlFor="tournamentDate">Tournament Date:</label>
                         <input

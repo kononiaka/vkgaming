@@ -20,9 +20,16 @@ let SHOULD_POSTING = true;
 let isManualScore = false;
 let clickedRadioButton;
 let playersRatingsObj = {};
+let tournamentName = null;
 
-export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinner }) => {
-    // console.log('tournamentId', tournamentId);
+export const TournamentBracket = ({
+    maxPlayers,
+    tournamentId,
+    tournamentStatus,
+    tournamentWinner
+    // tournamentNameParam
+}) => {
+    // console.log('tournamentNameParam', tournamentNameParam);
     // console.log('maxPlayers', maxPlayers);
     // maxPlayers.length = 8;
     // maxPlayers.length = Object.keys(maxPlayers).length;
@@ -36,7 +43,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [startButton, setStartButton] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     let BO3_DEFAULT;
-    let tournamentName;
+    // let tournamentName;
 
     // Determine the stage label based on the number of max players
 
@@ -44,14 +51,28 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     useEffect(() => {
         let labels = [];
         // let gamesPerStageData = {};
+        console.log('maximum' + tournamentId, maxPlayers);
+        const fetchData = async () => {
+            const tournamentResponseName = await lookForTournamentName(tournamentId);
+            // console.log('tournamentResponseName', JSON.stringify(tournamentResponseName));
 
-        if (maxPlayers && Object.keys(maxPlayers).length === 4) {
+            tournamentName = tournamentResponseName.name;
+            // console.log('tournamentName: ' + tournamentName);
+        };
+
+        fetchData();
+
+        // console.log('tournamentId', tournamentId);
+        // console.log('Object.keys(maxPlayers)' + tournamentName, Object.keys(maxPlayers));
+        // console.log('Object.keys(maxPlayers).length' + tournamentName, Object.keys(maxPlayers).length);
+
+        if (+maxPlayers === 4) {
             labels = ['Semi-final', 'Third Place', 'Final', 'Winner'];
-        } else if (maxPlayers && Object.keys(maxPlayers).length === 8) {
+        } else if (+maxPlayers === 8) {
             labels = ['Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
-        } else if (maxPlayers && Object.keys(maxPlayers).length === 16) {
+        } else if (+maxPlayers === 16) {
             labels = ['1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
-        } else if (maxPlayers && Object.keys(maxPlayers).length === 32) {
+        } else if (+maxPlayers === 32) {
             labels = ['1/16 Final', '1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
         }
 
@@ -73,7 +94,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const fetchPlayoffPairs = async () => {
             try {
-                // console.log('tournamentId', tournamentId);
                 const tournamentResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`
                 );
@@ -91,16 +111,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
 
+                console.log('bracketResponse', bracketResponse);
+
                 if (bracketResponse.ok) {
                     const data = await bracketResponse.json();
                     if (data) {
                         // Parse the object
                         const valuesArray = Object.values(data);
+                        // console.log('valuesArray', valuesArray);
+
                         let playoffPairsDetermined = data?.playoffPairs;
                         if (!playoffPairsDetermined) {
                             playoffPairsDetermined = valuesArray[0].playoffPairs;
                         }
                         setPlayoffPairs(playoffPairsDetermined);
+                        // console.log('playoffPairsDetermined', playoffPairsDetermined);
                     }
                 } else {
                     console.log('Failed to fetch playoff pairs');
@@ -170,6 +195,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             name,
             stars: getRating(name)
         }));
+
+        console.log('stageLabels-111', stageLabels);
 
         stageLabels.forEach((stage, index) => {
             const numGames = gamesPerStage[stage];
@@ -690,9 +717,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     if (nextStagePlayoffWinners.includes(undefined) && !thirdPlaceWinner) {
                         if (nextStageIndex === 2) {
                             const losers = currentStagePlayoffPairs.map((match) =>
-                                match.winner === match.team1
-                                    ? match.team2
-                                    : match.winner === match.team2
+                                (match.winner === match.team1 ? match.team2 : match.winner === match.team2)
                                     ? match.team1
                                     : 'TBD'
                             );
@@ -1124,8 +1149,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         });
     };
 
+    // console.log('startButton' + tournamentId, startButton);
+    // console.log('startTournament' + tournamentId, startTournament);
+    // console.log('tournamentStatus' + tournamentId, tournamentStatus);
+
     return (
         <div className={`scrollable-list-class brackets-class`}>
+            <div className={classes.brackets}>{tournamentName}</div>
             {startButton && !startTournament && tournamentStatus === 'Registration finished!' && (
                 <button onClick={handleStartTournament}>Start Tournament</button>
             )}
@@ -1139,7 +1169,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 <h6>Tournament registration hasn't started</h6>
             ) : (
                 <>
-                    {!startTournament &&
+                    {console.log('playoffPairs', playoffPairs)}
+                    {
+                        // !startTournament &&
                         stageLabels.map(function (stage, stageIndex) {
                             return (
                                 <div
@@ -1200,6 +1232,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 )}
                                                 <p>{`Best of ${stage === 'Final' ? 3 : 1}`}</p>
                                                 <div>Date:</div>
+                                                {/* {console.log('tournamentname', tournamentName)} */}
                                                 <PlayerBracket
                                                     pair={pair}
                                                     team={'team1'}
@@ -1216,6 +1249,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     getWinner={getWinner}
                                                     clickedRadioButton={clickedRadioButton}
                                                 />
+
+                                                {/* {console.log('tournamentname', pair)} */}
                                                 <PlayerBracket
                                                     pair={pair}
                                                     team={'team2'}
@@ -1238,7 +1273,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     })}
                                 </div>
                             );
-                        })}
+                        })
+                    }
                 </>
             )}
         </div>
