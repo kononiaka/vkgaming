@@ -68,13 +68,18 @@ const TournamentList = () => {
         );
 
         const data = await userResponse.json();
-        let userRatings = data.stars;
+        console.log('data', JSON.stringify(data));
+
+        let userStars = data.stars;
+        let userRatings = data.ratings;
 
         const userData = {
             name: user.name,
+            stars: userStars,
             ratings: userRatings
         };
-        substituteTBDPlayer(user, tourId, userRatings);
+        //TODO: if live zherebievka => do not substitute. Do it at the start and shuffle then
+        substituteTBDPlayer(user, tourId, userStars, userRatings);
 
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
@@ -104,11 +109,8 @@ const TournamentList = () => {
                     }
                 );
             }
-            if (tournamentStatusResponse.ok) {
-                // Reload the page if the response is successful
-                window.location.reload();
-            }
         }
+        window.location.reload();
     };
 
     const confirmWindow = (message) => {
@@ -121,7 +123,7 @@ const TournamentList = () => {
         return response;
     };
 
-    const substituteTBDPlayer = async (user, tournamentInternalId, playerRatings) => {
+    const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
         // Find the index of the first occurrence of 'TBD' team in the array
         const firstStagePairsResponse = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`
@@ -129,16 +131,30 @@ const TournamentList = () => {
 
         const data = await firstStagePairsResponse.json();
 
-        const index = data.findIndex((pair) => pair.team1 === 'TBD' || pair.team2 === 'TBD');
+        const indexes = data.reduce((acc, pair, idx) => {
+            if (pair.team1 === 'TBD') {
+                acc.push({ index: idx, team: 'team1' });
+            }
+            if (pair.team2 === 'TBD') {
+                acc.push({ index: idx, team: 'team2' });
+            }
+            return acc;
+        }, []);
 
-        if (index !== -1) {
-            // If 'TBD' team is found, substitute it with the 'user' value
-            if (data[index].team1 === 'TBD') {
+        if (indexes.length > 0) {
+            // Loop through all found indexes and substitute 'TBD' with the user
+            const randomIndex = Math.floor(Math.random() * indexes.length);
+            const { index, team } = indexes[randomIndex];
+
+            // Substitute 'TBD' with the user at the randomly selected index
+            if (team === 'team1') {
                 data[index].team1 = user.name;
-                data[index].stars1 = playerRatings;
+                data[index].stars1 = playerStars;
+                data[index].ratings1 = playerRatings;
             } else {
                 data[index].team2 = user.name;
-                data[index].stars2 = playerRatings;
+                data[index].stars2 = playerStars;
+                data[index].ratings2 = playerRatings;
             }
 
             try {
@@ -163,8 +179,6 @@ const TournamentList = () => {
             } catch (e) {
                 console.error(e.message);
             }
-            // Log the updated firstStagePairs
-            // console.log('firstStagePairs', firstStagePairs);
         } else {
             // If 'TBD' team is not found, handle the case (e.g., display a message)
             console.log('No TBD team found in firstStagePairs.');

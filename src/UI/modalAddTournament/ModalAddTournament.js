@@ -130,7 +130,7 @@ const Bracket = (props) => {
             ) : (
                 <>
                     <div>
-                        <label htmlFor="prepareBracketRef">Created PlayOff bracket:</label>
+                        <label htmlFor="prepareBracketRef">Random bracket:</label>
                         <input
                             type="checkbox"
                             id="prepareBracket"

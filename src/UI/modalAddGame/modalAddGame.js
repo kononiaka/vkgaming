@@ -188,17 +188,12 @@ function AddGameModal(props) {
         const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
         const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
 
-        console.log('opponent1PrevData', opponent1PrevData);
         const didWinOpponent1 = winnerId === opponent1Id;
         const didWinOpponent2 = winnerId === opponent2Id;
 
-        console.log('opponent1PrevData', opponent1PrevData.ratings);
-        console.log('opponent2PrevData', opponent2PrevData.ratings);
-
         let opponent1Score = await getNewRating(opponent1PrevData.ratings, opponent2PrevData.ratings, didWinOpponent1);
         let opponent2Score = await getNewRating(opponent2PrevData.ratings, opponent1PrevData.ratings, didWinOpponent2);
-        console.log('opponent1Score', opponent1Score);
-        console.log('opponent2Score', opponent2Score);
+
         await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
         await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
 
