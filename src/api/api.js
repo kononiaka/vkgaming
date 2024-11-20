@@ -125,7 +125,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
     }
 };
 
-const findByName = (data, nickname, newRating) => {
+export const findByName = (data, nickname, newRating) => {
     for (let key in data) {
         if (data[key].name === nickname) {
             // data[key].ratings = newRating;
