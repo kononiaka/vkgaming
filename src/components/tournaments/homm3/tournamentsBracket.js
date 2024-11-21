@@ -751,8 +751,8 @@ export const TournamentBracket = ({
 
                                 console.log('result', result);
 
-                                let playerRecentStar = result ? result.stars.split(',').at(-1) : null;
-                                let playerRecentRatings = result ? result.ratings.split(',').at(-1) : null;
+                                let playerRecentStar = result ? result.stars : null;
+                                let playerRecentRatings = result ? result.ratings : null;
                                 console.log('playersStars', playerRecentStar);
 
                                 if (pair.winner === pair.team1) {
