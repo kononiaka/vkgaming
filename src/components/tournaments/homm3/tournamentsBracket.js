@@ -11,6 +11,7 @@ import {
     pullTournamentPrizes
 } from '../../../api/api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
+import { findByName } from '../../../api/api.js';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
@@ -20,9 +21,16 @@ let SHOULD_POSTING = true;
 let isManualScore = false;
 let clickedRadioButton;
 let playersRatingsObj = {};
+let tournamentName = null;
 
-export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinner }) => {
-    // console.log('tournamentId', tournamentId);
+export const TournamentBracket = ({
+    maxPlayers,
+    tournamentId,
+    tournamentStatus,
+    tournamentWinner
+    // tournamentNameParam
+}) => {
+    // console.log('tournamentNameParam', tournamentNameParam);
     // console.log('maxPlayers', maxPlayers);
     // maxPlayers.length = 8;
     // maxPlayers.length = Object.keys(maxPlayers).length;
@@ -36,7 +44,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [startButton, setStartButton] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     let BO3_DEFAULT;
-    let tournamentName;
+    // let tournamentName;
 
     // Determine the stage label based on the number of max players
 
@@ -44,14 +52,28 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     useEffect(() => {
         let labels = [];
         // let gamesPerStageData = {};
+        // console.log('maximum' + tournamentId, maxPlayers);
+        const fetchData = async () => {
+            const tournamentResponseName = await lookForTournamentName(tournamentId);
+            // console.log('tournamentResponseName', JSON.stringify(tournamentResponseName));
 
-        if (maxPlayers && Object.keys(maxPlayers).length === 4) {
+            tournamentName = tournamentResponseName.name;
+            // console.log('tournamentName: ' + tournamentName);
+        };
+
+        fetchData();
+
+        // console.log('tournamentId', tournamentId);
+        // console.log('Object.keys(maxPlayers)' + tournamentName, Object.keys(maxPlayers));
+        // console.log('Object.keys(maxPlayers).length' + tournamentName, Object.keys(maxPlayers).length);
+
+        if (+maxPlayers === 4) {
             labels = ['Semi-final', 'Third Place', 'Final', 'Winner'];
-        } else if (maxPlayers && Object.keys(maxPlayers).length === 8) {
+        } else if (+maxPlayers === 8) {
             labels = ['Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
-        } else if (maxPlayers && Object.keys(maxPlayers).length === 16) {
+        } else if (+maxPlayers === 16) {
             labels = ['1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
-        } else if (maxPlayers && Object.keys(maxPlayers).length === 32) {
+        } else if (+maxPlayers === 32) {
             labels = ['1/16 Final', '1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
         }
 
@@ -73,7 +95,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const fetchPlayoffPairs = async () => {
             try {
-                // console.log('tournamentId', tournamentId);
                 const tournamentResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`
                 );
@@ -91,16 +112,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
 
+                // console.log('bracketResponse', bracketResponse);
+
                 if (bracketResponse.ok) {
                     const data = await bracketResponse.json();
                     if (data) {
                         // Parse the object
                         const valuesArray = Object.values(data);
+                        // console.log('valuesArray', valuesArray);
+
                         let playoffPairsDetermined = data?.playoffPairs;
                         if (!playoffPairsDetermined) {
                             playoffPairsDetermined = valuesArray[0].playoffPairs;
                         }
                         setPlayoffPairs(playoffPairsDetermined);
+                        // console.log('playoffPairsDetermined', playoffPairsDetermined);
                     }
                 } else {
                     console.log('Failed to fetch playoff pairs');
@@ -160,16 +186,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, playersRatings) => {
         const updatedPairs = [];
 
+        console.log('playersRatings', JSON.stringify(playersRatings));
+
         // Get the player's rating using the nickname
         function getRating(name) {
             const player = Object.values(playersRatings).find((p) => p.name === name);
-            return player ? player.ratings : null;
+            return player ? player.stars : null;
         }
 
         const updatedArray = shuffledNames.map((name) => ({
             name,
-            stars: getRating(name)
+            stars: +getRating(name)
         }));
+
+        console.log('stageLabels-111', stageLabels);
 
         stageLabels.forEach((stage, index) => {
             const numGames = gamesPerStage[stage];
@@ -299,35 +329,39 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const handleStartTournament = async () => {
-        const tournamentResponse = await fetch(
+        const tournamentResponseGET = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
             {
                 method: 'GET'
             }
         );
-        if (tournamentResponse.ok) {
-            const data = await tournamentResponse.json();
+        let tournamentResponse = null;
+        if (tournamentResponseGET.ok) {
+            const data = await tournamentResponseGET.json();
             const playoffsGames = data.tournamentPlayoffGames;
             const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
+            const staticBrackets = data.preparedBracket;
             playersRatingsObj = data.players;
+            let tournamentData = {};
 
             setStartTournament(true);
             // Prepare the tournament data
-            let readyBracket = shuffleArray(
-                uniquePlayerNames,
-                playoffsGames,
-                tournamentPlayoffGamesFinal,
-                playersRatingsObj
-            );
+            if (!staticBrackets) {
+                let readyBracket = shuffleArray(
+                    uniquePlayerNames,
+                    playoffsGames,
+                    tournamentPlayoffGamesFinal,
+                    playersRatingsObj
+                );
 
-            const tournamentData = {
-                stageLabels: stageLabels,
-                playoffPairs: readyBracket,
-                status: 'Started!'
-            };
+                // console.log('readyBracket: ', JSON.parse.stringify(readyBracket));
 
-            try {
-                const response = await fetch(
+                tournamentData = {
+                    stageLabels: stageLabels,
+                    playoffPairs: readyBracket,
+                    status: 'Started!'
+                };
+                tournamentResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
                     {
                         method: 'PATCH',
@@ -340,7 +374,22 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         }
                     }
                 );
+            } else {
+                tournamentResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+                    {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            status: 'Started!'
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+            }
 
+            try {
                 if (response.ok) {
                     console.log('Pairs posted to Firebase successfully');
                 } else {
@@ -358,221 +407,233 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             playoffPairs: playoffPairs
         };
 
-        // console.log('tournamentData', tournamentData);
-
         const tournamentResponse = await lookForTournamentName(tournamentId);
         tournamentName = tournamentResponse.name;
 
+        // let updateDataResponseModal = confirmWindow(
+        //     `Are you sure you want to update winners with this JSON ${JSON.stringify(tournamentData)}?`
+        // );
+
         try {
             //TODO: check if the playoffPairs is equal to the DB object => do nothing
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(tournamentData),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
+            // if (SHOULD_POSTING && updateDataResponseModal) {
+            //     const response = await fetch(
+            //         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+            //         {
+            //             method: 'PUT',
+            //             body: JSON.stringify(tournamentData),
+            //             headers: {
+            //                 'Content-Type': 'application/json'
+            //             }
+            //         }
+            //     );
+
+            //     if (response.ok) {
+            await processFinishedGames(playoffPairs);
+
+            //TODO: Could this be ommit?
+            const retrievedWinners = await retrieveWinnersFromDatabase();
+
+            console.log('retrievedWinners 0', JSON.stringify(retrievedWinners[0].length));
+            console.log('retrievedWinners 1', JSON.stringify(retrievedWinners[1].length));
+
+            //TODO: check if the quantity of winners are the same => doing nothing
+            const tournamentDataWithWinners = {
+                playoffPairs: retrievedWinners
+            };
+
+            //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
+            const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
+
+            console.log('tournamentDataWithWinners', JSON.stringify(tournamentDataWithWinners));
+
+            //TODO: why do we need to PUT it the second time
+            let winnerBracket = {};
+
+            let winnersDataPutResponseModal = confirmWindow(
+                `Are you sure you want to update tournamentDataWithWinners with this JSON ${JSON.stringify(tournamentDataWithWinners)}?`
             );
+            console.log('Final winnersDataPutResponseModal:', winnersDataPutResponseModal);
 
-            if (response.ok) {
-                //TODO: Could this be ommit?
-                const retrievedWinners = await retrieveWinnersFromDatabase();
-
-                //TODO: check if the quantity of winners are the same => doing nothing
-                const tournamentDataWithWinners = {
-                    playoffPairs: retrievedWinners
-                };
-
-                //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
-                const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
-
-                //TODO: why do we need to PUT it the second time
-                let winnerBracket = {};
-                if (SHOULD_POSTING) {
-                    winnerBracket = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-                        {
-                            method: 'PUT',
-                            body: JSON.stringify(tournamentDataWithWinners),
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
+            if (SHOULD_POSTING && winnersDataPutResponseModal) {
+                winnerBracket = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(tournamentDataWithWinners),
+                        headers: {
+                            'Content-Type': 'application/json'
                         }
+                    }
+                );
+            } else {
+                winnerBracket.ok = true;
+            }
+
+            if (winnerBracket.ok) {
+                let place;
+                let prizeAmount;
+                const lastStage = retrievedWinners[retrievedWinners.length - 1];
+                const firstPlace = lastStage[lastStage.length - 1] ? lastStage[lastStage.length - 1].winner : null;
+
+                const secondPlace = firstPlace
+                    ? firstPlace === lastStage[lastStage.length - 1].team1
+                        ? lastStage[lastStage.length - 1].team2
+                        : lastStage[lastStage.length - 1].team1
+                    : undefined;
+
+                // TODO: why we can't put the third place here as well?
+
+                if (firstPlace) {
+                    let prizes = await pullTournamentPrizes(tournamentId);
+                    const winnersData = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`
                     );
-                } else {
-                    winnerBracket.ok = true;
-                }
 
-                if (winnerBracket.ok) {
-                    let place;
-                    let prizeAmount;
-                    const lastStage = retrievedWinners[retrievedWinners.length - 1];
-                    const firstPlace = lastStage[lastStage.length - 1] ? lastStage[lastStage.length - 1].winner : null;
+                    if (winnersData.ok) {
+                        const existingData = await winnersData.json();
 
-                    const secondPlace = firstPlace
-                        ? firstPlace === lastStage[lastStage.length - 1].team1
-                            ? lastStage[lastStage.length - 1].team2
-                            : lastStage[lastStage.length - 1].team1
-                        : undefined;
+                        existingData['1st place'] = firstPlace;
+                        existingData['2nd place'] = secondPlace;
 
-                    // TODO: why we can't put the third place here as well?
+                        let firstPlaceId = await lookForUserId(firstPlace);
+                        let secondPlaceId = await lookForUserId(secondPlace);
 
-                    if (firstPlace) {
-                        let prizes = await pullTournamentPrizes(tournamentId);
-                        const winnersData = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`
+                        let firstPlaceRecord = await loadUserById(firstPlaceId);
+                        let secondPlaceRecord = await loadUserById(secondPlaceId);
+                        let winnersResponse = {};
+
+                        let winnersResponseModal = confirmWindow(
+                            `Are you sure you want to update winners with this JSON ${JSON.stringify(existingData)}?`
                         );
+                        console.log('Final winnersResponseModal:', winnersResponseModal);
 
-                        if (winnersData.ok) {
-                            const existingData = await winnersData.json();
-
-                            existingData['1st place'] = firstPlace;
-                            existingData['2nd place'] = secondPlace;
-
-                            let firstPlaceId = await lookForUserId(firstPlace);
-                            let secondPlaceId = await lookForUserId(secondPlace);
-
-                            let firstPlaceRecord = await loadUserById(firstPlaceId);
-                            let secondPlaceRecord = await loadUserById(secondPlaceId);
-                            let winnersResponse = {};
-
-                            let winnersResponseModal = confirmWindow(
-                                `Are you sure you want to update winners with this JSON ${JSON.stringify(
-                                    existingData
-                                )}?`
+                        if (SHOULD_POSTING && winnersResponseModal) {
+                            winnersResponse = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
+                                {
+                                    method: 'PUT',
+                                    body: JSON.stringify(existingData),
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    }
+                                }
+                            );
+                        } else {
+                            winnersResponse.ok = true;
+                        }
+                        if (winnersResponse.ok) {
+                            let tournamentStatusResponse = {};
+                            let tournamentStatusResponseModal = confirmWindow(
+                                `Are you sure you want to update tournament's status to 'FINISHED'?`
                             );
                             console.log('Final winnersResponseModal:', winnersResponseModal);
-
-                            if (SHOULD_POSTING && winnersResponseModal) {
-                                winnersResponse = await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
+                            if (SHOULD_POSTING && tournamentStatusResponseModal) {
+                                tournamentStatusResponse = await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
                                     {
                                         method: 'PUT',
-                                        body: JSON.stringify(existingData),
+                                        body: JSON.stringify('Tournament Finished'),
                                         headers: {
                                             'Content-Type': 'application/json'
                                         }
                                     }
                                 );
                             } else {
-                                winnersResponse.ok = true;
+                                tournamentStatusResponse.ok = true;
                             }
-                            if (winnersResponse.ok) {
-                                let tournamentStatusResponse = {};
-                                let tournamentStatusResponseModal = confirmWindow(
-                                    `Are you sure you want to update tournament's status to 'FINISHED'?`
-                                );
-                                console.log('Final winnersResponseModal:', winnersResponseModal);
-                                if (SHOULD_POSTING && tournamentStatusResponseModal) {
-                                    tournamentStatusResponse = await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify('Tournament Finished'),
-                                            headers: {
-                                                'Content-Type': 'application/json'
-                                            }
-                                        }
-                                    );
-                                } else {
-                                    tournamentStatusResponse.ok = true;
-                                }
+                            if (tournamentStatusResponse.ok) {
+                                setUpdateButtonVisible(false);
+
                                 if (tournamentStatusResponse.ok) {
-                                    setUpdateButtonVisible(false);
+                                    if (!firstPlaceRecord || typeof firstPlaceRecord.prizes !== 'object') {
+                                        console.log('1ST PLACE PRIZE WAS DETERMINED', prizeAmount);
+                                        // If not, initialize "prizes" as an object
+                                        firstPlaceRecord.prizes = [];
+                                    }
+                                    place = '1st Place';
+                                    prizeAmount = prizes[place];
+                                    let firstPriceTotal = await getPlayerPrizeTotal(firstPlaceId);
+                                    firstPlaceRecord.totalPrize = +firstPriceTotal + +prizeAmount;
 
-                                    if (tournamentStatusResponse.ok) {
-                                        if (!firstPlaceRecord || typeof firstPlaceRecord.prizes !== 'object') {
-                                            console.log('1ST PLACE PRIZE WAS DETERMINED', prizeAmount);
-                                            // If not, initialize "prizes" as an object
-                                            firstPlaceRecord.prizes = [];
+                                    firstPlaceRecord.prizes.push({
+                                        tournamentName: tournamentResponse.name,
+                                        place: place,
+                                        prizeAmount: prizeAmount
+                                    });
+
+                                    // console.log('place', place);
+                                    let firstPlaceResponse = {};
+
+                                    let firstPlaceResponseModal = confirmWindow(
+                                        `Are you sure you want to update first place winner?`
+                                    );
+                                    console.log('Final firstPlaceResponseModal:', firstPlaceResponseModal);
+                                    if (SHOULD_POSTING && firstPlaceResponseModal) {
+                                        firstPlaceResponse = await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
+                                            {
+                                                method: 'PUT',
+                                                headers: {
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify(firstPlaceRecord)
+                                            }
+                                        );
+                                    } else {
+                                        firstPlaceResponse.ok = true;
+                                    }
+                                    if (firstPlaceResponse.ok) {
+                                        if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
+                                            secondPlaceRecord.prizes = [];
                                         }
-                                        place = '1st Place';
+                                        place = '2nd Place';
                                         prizeAmount = prizes[place];
-                                        let firstPriceTotal = await getPlayerPrizeTotal(firstPlaceId);
-                                        firstPlaceRecord.totalPrize = +firstPriceTotal + +prizeAmount;
+                                        let secondPriceTotal = await getPlayerPrizeTotal(secondPlaceId);
+                                        secondPlaceRecord.totalPrize = +secondPriceTotal + +prizeAmount;
 
-                                        firstPlaceRecord.prizes.push({
+                                        secondPlaceRecord.prizes.push({
                                             tournamentName: tournamentResponse.name,
                                             place: place,
                                             prizeAmount: prizeAmount
                                         });
-
-                                        // console.log('place', place);
-                                        let firstPlaceResponse = {};
-
-                                        let firstPlaceResponseModal = confirmWindow(
-                                            `Are you sure you want to update first place winner?`
+                                        let secondPlaceResponse = {};
+                                        let secondPlaceResponseModal = confirmWindow(
+                                            `Are you sure you want to update second place winner?`
                                         );
-                                        console.log('Final firstPlaceResponseModal:', firstPlaceResponseModal);
-                                        if (SHOULD_POSTING && firstPlaceResponseModal) {
-                                            firstPlaceResponse = await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
+                                        console.log('Final firstPlaceResponseModal:', secondPlaceResponseModal);
+                                        if (SHOULD_POSTING && secondPlaceResponseModal) {
+                                            secondPlaceResponse = await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
                                                 {
                                                     method: 'PUT',
                                                     headers: {
                                                         'Content-Type': 'application/json'
                                                     },
-                                                    body: JSON.stringify(firstPlaceRecord)
+                                                    body: JSON.stringify(secondPlaceRecord)
                                                 }
                                             );
                                         } else {
-                                            firstPlaceResponse.ok = true;
+                                            secondPlaceResponse.ok = true;
                                         }
-                                        if (firstPlaceResponse.ok) {
-                                            if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
-                                                secondPlaceRecord.prizes = [];
-                                            }
-                                            place = '2nd Place';
-                                            prizeAmount = prizes[place];
-                                            let secondPriceTotal = await getPlayerPrizeTotal(secondPlaceId);
-                                            secondPlaceRecord.totalPrize = +secondPriceTotal + +prizeAmount;
-
-                                            secondPlaceRecord.prizes.push({
-                                                tournamentName: tournamentResponse.name,
-                                                place: place,
-                                                prizeAmount: prizeAmount
-                                            });
-                                            let secondPlaceResponse = {};
-                                            let secondPlaceResponseModal = confirmWindow(
-                                                `Are you sure you want to update second place winner?`
-                                            );
-                                            console.log('Final firstPlaceResponseModal:', secondPlaceResponseModal);
-                                            if (SHOULD_POSTING && secondPlaceResponseModal) {
-                                                secondPlaceResponse = await fetch(
-                                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
-                                                    {
-                                                        method: 'PUT',
-                                                        headers: {
-                                                            'Content-Type': 'application/json'
-                                                        },
-                                                        body: JSON.stringify(secondPlaceRecord)
-                                                    }
-                                                );
-                                            } else {
-                                                secondPlaceResponse.ok = true;
-                                            }
-                                            if (secondPlaceResponse.ok) {
-                                                console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
-                                            }
+                                        if (secondPlaceResponse.ok) {
+                                            console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
                                         }
                                     }
                                 }
-                            } else {
-                                const errorMessage = await winnersResponse.text();
-                                console.error('Error:', winnersResponse.status, errorMessage);
                             }
+                        } else {
+                            const errorMessage = await winnersResponse.text();
+                            console.error('Error:', winnersResponse.status, errorMessage);
                         }
                     }
                 }
+            }
 
-                await processFinishedGames(playoffPairs);
-
-                console.log('Pairs posted to Firebase successfully');
-                // window.location.reload();
-            } else {
-                console.log('Failed to post pairs to Firebase');
+            console.log('Pairs posted to Firebase successfully');
+            let reloadResponse = confirmWindow(`Are you sure you want to reload the page?`);
+            if (reloadResponse) {
+                window.location.reload();
             }
         } catch (error) {
             console.log('Error posting pairs to Firebase:', error);
@@ -657,75 +718,114 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     const retrieveWinnersFromDatabase = async () => {
         try {
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
-            );
+            let mustFetch = confirmWindow('Please wait...');
+            if (mustFetch) {
+                const bracketResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+                );
+                const playerResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
+                );
 
-            if (response.ok) {
-                const data = await response.json();
+                if (bracketResponse.ok && playerResponse.ok) {
+                    const bracketData = await bracketResponse.json();
 
-                let collectedPlayoffPairs = data?.playoffPairs || [];
+                    const playersData = await playerResponse.json();
 
-                let nextStagePairings;
-                let nextStageIndex = 0;
+                    // if (playersData.hasOwnProperty(result.id)) {
+                    //     let existingStars = playersData[result.id].stars;
+                    //     let existingRatings = playersData[result.id].ratings;
 
-                for (let currentStage = 0; currentStage < collectedPlayoffPairs.length - 1; currentStage++) {
-                    let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
-                    let currentStagePlayoffWinners = currentStagePlayoffPairs
-                        .map((pair) => pair.winner)
-                        .filter((pair) => pair !== undefined || pair === 'TBD');
+                    let collectedPlayoffPairs = bracketData?.playoffPairs || [];
 
-                    nextStageIndex = currentStage + 1;
-                    let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
+                    let nextStagePairings;
+                    let nextStageIndex = 0;
 
-                    let thirdPlaceWinner;
-                    if (currentStage === 2) {
-                        thirdPlaceWinner = collectedPlayoffPairs[currentStage][0].winner;
-                    }
-                    const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
-                    const hasUndefinedTeam = nextStagePlayoffPairs.some(
-                        (pair) => pair.team1 === 'TBD' || pair.team2 === 'TBD'
-                    );
+                    for (let currentStage = 0; currentStage < collectedPlayoffPairs.length - 1; currentStage++) {
+                        let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
 
-                    if (nextStagePlayoffWinners.includes(undefined) && !thirdPlaceWinner) {
-                        if (nextStageIndex === 2) {
-                            const losers = currentStagePlayoffPairs.map((match) =>
-                                match.winner === match.team1
-                                    ? match.team2
-                                    : match.winner === match.team2
-                                    ? match.team1
-                                    : 'TBD'
-                            );
-                            let thirdPlacePairing = determineNextStagePairings(losers);
-                            if (currentStagePlayoffWinners.length > 0) {
-                                nextStagePairings = determineNextStagePairings(
-                                    currentStagePlayoffWinners,
-                                    currentStage
+                        let currentStagePlayoffWinners = currentStagePlayoffPairs
+                            .map((pair) => {
+                                console.log('pair-111s', pair);
+                                const result = findByName(playersData, pair.winner);
+
+                                console.log('result', result);
+
+                                let playerRecentStar = result ? result.stars : null;
+                                let playerRecentRatings = result ? result.ratings : null;
+                                console.log('playersStars', playerRecentStar);
+
+                                if (pair.winner === pair.team1) {
+                                    return {
+                                        winner: pair.winner,
+                                        ratings: result ? playerRecentRatings : pair.ratings1,
+                                        stars: result ? playerRecentStar : pair.stars1
+                                    };
+                                } else {
+                                    return {
+                                        winner: pair.winner,
+                                        ratings: result ? playerRecentRatings : pair.ratings2,
+                                        stars: result ? playerRecentStar : pair.stars2
+                                    };
+                                }
+                            })
+                            .filter((pair) => pair.winner !== undefined || pair.winner === 'TBD');
+
+                        nextStageIndex = currentStage + 1;
+                        let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
+
+                        let thirdPlaceWinner;
+                        if (currentStage === 2) {
+                            thirdPlaceWinner = collectedPlayoffPairs[currentStage][0].winner;
+                        }
+                        const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
+                        const hasUndefinedTeam = nextStagePlayoffPairs.some(
+                            (pair) => pair.team1 === 'TBD' || pair.team2 === 'TBD'
+                        );
+
+                        if (nextStagePlayoffWinners.includes(undefined) && !thirdPlaceWinner) {
+                            if (nextStageIndex === 2) {
+                                //THIRD PLACE
+                                const losers = currentStagePlayoffPairs.map((match) =>
+                                    (match.winner === match.team1 ? match.team2 : match.winner === match.team2)
+                                        ? match.team1
+                                        : 'TBD'
                                 );
-                                collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
-                                collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
-                            }
-                        } else {
-                            if (hasUndefinedTeam) {
+                                let thirdPlacePairing = determineNextStagePairings(losers);
                                 if (currentStagePlayoffWinners.length > 0) {
                                     nextStagePairings = determineNextStagePairings(
                                         currentStagePlayoffWinners,
-                                        currentStage,
-                                        thirdPlaceWinner
+                                        currentStage
                                     );
-                                    collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
+                                    collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
+                                    collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
+                                }
+                            } else {
+                                if (hasUndefinedTeam) {
+                                    console.log('currentStagePlayoffWinners-else', currentStagePlayoffWinners);
+
+                                    if (currentStagePlayoffWinners.length > 0) {
+                                        nextStagePairings = determineNextStagePairings(
+                                            currentStagePlayoffWinners,
+                                            currentStage,
+                                            thirdPlaceWinner
+                                        );
+                                        collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                //TODO: This should be in a mutual function determinePrizeWinner
-                determineThirdPlaceWinner(collectedPlayoffPairs, stageLabels);
-                setPlayoffPairs(collectedPlayoffPairs);
-                return collectedPlayoffPairs;
+                    //TODO: This should be in a mutual function determinePrizeWinner
+                    determineThirdPlaceWinner(collectedPlayoffPairs, stageLabels);
+                    // setPlayoffPairs(collectedPlayoffPairs);
+                    return collectedPlayoffPairs;
+                } else {
+                    console.log('Failed to retrieve winners from the database');
+                }
             } else {
-                console.log('Failed to retrieve winners from the database');
+                console.log('Fetch canceled by user');
             }
         } catch (error) {
             console.error('Error retrieving winners from the database:', error);
@@ -932,14 +1032,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 );
                 console.log('Process Games opponent1IdScoreModal:', opponent1IdScoreModal);
                 if (opponent1IdScoreModal) {
-                    await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId);
+                    await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId, tournamentId, team1);
                 }
                 let opponent2IdScoreModal = confirmWindow(
                     `Process Games: Are you sure you want to process the second player ${opponent2Id}`
                 );
                 console.log('Process Games opponent2IdScoreModal:', opponent2IdScoreModal);
                 if (opponent2IdScoreModal) {
-                    await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId);
+                    await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId, tournamentId, team2);
                 }
             }
             //TODO: if player's score was updated => set gameStatus to processed
@@ -951,6 +1051,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         let pushProcessedGame = confirmWindow(
             `Process Games: Are you sure you want to push finished game ${JSON.stringify(finishedPairs)}`
         );
+        let responseFinishedPair;
         if (pushProcessedGame) {
             responseFinishedPair = await fetch(
                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/.json`,
@@ -962,9 +1063,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     }
                 }
             );
-        }
-        if (responseFinishedPair.ok) {
-            console.log('Finished pairs PUT successfully');
+            if (responseFinishedPair.ok) {
+                console.log('Finished pairs PUT successfully');
+            }
         }
 
         // setPlayoffPairs(finishedPairs);
@@ -1072,19 +1173,65 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     // Example functions for processing winners and updating the next stage pairings in the database
     const determineNextStagePairings = (winners, currentStage, thirdPlaceWinner) => {
         const nextPairings = [];
+        console.log('currentStage-determineNextStagePairings', currentStage);
+
+        console.log('winners-determineNextStagePairings', winners);
 
         // Iterate through the winners array and create pairings for the next stage
         for (let i = 0; i < winners.length; i += 2) {
             const pair = {
-                team1: winners[i] || 'TBD',
-                team2: winners[i + 1] || 'TBD',
-                score1: undefined,
-                score2: undefined
+                gameStatus: 'Not Started',
+                team1: winners[i].winner || 'TBD',
+                score1: 0,
+                stars1: winners[i].stars,
+                ratings1: winners[i].ratings,
+                team2: (winners[i + 1] && winners[i + 1].winner) || 'TBD',
+                score2: 0,
+                stars2: (winners[i + 1] && winners[i + 1].stars) || null,
+                ratings2: (winners[i + 1] && winners[i + 1].ratings) || null,
+                //TODO: check bo-3
+                games: [
+                    {
+                        castle1: '',
+                        castle2: '',
+                        castleWinner: '',
+                        gameId: i,
+                        gameStatus: 'Not Started',
+                        gameWinner: ''
+                    }
+                ],
+                type: 'bo-1'
             };
 
             nextPairings.push(pair);
         }
+        console.log('nextPairings', nextPairings);
+        if (currentStage === 0 && nextPairings.length === 1) {
+            const pair = {
+                gameStatus: 'Not Started',
+                team1: 'TBD',
+                score1: 0,
+                stars1: null,
+                ratings1: null,
+                team2: 'TBD',
+                score2: 0,
+                stars2: null,
+                ratings2: null,
+                games: [
+                    {
+                        castle1: '',
+                        castle2: '',
+                        castleWinner: '',
+                        gameId: 1,
+                        gameStatus: 'Not Started',
+                        gameWinner: ''
+                    }
+                ],
+                type: 'bo-1'
+            };
 
+            nextPairings.push(pair);
+        }
         return nextPairings;
     };
 
@@ -1124,8 +1271,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         });
     };
 
+    // console.log('startButton' + tournamentId, startButton);
+    // console.log('startTournament' + tournamentId, startTournament);
+    // console.log('tournamentStatus' + tournamentId, tournamentStatus);
+
     return (
         <div className={`scrollable-list-class brackets-class`}>
+            <div className={classes.brackets}>{tournamentName}</div>
             {startButton && !startTournament && tournamentStatus === 'Registration finished!' && (
                 <button onClick={handleStartTournament}>Start Tournament</button>
             )}
@@ -1139,7 +1291,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 <h6>Tournament registration hasn't started</h6>
             ) : (
                 <>
-                    {!startTournament &&
+                    {/* {console.log('playoffPairs', playoffPairs)} */}
+                    {
+                        // !startTournament &&
                         stageLabels.map(function (stage, stageIndex) {
                             return (
                                 <div
@@ -1153,6 +1307,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         <p style={{ color: 'yellow' }}>{tournamentWinner}</p>
                                     )}
                                     {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
+                                        // console.log('pair-map', pair);
                                         const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
 
                                         const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
@@ -1200,6 +1355,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 )}
                                                 <p>{`Best of ${stage === 'Final' ? 3 : 1}`}</p>
                                                 <div>Date:</div>
+                                                {/* {console.log('pair', pair)} */}
                                                 <PlayerBracket
                                                     pair={pair}
                                                     team={'team1'}
@@ -1216,6 +1372,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     getWinner={getWinner}
                                                     clickedRadioButton={clickedRadioButton}
                                                 />
+
+                                                {/* {console.log('tournamentname', pair)} */}
                                                 <PlayerBracket
                                                     pair={pair}
                                                     team={'team2'}
@@ -1238,7 +1396,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     })}
                                 </div>
                             );
-                        })}
+                        })
+                    }
                 </>
             )}
         </div>

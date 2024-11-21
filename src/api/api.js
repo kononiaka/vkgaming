@@ -1,34 +1,141 @@
 //testing
 
-export const addScoreToUser = async (userId, data, scoreToAdd, winner) => {
-    const { score, games, ratings } = data;
-    try {
-        const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-                // score: Number(score) + Number(scoreToAdd),
-                gamesPlayed: {
-                    heroes3: {
-                        total: games.heroes3.total + 1,
-                        win: userId === winner ? games.heroes3.win + 1 : null,
-                        lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
-                    }
-                },
-                ratings: Number(scoreToAdd)
-            }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+export const confirmWindow = (message) => {
+    const response = window.confirm(message);
+    if (response) {
+        console.log('YES');
+    } else {
+        console.log('NO');
+    }
+    return response;
+};
 
-        return await response.json();
+export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamentId, team) => {
+    const { score, games, ratings, stars } = data;
+    // console.log('data', data);
+
+    let updatedRatings = ratings + `, ${scoreToAdd}`;
+
+    try {
+        const tournamentPlayerResponse = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
+        );
+
+        const tournamentData = await tournamentPlayerResponse.json();
+
+        const result = findByName(tournamentData, team, scoreToAdd);
+        // console.log('result', result);
+
+        if (tournamentData.hasOwnProperty(result.id)) {
+            let existingStars = tournamentData[result.id].stars;
+            let existingRatings = tournamentData[result.id].ratings;
+            tournamentData[result.id].stars = existingStars;
+            tournamentData[result.id].ratings = existingRatings;
+
+            try {
+                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                if (!response.ok) {
+                    throw new Error('Unable to fetch data from the server.');
+                }
+                const userData = await response.json();
+
+                const playerObj = Object.entries(userData)
+                    .map(([id, player]) => ({
+                        id,
+                        enteredNickname: player.enteredNickname,
+                        score: player.score,
+                        ratings: player.ratings ? player.ratings.toFixed(2) : 0,
+                        games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
+                        stars: player.stars
+                    }))
+
+                    .sort((a, b) => b.ratings - a.ratings);
+
+                //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
+                const highestRating = playerObj[0].ratings;
+                const lowestRating = Math.min(
+                    ...playerObj
+                        .filter((player) => player.ratings > 0)
+                        .map((player) => {
+                            console.log(player.ratings);
+                            return player.ratings;
+                        })
+                );
+                let newStars = calculateStarsFromRating(scoreToAdd, highestRating, lowestRating);
+                // console.log('tournamentData before', tournamentData);
+
+                // console.log('newStars:', newStars);
+                tournamentData[result.id].stars += `, ${newStars}`;
+                tournamentData[result.id].ratings += `, ${scoreToAdd.toFixed(2)}`;
+                // console.log('tournamentData after', tournamentData);
+                // let updatedStars = typeof stars === 'number' ? [stars, newStars] : [newStars];
+
+                // console.log('updatedStars:', updatedStars);
+                // console.log('updateRatings:', updatedRatings);
+
+                let updatePlayerScoreResponse = confirmWindow(
+                    `Are you sure you want to update player ${userId} with a score of ${scoreToAdd}?`
+                );
+                if (updatePlayerScoreResponse) {
+                    const userResponse = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                        {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                gamesPlayed: {
+                                    heroes3: {
+                                        total: games.heroes3.total + 1,
+                                        win: userId === winner ? games.heroes3.win + 1 : null,
+                                        lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
+                                    }
+                                },
+                                ratings: updatedRatings,
+                                stars: newStars
+                            }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+                    if (userResponse.ok) {
+                        console.log('user response post is successful');
+                    }
+                }
+            } catch (e) {
+                //
+            }
+        }
+
+        // console.log('tournamentData', tournamentData);
+
+        let userResponse = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(tournamentData),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        return await userResponse.json();
     } catch (error) {
         console.error(error);
     }
 };
 
+export const findByName = (data, nickname, newRating) => {
+    for (let key in data) {
+        if (data[key].name === nickname) {
+            // data[key].ratings = newRating;
+            return { id: key, ...data[key] };
+        }
+    }
+    return null; // Return null if no match is found
+};
+
 export const lookForUserId = async (nickname, full) => {
-    console.log('nickname', nickname);
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
         method: 'GET'
     });
@@ -71,6 +178,7 @@ export const lookForUserPrevScore = async (userId) => {
     if (data && !!data.ratings) {
         results.ratings = data.ratings; // Return the score of the user object
         results.games = data.gamesPlayed;
+        results.stars = data.stars;
     } else {
         // Add score property with default value if it doesn't exist
         await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/ratings.json`, {
@@ -182,6 +290,12 @@ export const calculateStarsFromRating = (rating, highestRating, lowestRating) =>
     } else {
         cappedStars = 0.5;
     }
+
+    if (+cappedStars < 0.5) {
+        cappedStars = 0.5;
+    }
+    // console.log('cappedStars', cappedStars);
+
     return cappedStars;
 };
 

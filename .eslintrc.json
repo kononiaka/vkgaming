@@ -1,5 +1,5 @@
 {
-    "extends": "eslint:recommended",
+    "extends": ["eslint:recommended", "plugin:prettier/recommended"],
     "parser": "@babel/eslint-parser",
     "parserOptions": {
         "babelOptions": {
@@ -116,12 +116,16 @@
         "no-redeclare": "warn",
         "no-throw-literal": "warn",
         "no-trailing-spaces": "off",
-        "no-var": 1
+        "no-var": 1,
+        "react/react-in-jsx-scope": "off",
+        "prettier/prettier": ["error", { "tabWidth": 4 }],
+        "indent": "off"
     },
     "plugins": [
         "html",
         "no-autofix",
-        "@babel"
+        "@babel",
+        "react"
     ],
     "globals": {
         "log": "readonly",

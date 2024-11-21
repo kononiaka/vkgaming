@@ -18,18 +18,23 @@ export const PlayerBracket = ({
     clickedRadioButton
 }) => {
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;
+
     let teamPlayer = team === 'team1' ? team1 : team2;
-    let playerStars = team === 'team1' ? stars1 : stars2;
-    let playerScore = team === 'team1' ? score1 : score2;
+    let playerStars =
+        team === 'team1'
+            ? Number(typeof stars1 === 'string' && stars1.includes(',') ? stars1.split(',').at(-1) : stars1) || null
+            : Number(typeof stars2 === 'string' && stars2.includes(',') ? stars2.split(',').at(-1) : stars2) || null;
+    let playerScore =
+        team === 'team1'
+            ? Number(typeof score1 === 'string' && score1.includes(',') ? score1.split(',').at(-1) : score1) || null
+            : Number(typeof score2 === 'string' && score2.includes(',') ? score2.split(',').at(-1) : score2) || null;
     let playerCastle = team === 'team1' ? castle1 : castle2;
     let isLive = false;
     let numberOfGames;
 
-    // if (pair.games && pair.games.length > 1) {
     numberOfGames = pair.games;
-    // } else {
-    //     numberOfGames = pair.games;
-    // }
+
+    console.log('playerStars', playerStars);
 
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
@@ -49,8 +54,9 @@ export const PlayerBracket = ({
                 <div className={classes['red-indicator']}></div>
             )}
             <label htmlFor={`score-${team}-${pairIndex}`}>{teamPlayer}</label>
+            {/* {console.log(`palyerStars-${team}`, playerStars)} */}
             {/* TODO: add the stars image when the tournament just started */}
-            <div>{playerStars && <StarsComponent stars={playerStars} />}</div>
+            <div>{playerStars && playerStars !== 'TBD' && <StarsComponent stars={playerStars} />}</div>
             {hasTruthyPlayers &&
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {
@@ -119,9 +125,7 @@ export const PlayerBracket = ({
 
                             <div
                                 key={game.gameId}
-                                className={`${isLive ? classes.player_bracket_live : ''} ${
-                                    isLive ? classes.blink : ''
-                                }`}
+                                className={`${isLive ? classes.player_bracket_live : ''} ${isLive ? classes.blink : ''}`}
                             />
                         </div>
                     );

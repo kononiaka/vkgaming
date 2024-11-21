@@ -14,6 +14,8 @@ const TournamentList = () => {
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
+    // let tournamentName = null;
+    let maxTournamnetPlayers = 0;
 
     const nicknameRef = useRef();
     // console.log('nicknameRef', nicknameRef);
@@ -58,8 +60,6 @@ const TournamentList = () => {
         const user = await lookForUserId(nickname, 'full');
         const userId = await lookForUserId(nickname);
 
-        console.log('user', user);
-
         const userResponse = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
             {
@@ -68,14 +68,18 @@ const TournamentList = () => {
         );
 
         const data = await userResponse.json();
-        let userRatings = data.stars;
+        console.log('data', JSON.stringify(data));
 
-        substituteTBDPlayer(user);
+        let userStars = data.stars;
+        let userRatings = data.ratings;
 
         const userData = {
             name: user.name,
+            stars: userStars,
             ratings: userRatings
         };
+        //TODO: if live zherebievka => do not substitute. Do it at the start and shuffle then
+        substituteTBDPlayer(user, tourId, userStars, userRatings);
 
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
@@ -105,11 +109,8 @@ const TournamentList = () => {
                     }
                 );
             }
-            if (tournamentStatusResponse.ok) {
-                // Reload the page if the response is successful
-                window.location.reload();
-            }
         }
+        window.location.reload();
     };
 
     const confirmWindow = (message) => {
@@ -122,24 +123,46 @@ const TournamentList = () => {
         return response;
     };
 
-    const substituteTBDPlayer = async (user) => {
-        // Find the index of the first occurrence of 'TBA' team in the array
-        const index = firstStagePairs.findIndex((pair) => pair.team1 === 'TBA' || pair.team2 === 'TBA');
+    const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
+        // Find the index of the first occurrence of 'TBD' team in the array
+        const firstStagePairsResponse = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`
+        );
 
-        if (index !== -1) {
-            // If 'TBA' team is found, substitute it with the 'user' value
-            if (firstStagePairs[index].team1 === 'TBA') {
-                firstStagePairs[index].team1 = user.name;
+        const data = await firstStagePairsResponse.json();
+
+        const indexes = data.reduce((acc, pair, idx) => {
+            if (pair.team1 === 'TBD') {
+                acc.push({ index: idx, team: 'team1' });
+            }
+            if (pair.team2 === 'TBD') {
+                acc.push({ index: idx, team: 'team2' });
+            }
+            return acc;
+        }, []);
+
+        if (indexes.length > 0) {
+            // Loop through all found indexes and substitute 'TBD' with the user
+            const randomIndex = Math.floor(Math.random() * indexes.length);
+            const { index, team } = indexes[randomIndex];
+
+            // Substitute 'TBD' with the user at the randomly selected index
+            if (team === 'team1') {
+                data[index].team1 = user.name;
+                data[index].stars1 = playerStars;
+                data[index].ratings1 = playerRatings;
             } else {
-                firstStagePairs[index].team2 = user.name;
+                data[index].team2 = user.name;
+                data[index].stars2 = playerStars;
+                data[index].ratings2 = playerRatings;
             }
 
             try {
                 const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/0.json`,
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`,
                     {
                         method: 'PUT',
-                        body: JSON.stringify(firstStagePairs),
+                        body: JSON.stringify(data),
                         headers: {
                             'Content-Type': 'application/json'
                         }
@@ -156,10 +179,8 @@ const TournamentList = () => {
             } catch (e) {
                 console.error(e.message);
             }
-            // Log the updated firstStagePairs
-            // console.log('firstStagePairs', firstStagePairs);
         } else {
-            // If 'TBA' team is not found, handle the case (e.g., display a message)
+            // If 'TBD' team is not found, handle the case (e.g., display a message)
             console.log('No TBD team found in firstStagePairs.');
         }
     };
@@ -181,10 +202,13 @@ const TournamentList = () => {
             <ul>
                 {tournaments.map((tournament) => {
                     // console.log('tournament', tournament);
+
+                    maxTournamnetPlayers = tournament.maxPlayers;
                     // maxPlayers = tournament.maxPlayers;
                     // console.log('Object.values(tournament.players)', Object.values(tournament.players));
                     // console.log('length 111', Object.values(tournament.players).length);
-                    currentPlayers = tournament.players ? tournament.players : {};
+                    // currentPlayers = tournament.players ? tournament.players : {};
+                    // tournamentName = tournament.name;
 
                     return (
                         <li key={tournament.id} className={classes.bracket}>
@@ -198,7 +222,7 @@ const TournamentList = () => {
                                             player !== null && player.name !== undefined && player.name.trim() !== ''
                                     ).length}
                             </p>
-                            <p>Max players: {tournament.maxPlayers}</p>
+                            <p>Max players: {tournament.maxTournamnetPlayers}</p>
                             <button
                                 onClick={() =>
                                     showDetailsHandler(
@@ -260,7 +284,7 @@ const TournamentList = () => {
                             )}
                             <p>Price Pull</p>
 
-                            {tournament.status === 'Register' &&
+                            {tournament.status === 'Registration Started' &&
                                 +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
                                     <div>
                                         <label htmlFor="nickname">Player's Nickname</label>
@@ -297,20 +321,19 @@ const TournamentList = () => {
             <ul>No current tournaments</ul>
         );
 
+    // console.log('clickedId', clickedId);
+
     return (
         <div>
-            {/* <h2>Finished Tournaments</h2> */}
             <h2>Current Tournaments</h2>
-            {/* <h2>Future Tournaments</h2> */}
             {tournamentList}
-            {/* {console.log('currentPlayers', currentPlayers)} */}
-            {/* {console.log('currentPlayers length', currentPlayers.length)} */}
             {showDetails && (
                 <TournamentBracket
-                    maxPlayers={currentPlayers}
+                    maxPlayers={maxTournamnetPlayers}
                     tournamentId={clickedId}
                     tournamentStatus={tournamentStatus}
                     tournamentWinner={tournamentWinner}
+                    // tournamentNameParam={tournamentName}
                 ></TournamentBracket>
             )}
         </div>
