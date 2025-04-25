@@ -34,7 +34,7 @@ export const PlayerBracket = ({
 
     numberOfGames = pair.games;
 
-    console.log('playerStars', playerStars);
+    // console.log('pair', pair);
 
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
@@ -53,14 +53,22 @@ export const PlayerBracket = ({
             ) : (
                 <div className={classes['red-indicator']}></div>
             )}
-            <label htmlFor={`score-${team}-${pairIndex}`}>{teamPlayer}</label>
+            <label
+                htmlFor={`score-${team}-${pairIndex}`}
+                style={{ color: teamPlayer === 'TBD' ? 'orange' : 'inherit' }}
+            >
+                {teamPlayer}
+            </label>
             {/* {console.log(`palyerStars-${team}`, playerStars)} */}
             {/* TODO: add the stars image when the tournament just started */}
             <div>{playerStars && playerStars !== 'TBD' && <StarsComponent stars={playerStars} />}</div>
+            {/* {console.log(`pair.games`, pair.games)} */}
+
             {hasTruthyPlayers &&
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {
                     isLive = game.gameStatus === 'In Progress';
+                    console.log('isLive', isLive);
 
                     let castle =
                         // pair.games.length > 1 &&

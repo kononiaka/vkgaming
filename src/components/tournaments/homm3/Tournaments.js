@@ -14,6 +14,8 @@ const TournamentList = () => {
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
+    let tournamentObj = null;
+
     // let tournamentName = null;
     let maxTournamnetPlayers = 0;
 
@@ -68,10 +70,14 @@ const TournamentList = () => {
         );
 
         const data = await userResponse.json();
-        console.log('data', JSON.stringify(data));
+        // console.log('data', JSON.stringify(data));
 
         let userStars = data.stars;
-        let userRatings = data.ratings;
+
+        const lastRating = parseFloat(data.ratings.split(',').pop().trim()).toFixed(2);
+        // console.log('lastRating', lastRating);
+
+        let userRatings = lastRating;
 
         const userData = {
             name: user.name,
@@ -209,6 +215,9 @@ const TournamentList = () => {
                     // console.log('length 111', Object.values(tournament.players).length);
                     // currentPlayers = tournament.players ? tournament.players : {};
                     // tournamentName = tournament.name;
+                    tournamentObj = tournament;
+
+                    // console.log('tournament', tournament);
 
                     return (
                         <li key={tournament.id} className={classes.bracket}>
@@ -320,8 +329,6 @@ const TournamentList = () => {
         ) : (
             <ul>No current tournaments</ul>
         );
-
-    // console.log('clickedId', clickedId);
 
     return (
         <div>
