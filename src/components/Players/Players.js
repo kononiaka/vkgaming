@@ -33,7 +33,7 @@ const PlayerDetails = () => {
     return (
         <div>
             {player ? (
-                <div>
+                <div style={{ color: 'white' }}>
                     <h2>Player Details</h2>
                     {/* <p>ID: {player.id}</p> */}
                     <p>Name: {player.enteredNickname}</p>
@@ -42,10 +42,11 @@ const PlayerDetails = () => {
                         <li>Win: {player.gamesPlayed.heroes3.total - player.gamesPlayed.heroes3.lose}</li>
                         <li>Lose: {player.gamesPlayed.heroes3.lose}</li>
                         <li>Total: {player.gamesPlayed.heroes3.total}</li>
-                        <li>Rating: {player.ratings.toFixed(2)}</li>
+                        <li>Rating: {player.ratings.split(',').pop()}</li>
                         <li>Stars: {player.stars}</li>
                         <li>Total win: {player.totalPrize}</li>
                         <li>Place in Leaderboard: {player.totalPrize}</li>
+                        {/* <li>Prizes: {player.prizes}</li> */}
                         <li>Twitch:</li>
                         <li>Youtube:</li>
                         <li>Telegram:</li>
