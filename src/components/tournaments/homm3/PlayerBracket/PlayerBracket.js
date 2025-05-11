@@ -34,8 +34,6 @@ export const PlayerBracket = ({
 
     numberOfGames = pair.games;
 
-    // console.log('pair', pair);
-
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
             let extraGame = { gameId: 2, castle1: '', castle2: '', castleWinner: null, gameWinner: null };
@@ -53,17 +51,69 @@ export const PlayerBracket = ({
             ) : (
                 <div className={classes['red-indicator']}></div>
             )}
-            <label
-                htmlFor={`score-${team}-${pairIndex}`}
-                style={{ color: teamPlayer === 'TBD' ? 'orange' : 'inherit' }}
-            >
-                {teamPlayer}
-            </label>
-            {/* {console.log(`palyerStars-${team}`, playerStars)} */}
+            <label htmlFor={`score-${team}-${pairIndex}`}>{teamPlayer}</label>
             {/* TODO: add the stars image when the tournament just started */}
-            <div>{playerStars && playerStars !== 'TBD' && <StarsComponent stars={playerStars} />}</div>
-            {/* {console.log(`pair.games`, pair.games)} */}
-
+            <div className={classes.stars_container}>
+                {playerStars && playerStars !== 'TBD' && (
+                    <div className={classes.stars_wrapper} style={{ cursor: 'pointer' }}>
+                        <StarsComponent stars={playerStars} />
+                        <div className={classes.stars_details}>
+                            Ratings:
+                            {team === 'team1'
+                                ? (() => {
+                                      const ratingsArray = pair.ratings1
+                                          .split(',')
+                                          .map((rating) => parseFloat(rating.trim()));
+                                      const lastRating = ratingsArray.at(-1).toFixed(2);
+                                      if (stageIndex === 0) {
+                                          return `${lastRating}`;
+                                      }
+                                      const previousRating =
+                                          ratingsArray.length > 1 ? ratingsArray.at(-2).toFixed(2) : '0.00';
+                                      const difference = (lastRating - previousRating).toFixed(2);
+                                      return (
+                                          <>
+                                              {lastRating}{' '}
+                                              <span
+                                                  style={{
+                                                      color: difference >= 0 ? 'green' : 'red'
+                                                  }}
+                                              >
+                                                  ({difference >= 0 ? '+' : ''}
+                                                  {difference})
+                                              </span>
+                                          </>
+                                      );
+                                  })()
+                                : (() => {
+                                      const ratingsArray = pair.ratings2
+                                          .split(',')
+                                          .map((rating) => parseFloat(rating.trim()));
+                                      const lastRating = ratingsArray.at(-1).toFixed(2);
+                                      if (stageIndex === 0) {
+                                          return `${lastRating}`;
+                                      }
+                                      const previousRating =
+                                          ratingsArray.length > 1 ? ratingsArray.at(-2).toFixed(2) : '0.00';
+                                      const difference = (lastRating - previousRating).toFixed(2);
+                                      return (
+                                          <>
+                                              {lastRating}
+                                              <span
+                                                  style={{
+                                                      color: difference >= 0 ? 'green' : 'red'
+                                                  }}
+                                              >
+                                                  ({difference >= 0 ? '+' : ''}
+                                                  {difference})
+                                              </span>
+                                          </>
+                                      );
+                                  })()}
+                        </div>
+                    </div>
+                )}
+            </div>
             {hasTruthyPlayers &&
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {

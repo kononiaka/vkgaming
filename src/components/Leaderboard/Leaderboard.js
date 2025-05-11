@@ -35,8 +35,6 @@ const Leaderboard = () => {
                         if (typeof ratings === 'string' && ratings.includes(',')) {
                             ratings = parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
                         } else {
-                            console.log('esle', typeof ratings);
-
                             ratings = ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
                         }
 
@@ -57,6 +55,7 @@ const Leaderboard = () => {
 
                 //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
+                console.log('highestRating', highestRating);
                 const lowestRating = Math.min(
                     ...playerObj
                         .filter((player) => player.ratings > 0)
@@ -68,7 +67,6 @@ const Leaderboard = () => {
 
                 // Update each player's stars property
                 const playerObjWithStars = playerObj.map((player) => {
-                    console.log('player', player);
                     return {
                         ...player,
                         stars: player.stars
@@ -77,7 +75,17 @@ const Leaderboard = () => {
                     };
                 });
 
-                // console.log('playerObjWithStars', playerObjWithStars);
+
+                // Update each player's stars property
+                const playerObjWithStars =
+                    playerObj.length > 0
+                        ? playerObj.map((player) => ({
+                              ...player,
+                              stars: player.stars
+                                  ? player.stars
+                                  : calculateStarsFromRating(player.ratings, highestRating, lowestRating)
+                          }))
+                        : [];
 
                 setPlayerRating(playerObjWithStars);
             } catch (error) {
@@ -156,9 +164,9 @@ const Leaderboard = () => {
             // const player = playerScores[i];
             // console.log('playerScores[i]', playerScores[i]);
             const player = playerRating[i];
-            console.log('player', player);
+            // console.log('player', player);
             const enteredNickname = player ? player.enteredNickname : '-';
-            console.log('enteredNickname', enteredNickname);
+            // console.log('enteredNickname', enteredNickname);
             const score = player ? player.score : '-';
             const games = player ? player.games : '-';
             const rating = player ? player.ratings : '-';
