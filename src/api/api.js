@@ -13,7 +13,6 @@ export const confirmWindow = (message) => {
 export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamentId, team) => {
     const { score, games, ratings, stars } = data;
 
-
     let updatedRatings = ratings + `, ${scoreToAdd}`;
 
     console.log('updatedRatings', updatedRatings);
@@ -52,7 +51,6 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                         stars: player.stars
                     }))
                     .sort((a, b) => parseFloat(b.ratings) - parseFloat(a.ratings));
-
 
                 //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
@@ -285,7 +283,6 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) 
     console.log('newRating', newRating);
 
     return newRating;
-
 };
 
 export const calculateStarsFromRating = (rating, highestRating, lowestRating) => {
