@@ -66,17 +66,6 @@ const Leaderboard = () => {
                 );
 
                 // Update each player's stars property
-                const playerObjWithStars = playerObj.map((player) => {
-                    return {
-                        ...player,
-                        stars: player.stars
-                            ? player.stars
-                            : calculateStarsFromRating(player.ratings, highestRating, lowestRating)
-                    };
-                });
-
-
-                // Update each player's stars property
                 const playerObjWithStars =
                     playerObj.length > 0
                         ? playerObj.map((player) => ({
