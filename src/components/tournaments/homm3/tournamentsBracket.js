@@ -142,11 +142,6 @@ export const TournamentBracket = ({
         setShuffledNames(shuffled);
     }, [maxPlayers, uniquePlayerNames]);
 
-    // Shuffle the array using Fisher-Yates algorithm
-    // useEffect(() => {
-
-    // }, []);
-
     const shufflePlayers = (array) => {
         const shuffledArray = [...array];
 
@@ -434,9 +429,6 @@ export const TournamentBracket = ({
             //TODO: Could this be ommit?
             const retrievedWinners = await retrieveWinnersFromDatabase();
 
-            console.log('retrievedWinners 0', JSON.stringify(retrievedWinners[0].length));
-            console.log('retrievedWinners 1', JSON.stringify(retrievedWinners[1].length));
-
             //TODO: check if the quantity of winners are the same => doing nothing
             const tournamentDataWithWinners = {
                 playoffPairs: retrievedWinners
@@ -445,15 +437,12 @@ export const TournamentBracket = ({
             //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
             const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
 
-            console.log('tournamentDataWithWinners', JSON.stringify(tournamentDataWithWinners));
-
             //TODO: why do we need to PUT it the second time
             let winnerBracket = {};
 
             let winnersDataPutResponseModal = confirmWindow(
                 `Are you sure you want to update tournamentDataWithWinners with this JSON ${JSON.stringify(tournamentDataWithWinners)}?`
             );
-            console.log('Final winnersDataPutResponseModal:', winnersDataPutResponseModal);
 
             if (SHOULD_POSTING && winnersDataPutResponseModal) {
                 winnerBracket = await fetch(
@@ -835,6 +824,8 @@ export const TournamentBracket = ({
     const processFinishedGames = async (collectedPlayoffPairs) => {
         let finishedPairs = [];
 
+        console.log('collectedPlayoffPairs', JSON.stringify(collectedPlayoffPairs, null, 2));
+
         collectedPlayoffPairs.forEach((pair) => {
             pair.forEach((pairDetails) => {
                 if (pairDetails.gameStatus !== 'Processed') {
@@ -856,6 +847,14 @@ export const TournamentBracket = ({
                         if (+pairDetails.score1 + +pairDetails.score2 === 1) {
                             pairDetails.gameStatus = 'Finished';
                             finishedPairs.push(pairDetails);
+                        } else {
+                            if (
+                                pairDetails.games[0].castle1 &&
+                                pairDetails.games[0].castle2 &&
+                                !pairDetails.games[0].gameWinner
+                            ) {
+                                finishedPairs.push(pairDetails);
+                            }
                         }
                     }
                 }
@@ -863,6 +862,12 @@ export const TournamentBracket = ({
         });
 
         //TODO: implement the gameStatus. If the gameWinner exists determine game as finished
+
+        if (finishedPairs.length === 0) {
+            console.log('No finished pairs found');
+            return;
+        }
+
         let { castle1, castle2, score1, score2, team1, team2, winner, type } = finishedPairs[0];
         const opponent1Id = await lookForUserId(team1);
         const opponent2Id = await lookForUserId(team2);
@@ -958,16 +963,20 @@ export const TournamentBracket = ({
                 lostCastle = finishedPairs[0].games[0].castle1;
             }
             //TODO: check if gamesStatus is finished.
-            let castleWinResponseModal = confirmWindow(
-                `Process Castles: Are you sure you want to process WIN castle? ${JSON.stringify(winnerCastle)}`
-            );
+            let castleWinResponseModal =
+                winner &&
+                confirmWindow(
+                    `Process Castles: Are you sure you want to process WIN castle? ${JSON.stringify(winnerCastle)}`
+                );
 
             if (castleWinResponseModal) {
                 lookForCastleStats(winnerCastle, 'win');
             }
-            let castleLoseResponseModal = confirmWindow(
-                `Process Castles: Are you sure you want to process LOSE castle? ${JSON.stringify(lostCastle)}`
-            );
+            let castleLoseResponseModal =
+                winner &&
+                confirmWindow(
+                    `Process Castles: Are you sure you want to process LOSE castle? ${JSON.stringify(lostCastle)}`
+                );
 
             if (castleLoseResponseModal) {
                 lookForCastleStats(lostCastle, 'lost');
@@ -1017,20 +1026,23 @@ export const TournamentBracket = ({
             const didWinOpponent2 = winnerId === opponent2Id;
 
             let opponent1Score = await getNewRating(
-                opponent1PrevData.ratings,
-                opponent2PrevData.ratings,
+                parseFloat(opponent1PrevData.ratings.split(',').pop().trim()),
+                parseFloat(opponent2PrevData.ratings.split(',').pop().trim()),
                 didWinOpponent1
             );
             let opponent2Score = await getNewRating(
-                opponent2PrevData.ratings,
-                opponent1PrevData.ratings,
+                parseFloat(opponent2PrevData.ratings.split(',').pop().trim()),
+                parseFloat(opponent1PrevData.ratings.split(',').pop().trim()),
                 didWinOpponent2
             );
             if (SHOULD_POSTING) {
                 let opponent1IdScoreModal = confirmWindow(
                     `Process Games: Are you sure you want to process the first player ${opponent1Id}`
                 );
-                console.log('Process Games opponent1IdScoreModal:', opponent1IdScoreModal);
+                console.log(
+                    'Process Games opponent1IdScoreModal:',
+                    opponent1IdScoreModal + ' opponent1Score:' + opponent1Score
+                );
                 if (opponent1IdScoreModal) {
                     await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId, tournamentId, team1);
                 }
@@ -1514,6 +1526,7 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
             //  isManualScore = true;
             // console.log('radioButton', radioButton);
         });
+        console.log('game.gameStatus', game.gameStatus);
         // console.log('clickedRadioButton-handleRadioChange', clickedRadioButton);
 
         if (game.gameStatus !== 'Processed') {

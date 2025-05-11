@@ -28,20 +28,30 @@ const Leaderboard = () => {
                 // setPlayerScores(scores);
 
                 const playerObj = Object.entries(data)
-                    .map(([id, player]) => ({
-                        id,
-                        enteredNickname: player.enteredNickname,
-                        score: player.score,
-                        ratings: player.ratings ? player.ratings.toFixed(2) : 0,
-                        games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
-                        stars: player.stars
-                    }))
+                    .map(([id, player]) => {
+                        let ratings = player.ratings;
+                        if (typeof ratings === 'string' && ratings.includes(',')) {
+                            ratings = parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
+                        } else {
+                            ratings = ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
+                        }
 
-                    // .filter((player) => player.ratings > 0)
+                        const games = player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0;
+
+                        return {
+                            id,
+                            enteredNickname: player.enteredNickname,
+                            score: player.score,
+                            ratings,
+                            games,
+                            stars: player.stars
+                        };
+                    })
                     .sort((a, b) => b.ratings - a.ratings);
 
                 //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
+                console.log('highestRating', highestRating);
                 const lowestRating = Math.min(
                     ...playerObj
                         .filter((player) => player.ratings > 0)
@@ -51,13 +61,19 @@ const Leaderboard = () => {
                         })
                 );
 
-                // Update each player's stars property
-                const playerObjWithStars = playerObj.map((player) => ({
-                    ...player,
-                    stars: calculateStarsFromRating(player.ratings, highestRating, lowestRating)
-                }));
+                console.log('lowestRating', lowestRating);
+                console.log('player.ratings', playerObj[0].ratings);
 
-                // console.log('playerObjWithStars', playerObjWithStars);
+                // Update each player's stars property
+                const playerObjWithStars =
+                    playerObj.length > 0
+                        ? playerObj.map((player) => ({
+                              ...player,
+                              stars: player.stars
+                                  ? player.stars
+                                  : calculateStarsFromRating(player.ratings, highestRating, lowestRating)
+                          }))
+                        : [];
 
                 setPlayerRating(playerObjWithStars);
             } catch (error) {
@@ -66,6 +82,57 @@ const Leaderboard = () => {
         };
         fetchPlayerScores();
     }, []);
+
+    const recalculateStars = async () => {
+        const highestRating = playerRating[0].ratings;
+        console.log('highestRating', highestRating);
+
+        const lowestRating = Math.min(
+            ...playerRating.filter((player) => player.ratings > 0).map((player) => player.ratings)
+        );
+
+        console.log('lowestRating', lowestRating);
+
+        const updatedPlayerRating = playerRating.map((player) => ({
+            ...player,
+            stars: calculateStarsFromRating(player.ratings, highestRating, lowestRating)
+        }));
+
+        setPlayerRating(updatedPlayerRating);
+
+        for (const player of updatedPlayerRating) {
+            const userId = player.id;
+            const newStars = player.stars;
+
+            console.log('newStars', newStars);
+
+            let starsMessage = confirm(`Do you want to update the stars for user ${userId} newStars ${newStars}`);
+            let userResponse;
+
+            if (starsMessage) {
+                userResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                    {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            stars: newStars
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+            } else {
+                console.log('You pressed Cancel!');
+            }
+
+            if (userResponse && userResponse.ok) {
+                console.log(`Stars updated successfully for user ${userId}`);
+            } else {
+                console.error(`Failed to update stars for user ${userId}`);
+            }
+        }
+    };
 
     const getRankClass = (index) => {
         if (index === 0) {
@@ -85,9 +152,9 @@ const Leaderboard = () => {
             // const player = playerScores[i];
             // console.log('playerScores[i]', playerScores[i]);
             const player = playerRating[i];
-            console.log('player', player);
+            // console.log('player', player);
             const enteredNickname = player ? player.enteredNickname : '-';
-            console.log('enteredNickname', enteredNickname);
+            // console.log('enteredNickname', enteredNickname);
             const score = player ? player.score : '-';
             const games = player ? player.games : '-';
             const rating = player ? player.ratings : '-';
@@ -116,6 +183,7 @@ const Leaderboard = () => {
     return (
         <div className={classes.leaderboard}>
             <h2>Leaderboard</h2>
+            <button onClick={recalculateStars}>Recalculate Stars</button>
             <table>
                 <thead>
                     <tr>

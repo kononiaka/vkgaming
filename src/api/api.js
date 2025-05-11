@@ -12,9 +12,12 @@ export const confirmWindow = (message) => {
 
 export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamentId, team) => {
     const { score, games, ratings, stars } = data;
-    // console.log('data', data);
+    console.log('ratings-addScoreToUser', ratings);
+    console.log('scoreToAdd-addScoreToUser', scoreToAdd);
 
     let updatedRatings = ratings + `, ${scoreToAdd}`;
+
+    console.log('updatedRatings', updatedRatings);
 
     try {
         const tournamentPlayerResponse = await fetch(
@@ -23,8 +26,10 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
 
         const tournamentData = await tournamentPlayerResponse.json();
 
+        console.log('tournamentData', tournamentData);
+
         const result = findByName(tournamentData, team, scoreToAdd);
-        // console.log('result', result);
+        console.log('result', result);
 
         if (tournamentData.hasOwnProperty(result.id)) {
             let existingStars = tournamentData[result.id].stars;
@@ -40,14 +45,18 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 const userData = await response.json();
 
                 const playerObj = Object.entries(userData)
-                    .map(([id, player]) => ({
-                        id,
-                        enteredNickname: player.enteredNickname,
-                        score: player.score,
-                        ratings: player.ratings ? player.ratings.toFixed(2) : 0,
-                        games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
-                        stars: player.stars
-                    }))
+                    .map(([id, player]) => {
+                        console.log('player:', player); // Log player object here
+                        console.log('player.ratings:', player.ratings); // Log player.ratings here
+                        return {
+                            id,
+                            enteredNickname: player.enteredNickname,
+                            score: player.score,
+                            ratings: player.ratings ? parseFloat(player.ratings.split(',').pop().trim()).toFixed(2) : 0,
+                            games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
+                            stars: player.stars
+                        };
+                    })
 
                     .sort((a, b) => b.ratings - a.ratings);
 
@@ -103,6 +112,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 }
             } catch (e) {
                 //
+                console.error('Error fetching user data:', e);
             }
         }
 
@@ -264,15 +274,32 @@ export const getRating = async (opponentId) => {
 };
 
 export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) => {
+    console.log('opponentRating', opponentRating);
+    console.log('playerRating', playerRating);
+
+    // Calculate the expected score
     const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 100));
-    let actualScore;
-    if (didWin) {
-        actualScore = 0.7;
-    } else {
-        actualScore = 0.3;
-    }
-    const ratingChange = kFactor * (actualScore - expectedScore);
+
+    // Determine the actual score based on the match result
+    const actualScore = didWin ? 0.7 : 0.3;
+
+    console.log('expectedScore', expectedScore);
+    console.log('actualScore', actualScore);
+    console.log('opponentRating', opponentRating);
+
+    // Calculate the rating change
+    let ratingChange = kFactor * (actualScore - expectedScore);
+
+    // Cap the rating change to be within the range of -1 to 1.5
+    ratingChange = Math.max(-1, Math.min(ratingChange, 1.5));
+
+    console.log('ratingChange', ratingChange);
+    console.log('playerRating', playerRating);
+
+    // Calculate the new rating
     const newRating = playerRating + ratingChange;
+
+    console.log('newRating', newRating);
 
     return newRating;
 };
@@ -283,10 +310,14 @@ export const calculateStarsFromRating = (rating, highestRating, lowestRating) =>
         const totalStars = 5;
         const range = highestRating - lowestRating;
         const interval = range / totalStars;
-        const unroundedStars = (rating - lowestRating) / interval;
+
+        // Adjust the stars calculation based on the relative difference
+        const ratingDifference = highestRating - rating;
+        const adjustmentFactor = ratingDifference > interval ? 0.5 : 1; // Reduce stars gain for lower-rated wins
+        const unroundedStars = ((rating - lowestRating) / interval) * adjustmentFactor;
+
         const rawStars = Math.round(unroundedStars * 2) / 2 + 0.5; // Start from 0.5
         cappedStars = Math.min(rawStars, totalStars); // Cap stars at 5
-        // console.log('cappedStars', cappedStars);
     } else {
         cappedStars = 0.5;
     }
@@ -294,7 +325,6 @@ export const calculateStarsFromRating = (rating, highestRating, lowestRating) =>
     if (+cappedStars < 0.5) {
         cappedStars = 0.5;
     }
-    // console.log('cappedStars', cappedStars);
 
     return cappedStars;
 };

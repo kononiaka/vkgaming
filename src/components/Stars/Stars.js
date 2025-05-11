@@ -42,5 +42,4 @@ const getStarImageFilename = (stars) => {
 const StarsComponent = ({ stars }) => (
     <>{stars !== '-' && <img src={getStarImageFilename(stars)} alt={`Stars: ${stars}`} style={{ height: '30px' }} />}</>
 );
-
 export default StarsComponent;
