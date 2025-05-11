@@ -12,8 +12,7 @@ export const confirmWindow = (message) => {
 
 export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamentId, team) => {
     const { score, games, ratings, stars } = data;
-    console.log('ratings-addScoreToUser', ratings);
-    console.log('scoreToAdd-addScoreToUser', scoreToAdd);
+
 
     let updatedRatings = ratings + `, ${scoreToAdd}`;
 
@@ -29,7 +28,6 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
         console.log('tournamentData', tournamentData);
 
         const result = findByName(tournamentData, team, scoreToAdd);
-        console.log('result', result);
 
         if (tournamentData.hasOwnProperty(result.id)) {
             let existingStars = tournamentData[result.id].stars;
@@ -45,20 +43,16 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 const userData = await response.json();
 
                 const playerObj = Object.entries(userData)
-                    .map(([id, player]) => {
-                        console.log('player:', player); // Log player object here
-                        console.log('player.ratings:', player.ratings); // Log player.ratings here
-                        return {
-                            id,
-                            enteredNickname: player.enteredNickname,
-                            score: player.score,
-                            ratings: player.ratings ? parseFloat(player.ratings.split(',').pop().trim()).toFixed(2) : 0,
-                            games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
-                            stars: player.stars
-                        };
-                    })
+                    .map(([id, player]) => ({
+                        id,
+                        enteredNickname: player.enteredNickname,
+                        score: player.score,
+                        ratings: player.ratings ? parseFloat(player.ratings).toFixed(2) : '0.00',
+                        games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
+                        stars: player.stars
+                    }))
+                    .sort((a, b) => parseFloat(b.ratings) - parseFloat(a.ratings));
 
-                    .sort((a, b) => b.ratings - a.ratings);
 
                 //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
@@ -73,7 +67,6 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 let newStars = calculateStarsFromRating(scoreToAdd, highestRating, lowestRating);
                 // console.log('tournamentData before', tournamentData);
 
-                // console.log('newStars:', newStars);
                 tournamentData[result.id].stars += `, ${newStars}`;
                 tournamentData[result.id].ratings += `, ${scoreToAdd.toFixed(2)}`;
                 // console.log('tournamentData after', tournamentData);
@@ -274,18 +267,11 @@ export const getRating = async (opponentId) => {
 };
 
 export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) => {
-    console.log('opponentRating', opponentRating);
-    console.log('playerRating', playerRating);
-
     // Calculate the expected score
     const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 100));
 
     // Determine the actual score based on the match result
     const actualScore = didWin ? 0.7 : 0.3;
-
-    console.log('expectedScore', expectedScore);
-    console.log('actualScore', actualScore);
-    console.log('opponentRating', opponentRating);
 
     // Calculate the rating change
     let ratingChange = kFactor * (actualScore - expectedScore);
@@ -293,15 +279,13 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) 
     // Cap the rating change to be within the range of -1 to 1.5
     ratingChange = Math.max(-1, Math.min(ratingChange, 1.5));
 
-    console.log('ratingChange', ratingChange);
-    console.log('playerRating', playerRating);
-
     // Calculate the new rating
     const newRating = playerRating + ratingChange;
 
     console.log('newRating', newRating);
 
     return newRating;
+
 };
 
 export const calculateStarsFromRating = (rating, highestRating, lowestRating) => {
@@ -448,13 +432,17 @@ export const pullTournamentPrizes = async (tournamentId) => {
 
 export const getPlayerPrizeTotal = async (userId) => {
     const userResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${userId}/totalPrize.json`,
-        {
-            method: 'GET',
-            origin: ['*']
-        }
+        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/totalPrize.json`
+        // {
+        //     method: 'GET',
+        //     origin: ['*']
+        // }
     );
     if (userResponse.ok) {
-        return userResponse.json();
+        const userData = await userResponse.json();
+        console.log('getPlayerPrizeTotal - to get user prize', userData);
+        return userData;
+    } else {
+        console.log('Failed getPlayerPrizeTotal - to get user prize data');
     }
 };

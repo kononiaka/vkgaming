@@ -27,6 +27,8 @@ const Leaderboard = () => {
 
                 // setPlayerScores(scores);
 
+                console.log('data', JSON.stringify(data));
+
                 const playerObj = Object.entries(data)
                     .map(([id, player]) => {
                         let ratings = player.ratings;
@@ -49,6 +51,8 @@ const Leaderboard = () => {
                     })
                     .sort((a, b) => b.ratings - a.ratings);
 
+                console.log('playerObj', playerObj);
+
                 //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
                 console.log('highestRating', highestRating);
@@ -61,8 +65,16 @@ const Leaderboard = () => {
                         })
                 );
 
-                console.log('lowestRating', lowestRating);
-                console.log('player.ratings', playerObj[0].ratings);
+                // Update each player's stars property
+                const playerObjWithStars = playerObj.map((player) => {
+                    return {
+                        ...player,
+                        stars: player.stars
+                            ? player.stars
+                            : calculateStarsFromRating(player.ratings, highestRating, lowestRating)
+                    };
+                });
+
 
                 // Update each player's stars property
                 const playerObjWithStars =
