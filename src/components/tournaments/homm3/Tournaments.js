@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { lookForUserId } from '../../../api/api';
 import AuthContext from '../../../store/auth-context';
+import Modal from '../../Modal/Modal';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
@@ -12,6 +13,7 @@ const TournamentList = () => {
     const [tournamentWinner, setTournamentWinner] = useState('');
     const [showDetails, setShowDetails] = useState(false);
     const [firstStagePairs, setFirstStagePairs] = useState([]);
+    const [selectedTournament, setSelectedTournament] = useState(null);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
     let tournamentObj = null;
@@ -129,6 +131,11 @@ const TournamentList = () => {
         return response;
     };
 
+    const closeModalHandler = () => {
+        setShowDetails(false);
+        setSelectedTournament(null);
+    };
+
     const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
         // Find the index of the first occurrence of 'TBD' team in the array
         const firstStagePairsResponse = await fetch(
@@ -190,6 +197,11 @@ const TournamentList = () => {
             console.log('No TBD team found in firstStagePairs.');
         }
     };
+
+    // const showDetailsHandler = (tournament) => {
+    //     setSelectedTournament(tournament);
+    //     setShowDetails(true);
+    // };
 
     const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinner, currentTournamentId) => {
         setClickedId(currentTournamentId);
@@ -331,13 +343,15 @@ const TournamentList = () => {
             <h2>Current Tournaments</h2>
             {tournamentList}
             {showDetails && (
-                <TournamentBracket
-                    maxPlayers={maxTournamnetPlayers}
-                    tournamentId={clickedId}
-                    tournamentStatus={tournamentStatus}
-                    tournamentWinner={tournamentWinner}
-                    // tournamentNameParam={tournamentName}
-                ></TournamentBracket>
+                <Modal onClose={closeModalHandler}>
+                    <TournamentBracket
+                        maxPlayers={maxTournamnetPlayers}
+                        tournamentId={clickedId}
+                        tournamentStatus={tournamentStatus}
+                        tournamentWinner={tournamentWinner}
+                        // tournamentNameParam={tournamentName}
+                    ></TournamentBracket>
+                </Modal>
             )}
         </div>
     );
