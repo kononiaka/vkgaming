@@ -1057,6 +1057,9 @@ export const TournamentBracket = ({
             //TODO: if player's score was updated => set gameStatus to processed
             //TODO: check if all games in 'Processed' status => update whole gameStatus to 'Processed' status
             finishedPairs[0].gameStatus = 'Processed';
+            finishedPairs[0].games.forEach((game) => {
+                game.gameStatus = 'Processed';
+            });
         }
         setPlayoffPairs(finishedPairs);
 
@@ -1288,8 +1291,22 @@ export const TournamentBracket = ({
     // console.log('tournamentStatus' + tournamentId, tournamentStatus);
 
     return (
-        <div className={`scrollable-list-class brackets-class`}>
-            <div className={classes.brackets}>{tournamentName}</div>
+        <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
+            <div
+                className={classes.brackets}
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    backgroundColor: 'rgb(62, 32, 192)', // Match the modal background
+                    color: 'yellow',
+                    padding: '1rem',
+                    zIndex: 101,
+                    textAlign: 'center',
+                    borderBottom: '1px solid white'
+                }}
+            >
+                {tournamentName}
+            </div>
             {startButton && !startTournament && tournamentStatus === 'Registration finished!' && (
                 <button onClick={handleStartTournament}>Start Tournament</button>
             )}

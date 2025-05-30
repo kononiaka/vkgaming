@@ -118,7 +118,7 @@ export const PlayerBracket = ({
                 pair.games &&
                 numberOfGames.map((game, gameIndex) => {
                     isLive = game.gameStatus === 'In Progress';
-                    console.log('isLive', isLive);
+                    // console.log('isLive', isLive);
 
                     let castle =
                         // pair.games.length > 1 &&
