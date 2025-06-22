@@ -35,3 +35,50 @@
     /* top: 0;
     left: 0; */
 }
+
+.bracket-stages-container {
+    color: #ffffff;
+    display: flex;
+    /* flex-direction: row; */
+    /* align-items: flex-start; */
+    /* overflow-x: auto; */
+    gap: 1rem;
+    padding: 2rem 0;
+    /* width: 150%; */
+    /* box-sizing: border-box; */
+    /* justify-content: center; */
+    /* margin: 0 auto; This will center the flex container if possible */
+    /* Remove justify-content: center; */
+}
+
+.bracket-stages-container:has(.bracket-stages-column:last-child) {
+    justify-content: flex-start;
+}
+
+.bracket-stages-column {
+    min-width: 600px;
+    background: #2a1a6b;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center game blocks horizontally */
+    justify-content: center; /* Center game blocks vertically */
+}
+
+.game-block {
+    background: #21104a;
+    border: 2px solid #3e20c0;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(62, 32, 192, 0.1);
+    transition: box-shadow 0.2s;
+    width: 100%; /* Ensure game blocks take full width of the column */
+}
+.game-block:last-child {
+    margin-bottom: 0;
+}

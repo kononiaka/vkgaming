@@ -18,9 +18,9 @@
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.26);
     z-index: 90;
-    width: 90%;
-    max-width: 85rem;
-    max-height: 85vh; /* Limit the height to 80% of the viewport */
+    width: 95%;
+    max-width: 150rem;
+    max-height: 95vh; /* Limit the height to 80% of the viewport */
     overflow-y: auto; /* Enable vertical scrolling */
 }
 

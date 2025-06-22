@@ -66,8 +66,36 @@
     opacity: 1;
 }
 
+.radio_custom {
+    accent-color: #ffb300; /* Gold/yellow for modern browsers */
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid #3e20c0;
+    box-shadow:
+        0 0 0 2px #fff,
+        0 0 6px 2px #3e20c033;
+    margin: 0 0.5rem;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+.radio_custom:checked {
+    box-shadow:
+        0 0 0 2px #fff,
+        0 0 8px 4px #ffb30077;
+    border-color: #ffb300;
+}
+.radio_custom:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @keyframes blink {
     50% {
         opacity: 0;
     }
+}
+
+.castle-selected {
+    border: 5px solid #cb27e0 !important; /* Gold border for visibility */
+    box-shadow: 0 0 6px #ffb30055;
 }
