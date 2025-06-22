@@ -199,6 +199,30 @@ export const lookForUserPrevScore = async (userId) => {
     return results;
 };
 
+export const fetchCastlesList = async () => {
+    try {
+        const response = await fetch(
+            'https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles.json'
+        );
+        const data = await response.json();
+
+        let castles = Object.entries(data).map(([id, castle]) => ({
+            id: id,
+            name: id,
+            win: castle.win,
+            lose: castle.lose,
+            total: castle.total,
+            rate: castle.total !== 0 ? (castle.win / castle.total) * 100 : 0
+        }));
+
+        castles.sort((a, b) => b.rate - a.rate);
+
+        return castles;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
 export const lookForCastleStats = async (castle, action) => {
     let body;
     const response = await fetch(

@@ -132,6 +132,7 @@ export const PlayerBracket = ({
                             <select
                                 id={`castle-${team}-${pairIndex}${pair.games > 1 ? '-' + game : ''}`}
                                 value={castle}
+                                className={checked ? classes['castle-selected'] : ''}
                                 onChange={(event) =>
                                     handleCastleChange(
                                         stageIndex,
@@ -159,6 +160,7 @@ export const PlayerBracket = ({
                             </select>
                             <input
                                 type="radio"
+                                className={classes.radio_custom}
                                 id={`radio-${stageIndex}-${pairIndex}-${game.gameId}-${teamIndex}`}
                                 name={`radio-${stageIndex}-${pairIndex}-${game.gameId}`}
                                 onChange={(event) => {
@@ -179,6 +181,7 @@ export const PlayerBracket = ({
                                     `radio-${stageIndex}-${pairIndex}-${game.gameId}-${teamIndex}` ===
                                         clickedRadioButton
                                 }
+                                disabled={game.gameStatus === 'Processed'} // Disable if processed
                             />
 
                             <div
@@ -194,6 +197,18 @@ export const PlayerBracket = ({
                 value={playerScore || 0}
                 onChange={(event) => handleScoreChange(stage, pairIndex, teamIndex, event.target.value)}
                 onBlur={(event) => handleBlur(stage, pairIndex, setPlayoffPairs, event.target.value)}
+                style={{
+                    width: '3rem',
+                    padding: '0.5rem 0.5rem',
+                    textAlign: 'center',
+                    border: '2px solid #3e20c0',
+                    borderRadius: '3px',
+                    background: '#f5f5fa',
+                    color: '#2a1a6b',
+                    margin: '0.5rem 0',
+                    outline: 'none',
+                    boxShadow: '0 1px 3px rgba(62,32,192,0.07)'
+                }}
             />
         </div>
     );

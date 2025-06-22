@@ -48,7 +48,7 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
         '1/32 Final': 32,
         '1/16 Final': 16,
         '1/8 Final': 8,
-        'Quater-final': 4,
+        'Quarter-final': 4,
         'Semi-final': 2,
         'Third Place': 1,
         Final: 1
@@ -133,13 +133,13 @@ export function setStageLabels(maxPlayers) {
     // let gamesPerStageData = {};
 
     if (+maxPlayers === 4) {
-        labels = ['Semi-final', 'Third Place', 'Final', 'Winner'];
+        labels = ['Semi-final', 'Third Place', 'Final'];
     } else if (+maxPlayers === 8) {
-        labels = ['Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
+        labels = ['Quarter-final', 'Semi-final', 'Third Place', 'Final'];
     } else if (+maxPlayers === 16) {
-        labels = ['1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
+        labels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
     } else if (+maxPlayers === 32) {
-        labels = ['1/16 Final', '1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
+        labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
     }
 
     return labels;

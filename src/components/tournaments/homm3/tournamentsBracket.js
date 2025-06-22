@@ -8,7 +8,8 @@ import {
     lookForTournamentName,
     lookForUserId,
     lookForUserPrevScore,
-    pullTournamentPrizes
+    pullTournamentPrizes,
+    fetchCastlesList
 } from '../../../api/api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
 import { findByName } from '../../../api/api.js';
@@ -43,6 +44,8 @@ export const TournamentBracket = ({
     const [startTournament, setStartTournament] = useState(false);
     const [startButton, setStartButton] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
+    const [showCastlesModal, setShowCastlesModal] = useState(false);
+    const [availableCastles, setAvailableCastles] = useState([]);
     let BO3_DEFAULT;
     // let tournamentName;
 
@@ -68,13 +71,13 @@ export const TournamentBracket = ({
         // console.log('Object.keys(maxPlayers).length' + tournamentName, Object.keys(maxPlayers).length);
 
         if (+maxPlayers === 4) {
-            labels = ['Semi-final', 'Third Place', 'Final', 'Winner'];
+            labels = ['Semi-final', 'Third Place', 'Final'];
         } else if (+maxPlayers === 8) {
-            labels = ['Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
+            labels = ['Quarter-final', 'Semi-final', 'Third Place', 'Final'];
         } else if (+maxPlayers === 16) {
-            labels = ['1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
+            labels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
         } else if (+maxPlayers === 32) {
-            labels = ['1/16 Final', '1/8 Final', 'Quater-final', 'Semi-final', 'Third Place', 'Final', 'Winner'];
+            labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
         }
 
         setStageLabels(labels);
@@ -87,7 +90,7 @@ export const TournamentBracket = ({
             '1/32 Final': 32,
             '1/16 Final': 16,
             '1/8 Final': 8,
-            'Quater-final': 4,
+            'Quarter-final': 4,
             'Semi-final': 2,
             'Third Place': 1,
             Final: 1
@@ -424,9 +427,16 @@ export const TournamentBracket = ({
             //     );
 
             //     if (response.ok) {
+
+            // console.log('playoffPairs before', JSON.stringify(playoffPairs, null, 2));
+
             await processFinishedGames(playoffPairs);
 
             //TODO: Could this be ommit?
+            // console.log('playoffPairs', JSON.stringify(playoffPairs, null, 2));
+
+            // console.log('allPairsHaveTeams', allPairsHaveTeams(playoffPairs));
+
             const retrievedWinners = await retrieveWinnersFromDatabase();
 
             //TODO: check if the quantity of winners are the same => doing nothing
@@ -437,187 +447,194 @@ export const TournamentBracket = ({
             //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
             const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
 
-            //TODO: why do we need to PUT it the second time
+            //TODO: why do we need to PUT it the second time - to determine the next stage pairings?
             let winnerBracket = {};
 
-            let winnersDataPutResponseModal = confirmWindow(
-                `Are you sure you want to update tournamentDataWithWinners with this JSON ${JSON.stringify(tournamentDataWithWinners)}?`
-            );
+            let allPairsHaveTeams = allPairsHaveTeamsFunc(playoffPairs);
 
-            if (SHOULD_POSTING && winnersDataPutResponseModal) {
-                winnerBracket = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(tournamentDataWithWinners),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
+            console.log('allPairsHaveTeams', allPairsHaveTeams);
+
+            //IMPORTANT: Which means that all pairs have teams and no need to determine the next stage pairings
+            if (!allPairsHaveTeams) {
+                let winnersDataPutResponseModal = confirmWindow(
+                    `Are you sure you want to update tournamentDataWithWinners with this JSON ${JSON.stringify(tournamentDataWithWinners)}?`
                 );
-            } else {
-                winnerBracket.ok = true;
+
+                if (SHOULD_POSTING && winnersDataPutResponseModal) {
+                    winnerBracket = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                        {
+                            method: 'PUT',
+                            body: JSON.stringify(tournamentDataWithWinners),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+                } else {
+                    winnerBracket.ok = true;
+                }
             }
 
-            if (winnerBracket.ok) {
-                let place;
-                let prizeAmount;
-                const lastStage = retrievedWinners[retrievedWinners.length - 1];
-                const firstPlace = lastStage[lastStage.length - 1] ? lastStage[lastStage.length - 1].winner : null;
+            // if (winnerBracket.ok) {
+            let place;
+            let prizeAmount;
+            const lastStage = retrievedWinners[retrievedWinners.length - 1];
+            const firstPlace = lastStage[lastStage.length - 1] ? lastStage[lastStage.length - 1].winner : null;
 
-                const secondPlace = firstPlace
-                    ? firstPlace === lastStage[lastStage.length - 1].team1
-                        ? lastStage[lastStage.length - 1].team2
-                        : lastStage[lastStage.length - 1].team1
-                    : undefined;
+            const secondPlace = firstPlace
+                ? firstPlace === lastStage[lastStage.length - 1].team1
+                    ? lastStage[lastStage.length - 1].team2
+                    : lastStage[lastStage.length - 1].team1
+                : undefined;
 
-                // TODO: why we can't put the third place here as well?
+            // TODO: why we can't put the third place here as well?
 
-                if (firstPlace) {
-                    let prizes = await pullTournamentPrizes(tournamentId);
-                    const winnersData = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`
+            if (firstPlace) {
+                let prizes = await pullTournamentPrizes(tournamentId);
+                const winnersData = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`
+                );
+
+                if (winnersData.ok) {
+                    const existingData = await winnersData.json();
+
+                    existingData['1st place'] = firstPlace;
+                    existingData['2nd place'] = secondPlace;
+
+                    let firstPlaceId = await lookForUserId(firstPlace);
+                    let secondPlaceId = await lookForUserId(secondPlace);
+
+                    let firstPlaceRecord = await loadUserById(firstPlaceId);
+                    let secondPlaceRecord = await loadUserById(secondPlaceId);
+                    let winnersResponse = {};
+
+                    let winnersResponseModal = confirmWindow(
+                        `Are you sure you want to update winners with this JSON ${JSON.stringify(existingData)}?`
                     );
+                    console.log('Final winnersResponseModal:', winnersResponseModal);
 
-                    if (winnersData.ok) {
-                        const existingData = await winnersData.json();
-
-                        existingData['1st place'] = firstPlace;
-                        existingData['2nd place'] = secondPlace;
-
-                        let firstPlaceId = await lookForUserId(firstPlace);
-                        let secondPlaceId = await lookForUserId(secondPlace);
-
-                        let firstPlaceRecord = await loadUserById(firstPlaceId);
-                        let secondPlaceRecord = await loadUserById(secondPlaceId);
-                        let winnersResponse = {};
-
-                        let winnersResponseModal = confirmWindow(
-                            `Are you sure you want to update winners with this JSON ${JSON.stringify(existingData)}?`
+                    if (SHOULD_POSTING && winnersResponseModal) {
+                        winnersResponse = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
+                            {
+                                method: 'PUT',
+                                body: JSON.stringify(existingData),
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            }
+                        );
+                    } else {
+                        winnersResponse.ok = true;
+                    }
+                    if (winnersResponse.ok) {
+                        let tournamentStatusResponse = {};
+                        let tournamentStatusResponseModal = confirmWindow(
+                            `Are you sure you want to update tournament's status to 'FINISHED'?`
                         );
                         console.log('Final winnersResponseModal:', winnersResponseModal);
-
-                        if (SHOULD_POSTING && winnersResponseModal) {
-                            winnersResponse = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
+                        if (SHOULD_POSTING && tournamentStatusResponseModal) {
+                            tournamentStatusResponse = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
                                 {
                                     method: 'PUT',
-                                    body: JSON.stringify(existingData),
+                                    body: JSON.stringify('Tournament Finished'),
                                     headers: {
                                         'Content-Type': 'application/json'
                                     }
                                 }
                             );
                         } else {
-                            winnersResponse.ok = true;
+                            tournamentStatusResponse.ok = true;
                         }
-                        if (winnersResponse.ok) {
-                            let tournamentStatusResponse = {};
-                            let tournamentStatusResponseModal = confirmWindow(
-                                `Are you sure you want to update tournament's status to 'FINISHED'?`
-                            );
-                            console.log('Final winnersResponseModal:', winnersResponseModal);
-                            if (SHOULD_POSTING && tournamentStatusResponseModal) {
-                                tournamentStatusResponse = await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
-                                    {
-                                        method: 'PUT',
-                                        body: JSON.stringify('Tournament Finished'),
-                                        headers: {
-                                            'Content-Type': 'application/json'
-                                        }
-                                    }
-                                );
-                            } else {
-                                tournamentStatusResponse.ok = true;
-                            }
+                        if (tournamentStatusResponse.ok) {
+                            setUpdateButtonVisible(false);
+
                             if (tournamentStatusResponse.ok) {
-                                setUpdateButtonVisible(false);
+                                if (!firstPlaceRecord || typeof firstPlaceRecord.prizes !== 'object') {
+                                    console.log('1ST PLACE PRIZE WAS DETERMINED', prizeAmount);
+                                    // If not, initialize "prizes" as an object
+                                    firstPlaceRecord.prizes = [];
+                                }
+                                place = '1st Place';
+                                prizeAmount = prizes[place];
+                                let firstPriceTotal = await getPlayerPrizeTotal(firstPlaceId);
+                                firstPlaceRecord.totalPrize = +firstPriceTotal + +prizeAmount;
 
-                                if (tournamentStatusResponse.ok) {
-                                    if (!firstPlaceRecord || typeof firstPlaceRecord.prizes !== 'object') {
-                                        console.log('1ST PLACE PRIZE WAS DETERMINED', prizeAmount);
-                                        // If not, initialize "prizes" as an object
-                                        firstPlaceRecord.prizes = [];
+                                firstPlaceRecord.prizes.push({
+                                    tournamentName: tournamentResponse.name,
+                                    place: place,
+                                    prizeAmount: prizeAmount
+                                });
+
+                                // console.log('place', place);
+                                let firstPlaceResponse = {};
+
+                                let firstPlaceResponseModal = confirmWindow(
+                                    `Are you sure you want to update first place winner?`
+                                );
+                                console.log('Final firstPlaceResponseModal:', firstPlaceResponseModal);
+                                if (SHOULD_POSTING && firstPlaceResponseModal) {
+                                    firstPlaceResponse = await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
+                                        {
+                                            method: 'PUT',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify(firstPlaceRecord)
+                                        }
+                                    );
+                                } else {
+                                    firstPlaceResponse.ok = true;
+                                }
+                                if (firstPlaceResponse.ok) {
+                                    if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
+                                        secondPlaceRecord.prizes = [];
                                     }
-                                    place = '1st Place';
+                                    place = '2nd Place';
                                     prizeAmount = prizes[place];
-                                    let firstPriceTotal = await getPlayerPrizeTotal(firstPlaceId);
-                                    firstPlaceRecord.totalPrize = +firstPriceTotal + +prizeAmount;
+                                    let secondPriceTotal = await getPlayerPrizeTotal(secondPlaceId);
+                                    secondPlaceRecord.totalPrize = +secondPriceTotal + +prizeAmount;
 
-                                    firstPlaceRecord.prizes.push({
+                                    secondPlaceRecord.prizes.push({
                                         tournamentName: tournamentResponse.name,
                                         place: place,
                                         prizeAmount: prizeAmount
                                     });
-
-                                    // console.log('place', place);
-                                    let firstPlaceResponse = {};
-
-                                    let firstPlaceResponseModal = confirmWindow(
-                                        `Are you sure you want to update first place winner?`
+                                    let secondPlaceResponse = {};
+                                    let secondPlaceResponseModal = confirmWindow(
+                                        `Are you sure you want to update second place winner?`
                                     );
-                                    console.log('Final firstPlaceResponseModal:', firstPlaceResponseModal);
-                                    if (SHOULD_POSTING && firstPlaceResponseModal) {
-                                        firstPlaceResponse = await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
+                                    console.log('Final firstPlaceResponseModal:', secondPlaceResponseModal);
+                                    if (SHOULD_POSTING && secondPlaceResponseModal) {
+                                        secondPlaceResponse = await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
                                             {
                                                 method: 'PUT',
                                                 headers: {
                                                     'Content-Type': 'application/json'
                                                 },
-                                                body: JSON.stringify(firstPlaceRecord)
+                                                body: JSON.stringify(secondPlaceRecord)
                                             }
                                         );
                                     } else {
-                                        firstPlaceResponse.ok = true;
+                                        secondPlaceResponse.ok = true;
                                     }
-                                    if (firstPlaceResponse.ok) {
-                                        if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
-                                            secondPlaceRecord.prizes = [];
-                                        }
-                                        place = '2nd Place';
-                                        prizeAmount = prizes[place];
-                                        let secondPriceTotal = await getPlayerPrizeTotal(secondPlaceId);
-                                        secondPlaceRecord.totalPrize = +secondPriceTotal + +prizeAmount;
-
-                                        secondPlaceRecord.prizes.push({
-                                            tournamentName: tournamentResponse.name,
-                                            place: place,
-                                            prizeAmount: prizeAmount
-                                        });
-                                        let secondPlaceResponse = {};
-                                        let secondPlaceResponseModal = confirmWindow(
-                                            `Are you sure you want to update second place winner?`
-                                        );
-                                        console.log('Final firstPlaceResponseModal:', secondPlaceResponseModal);
-                                        if (SHOULD_POSTING && secondPlaceResponseModal) {
-                                            secondPlaceResponse = await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
-                                                {
-                                                    method: 'PUT',
-                                                    headers: {
-                                                        'Content-Type': 'application/json'
-                                                    },
-                                                    body: JSON.stringify(secondPlaceRecord)
-                                                }
-                                            );
-                                        } else {
-                                            secondPlaceResponse.ok = true;
-                                        }
-                                        if (secondPlaceResponse.ok) {
-                                            console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
-                                        }
+                                    if (secondPlaceResponse.ok) {
+                                        console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
                                     }
                                 }
                             }
-                        } else {
-                            const errorMessage = await winnersResponse.text();
-                            console.error('Error:', winnersResponse.status, errorMessage);
                         }
+                    } else {
+                        const errorMessage = await winnersResponse.text();
+                        console.error('Error:', winnersResponse.status, errorMessage);
                     }
                 }
             }
+            // }
 
             console.log('Pairs posted to Firebase successfully');
             let reloadResponse = confirmWindow(`Are you sure you want to reload the page?`);
@@ -628,6 +645,16 @@ export const TournamentBracket = ({
             console.log('Error posting pairs to Firebase:', error);
         }
     };
+
+    // Utility function to check if all pairs have valid teams
+    function allPairsHaveTeamsFunc(tournamentPlayoffPairs) {
+        if (!Array.isArray(tournamentPlayoffPairs)) return false;
+        return tournamentPlayoffPairs.every(
+            (stage) =>
+                Array.isArray(stage) &&
+                stage.every((pair) => pair.team1 && pair.team1 !== 'TBD' && pair.team2 && pair.team2 !== 'TBD')
+        );
+    }
 
     function confirmWindowNew(message) {
         return new Promise((resolve) => {
@@ -726,7 +753,6 @@ export const TournamentBracket = ({
                     //     let existingRatings = playersData[result.id].ratings;
 
                     let collectedPlayoffPairs = bracketData?.playoffPairs || [];
-
                     let nextStagePairings;
                     let nextStageIndex = 0;
 
@@ -735,14 +761,14 @@ export const TournamentBracket = ({
 
                         let currentStagePlayoffWinners = currentStagePlayoffPairs
                             .map((pair) => {
-                                console.log('pair-111s', pair);
+                                // console.log('pair-111s', pair);
                                 const result = findByName(playersData, pair.winner);
 
-                                console.log('result', result);
+                                // console.log('result', result);
 
                                 let playerRecentStar = result ? result.stars : null;
                                 let playerRecentRatings = result ? result.ratings : null;
-                                console.log('playersStars', playerRecentStar);
+                                // console.log('playersStars', playerRecentStar);
 
                                 if (pair.winner === pair.team1) {
                                     return {
@@ -774,13 +800,34 @@ export const TournamentBracket = ({
 
                         if (nextStagePlayoffWinners.includes(undefined) && !thirdPlaceWinner) {
                             if (nextStageIndex === 2) {
+                                // console.log('IN THIRD PLACE');
                                 //THIRD PLACE
-                                const losers = currentStagePlayoffPairs.map((match) =>
-                                    (match.winner === match.team1 ? match.team2 : match.winner === match.team2)
-                                        ? match.team1
-                                        : 'TBD'
-                                );
+                                const losers = currentStagePlayoffPairs.map((match) => {
+                                    let loserName;
+                                    if (match.winner === match.team1) {
+                                        loserName = match.team2;
+                                    } else if (match.winner === match.team2) {
+                                        loserName = match.team1;
+                                    } else {
+                                        loserName = 'TBD';
+                                    }
+
+                                    // Find the player data for the loser
+                                    const loserData = Object.values(playersData).find(
+                                        (player) => player.name === loserName
+                                    );
+
+                                    return {
+                                        winner: loserName,
+                                        stars: loserData ? loserData.stars : null,
+                                        ratings: loserData ? loserData.ratings : null
+                                    };
+                                });
+
+                                console.log('losers', losers);
+
                                 let thirdPlacePairing = determineNextStagePairings(losers);
+                                console.log('thirdPlacePairing', thirdPlacePairing);
                                 if (currentStagePlayoffWinners.length > 0) {
                                     nextStagePairings = determineNextStagePairings(
                                         currentStagePlayoffWinners,
@@ -824,7 +871,7 @@ export const TournamentBracket = ({
     const processFinishedGames = async (collectedPlayoffPairs) => {
         let finishedPairs = [];
 
-        console.log('collectedPlayoffPairs', JSON.stringify(collectedPlayoffPairs, null, 2));
+        // console.log('collectedPlayoffPairs', JSON.stringify(collectedPlayoffPairs, null, 2));
 
         collectedPlayoffPairs.forEach((pair) => {
             pair.forEach((pairDetails) => {
@@ -909,6 +956,7 @@ export const TournamentBracket = ({
         let lostCastle;
         let needUpdate = false;
         if (finishedPairs[0].type === 'bo-3') {
+            console.log('finishedPairs[0].games', finishedPairs[0].games);
             finishedPairs[0].games.forEach((game) => {
                 if (game.gameWinner) {
                     if (team1 === game.gameWinner) {
@@ -920,16 +968,17 @@ export const TournamentBracket = ({
                         winnerCastle = game.castle2;
                         lostCastle = game.castle1;
                     }
-                    if (game.gameStatus !== 'Processed') {
-                        game.gameStatus = 'Queued';
-                    }
+
                     needUpdate = true;
                 }
 
                 if (
                     // SHOULD_POSTING &&
-                    game.gameStatus !== 'Processed'
+                    game.gameStatus &&
+                    game.gameStatus !== 'Processed' &&
+                    game.gameStatus !== 'In Progress'
                 ) {
+                    console.log('game.gameStatus', game.gameStatus);
                     let firstCastleResponse;
                     let secondCastleResponse;
                     let firstCastleResponseModal = confirmWindow(
@@ -948,7 +997,7 @@ export const TournamentBracket = ({
                         secondCastleResponse = lookForCastleStats(lostCastle, 'lost');
                     }
                     if (firstCastleResponse && secondCastleResponse) {
-                        game.gameStatus = 'Finished';
+                        game.gameStatus = 'Processed';
                     }
                 }
             });
@@ -1083,6 +1132,8 @@ export const TournamentBracket = ({
             }
         }
 
+        // console.log('finishedPairs LENGTH', finishedPairs.length);
+        // console.log('finishedPairs', finishedPairs);
         // setPlayoffPairs(finishedPairs);
 
         return finishedPairs;
@@ -1252,7 +1303,7 @@ export const TournamentBracket = ({
 
     const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
         const stageMappings = {
-            'Quater-final': 0,
+            'Quarter-final': 0,
             'Semi-final': 1,
             'Third Place': 2,
             Final: 3
@@ -1290,6 +1341,29 @@ export const TournamentBracket = ({
     // console.log('startTournament' + tournamentId, startTournament);
     // console.log('tournamentStatus' + tournamentId, tournamentStatus);
 
+    const handleGetAvailableCastles = async () => {
+        let castles = await fetchCastlesList();
+        console.log('castles', castles);
+
+        const result = getAvailableCastles(castles);
+        setAvailableCastles(result);
+        setShowCastlesModal(true);
+    };
+
+    //TODO: implement the getAvailableCastles function to filter castles based on the number of games played
+    function getAvailableCastles(castles) {
+        const maxGames = Math.max(
+            ...castles.map((c) => {
+                console.log('c', c.total);
+                console.log('c', c.name);
+                return c.total;
+            })
+        );
+        console.log('maxGames', maxGames);
+        // return castles.filter((c) => c.total < maxGames);
+        return [...castles].sort((a, b) => a.total - b.total);
+    }
+
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
@@ -1306,85 +1380,108 @@ export const TournamentBracket = ({
                 }}
             >
                 {tournamentName}
+                {tournamentWinner && <p style={{ color: 'yellow', margin: 0 }}>Winner: {tournamentWinner}</p>}
             </div>
+            {showCastlesModal && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        background: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999
+                    }}
+                    onClick={() => setShowCastlesModal(false)}
+                >
+                    <div
+                        style={{
+                            background: '#fff',
+                            padding: '2rem',
+                            borderRadius: '8px',
+                            minWidth: '300px',
+                            maxHeight: '80vh',
+                            overflowY: 'auto'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3>Available Castles</h3>
+                        <ul>
+                            {(() => {
+                                // Find min and max total values
+                                const totals = availableCastles.map((castle) => castle.total);
+                                const minTotal = Math.min(...totals);
+                                const maxTotal = Math.max(...totals);
+
+                                return availableCastles.map((castle, idx) => (
+                                    <li
+                                        key={idx}
+                                        style={{
+                                            color:
+                                                castle.total === minTotal
+                                                    ? 'green'
+                                                    : castle.total === maxTotal
+                                                      ? 'red'
+                                                      : 'inherit',
+                                            fontWeight:
+                                                castle.total === minTotal || castle.total === maxTotal
+                                                    ? 'bold'
+                                                    : 'normal'
+                                        }}
+                                    >
+                                        {castle.name} — {castle.total}
+                                    </li>
+                                ));
+                            })()}
+                        </ul>
+                        <button onClick={() => setShowCastlesModal(false)}>Close</button>
+                    </div>
+                </div>
+            )}
+
             {startButton && !startTournament && tournamentStatus === 'Registration finished!' && (
                 <button onClick={handleStartTournament}>Start Tournament</button>
             )}
             {startTournament && <button onClick={() => shuffleArray(uniquePlayerNames)}>Shuffle</button>}
             {!startTournament && isUpdateButtonVisible && (
-                <button id="update-tournament" onClick={() => updateTournament()}>
-                    Update Tournament
-                </button>
+                <>
+                    <button id="update-tournament" onClick={() => updateTournament()}>
+                        Update Tournament
+                    </button>
+                    <button onClick={() => handleGetAvailableCastles()}>Get Available Castles</button>
+                </>
             )}
+
             {stageLabels.length === 0 ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : (
-                <>
-                    {/* {console.log('playoffPairs', playoffPairs)} */}
-                    {
-                        // !startTournament &&
-                        stageLabels.map(function (stage, stageIndex) {
+                <div className={classes['bracket-stages-container']}>
+                    {stageLabels.map(function (stage, stageIndex) {
+                        // Combine Final and Third Place in one column
+                        if (stage === 'Final') {
+                            const thirdPlaceIndex = stageLabels.findIndex((label) => label === 'Third Place');
+                            const finalPairs = playoffPairs[stageIndex] || [];
+                            const thirdPlacePairs = thirdPlaceIndex !== -1 ? playoffPairs[thirdPlaceIndex] || [] : [];
+
                             return (
                                 <div
-                                    key={stage}
-                                    className={`${classes.brackets} ${
-                                        stageIndex === currentStageIndex ? classes.active : ''
-                                    }`}
+                                    key="final-and-third"
+                                    className={`${classes['bracket-stages-column']} 
+                        ${stageIndex === currentStageIndex ? classes.active : ''}`}
                                 >
-                                    <h3 style={{ color: 'red' }}>Stage: {stage}</h3>
-                                    {stage === 'Winner' && tournamentWinner && (
-                                        <p style={{ color: 'yellow' }}>{tournamentWinner}</p>
-                                    )}
-                                    {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
-                                        // console.log('pair-map', pair);
+                                    <h3 style={{ color: 'red' }}>Final</h3>
+                                    {finalPairs.map((pair, pairIndex) => {
                                         const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
-
                                         const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
 
-                                        if (type === 'bo-3' && pair.games) {
-                                            BO3_DEFAULT = [
-                                                {
-                                                    gameId: 1,
-                                                    castle1: pair.games[0].castle1 ? pair.games[0].castle1 : null,
-                                                    castle2: pair.games[0].castle2 ? pair.games[0].castle2 : null,
-                                                    gameWinner: pair.games[0].gameWinner
-                                                        ? pair.games[0].gameWinner
-                                                        : null,
-                                                    castleWinner: pair.games[0].castleWinner
-                                                        ? pair.games[0].castleWinner
-                                                        : null
-                                                },
-                                                {
-                                                    gameId: 2,
-                                                    castle1: pair.games[1].castle1 ? pair.games[1].castle1 : null,
-                                                    castle2: pair.games[1].castle2 ? pair.games[1].castle2 : null,
-                                                    gameWinner: pair.games[1].gameWinner
-                                                        ? pair.games[1].gameWinner
-                                                        : null,
-                                                    castleWinner: pair.games[1].castleWinner
-                                                        ? pair.games[1].castleWinner
-                                                        : null
-                                                }
-                                            ];
-                                        } else {
-                                            BO3_DEFAULT = {
-                                                gameId: 1,
-                                                castle1: castle1,
-                                                castle2: castle2,
-                                                gameWinner: null
-                                            };
-                                        }
+                                        // ...BO3_DEFAULT logic if needed...
+
                                         return (
-                                            <div
-                                                key={pairIndex}
-                                                // style={{ position: 'relative' }}
-                                            >
-                                                {stage !== 'Third Place' && stage !== 'Final' && (
-                                                    <p>{`Match ${pairIndex + 1}`}</p>
-                                                )}
-                                                <p>{`Best of ${stage === 'Final' ? 3 : 1}`}</p>
-                                                <div>Date:</div>
-                                                {/* {console.log('pair', pair)} */}
+                                            <div key={`final-${pairIndex}`} className={classes['game-block']}>
                                                 <PlayerBracket
                                                     pair={pair}
                                                     team={'team1'}
@@ -1401,8 +1498,6 @@ export const TournamentBracket = ({
                                                     getWinner={getWinner}
                                                     clickedRadioButton={clickedRadioButton}
                                                 />
-
-                                                {/* {console.log('tournamentname', pair)} */}
                                                 <PlayerBracket
                                                     pair={pair}
                                                     team={'team2'}
@@ -1423,11 +1518,155 @@ export const TournamentBracket = ({
                                             </div>
                                         );
                                     })}
+                                    <h3 style={{ color: 'orange', marginTop: '2rem' }}>Third Place</h3>
+                                    {thirdPlacePairs.map((pair, pairIndex) => {
+                                        const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
+                                        const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+
+                                        return (
+                                            <div key={`thirdplace-${pairIndex}`} className={classes['game-block']}>
+                                                <PlayerBracket
+                                                    pair={pair}
+                                                    team={'team1'}
+                                                    pairIndex={pairIndex}
+                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                    stageIndex={thirdPlaceIndex}
+                                                    setPlayoffPairs={setPlayoffPairs}
+                                                    handleCastleChange={handleCastleChange}
+                                                    handleScoreChange={handleScoreChange}
+                                                    handleBlur={handleBlur}
+                                                    handleRadioChange={handleRadioChange}
+                                                    stage={'Third Place'}
+                                                    teamIndex={1}
+                                                    getWinner={getWinner}
+                                                    clickedRadioButton={clickedRadioButton}
+                                                />
+                                                <PlayerBracket
+                                                    pair={pair}
+                                                    team={'team2'}
+                                                    pairIndex={pairIndex}
+                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                    stageIndex={thirdPlaceIndex}
+                                                    setPlayoffPairs={setPlayoffPairs}
+                                                    handleCastleChange={handleCastleChange}
+                                                    handleScoreChange={handleScoreChange}
+                                                    handleBlur={handleBlur}
+                                                    handleRadioChange={handleRadioChange}
+                                                    stage={'Third Place'}
+                                                    teamIndex={2}
+                                                    getWinner={getWinner}
+                                                    isManualScore={isManualScore}
+                                                    clickedRadioButton={clickedRadioButton}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             );
-                        })
-                    }
-                </>
+                        }
+
+                        // Skip rendering the Third Place column separately
+                        if (stage === 'Third Place') {
+                            return null;
+                        }
+
+                        // Default rendering for other stages
+                        return (
+                            <div
+                                key={stage}
+                                className={`${classes['bracket-stages-column']} ${stageIndex === currentStageIndex ? classes.active : ''}`}
+                            >
+                                <h3 style={{ color: 'red' }}>{stage}</h3>
+                                {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
+                                    // console.log('pair-map', pair);
+                                    const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
+
+                                    const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+
+                                    if (type === 'bo-3' && pair.games) {
+                                        BO3_DEFAULT = [
+                                            {
+                                                gameId: 1,
+                                                castle1: pair.games[0].castle1 ? pair.games[0].castle1 : null,
+                                                castle2: pair.games[0].castle2 ? pair.games[0].castle2 : null,
+                                                gameWinner: pair.games[0].gameWinner ? pair.games[0].gameWinner : null,
+                                                castleWinner: pair.games[0].castleWinner
+                                                    ? pair.games[0].castleWinner
+                                                    : null
+                                            },
+                                            {
+                                                gameId: 2,
+                                                castle1: pair.games[1].castle1 ? pair.games[1].castle1 : null,
+                                                castle2: pair.games[1].castle2 ? pair.games[1].castle2 : null,
+                                                gameWinner: pair.games[1].gameWinner ? pair.games[1].gameWinner : null,
+                                                castleWinner: pair.games[1].castleWinner
+                                                    ? pair.games[1].castleWinner
+                                                    : null
+                                            }
+                                        ];
+                                    } else {
+                                        BO3_DEFAULT = {
+                                            gameId: 1,
+                                            castle1: castle1,
+                                            castle2: castle2,
+                                            gameWinner: null
+                                        };
+                                    }
+                                    return (
+                                        <div
+                                            key={pairIndex}
+                                            className={classes['game-block']}
+                                            // style={{ position: 'relative' }}
+                                        >
+                                            {stage !== 'Third Place' && stage !== 'Final' && (
+                                                <p>
+                                                    {`Match ${pairIndex + 1}`} {`Best of ${stage === 'Final' ? 3 : 1}`}
+                                                </p>
+                                            )}
+                                            {/* TODO: implement the game date */}
+                                            {/* <div>Date:</div> */}
+                                            <PlayerBracket
+                                                pair={pair}
+                                                team={'team1'}
+                                                pairIndex={pairIndex}
+                                                hasTruthyPlayers={hasTruthyPlayers}
+                                                stageIndex={stageIndex}
+                                                setPlayoffPairs={setPlayoffPairs}
+                                                //TODO: make color of the castle based on the castle choice
+                                                handleCastleChange={handleCastleChange}
+                                                handleScoreChange={handleScoreChange}
+                                                handleBlur={handleBlur}
+                                                handleRadioChange={handleRadioChange}
+                                                stage={stage}
+                                                teamIndex={1}
+                                                getWinner={getWinner}
+                                                clickedRadioButton={clickedRadioButton}
+                                            />
+                                            {/* {console.log('tournamentname', pair)} */}
+                                            <PlayerBracket
+                                                pair={pair}
+                                                team={'team2'}
+                                                pairIndex={pairIndex}
+                                                hasTruthyPlayers={hasTruthyPlayers}
+                                                stageIndex={stageIndex}
+                                                setPlayoffPairs={setPlayoffPairs}
+                                                handleCastleChange={handleCastleChange}
+                                                handleScoreChange={handleScoreChange}
+                                                handleBlur={handleBlur}
+                                                handleRadioChange={handleRadioChange}
+                                                stage={stage}
+                                                teamIndex={2}
+                                                getWinner={getWinner}
+                                                isManualScore={isManualScore}
+                                                clickedRadioButton={clickedRadioButton}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
+                </div>
             )}
         </div>
     );
@@ -1435,7 +1674,7 @@ export const TournamentBracket = ({
 
 const handleBlur = (stageName, pairIndex, setPlayoffPairs) => {
     const stageMappings = {
-        'Quater-final': 0,
+        'Quarter-final': 0,
         'Semi-final': 1,
         'Third Place': 2,
         Final: 3
