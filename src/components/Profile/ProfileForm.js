@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAvatar, updateAvatar } from '../../api/api';
+import { getAvatar, updateAvatar, addCoinsToUser } from '../../api/api';
 import AuthContext from '../../store/auth-context';
 
 import classes from './ProfileForm.module.css';
@@ -62,15 +62,35 @@ const ProfileForm = () => {
         // Check if file size is within the limit
         if (selectedFile.size <= 200 * 1024) {
             const reader = new FileReader();
-            reader.onload = () => {
+            reader.onload = async () => {
                 const base64 = reader.result;
                 setAvatarBase64(base64);
-                updateAvatar(userId, base64);
+
+                // Only give 1 coin if avatar was missing before
+                const userRes = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+                );
+                const userData = await userRes.json();
+                const hadNoAvatar = !userData.avatar;
+
+                await updateAvatar(userId, base64);
+
+                if (hadNoAvatar) {
+                    await addCoinsToUser(userId, 1);
+                    authCtx.setNotificationShown(
+                        true,
+                        'Congrats! You received 1 coin point for avatar upload!',
+                        'success',
+                        5
+                    );
+                } else {
+                    alert('Avatar was already set. No coin!');
+                }
             };
             reader.readAsDataURL(selectedFile);
         } else {
             // File size exceeds the limit, show an error message or handle accordingly
-            alert('File size exceeds the limit (200KB).');
+            alert('File size exceeds the limit of 200KB. Please select a smaller file.');
         }
     };
 
@@ -117,7 +137,11 @@ const ProfileForm = () => {
 
     return (
         <>
-            {/* Add the avatar upload field */}
+            {avatarBase64 && (
+                <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                    <img src={avatarBase64} alt="Selected Avatar" style={{ width: '200px', height: '180px' }} />
+                </div>
+            )}
             <div className={classes.control}>
                 <label htmlFor="avatar">Avatar (max 200KB)</label>
                 <input
@@ -131,11 +155,8 @@ const ProfileForm = () => {
                 <button type="button" onClick={handleUploadClick}>
                     Upload Avatar
                 </button>
-                {avatarBase64 && (
-                    <img src={avatarBase64} alt="Selected Avatar" style={{ width: '200px', height: '180px' }} />
-                )}
             </div>
-
+            <p>Coins: {playerObj.coins || 'N/A'}</p>
             <p>Your score: {playerObj.score}</p>
             {isLoading && (
                 <ul>
@@ -143,11 +164,40 @@ const ProfileForm = () => {
                     <li>Win: {playerObj.gamesPlayed.heroes3.total - playerObj.gamesPlayed.heroes3.lose}</li>
                     <li>Lose: {playerObj.gamesPlayed.heroes3.lose}</li>
                     <li>Total: {playerObj.gamesPlayed.heroes3.total}</li>
-                    <li>Rating: {playerObj.ratings.toFixed(2)}</li>
+                    <li>
+                        Rating:
+                        {playerObj.ratings
+                            ? Number(
+                                  playerObj.ratings
+                                      .split(',')
+                                      .map((r) => r.trim())
+                                      .filter(Boolean)
+                                      .pop()
+                              ).toFixed(2)
+                            : 'N/A'}
+                    </li>
                     <li>Stars: {playerObj.stars}</li>
                     <li>Total win: {playerObj.totalPrize ? playerObj.totalPrize : '0$'}</li>
-                    {/* TODO: Place in Leaderboard */}
                     <li>Place in Leaderboard: {playerObj.totalPrize}</li>
+                    <li>
+                        Prizes:
+                        <ul>
+                            {Array.isArray(playerObj.prizes) && playerObj.prizes.length > 0 ? (
+                                [...playerObj.prizes].reverse().map((prize, idx) => (
+                                    <li key={idx}>
+                                        {prize.tournamentName} — {prize.place} place — {prize.prizeAmount}
+                                    </li>
+                                ))
+                            ) : (
+                                <li>No prizes</li>
+                            )}
+                        </ul>
+                    </li>
+                    <li>Twitch: {playerObj.twitch || 'N/A'}</li>
+                    <li>Youtube: {playerObj.youtube || 'N/A'}</li>
+                    <li>Telegram: {playerObj.telegram || 'N/A'}</li>
+                    <li>Discord: {playerObj.discord || 'N/A'}</li>
+                    <li>Last login date: {playerObj.lastLoginDate || 'N/A'}</li>
                 </ul>
             )}
             <form className={classes.form} onSubmit={submitHandler}>

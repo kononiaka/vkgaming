@@ -126,6 +126,22 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
     }
 };
 
+export async function addCoinsToUser(userId, coinsToAdd = 1) {
+    // Fetch the current user data
+    const userRes = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`);
+    const userData = await userRes.json();
+
+    // Calculate new coins value
+    const newCoins = (userData.coins || 0) + coinsToAdd;
+
+    // Update the user with the new coins value
+    await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coins: newCoins })
+    });
+}
+
 export const findByName = (data, nickname, newRating) => {
     for (let key in data) {
         if (data[key].name === nickname) {
