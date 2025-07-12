@@ -191,6 +191,7 @@ export const PlayerBracket = ({
                         </div>
                     );
                 })}
+            {/* TODO: instead of input, use a custom component for score show */}
             <input
                 type="text"
                 id={`score-${team}-${pairIndex}`}

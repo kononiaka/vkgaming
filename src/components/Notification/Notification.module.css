@@ -33,3 +33,52 @@
     font-size: 16px;
     cursor: pointer;
 }
+.notification-box {
+    position: fixed;
+    top: 30px;
+    right: 30px;
+    min-width: 260px;
+    max-width: 340px;
+    background: #2ecc40;
+    color: #fff;
+    padding: 16px 20px;
+    border-radius: 10px; /* More square, less rounded */
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+    animation: fadeIn 0.3s;
+}
+
+.success {
+    background: #2ecc40;
+}
+
+.error {
+    background: #e74c3c;
+}
+
+.warning {
+    background: #f39c12;
+}
+
+.notification-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.2rem;
+    margin-left: 16px;
+    cursor: pointer;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

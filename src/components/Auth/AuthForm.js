@@ -1,7 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
-import { addScoreToUser } from '../../api/api';
+import { addCoinsToUser } from '../../api/api';
 import AuthContext from '../../store/auth-context';
 
 import classes from './AuthForm.module.css';
@@ -33,8 +33,7 @@ const AuthForm = () => {
             });
 
             const data = await response.json();
-            await addScoreToUser(data.name, 1);
-            // authCtx.notificationShown = true;
+            await addCoinsToUser(data.name, 1);
             authCtx.setNotificationShown(true, 'Congrats! You received 1 score point for the registration!', 'success');
         } catch (error) {
             console.error(error);
@@ -117,7 +116,23 @@ const AuthForm = () => {
                 setIsLoading(false);
                 if (res.ok) {
                     if (!isLogin) {
-                        let user = { enteredNickname, enteredEmail };
+                        let user = {
+                            enteredNickname,
+                            enteredEmail,
+                            gamesPlayed: {
+                                heroes3: {
+                                    loses: 0,
+                                    wins: 0
+                                }
+                            },
+                            prizes: [],
+                            ratings: 0,
+                            coins: 0,
+                            stars: 0.5,
+                            avatar: null,
+                            totalPrize: 0,
+                            score: 0
+                        };
                         addUserHandler(user);
                     }
                     return res.json();
@@ -132,9 +147,46 @@ const AuthForm = () => {
                     });
                 }
             })
-            .then((data) => {
+            .then(async (data) => {
                 const expirationTime = new Date(new Date().getTime() + +data.expiresIn * 1000);
                 login(data.idToken, expirationTime.toISOString(), enteredNickname);
+                // --- Daily login reward logic START ---
+                if (isLogin) {
+                    // Fetch all users to find the userId by nickname
+                    const usersRes = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                    const usersData = await usersRes.json();
+                    let userId = null;
+                    let userObj = null;
+                    for (const [id, user] of Object.entries(usersData)) {
+                        if (user.enteredNickname === enteredNickname) {
+                            userId = id;
+                            userObj = user;
+                            break;
+                        }
+                    }
+                    if (userId && userObj) {
+                        const today = new Date().toISOString().slice(0, 10);
+                        if (userObj.lastLoginDate !== today) {
+                            // Update lastLoginDate and add coin
+                            await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                                {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ lastLoginDate: today })
+                                }
+                            );
+                            await addCoinsToUser(userId, 1);
+                            authCtx.setNotificationShown(
+                                true,
+                                'Congrats! You received 1 coin for your first login today!',
+                                'success',
+                                5
+                            );
+                        }
+                    }
+                }
+                // --- Daily login reward logic END ---
                 navigate('/');
             })
             .catch((err) => {
