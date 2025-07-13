@@ -1,22 +1,26 @@
+import React, { useState, useRef } from 'react';
 import StarsComponent from '../../../Stars/Stars';
+import { fetchLastGamesForPlayer } from '../../../../api/api';
 import classes from './PlayerBracket.module.css';
 
-export const PlayerBracket = ({
-    pair,
-    team,
-    pairIndex,
-    hasTruthyPlayers,
-    stageIndex,
-    setPlayoffPairs,
-    handleCastleChange,
-    handleScoreChange,
-    handleBlur,
-    handleRadioChange,
-    stage,
-    teamIndex,
-    getWinner,
-    clickedRadioButton
-}) => {
+export const PlayerBracket = (props) => {
+    const {
+        pair,
+        team,
+        pairIndex,
+        hasTruthyPlayers,
+        stageIndex,
+        setPlayoffPairs,
+        handleCastleChange,
+        handleScoreChange,
+        handleBlur,
+        handleRadioChange,
+        stage,
+        teamIndex,
+        getWinner,
+        clickedRadioButton
+    } = props;
+
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;
 
     let teamPlayer = team === 'team1' ? team1 : team2;
@@ -41,8 +45,37 @@ export const PlayerBracket = ({
         }
     }
 
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const [streak, setStreak] = useState([]);
+    const tooltipTimeout = useRef(null);
+
+    // Ensure only one tooltip is visible at a time (global for this component type)
+    window.__playerBracketTooltipHideAll = window.__playerBracketTooltipHideAll || (() => {});
+    const hideAllTooltips = () => {
+        if (window.__playerBracketTooltipHideAll) window.__playerBracketTooltipHideAll();
+    };
+    window.__playerBracketTooltipHideAll = () => setShowTooltip(false);
+
+    const handleMouseEnter = async (e) => {
+        hideAllTooltips(); // Hide any other tooltip
+        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+
+        const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
+        setStreak(streakArr);
+
+        // Use bounding rect for better positioning
+        if (e && e.currentTarget) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setTooltipPos({ x: rect.right + 8, y: rect.top });
+        }
+
+        // Show tooltip after a short delay to ensure previous is hidden
+        tooltipTimeout.current = setTimeout(() => setShowTooltip(true), 10);
+    };
+
     return (
-        <div className={classes.player_bracket}>
+        <div className={classes.player_bracket} style={{ position: 'relative' }}>
             {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
             {teamPlayer === winner ? (
                 <div className={classes['green-indicator']}></div>
@@ -51,7 +84,83 @@ export const PlayerBracket = ({
             ) : (
                 <div className={classes['red-indicator']}></div>
             )}
-            <label htmlFor={`score-${team}-${pairIndex}`}>{teamPlayer}</label>
+            <label
+                htmlFor={`score-${team}-${pairIndex}`}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={() => setShowTooltip(false)}
+                style={{ cursor: 'pointer' }}
+            >
+                {teamPlayer}
+            </label>
+            {showTooltip && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        left: 40, // adjust as needed to position right of the name/circle
+                        top: -30,
+                        background: '#fff',
+                        border: '1px solid #3e20c0',
+                        borderRadius: 6,
+                        padding: '8px 12px',
+                        zIndex: 9999,
+                        color: '#222',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        minWidth: 120
+                    }}
+                    onMouseLeave={() => setShowTooltip(false)}
+                    onMouseEnter={() => setShowTooltip(true)}
+                >
+                    <b>Last 5 games:</b>
+                    <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', gap: 6 }}>
+                        {streak.length === 0 && <li>No games found</li>}
+                        {streak.map((g, i) => (
+                            <li key={i} title={g.opponent} style={{ position: 'relative' }}>
+                                <span
+                                    style={{
+                                        display: 'inline-block',
+                                        width: 14,
+                                        height: 14,
+                                        borderRadius: '50%',
+                                        background: g.result === 'Win' ? '#4caf50' : '#f44336',
+                                        marginRight: 4,
+                                        verticalAlign: 'middle',
+                                        cursor: 'pointer'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        const tooltip = document.getElementById(`opponent-tooltip-${i}`);
+                                        if (tooltip) tooltip.style.display = 'block';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        const tooltip = document.getElementById(`opponent-tooltip-${i}`);
+                                        if (tooltip) tooltip.style.display = 'none';
+                                    }}
+                                ></span>
+                                {/* Hidden opponent name, shown on hover */}
+                                <span
+                                    id={`opponent-tooltip-${i}`}
+                                    style={{
+                                        display: 'none',
+                                        position: 'absolute',
+                                        top: '-28px',
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        background: '#222',
+                                        color: '#fff',
+                                        padding: '2px 8px',
+                                        borderRadius: 4,
+                                        fontSize: '0.95em',
+                                        whiteSpace: 'nowrap',
+                                        zIndex: 10000,
+                                        pointerEvents: 'none'
+                                    }}
+                                >
+                                    {g.opponent}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
             {/* TODO: add the stars image when the tournament just started */}
             <div className={classes.stars_container}>
                 {playerStars && playerStars !== 'TBD' && (

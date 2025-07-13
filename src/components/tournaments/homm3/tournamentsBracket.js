@@ -12,6 +12,7 @@ import {
     fetchCastlesList
 } from '../../../api/api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
+import StatsPopup from '../../StatsPopup/StatsPopup';
 import { findByName } from '../../../api/api.js';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
@@ -46,6 +47,9 @@ export const TournamentBracket = ({
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
+    const [showStats, setShowStats] = useState(false);
+    const [stats, setStats] = useState(null);
+
     let BO3_DEFAULT;
     // let tournamentName;
 
@@ -180,6 +184,40 @@ export const TournamentBracket = ({
 
         return playoffPairsDetermined;
     };
+
+    const handleShowStats = async (team1, team2) => {
+        // Fetch all games from your DB (adjust the URL as needed)
+        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json');
+        const data = await response.json();
+
+        // Filter games where both players played
+        const games = Object.values(data.heroes3 || {}).filter(
+            (game) =>
+                (game.opponent1 === team1 && game.opponent2 === team2) ||
+                (game.opponent1 === team2 && game.opponent2 === team1)
+        );
+
+        const total = games.length;
+        const wins = games.filter((g) => g.winner === team1).length;
+        const losses = games.filter((g) => g.winner === team2).length;
+        const winPercent = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
+
+        // Sort by date descending and take the last 5 games
+        const last5Games = games.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+        setStats({
+            total,
+            wins,
+            losses,
+            winPercent,
+            playerA: team1,
+            playerB: team2,
+            last5Games
+        });
+        setShowStats(true);
+    };
+
+    const handleCloseStats = () => setShowStats(false);
 
     const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, playersRatings) => {
         const updatedPairs = [];
@@ -1337,9 +1375,34 @@ export const TournamentBracket = ({
         });
     };
 
-    // console.log('startButton' + tournamentId, startButton);
-    // console.log('startTournament' + tournamentId, startTournament);
-    // console.log('tournamentStatus' + tournamentId, tournamentStatus);
+    function renderShowStatsButton(team1, team2, onShowStats) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <div
+                    onClick={() => onShowStats(team1, team2)}
+                    style={{
+                        width: '24px',
+                        height: '24px',
+                        background: 'rgb(62, 32, 192)', // same as main background
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'gold',
+                        fontWeight: 'bold',
+                        fontSize: '1em',
+                        cursor: 'pointer',
+                        border: '2px solid gold',
+                        marginTop: '2.5rem',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.10)'
+                    }}
+                    title="Show Stats"
+                >
+                    ?
+                </div>
+            </div>
+        );
+    }
 
     const handleGetAvailableCastles = async () => {
         let castles = await fetchCastlesList();
@@ -1482,39 +1545,53 @@ export const TournamentBracket = ({
 
                                         return (
                                             <div key={`final-${pairIndex}`} className={classes['game-block']}>
-                                                <PlayerBracket
-                                                    pair={pair}
-                                                    team={'team1'}
-                                                    pairIndex={pairIndex}
-                                                    hasTruthyPlayers={hasTruthyPlayers}
-                                                    stageIndex={stageIndex}
-                                                    setPlayoffPairs={setPlayoffPairs}
-                                                    handleCastleChange={handleCastleChange}
-                                                    handleScoreChange={handleScoreChange}
-                                                    handleBlur={handleBlur}
-                                                    handleRadioChange={handleRadioChange}
-                                                    stage={stage}
-                                                    teamIndex={1}
-                                                    getWinner={getWinner}
-                                                    clickedRadioButton={clickedRadioButton}
-                                                />
-                                                <PlayerBracket
-                                                    pair={pair}
-                                                    team={'team2'}
-                                                    pairIndex={pairIndex}
-                                                    hasTruthyPlayers={hasTruthyPlayers}
-                                                    stageIndex={stageIndex}
-                                                    setPlayoffPairs={setPlayoffPairs}
-                                                    handleCastleChange={handleCastleChange}
-                                                    handleScoreChange={handleScoreChange}
-                                                    handleBlur={handleBlur}
-                                                    handleRadioChange={handleRadioChange}
-                                                    stage={stage}
-                                                    teamIndex={2}
-                                                    getWinner={getWinner}
-                                                    isManualScore={isManualScore}
-                                                    clickedRadioButton={clickedRadioButton}
-                                                />
+                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: '0.5rem'
+                                                        }}
+                                                    >
+                                                        <PlayerBracket
+                                                            pair={pair}
+                                                            team={'team1'}
+                                                            pairIndex={pairIndex}
+                                                            hasTruthyPlayers={hasTruthyPlayers}
+                                                            stageIndex={stageIndex}
+                                                            setPlayoffPairs={setPlayoffPairs}
+                                                            handleCastleChange={handleCastleChange}
+                                                            handleScoreChange={handleScoreChange}
+                                                            handleBlur={handleBlur}
+                                                            handleRadioChange={handleRadioChange}
+                                                            stage={stage}
+                                                            teamIndex={1}
+                                                            getWinner={getWinner}
+                                                            clickedRadioButton={clickedRadioButton}
+                                                        />
+                                                        <PlayerBracket
+                                                            pair={pair}
+                                                            team={'team2'}
+                                                            pairIndex={pairIndex}
+                                                            hasTruthyPlayers={hasTruthyPlayers}
+                                                            stageIndex={stageIndex}
+                                                            setPlayoffPairs={setPlayoffPairs}
+                                                            handleCastleChange={handleCastleChange}
+                                                            handleScoreChange={handleScoreChange}
+                                                            handleBlur={handleBlur}
+                                                            handleRadioChange={handleRadioChange}
+                                                            stage={stage}
+                                                            teamIndex={2}
+                                                            getWinner={getWinner}
+                                                            isManualScore={isManualScore}
+                                                            clickedRadioButton={clickedRadioButton}
+                                                        />
+                                                    </div>
+                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                </div>
+                                                {showStats && stats && (
+                                                    <StatsPopup stats={stats} onClose={handleCloseStats} />
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1525,39 +1602,53 @@ export const TournamentBracket = ({
 
                                         return (
                                             <div key={`thirdplace-${pairIndex}`} className={classes['game-block']}>
-                                                <PlayerBracket
-                                                    pair={pair}
-                                                    team={'team1'}
-                                                    pairIndex={pairIndex}
-                                                    hasTruthyPlayers={hasTruthyPlayers}
-                                                    stageIndex={thirdPlaceIndex}
-                                                    setPlayoffPairs={setPlayoffPairs}
-                                                    handleCastleChange={handleCastleChange}
-                                                    handleScoreChange={handleScoreChange}
-                                                    handleBlur={handleBlur}
-                                                    handleRadioChange={handleRadioChange}
-                                                    stage={'Third Place'}
-                                                    teamIndex={1}
-                                                    getWinner={getWinner}
-                                                    clickedRadioButton={clickedRadioButton}
-                                                />
-                                                <PlayerBracket
-                                                    pair={pair}
-                                                    team={'team2'}
-                                                    pairIndex={pairIndex}
-                                                    hasTruthyPlayers={hasTruthyPlayers}
-                                                    stageIndex={thirdPlaceIndex}
-                                                    setPlayoffPairs={setPlayoffPairs}
-                                                    handleCastleChange={handleCastleChange}
-                                                    handleScoreChange={handleScoreChange}
-                                                    handleBlur={handleBlur}
-                                                    handleRadioChange={handleRadioChange}
-                                                    stage={'Third Place'}
-                                                    teamIndex={2}
-                                                    getWinner={getWinner}
-                                                    isManualScore={isManualScore}
-                                                    clickedRadioButton={clickedRadioButton}
-                                                />
+                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: '0.5rem'
+                                                        }}
+                                                    >
+                                                        <PlayerBracket
+                                                            pair={pair}
+                                                            team={'team1'}
+                                                            pairIndex={pairIndex}
+                                                            hasTruthyPlayers={hasTruthyPlayers}
+                                                            stageIndex={stageIndex}
+                                                            setPlayoffPairs={setPlayoffPairs}
+                                                            handleCastleChange={handleCastleChange}
+                                                            handleScoreChange={handleScoreChange}
+                                                            handleBlur={handleBlur}
+                                                            handleRadioChange={handleRadioChange}
+                                                            stage={stage}
+                                                            teamIndex={1}
+                                                            getWinner={getWinner}
+                                                            clickedRadioButton={clickedRadioButton}
+                                                        />
+                                                        <PlayerBracket
+                                                            pair={pair}
+                                                            team={'team2'}
+                                                            pairIndex={pairIndex}
+                                                            hasTruthyPlayers={hasTruthyPlayers}
+                                                            stageIndex={stageIndex}
+                                                            setPlayoffPairs={setPlayoffPairs}
+                                                            handleCastleChange={handleCastleChange}
+                                                            handleScoreChange={handleScoreChange}
+                                                            handleBlur={handleBlur}
+                                                            handleRadioChange={handleRadioChange}
+                                                            stage={stage}
+                                                            teamIndex={2}
+                                                            getWinner={getWinner}
+                                                            isManualScore={isManualScore}
+                                                            clickedRadioButton={clickedRadioButton}
+                                                        />
+                                                    </div>
+                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                </div>
+                                                {showStats && stats && (
+                                                    <StatsPopup stats={stats} onClose={handleCloseStats} />
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1625,41 +1716,54 @@ export const TournamentBracket = ({
                                             )}
                                             {/* TODO: implement the game date */}
                                             {/* <div>Date:</div> */}
-                                            <PlayerBracket
-                                                pair={pair}
-                                                team={'team1'}
-                                                pairIndex={pairIndex}
-                                                hasTruthyPlayers={hasTruthyPlayers}
-                                                stageIndex={stageIndex}
-                                                setPlayoffPairs={setPlayoffPairs}
-                                                //TODO: make color of the castle based on the castle choice
-                                                handleCastleChange={handleCastleChange}
-                                                handleScoreChange={handleScoreChange}
-                                                handleBlur={handleBlur}
-                                                handleRadioChange={handleRadioChange}
-                                                stage={stage}
-                                                teamIndex={1}
-                                                getWinner={getWinner}
-                                                clickedRadioButton={clickedRadioButton}
-                                            />
-                                            {/* {console.log('tournamentname', pair)} */}
-                                            <PlayerBracket
-                                                pair={pair}
-                                                team={'team2'}
-                                                pairIndex={pairIndex}
-                                                hasTruthyPlayers={hasTruthyPlayers}
-                                                stageIndex={stageIndex}
-                                                setPlayoffPairs={setPlayoffPairs}
-                                                handleCastleChange={handleCastleChange}
-                                                handleScoreChange={handleScoreChange}
-                                                handleBlur={handleBlur}
-                                                handleRadioChange={handleRadioChange}
-                                                stage={stage}
-                                                teamIndex={2}
-                                                getWinner={getWinner}
-                                                isManualScore={isManualScore}
-                                                clickedRadioButton={clickedRadioButton}
-                                            />
+
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '0.5rem'
+                                                    }}
+                                                >
+                                                    <PlayerBracket
+                                                        pair={pair}
+                                                        team={'team1'}
+                                                        pairIndex={pairIndex}
+                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                        stageIndex={stageIndex}
+                                                        setPlayoffPairs={setPlayoffPairs}
+                                                        handleCastleChange={handleCastleChange}
+                                                        handleScoreChange={handleScoreChange}
+                                                        handleBlur={handleBlur}
+                                                        handleRadioChange={handleRadioChange}
+                                                        stage={stage}
+                                                        teamIndex={1}
+                                                        getWinner={getWinner}
+                                                        clickedRadioButton={clickedRadioButton}
+                                                    />
+                                                    <PlayerBracket
+                                                        pair={pair}
+                                                        team={'team2'}
+                                                        pairIndex={pairIndex}
+                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                        stageIndex={stageIndex}
+                                                        setPlayoffPairs={setPlayoffPairs}
+                                                        handleCastleChange={handleCastleChange}
+                                                        handleScoreChange={handleScoreChange}
+                                                        handleBlur={handleBlur}
+                                                        handleRadioChange={handleRadioChange}
+                                                        stage={stage}
+                                                        teamIndex={2}
+                                                        getWinner={getWinner}
+                                                        isManualScore={isManualScore}
+                                                        clickedRadioButton={clickedRadioButton}
+                                                    />
+                                                </div>
+                                                {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                            </div>
+                                            {showStats && stats && (
+                                                <StatsPopup stats={stats} onClose={handleCloseStats} />
+                                            )}
                                         </div>
                                     );
                                 })}

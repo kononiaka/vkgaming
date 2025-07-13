@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { fetchLastGamesForPlayer } from '../../api/api'; // Make sure this path is correct
 
 const PlayerDetails = () => {
     const [player, setPlayer] = useState(null);
     const { id } = useParams();
     const [leaderboardPlace, setLeaderboardPlace] = useState(null);
-
-    console.log('id', id);
+    const [streak, setStreak] = useState([]);
 
     useEffect(() => {
         // Fetch player details based on the ID from the database
@@ -19,8 +19,7 @@ const PlayerDetails = () => {
                     throw new Error('Unable to fetch data from the server.');
                 }
                 const data = await response.json();
-                console.log('response.data', data);
-                setPlayer(data); // Assuming the API response contains player details
+                setPlayer(data);
             } catch (error) {
                 console.error('Error fetching player details:', error);
             }
@@ -55,14 +54,22 @@ const PlayerDetails = () => {
         }
     }, [player]);
 
-    console.log('player', player);
+    // Fetch streak (last 10 games)
+    useEffect(() => {
+        const fetchStreak = async () => {
+            if (player && player.enteredNickname) {
+                const games = await fetchLastGamesForPlayer(player.enteredNickname, 10);
+                setStreak(games);
+            }
+        };
+        fetchStreak();
+    }, [player]);
 
     return (
         <div>
             {player ? (
                 <div style={{ color: 'white' }}>
                     <h2>Player Details</h2>
-                    {/* <p>ID: {player.id}</p> */}
                     <p>Name: {player.enteredNickname}</p>
                     <ul>
                         Statistic:
@@ -87,11 +94,30 @@ const PlayerDetails = () => {
                                 )}
                             </ul>
                         </li>
+                        <li>
+                            Streak:&nbsp;
+                            {streak.length === 0 && 'No games found'}
+                            {streak.map((g, i) => (
+                                <span
+                                    key={i}
+                                    title={g.opponent}
+                                    style={{
+                                        display: 'inline-block',
+                                        width: 14,
+                                        height: 14,
+                                        borderRadius: '50%',
+                                        background: g.result === 'Win' ? '#4caf50' : '#f44336',
+                                        marginRight: 4,
+                                        verticalAlign: 'middle',
+                                        cursor: 'pointer'
+                                    }}
+                                ></span>
+                            ))}
+                        </li>
                         <li>Twitch:</li>
                         <li>Youtube:</li>
                         <li>Telegram:</li>
                     </ul>
-                    {/* Add more player details as needed */}
                 </div>
             ) : (
                 <p>Loading player details...</p>

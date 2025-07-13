@@ -483,3 +483,23 @@ export const getPlayerPrizeTotal = async (userId) => {
         console.log('Failed getPlayerPrizeTotal - to get user prize data');
     }
 };
+
+export async function fetchLastGamesForPlayer(playerName, count = 5) {
+    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (!data) return [];
+
+    // Flatten and filter games where the player participated
+    const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
+
+    // Sort by date descending and take last N
+    return games
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, count)
+        .map((g) => ({
+            date: g.date,
+            opponent: g.opponent1 === playerName ? g.opponent2 : g.opponent1,
+            result: g.winner === playerName ? 'Win' : 'Loss'
+        }));
+}
