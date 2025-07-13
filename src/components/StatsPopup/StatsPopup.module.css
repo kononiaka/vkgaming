@@ -1,0 +1,46 @@
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0.4;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup {
+    position: relative;
+    background: #fff;
+    border: 2px solid #3e20c0;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    padding: 24px;
+    min-width: 320px;
+    /* height: 40vh; Limit the height to 80% of the viewport */
+    overflow-y: auto; /* Enable vertical scrolling */
+    color: black;
+}
+
+.closeButton {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.statsList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.lastGames {
+    margin-top: 12px;
+}
