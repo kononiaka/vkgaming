@@ -1,7 +1,7 @@
-export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, playersRatings, tournamentPlayers) => {
-    // setShuffledNames([...uniquePlayerNames]);
+export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, playersObj) => {
+    let tournamentPlayers = playersObj ? Object.values(playersObj).map((player) => player) : [];
 
-    const shuffledArray = !tournamentPlayers ? [...shuffledNames] : [];
+    const shuffledArray = shufflePlayers(tournamentPlayers);
     const remainingPlayers = !tournamentPlayers ? maxPlayers.length - shuffledNames.length : +tournamentPlayers;
 
     // Check if there are remaining spots and add players as TBD
@@ -15,8 +15,6 @@ export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, play
         }
     }
 
-    console.log('shuffledArray: ', shuffledArray);
-
     for (let i = shuffledArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
@@ -24,9 +22,26 @@ export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, play
     let shuffledNames = [...shuffledArray]; // Update the state with the shuffled array
 
     // setPlayoffPairs([...shuffledArray]);
-    let playoffPairsDetermined = createPlayoffPairs(playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, false);
+
+    let playoffPairsDetermined = createPlayoffPairs(
+        playoffsGames,
+        tournamentPlayoffGamesFinal,
+        shuffledNames,
+        playersObj
+    );
 
     return playoffPairsDetermined;
+};
+
+const shufflePlayers = (array) => {
+    const shuffledArray = [...array];
+
+    for (let i = shuffledArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+    }
+
+    return shuffledArray;
 };
 
 const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, playersRatings) => {
@@ -38,9 +53,10 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
         return player ? player.ratings : null;
     }
 
-    const updatedArray = shuffledNames.map((name) => ({
-        name,
-        stars: getRating(name)
+    const updatedArray = shuffledNames.map((player) => ({
+        name: player.name,
+        ratings: player.ratings,
+        stars: player.stars
     }));
 
     let stageLabels = setStageLabels(shuffledNames.length);
@@ -66,12 +82,16 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
             let score2 = 0;
             let stars1 = null;
             let stars2 = null;
+            let ratings1 = 0;
+            let ratings2 = 0;
 
             if (index === 0) {
                 team1 = updatedArray[i * 2].name || 'TBD';
                 stars1 = updatedArray[i * 2].stars || 'TBD';
+                ratings1 = updatedArray[i * 2].ratings || 'TBD';
                 team2 = updatedArray[i * 2 + 1].name || 'TBD';
                 stars2 = updatedArray[i * 2 + 1].stars || 'TBD';
+                ratings2 = updatedArray[i * 2 + 1].ratings || 'TBD';
             } else {
                 const prevStagePairs = updatedPairs[index - 1];
                 team1 = prevStagePairs[i * 2]?.winner || 'TBD';
@@ -79,7 +99,7 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
             }
             if (playoffsGames >= 1) {
                 //final
-                if (index === stageLabels.length - 2) {
+                if (index === stageLabels.length - 1) {
                     for (let j = 0; j < tournamentPlayoffGamesFinal - 1; j++) {
                         typeOfGame = tournamentPlayoffGamesFinal;
 
@@ -108,8 +128,11 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
                 }
             }
             pairs.push({
+                stage: stageLabels[index],
                 team1,
                 team2,
+                ratings1,
+                ratings2,
                 stars1,
                 stars2,
                 score1,
@@ -119,8 +142,6 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
                 games: games
             });
         }
-
-        console.log('pairs', pairs);
 
         updatedPairs.push(pairs);
     });

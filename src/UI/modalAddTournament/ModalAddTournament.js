@@ -93,7 +93,7 @@ const Bracket = (props) => {
 
         if (prepareBracket) {
             objTournament.bracket = {};
-            console.log('objTournament.', objTournament);
+
             playOffPairs = shuffleArray(
                 null,
                 objTournament.tournamentPlayoffGames,
