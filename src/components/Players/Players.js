@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchLastGamesForPlayer } from '../../api/api'; // Make sure this path is correct
+import {
+    fetchLastGamesForPlayer,
+    fetchBestAndWorstCastleForPlayer,
+    fetchFullCastleStatsForPlayer
+} from '../../api/api'; // Make sure this path is correct
 
 const PlayerDetails = () => {
     const [player, setPlayer] = useState(null);
     const { id } = useParams();
     const [leaderboardPlace, setLeaderboardPlace] = useState(null);
     const [streak, setStreak] = useState([]);
+    const [bestCastle, setBestCastle] = useState(null);
+    const [worstCastle, setWorstCastle] = useState(null);
+    const [castleStats, setCastleStats] = useState(null);
+    const [showPopup, setShowPopup] = useState(false);
 
     useEffect(() => {
         // Fetch player details based on the ID from the database
@@ -65,6 +73,28 @@ const PlayerDetails = () => {
         fetchStreak();
     }, [player]);
 
+    // Fetch best and worst castle
+    useEffect(() => {
+        const fetchBestAndWorstCastle = async () => {
+            if (player && player.enteredNickname) {
+                const { best, worst } = await fetchBestAndWorstCastleForPlayer(player.enteredNickname);
+                setBestCastle(best);
+                setWorstCastle(worst);
+            }
+        };
+        fetchBestAndWorstCastle();
+    }, [player]);
+
+    const handleShowCastleStats = async () => {
+        if (showPopup) {
+            setShowPopup(false);
+            return;
+        }
+        const stats = await fetchFullCastleStatsForPlayer(player.enteredNickname);
+        setCastleStats(stats);
+        setShowPopup(true);
+    };
+
     return (
         <div>
             {player ? (
@@ -114,10 +144,47 @@ const PlayerDetails = () => {
                                 ></span>
                             ))}
                         </li>
+                        <li>
+                            Best Castle:{' '}
+                            {bestCastle
+                                ? `${bestCastle.castle} (Wins: ${bestCastle.wins} - Loses: ${bestCastle.loses})`
+                                : 'N/A'}
+                        </li>
+                        <li>
+                            Worst Castle:{' '}
+                            {worstCastle
+                                ? `${worstCastle.castle} (Wins: ${worstCastle.wins} - Loses: ${worstCastle.loses})`
+                                : 'N/A'}
+                        </li>
                         <li>Twitch:</li>
                         <li>Youtube:</li>
                         <li>Telegram:</li>
                     </ul>
+                    <button onClick={handleShowCastleStats}>Show Full Castle Statistics</button>
+                    {showPopup && castleStats && (
+                        <div>
+                            <h3>Full Castle Statistics</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Castle</th>
+                                        <th>Wins</th>
+                                        <th>Loses</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(castleStats).map(([castle, stats]) => (
+                                        <tr key={castle}>
+                                            <td>{castle}</td>
+                                            <td>{stats.wins}</td>
+                                            <td>{stats.loses}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <button onClick={() => setShowPopup(false)}>Close</button>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <p>Loading player details...</p>

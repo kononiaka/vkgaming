@@ -10,7 +10,7 @@ const TournamentList = () => {
     const [tournamentId, setTournamentId] = useState([]);
     const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
-    const [tournamentWinner, setTournamentWinner] = useState('');
+    const [tournamentWinnersObject, setTournamentWinners] = useState('');
     const [showDetails, setShowDetails] = useState(false);
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     const [selectedTournament, setSelectedTournament] = useState(null);
@@ -203,11 +203,13 @@ const TournamentList = () => {
     //     setShowDetails(true);
     // };
 
-    const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinner, currentTournamentId) => {
+    const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinnersObject, currentTournamentId) => {
+        // console.log('currentTournamentWinner', currentTournamentWinnersObject);
+
         setClickedId(currentTournamentId);
         setShowDetails((prevState) => !prevState);
         setTournamentStatus(currentTournamentStatus);
-        setTournamentWinner(currentTournamentWinner);
+        setTournamentWinners(currentTournamentWinnersObject);
     };
 
     const handleUserToAdd = () => {
@@ -240,11 +242,7 @@ const TournamentList = () => {
                                 <p>Max players: {tournament.maxTournamnetPlayers}</p>
                                 <button
                                     onClick={() =>
-                                        showDetailsHandler(
-                                            tournament.status,
-                                            tournament.winners['1st place'],
-                                            tournament.id
-                                        )
+                                        showDetailsHandler(tournament.status, tournament.winners, tournament.id)
                                     }
                                 >
                                     View details
@@ -348,7 +346,7 @@ const TournamentList = () => {
                         maxPlayers={maxTournamnetPlayers}
                         tournamentId={clickedId}
                         tournamentStatus={tournamentStatus}
-                        tournamentWinner={tournamentWinner}
+                        tournamentWinners={tournamentWinnersObject}
                         // tournamentNameParam={tournamentName}
                     ></TournamentBracket>
                 </Modal>

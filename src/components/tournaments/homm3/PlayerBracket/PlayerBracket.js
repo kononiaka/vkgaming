@@ -76,22 +76,22 @@ export const PlayerBracket = (props) => {
 
     return (
         <div className={classes.player_bracket} style={{ position: 'relative' }}>
-            {/* Indicator for the winner or grey-indicator for 'Tie' or undefined */}
-            {teamPlayer === winner ? (
-                <div className={classes['green-indicator']}></div>
-            ) : winner === 'Tie' || winner === undefined ? (
-                <div className={classes['grey-indicator']}></div>
-            ) : (
-                <div className={classes['red-indicator']}></div>
-            )}
             <label
                 htmlFor={`score-${team}-${pairIndex}`}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setShowTooltip(false)}
                 style={{ cursor: 'pointer' }}
             >
-                {teamPlayer}
+                {teamPlayer === winner ? (
+                    <div className={classes['green-indicator']}></div>
+                ) : winner === 'Tie' || winner === undefined ? (
+                    <div className={classes['grey-indicator']}></div>
+                ) : (
+                    <div className={classes['red-indicator']}></div>
+                )}
             </label>
+
+            {teamPlayer}
             {showTooltip && (
                 <div
                     style={{
@@ -170,9 +170,18 @@ export const PlayerBracket = (props) => {
                             Ratings:
                             {team === 'team1'
                                 ? (() => {
-                                      const ratingsArray = pair.ratings1
-                                          .split(',')
-                                          .map((rating) => parseFloat(rating.trim()));
+                                      let ratingsArray;
+
+                                      if (pair.ratings1.includes(',')) {
+                                          // It's a comma-separated list → split into an array of floats
+                                          ratingsArray = pair.ratings1
+                                              .split(',')
+                                              .map((rating) => parseFloat(rating.trim()));
+                                      } else {
+                                          // It's a single rating → just wrap it in an array as a float
+                                          ratingsArray = [parseFloat(pair.ratings1.trim())];
+                                      }
+
                                       const lastRating = ratingsArray.at(-1).toFixed(2);
                                       if (stageIndex === 0) {
                                           return `${lastRating}`;
@@ -292,6 +301,8 @@ export const PlayerBracket = (props) => {
                                 }
                                 disabled={game.gameStatus === 'Processed'} // Disable if processed
                             />
+
+                            <div>game.gameId {game.gameId}</div>
 
                             <div
                                 key={game.gameId}

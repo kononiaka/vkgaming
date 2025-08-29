@@ -503,3 +503,188 @@ export async function fetchLastGamesForPlayer(playerName, count = 5) {
             result: g.winner === playerName ? 'Win' : 'Loss'
         }));
 }
+
+/**
+ * Returns the best and worst castles for a player based on win/loss count.
+ * @param {string} playerName
+ * @returns {Promise<{ best: { castle: string, wins: number }, worst: { castle: string, loses: number } }>}
+ */
+export async function fetchBestAndWorstCastleForPlayer(playerName) {
+    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    if (!response.ok) return { best: null, worst: null };
+    const data = await response.json();
+    if (!data) return { best: null, worst: null };
+
+    // Collect all games where the player participated
+    const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
+
+    // Count wins and loses by castle
+    const castleStats = {};
+
+    games.forEach((g) => {
+        let playerCastle, isWin;
+
+        if (g.opponent1 === playerName) {
+            playerCastle = g.opponent1Castle;
+            isWin = g.winner === playerName;
+        } else {
+            playerCastle = g.opponent2Castle;
+            isWin = g.winner === playerName;
+        }
+
+        // Handle nested games if castle is missing
+        if (!playerCastle) {
+            if (g.gameType && g.games && Array.isArray(g.games)) {
+                g.games.forEach((subGame) => {
+                    let subCastle, subIsWin;
+
+                    if (g.opponent1 === playerName) {
+                        subCastle = subGame.castle1;
+                        subIsWin = subGame.gameWinner === playerName;
+                    } else {
+                        subCastle = subGame.castle2;
+                        subIsWin = subGame.gameWinner === playerName;
+                    }
+
+                    if (!subCastle) {
+                        console.error(`[${playerName}] Sub-game not counted due to missing castle:`, subGame);
+                        return;
+                    }
+
+                    if (!castleStats[subCastle]) {
+                        castleStats[subCastle] = { wins: 0, loses: 0 };
+                    }
+
+                    if (subIsWin) {
+                        castleStats[subCastle].wins += 1;
+                    } else {
+                        castleStats[subCastle].loses += 1;
+                    }
+                });
+                return; // Skip the rest since we handled it with subgames
+            }
+
+            // Log error for games that weren't calculated due to missing castle info
+            console.error(`[${playerName}] Game not counted due to missing castle:`, g);
+            return;
+        }
+
+        // Handle normal games
+        if (!castleStats[playerCastle]) {
+            castleStats[playerCastle] = { wins: 0, loses: 0 };
+        }
+
+        if (isWin) {
+            castleStats[playerCastle].wins += 1;
+        } else {
+            castleStats[playerCastle].loses += 1;
+        }
+    });
+
+    // Find best (most wins) and worst (most loses) castles, including both wins and loses
+    let best = null,
+        worst = null;
+    for (const [castle, stats] of Object.entries(castleStats)) {
+        if (!best || stats.wins > best.wins) best = { castle, wins: stats.wins, loses: stats.loses };
+        if (!worst || stats.loses > worst.loses) worst = { castle, wins: stats.wins, loses: stats.loses };
+    }
+
+    // Log summary of wins and loses
+    const totalWins = Object.values(castleStats).reduce((sum, s) => sum + s.wins, 0);
+    const totalLoses = Object.values(castleStats).reduce((sum, s) => sum + s.loses, 0);
+    const totalGames = games.length;
+    console.log(
+        `[${playerName}] Total games: ${totalGames}, Wins: ${totalWins}, Loses: ${totalLoses}, Wins+Loses: ${totalWins + totalLoses}`
+    );
+    if (totalWins + totalLoses !== totalGames) {
+        console.warn(
+            `[${playerName}] Warning: Wins + Loses != Total games. Possible missing castle info or data inconsistency.`
+        );
+    }
+
+    return { best, worst };
+}
+
+/**
+ * Returns full castle statistics for a player: wins and loses for each castle.
+ * @param {string} playerName
+ * @returns {Promise<Object>} An object like { [castleName]: { wins: number, loses: number } }
+ */
+export async function fetchFullCastleStatsForPlayer(playerName) {
+    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    if (!response.ok) return {};
+    const data = await response.json();
+    if (!data) return {};
+
+    // Collect all games where the player participated
+    const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
+
+    // Count wins and loses by castle
+    const castleStats = {};
+
+    games.forEach((g) => {
+        let playerCastle, isWin;
+
+        if (g.opponent1 === playerName) {
+            playerCastle = g.opponent1Castle;
+            isWin = g.winner === playerName;
+        } else {
+            playerCastle = g.opponent2Castle;
+            isWin = g.winner === playerName;
+        }
+        console.log('g', g);
+
+        // Handle nested games if castle is missing
+        if (!playerCastle) {
+            console.log('g.gameType', g.gameType);
+
+            if (g.gameType && g.games && Array.isArray(g.games)) {
+                g.games.forEach((subGame) => {
+                    console.log('subGame', subGame);
+                    let subCastle, subIsWin;
+
+                    if (g.opponent1 === playerName) {
+                        subCastle = subGame.castle1;
+                        subIsWin = subGame.gameWinner === playerName;
+                    } else {
+                        subCastle = subGame.castle2;
+                        subIsWin = subGame.gameWinner === playerName;
+                    }
+
+                    if (!subCastle) {
+                        console.error(`[${playerName}] Sub-game not counted due to missing castle:`, subGame);
+                        return;
+                    }
+
+                    if (!castleStats[subCastle]) {
+                        castleStats[subCastle] = { wins: 0, loses: 0 };
+                    }
+
+                    if (subIsWin) {
+                        castleStats[subCastle].wins += 1;
+                    } else {
+                        castleStats[subCastle].loses += 1;
+                    }
+                });
+                return; // Skip the rest since we handled it with subgames
+            }
+
+            // Log error for games that weren't calculated due to missing castle info
+            console.error(`[${playerName}] Game not counted due to missing castle:`, g);
+            return;
+        }
+
+        // Handle normal games
+        if (!castleStats[playerCastle]) {
+            castleStats[playerCastle] = { wins: 0, loses: 0 };
+        }
+
+        if (isWin) {
+            castleStats[playerCastle].wins += 1;
+        } else {
+            castleStats[playerCastle].loses += 1;
+        }
+    });
+
+    return castleStats;
+}
