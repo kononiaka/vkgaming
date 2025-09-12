@@ -1,8 +1,9 @@
-export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, playersObj) => {
-    let tournamentPlayers = playersObj ? Object.values(playersObj).map((player) => player) : [];
+export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, playersObj, maxPlayers) => {
+    //if preparedBracket is true - players won't be set as of now
+    let tournamentPlayers = playersObj ? Object.values(playersObj).map((player) => player) : null;
 
-    const shuffledArray = shufflePlayers(tournamentPlayers);
-    const remainingPlayers = !tournamentPlayers ? maxPlayers.length - shuffledNames.length : +tournamentPlayers;
+    const shuffledArray = tournamentPlayers ? shufflePlayers(tournamentPlayers) : [];
+    const remainingPlayers = !tournamentPlayers ? maxPlayers - shuffledArray.length : +tournamentPlayers;
 
     // Check if there are remaining spots and add players as TBD
     if (remainingPlayers > 0 && !tournamentPlayers) {
@@ -43,6 +44,29 @@ const shufflePlayers = (array) => {
 
     return shuffledArray;
 };
+
+export async function getTournamentData(tournamentId) {
+    try {
+        const response = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}.json`
+        );
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch tournament data for ID: ${tournamentId}`);
+        }
+
+        const tournamentData = await response.json();
+
+        if (!tournamentData) {
+            throw new Error(`No data found for tournament ID: ${tournamentId}`);
+        }
+
+        return tournamentData;
+    } catch (error) {
+        console.error('Error fetching tournament data:', error);
+        return null; // Return null in case of an error
+    }
+}
 
 const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, playersRatings) => {
     const updatedPairs = [];

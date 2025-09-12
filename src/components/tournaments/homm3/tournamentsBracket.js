@@ -351,8 +351,6 @@ export const TournamentBracket = ({
 
             //IMPORTANT: Which means that all pairs have teams and no need to determine the next stage pairings
             if (!allPairsHaveTeams) {
-                console.log(`tournamentDataWithWinners-HERE!`, JSON.stringify(tournamentDataWithWinners, null, 2));
-
                 let winnersDataPutResponseModal = confirmWindow(
                     `Are you sure you want to update tournamentDataWithWinners with this JSON ${JSON.stringify(tournamentDataWithWinners, null, 2)}?`
                 );
@@ -653,10 +651,6 @@ export const TournamentBracket = ({
 
                         const playersData = await playerResponse.json();
 
-                        // if (playersData.hasOwnProperty(result.id)) {
-                        //     let existingStars = playersData[result.id].stars;
-                        //     let existingRatings = playersData[result.id].ratings;
-
                         let collectedPlayoffPairs = bracketData?.playoffPairs || [];
                         let nextStagePairings;
                         let nextStageIndex = 0;
@@ -705,7 +699,6 @@ export const TournamentBracket = ({
                                 !allPairsHaveTeams
                             ) {
                                 if (nextStageIndex === 2) {
-                                    // console.log('IN THIRD PLACE');
                                     //THIRD PLACE
                                     const losers = currentStagePlayoffPairs.map((match) => {
                                         let loserName;
@@ -730,22 +723,25 @@ export const TournamentBracket = ({
                                     });
 
                                     let thirdPlacePairing = determineNextStagePairings(losers);
+
                                     if (currentStagePlayoffWinners.length > 0) {
                                         nextStagePairings = determineNextStagePairings(
                                             currentStagePlayoffWinners,
                                             currentStage,
-                                            tournamentPlayoffGamesFinal
+                                            playoffsGames
                                         );
                                         collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
                                         collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
                                     }
                                 } else {
                                     if (hasUndefinedTeam) {
+                                        const gamesToUse =
+                                            nextStageIndex === 3 ? tournamentPlayoffGamesFinal : playoffsGames;
                                         if (currentStagePlayoffWinners.length > 0) {
                                             nextStagePairings = determineNextStagePairings(
                                                 currentStagePlayoffWinners,
                                                 currentStage,
-                                                tournamentPlayoffGamesFinal
+                                                gamesToUse
                                             );
                                             collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
                                         }
@@ -773,8 +769,6 @@ export const TournamentBracket = ({
     const processFinishedGames = async (collectedPlayoffPairs) => {
         let finishedPairs = [];
 
-        console.log('collectedPlayoffPairs', JSON.stringify(collectedPlayoffPairs, null, 2));
-
         collectedPlayoffPairs.forEach((pair) => {
             pair.forEach((pairDetails) => {
                 if (pairDetails.gameStatus !== 'Processed') {
@@ -797,9 +791,6 @@ export const TournamentBracket = ({
                             pairDetails.gameStatus = 'Finished';
                             finishedPairs.push(pairDetails);
                         } else {
-                            console.log('pairDetails.', pairDetails);
-                            console.log('pairDetails.games', pairDetails.games);
-
                             if (
                                 pairDetails.games[0].castle1 &&
                                 pairDetails.games[0].castle2 &&
@@ -1011,8 +1002,6 @@ export const TournamentBracket = ({
         }
         setPlayoffPairs(finishedPairs);
 
-        console.log('finishedPairs', JSON.stringify(finishedPairs, null, 2));
-
         let pushProcessedGame = confirmWindow(
             `Process Games: Are you sure you want to push finished game ${JSON.stringify(finishedPairs)}`
         );
@@ -1138,11 +1127,26 @@ export const TournamentBracket = ({
     };
 
     // Example functions for processing winners and updating the next stage pairings in the database
-    const determineNextStagePairings = (winners, currentStage, playoffsGames) => {
+    const determineNextStagePairings = (winners, currentStage, playoffsGames = 1) => {
         const nextPairings = [];
 
         // Iterate through the winners array and create pairings for the next stage
         for (let i = 0; i < winners.length; i += 2) {
+            const games = [];
+
+            const totalGames = playoffsGames > 1 ? playoffsGames - 1 : playoffsGames;
+
+            for (let j = 0; j < totalGames; j++) {
+                games.push({
+                    castle1: '',
+                    castle2: '',
+                    castleWinner: '',
+                    gameId: j,
+                    gameStatus: 'Not Started',
+                    gameWinner: ''
+                });
+            }
+
             const pair = {
                 gameStatus: 'Not Started',
                 team1: winners[i].winner || 'TBD',
@@ -1153,18 +1157,8 @@ export const TournamentBracket = ({
                 score2: 0,
                 stars2: (winners[i + 1] && winners[i + 1].stars) || null,
                 ratings2: (winners[i + 1] && winners[i + 1].ratings) || null,
-                //TODO: check bo-3
-                games: [
-                    {
-                        castle1: '',
-                        castle2: '',
-                        castleWinner: '',
-                        gameId: 0,
-                        gameStatus: 'Not Started',
-                        gameWinner: ''
-                    }
-                ],
-                type: 'bo-1'
+                type: games.length > 1 ? 'bo-3' : 'bo-1',
+                games: games
             };
 
             nextPairings.push(pair);
@@ -1689,7 +1683,6 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
     setPlayoffPairs((prevPairs) => {
         const updatedPairs = [...prevPairs];
         const pair = updatedPairs[stageIndex][pairIndex];
-        console.log('totalGames', totalGames.length);
 
         if (totalGames.length > 1) {
             pair.games = pair.games ? pair.games : totalGames;
@@ -1703,7 +1696,6 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
             }
 
             if (pair.games[index].castle2 && pair.games[index].castle1 && !pair.games[index].castleWinner) {
-                console.log('CHANGED', pair.games[index].gameStatus);
                 pair.games[index].gameStatus = 'In Progress';
             }
         } else {
@@ -1719,7 +1711,6 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
                 pair.gameStatus = 'In Progress';
             }
         }
-        console.log('pair-after', pair);
 
         return updatedPairs;
     });
@@ -1757,8 +1748,6 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
                 game.gameWinner = pair.team1;
                 pair.score1 = pair.score1 + 1;
 
-                console.log('pair.score2', pair.score2);
-
                 if (
                     pair.score2 > 0 &&
                     (radioButtonValue1 || radioButtonValue2) &&
@@ -1772,7 +1761,6 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
                     game.castleWinner = game.castle2;
                     game.gameWinner = pair.team2;
                     pair.score2 = pair.score2 + 1;
-                    console.log('pair.score1', pair.score1);
 
                     if (
                         pair.score1 > 0 &&

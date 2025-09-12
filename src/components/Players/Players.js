@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     fetchLastGamesForPlayer,
     fetchBestAndWorstCastleForPlayer,
-    fetchFullCastleStatsForPlayer
+    fetchFullCastleStatsForPlayer,
+    fetchLeaderboard
 } from '../../api/api'; // Make sure this path is correct
 
 const PlayerDetails = () => {
@@ -38,27 +39,12 @@ const PlayerDetails = () => {
 
     useEffect(() => {
         // Fetch all users and determine leaderboard place
-        const fetchLeaderboard = async () => {
-            try {
-                const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`);
-                if (!response.ok) throw new Error('Unable to fetch leaderboard.');
-                const data = await response.json();
-                if (!data || !player) return;
-
-                // Convert users object to array and sort by totalPrize descending
-                const usersArray = Object.values(data).filter((u) => u && u.totalPrize !== undefined);
-                usersArray.sort((a, b) => (b.totalPrize || 0) - (a.totalPrize || 0));
-
-                // Find the index of the current player
-                const place = usersArray.findIndex((u) => u.enteredNickname === player.enteredNickname) + 1;
-                setLeaderboardPlace(place);
-            } catch (error) {
-                console.error('Error fetching leaderboard:', error);
-            }
-        };
-
         if (player) {
-            fetchLeaderboard();
+            fetchLeaderboard(player).then((place) => {
+                if (place !== null) {
+                    setLeaderboardPlace(place);
+                }
+            });
         }
     }, [player]);
 

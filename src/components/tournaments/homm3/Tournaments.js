@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import { lookForUserId } from '../../../api/api';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { lookForUserId, fetchLeaderboard } from '../../../api/api';
 import AuthContext from '../../../store/auth-context';
+import { getTournamentData } from '../../tournaments/tournament_api';
 import Modal from '../../Modal/Modal';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
@@ -16,7 +17,6 @@ const TournamentList = () => {
     const [selectedTournament, setSelectedTournament] = useState(null);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
-    let tournamentObj = null;
 
     // let tournamentName = null;
     let maxTournamnetPlayers = 0;
@@ -72,22 +72,29 @@ const TournamentList = () => {
         );
 
         const data = await userResponse.json();
-        // console.log('data', JSON.stringify(data));
 
         let userStars = data.stars;
 
         const lastRating = parseFloat(data.ratings.split(',').pop().trim()).toFixed(2);
-        // console.log('lastRating', lastRating);
 
         let userRatings = lastRating;
+
+        let placeInLeaderboard = await fetchLeaderboard(data);
 
         const userData = {
             name: user.name,
             stars: userStars,
-            ratings: userRatings
+            ratings: userRatings,
+            placeInLeaderboard: placeInLeaderboard
         };
-        //TODO: if live zherebievka => do not substitute. Do it at the start and shuffle then
-        substituteTBDPlayer(user, tourId, userStars, userRatings);
+
+        let tournamentData = await getTournamentData(tourId);
+
+        if (tournamentData.preparedBracket) {
+            substituteTBDPlayer(user, tourId, userStars, userRatings);
+        } else {
+            console.log('Tournament does not have a prepared bracket.');
+        }
 
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
@@ -144,57 +151,61 @@ const TournamentList = () => {
 
         const data = await firstStagePairsResponse.json();
 
-        const indexes = data.reduce((acc, pair, idx) => {
-            if (pair.team1 === 'TBD') {
-                acc.push({ index: idx, team: 'team1' });
-            }
-            if (pair.team2 === 'TBD') {
-                acc.push({ index: idx, team: 'team2' });
-            }
-            return acc;
-        }, []);
-
-        if (indexes.length > 0) {
-            // Loop through all found indexes and substitute 'TBD' with the user
-            const randomIndex = Math.floor(Math.random() * indexes.length);
-            const { index, team } = indexes[randomIndex];
-
-            // Substitute 'TBD' with the user at the randomly selected index
-            if (team === 'team1') {
-                data[index].team1 = user.name;
-                data[index].stars1 = playerStars;
-                data[index].ratings1 = playerRatings;
-            } else {
-                data[index].team2 = user.name;
-                data[index].stars2 = playerStars;
-                data[index].ratings2 = playerRatings;
-            }
-
-            try {
-                const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(data),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-
-                if (response.ok) {
-                    console.log('Pairs posted to Firebase successfully');
-
-                    // retrieveWinnersFromDatabase();
-                } else {
-                    console.log('Failed to post pairs to Firebase');
+        if (data) {
+            const indexes = data.reduce((acc, pair, idx) => {
+                if (pair.team1 === 'TBD') {
+                    acc.push({ index: idx, team: 'team1' });
                 }
-            } catch (e) {
-                console.error(e.message);
+                if (pair.team2 === 'TBD') {
+                    acc.push({ index: idx, team: 'team2' });
+                }
+                return acc;
+            }, []);
+
+            if (indexes.length > 0) {
+                // Loop through all found indexes and substitute 'TBD' with the user
+                const randomIndex = Math.floor(Math.random() * indexes.length);
+                const { index, team } = indexes[randomIndex];
+
+                // Substitute 'TBD' with the user at the randomly selected index
+                if (team === 'team1') {
+                    data[index].team1 = user.name;
+                    data[index].stars1 = playerStars;
+                    data[index].ratings1 = playerRatings;
+                } else {
+                    data[index].team2 = user.name;
+                    data[index].stars2 = playerStars;
+                    data[index].ratings2 = playerRatings;
+                }
+
+                try {
+                    const response = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`,
+                        {
+                            method: 'PUT',
+                            body: JSON.stringify(data),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    if (response.ok) {
+                        console.log('Pairs posted to Firebase successfully');
+
+                        // retrieveWinnersFromDatabase();
+                    } else {
+                        console.log('Failed to post pairs to Firebase');
+                    }
+                } catch (e) {
+                    console.error(e.message);
+                }
+            } else {
+                // If 'TBD' team is not found, handle the case (e.g., display a message)
+                console.log('No TBD team found in firstStagePairs.');
             }
         } else {
-            // If 'TBD' team is not found, handle the case (e.g., display a message)
-            console.log('No TBD team found in firstStagePairs.');
+            console.log(`No data found for tournament ID: ${tournamentInternalId}`);
         }
     };
 
