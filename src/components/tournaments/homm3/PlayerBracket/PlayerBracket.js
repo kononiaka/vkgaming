@@ -302,8 +302,6 @@ export const PlayerBracket = (props) => {
                                 disabled={game.gameStatus === 'Processed'} // Disable if processed
                             />
 
-                            <div>game.gameId {game.gameId}</div>
-
                             <div
                                 key={game.gameId}
                                 className={`${isLive ? classes.player_bracket_live : ''} ${isLive ? classes.blink : ''}`}

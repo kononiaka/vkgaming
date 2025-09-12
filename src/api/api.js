@@ -1,4 +1,26 @@
-//testing
+export const fetchLeaderboard = async (player) => {
+    try {
+        const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`);
+        if (!response.ok) {
+            throw new Error('Unable to fetch leaderboard.');
+        }
+        const data = await response.json();
+        if (!data || !player) {
+            return null;
+        }
+
+        // Convert users object to array and sort by totalPrize descending
+        const usersArray = Object.values(data).filter((u) => u && u.totalPrize !== undefined);
+        usersArray.sort((a, b) => (b.totalPrize || 0) - (a.totalPrize || 0));
+
+        // Find the index of the current player
+        const place = usersArray.findIndex((u) => u.enteredNickname === player.enteredNickname) + 1;
+        return place;
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        return null;
+    }
+};
 
 export const confirmWindow = (message) => {
     const response = window.confirm(message);
@@ -319,8 +341,6 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) 
 
     // Calculate the new rating
     const newRating = playerRating + ratingChange;
-
-    console.log('newRating', newRating);
 
     return newRating;
 };

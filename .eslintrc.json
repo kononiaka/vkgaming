@@ -119,7 +119,8 @@
         "no-var": 1,
         "react/react-in-jsx-scope": "off",
         "prettier/prettier": ["error", { "tabWidth": 4 }],
-        "indent": "off"
+        "indent": "off",
+        "no-multiple-empty-lines": ["error", { "max": 5, "maxEOF": 1 }]
     },
     "plugins": [
         "html",
