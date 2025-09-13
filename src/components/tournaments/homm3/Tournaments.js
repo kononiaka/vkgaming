@@ -8,15 +8,25 @@ import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
 const TournamentList = () => {
     const [tournaments, setTournaments] = useState([]);
-    const [tournamentId, setTournamentId] = useState([]);
     const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
     const [tournamentWinnersObject, setTournamentWinners] = useState('');
     const [showDetails, setShowDetails] = useState(false);
     const [firstStagePairs, setFirstStagePairs] = useState([]);
-    const [selectedTournament, setSelectedTournament] = useState(null);
+    // const [selectedTournament, setSelectedTournament] = useState(null);
+    const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
+
+    const toggleShowPlayers = (tournamentId) => {
+        setShowPlayers((prev) => {
+            const updatedState = {
+                ...prev,
+                [tournamentId]: !prev[tournamentId]
+            };
+            return updatedState;
+        });
+    };
 
     // let tournamentName = null;
     let maxTournamnetPlayers = 0;
@@ -41,7 +51,6 @@ const TournamentList = () => {
                 // Update tournament ID outside the map function
                 if (tournamentList.length > 0) {
                     setFirstStagePairs(tournamentList[0].bracket.playoffPairs[0]);
-                    setTournamentId(tournamentList[0].id);
                 }
             } else {
                 console.error('Failed to fetch tournaments:', data);
@@ -140,7 +149,7 @@ const TournamentList = () => {
 
     const closeModalHandler = () => {
         setShowDetails(false);
-        setSelectedTournament(null);
+        // setSelectedTournament(null);
     };
 
     const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
@@ -223,11 +232,6 @@ const TournamentList = () => {
         setTournamentWinners(currentTournamentWinnersObject);
     };
 
-    const handleUserToAdd = () => {
-        console.log(nicknameRef.current.value);
-    };
-
-    let currentPlayers;
     const tournamentList =
         tournaments.length > 0 ? (
             <ul>
@@ -240,17 +244,36 @@ const TournamentList = () => {
                             <li key={tournament.id} className={classes.bracket}>
                                 <h3 style={{ color: 'red' }}>{`${tournament.name} (${tournament.date})`}</h3>
                                 <p>Status: {tournament.status}</p>
-                                <p>
-                                    Players registered:&nbsp;
-                                    {'players' in tournament &&
-                                        Object.values(tournament.players).filter(
-                                            (player) =>
-                                                player !== null &&
-                                                player.name !== undefined &&
-                                                player.name.trim() !== ''
-                                        ).length}
-                                </p>
-                                <p>Max players: {tournament.maxTournamnetPlayers}</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <p>Players registered: {Object.values(tournament.players).length}</p>
+                                    {showPlayers[tournament.id] && (
+                                        <>
+                                            {'players' in tournament && (
+                                                <ul>
+                                                    {Object.values(tournament.players)
+                                                        .filter(
+                                                            (player) =>
+                                                                player !== null &&
+                                                                player.name !== undefined &&
+                                                                player.name.trim() !== ''
+                                                        )
+                                                        .map((player, index) => (
+                                                            <li key={index}>{player.name}</li>
+                                                        ))}
+                                                </ul>
+                                            )}
+                                        </>
+                                    )}
+
+                                    <button
+                                        style={{ marginLeft: '10px' }}
+                                        onClick={() => toggleShowPlayers(tournament.id)}
+                                    >
+                                        {showPlayers[tournament.id] ? 'Hide Players' : 'Show Players'}
+                                    </button>
+                                </div>
+
+                                <p>Max players: {maxTournamnetPlayers}</p>
                                 <button
                                     onClick={() =>
                                         showDetailsHandler(tournament.status, tournament.winners, tournament.id)
