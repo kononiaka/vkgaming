@@ -15,6 +15,8 @@ import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
 import StatsPopup from '../../StatsPopup/StatsPopup';
 import { findByName } from '../../../api/api.js';
+import SpinningWheel from '../../SpinningWheel/SpinningWheel';
+import Modal from '../../Modal/Modal.js';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
@@ -51,6 +53,8 @@ export const TournamentBracket = ({
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
+    const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
+    const [isTournamentBracketOpen, setIsTournamentBracketOpen] = useState(true); // State for tournament bracket visibility
 
     let BO3_DEFAULT;
     // let tournamentName;
@@ -242,35 +246,17 @@ export const TournamentBracket = ({
         let tournamentResponse = null;
         if (tournamentResponseGET.ok) {
             const data = await tournamentResponseGET.json();
-            const playoffsGames = data.tournamentPlayoffGames;
-            const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
-            const staticBrackets = data.preparedBracket;
+            // const playoffsGames = data.tournamentPlayoffGames;
+            // const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
+            const randomBrackets = data.randomBracket;
             playersObj = data.players;
-            let tournamentData = {};
+            // let tournamentData = {};
 
             setStartTournament(true);
             // Prepare the tournament data
-            if (!staticBrackets) {
-                let readyBracket = shuffleArray(null, playoffsGames, tournamentPlayoffGamesFinal, playersObj);
-
-                tournamentData = {
-                    stageLabels: stageLabels,
-                    playoffPairs: readyBracket,
-                    status: 'Started!'
-                };
-                tournamentResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
-                    {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            bracket: tournamentData,
-                            status: 'Started!'
-                        }),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
+            console.log('Random Brackets setting:', randomBrackets);
+            if (!randomBrackets) {
+                setIsSpinningWheelOpen(true);
             } else {
                 tournamentResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
@@ -284,19 +270,19 @@ export const TournamentBracket = ({
                         }
                     }
                 );
-            }
-
-            try {
-                if (tournamentResponse.ok) {
-                    console.log('Pairs posted to Firebase successfully');
-                } else {
-                    console.log('Failed to post pairs to Firebase');
+                try {
+                    if (tournamentResponse.ok) {
+                        console.log('Pairs posted to Firebase successfully');
+                    } else {
+                        console.log('Failed to post pairs to Firebase');
+                    }
+                } catch (error) {
+                    console.error('Error posting pairs to Firebase:', error);
                 }
-            } catch (error) {
-                console.error('Error posting pairs to Firebase:', error);
+
+                window.location.reload();
             }
         }
-        window.location.reload();
     };
 
     const updateTournament = async () => {
@@ -1286,6 +1272,43 @@ export const TournamentBracket = ({
         return [...castles].sort((a, b) => a.total - b.total);
     }
 
+    const onStartTournament = async (bracket) => {
+        console.log('Tournament ID:', tournamentId);
+        console.log('Tournament Bracket:', bracket);
+
+        const isBracketComplete = bracket.every((pair) => pair[0] !== 'TBD' && pair[1] !== 'TBD');
+
+        if (!isBracketComplete) {
+            console.error('Bracket is not complete. Please fill all slots.');
+            return;
+        }
+
+        let tournamentData = {
+            stageLabels: stageLabels,
+            playoffPairs: isBracketComplete,
+            status: 'Started!'
+        };
+        console.log('tournamentData to be sent:', tournamentData);
+        // tournamentResponse = await fetch(
+        //     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+        //     {
+        //         method: 'PATCH',
+        //         body: JSON.stringify({
+        //             bracket: tournamentData,
+        //             status: 'Started!'
+        //         }),
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         }
+        //     }
+        // );
+
+        console.log('Updating Tournament Bracket...');
+
+        console.log('Tournament Bracket Updated:', bracket);
+        console.log('Tournament successfully started!');
+    };
+
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
@@ -1312,6 +1335,14 @@ export const TournamentBracket = ({
                     <p style={{ color: 'brown', margin: 0 }}>Bronze: {tournamentWinners['3rd place']}</p>
                 )}
             </div>
+
+            {/* Render the spinning wheel modal */}
+            {isSpinningWheelOpen && (
+                <Modal onClose={() => setIsSpinningWheelOpen(false)}>
+                    <SpinningWheel players={playersObj} onStartTournament={onStartTournament} />
+                </Modal>
+            )}
+
             {showCastlesModal && (
                 <div
                     style={{

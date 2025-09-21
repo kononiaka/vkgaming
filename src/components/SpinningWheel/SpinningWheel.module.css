@@ -1,0 +1,114 @@
+.spinningWheelContainer {
+    position: relative;
+    text-align: center;
+    margin: 20px auto;
+}
+
+.spinningWheelCanvas {
+    display: block;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 5px solid #333;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pointer {
+    position: absolute;
+    top: 0%; /* Move the pointer to the top of the wheel */
+    left: 50%; /* Center the pointer horizontally */
+    transform: translate(-50%, 0%) rotate(1deg); /* Rotate the pointer to point downward */
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 20px solid red; /* Red triangle pointer pointing downward */
+    z-index: 10; /* Ensure the pointer is above the wheel */
+}
+
+.spinButton {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.spinButton:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+}
+
+.spinButton.disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.spinDurationContainer {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.spinDurationContainer label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    margin-right: 10px;
+}
+
+.spinDurationInput {
+    width: 60px;
+    padding: 5px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.selectedPlayer {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+.preBracketTable {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.preBracketTable h2 {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.bracketPair {
+    font-size: 16px;
+    font-weight: bold;
+    color: #555;
+    margin: 5px 0;
+}
+
+.startTournamentButton {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #28a745;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.startTournamentButton:hover {
+    background-color: #218838;
+    transform: scale(1.05);
+}
