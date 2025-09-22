@@ -14,14 +14,14 @@
 
 .pointer {
     position: absolute;
-    top: 0%; /* Move the pointer to the top of the wheel */
-    left: 50%; /* Center the pointer horizontally */
-    transform: translate(-50%, 0%) rotate(1deg); /* Rotate the pointer to point downward */
+    top: -10px; /* Adjust to position the pointer above the wheel */
+    left: 50%;
+    transform: translate(-50%, 0%) rotate(1deg);  /* Rotate downward */
     width: 0;
     height: 0;
     border-left: 10px solid transparent;
     border-right: 10px solid transparent;
-    border-bottom: 20px solid red; /* Red triangle pointer pointing downward */
+    border-top: 20px solid red; /* Red triangle pointer */
     z-index: 10; /* Ensure the pointer is above the wheel */
 }
 
