@@ -8,7 +8,10 @@ const SpinningWheel = ({ players, onStartTournament }) => {
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [spinDuration, setSpinDuration] = useState(5); // Default spin duration (in seconds)
     const [currentSlotIndex, setCurrentSlotIndex] = useState(0);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
     const canvasRef = useRef(null);
+    const [fadingPlayer, setFadingPlayer] = useState(null);
 
     // Initialize remaining players and pre-bracket pairs
     useEffect(() => {
@@ -57,135 +60,103 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             ctx.textAlign = 'right';
             ctx.fillStyle = '#000'; // Set text color
             ctx.font = '10px Arial'; // Set font size and family
-            ctx.fillText(`${player} (${index * sliceAngle}° - ${(index + 1) * sliceAngle - 1}°)`, radius - 10, 5);
+            ctx.fillText(
+                `${player} (${Math.floor(index * sliceAngle)}° - ${Math.floor((index + 1) * sliceAngle - 1)}°)`,
+                radius - 10,
+                5
+            );
             ctx.restore(); // Restore the canvas state
         });
     };
 
     // Spin the wheel
     const spinWheel = () => {
-        if (isSpinning) {
+        if (isSpinning || remainingPlayers.length === 0) {
+            console.log('Spin attempt blocked: Either the wheel is already spinning or no players remain.');
             return;
         }
 
+        console.log('--- Starting Spin ---');
+        setIsSpinning(true);
+
         const totalPlayers = remainingPlayers.length;
-        console.log('Total Players:', totalPlayers);
-        const sliceAngle = 360 / totalPlayers; // Angle per segment
-        console.log('Slice Angle:', sliceAngle);
-        const randomIndex = Math.floor(Math.random() * totalPlayers); // Randomly select a segment
-        console.log('Random Index:', randomIndex);
-        const targetAngle = randomIndex * sliceAngle; // Angle to land on the selected segment
-        console.log('Target Angle:', targetAngle);
-        const spinAngle = 3600 + targetAngle; // 10 full rotations + target angle
-        console.log('Spin Angle:', spinAngle);
-        const spinDurationMs = spinDuration * 1000; // Convert seconds to milliseconds
-        // console.log('Spin Duration (ms):', spinDurationMs);
+        const sliceAngle = 360 / totalPlayers;
 
-        let startTime = null;
+        // Randomize the number of full spins between 3 and 7
+        const fullSpins = Math.floor(Math.random() * (7 - 3 + 1) + 3) * 360;
 
-        const animateSpin = (timestamp) => {
-            if (!startTime) {
-                startTime = timestamp;
-            }
-            const elapsed = timestamp - startTime;
-            // console.log('Elapsed Time:', elapsed);
-            const progress = Math.min(elapsed / spinDurationMs, 1);
-            // console.log('Progress:', progress);
-            const easing = easeOutCubic(progress);
-            // console.log('Easing:', easing);
-            const currentAngle = easing * spinAngle;
-            // console.log('Current Angle:', currentAngle);
+        // Calculate the stop angle
+        const selectedIndex = Math.floor(Math.random() * totalPlayers);
+        const stopAngle = 360 - selectedIndex * sliceAngle - sliceAngle / 2;
 
-            // Draw the wheel with rotation
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.rotate((currentAngle * Math.PI) / 180);
-            ctx.translate(-canvas.width / 2, -canvas.height / 2);
-            drawWheel();
-            ctx.restore();
+        // Add pointer offset
+        const pointerOffset = 270;
+        const adjustedStopAngle = (stopAngle + pointerOffset) % 360;
 
-            if (progress < 1) {
-                requestAnimationFrame(animateSpin);
-            } else {
-                // Normalize the final angle
-                const finalAngle = currentAngle % 360;
-                // console.log('Final Angle:', finalAngle);
+        // Total rotation angle
+        const rotationAngle = fullSpins + adjustedStopAngle;
 
-                // Ensure the angle is within 0–360 degrees
-                const normalizedAngle = (finalAngle + 360) % 360;
-                // console.log('Normalized Angle:', normalizedAngle);
+        // Apply the rotation to the wheel
+        const wheel = document.querySelector(`.${classes.spinningWheelCanvas}`);
 
-                // Determine the selected segment
-                const selectedIndex = Math.floor(normalizedAngle / sliceAngle); // Select the segment based on the angle
-                console.log('Selected Index:', selectedIndex);
+        // Force repaint
+        wheel.style.transition = 'none';
+        wheel.style.transform = 'rotate(0deg)';
+        void wheel.offsetWidth; // Trigger a repaint
+        wheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.17, 0.67, 0.83, 0.67)`;
+        wheel.style.transform = `rotate(${rotationAngle}deg)`;
 
-                // Add randomness within the segment
-                const randomOffset = Math.random() * sliceAngle; // Random offset within the segment
-                const randomAngle = (selectedIndex * sliceAngle + randomOffset) % 360;
-                console.log('Random Angle within Segment:', randomAngle);
+        // Stop the wheel after the animation
+        setTimeout(() => {
+            const selected = remainingPlayers[selectedIndex];
 
-                // Rotate the wheel to the random angle
-                const wheel = document.querySelector(`.${classes.wheel}`);
-                const pointerOffset = 270; // Adjust for the pointer being at the top
-                const rotationAngle = (randomAngle + pointerOffset) % 360; // Adjust for pointer alignment
+            // Calculate the player's range for clarity
+            const playerStartAngle = Math.floor(selectedIndex * sliceAngle);
+            const playerEndAngle = Math.floor((selectedIndex + 1) * sliceAngle - 1);
+            const playerRange = `${playerStartAngle}° - ${playerEndAngle}°`;
 
-                console.log('Before Rotation:', wheel.style.transform); // Log the current rotation
-                wheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.17, 0.67, 0.83, 0.67)`;
-                wheel.style.transform = `rotate(${rotationAngle}deg)`; // Apply the rotation
-                console.log('After Rotation:', wheel.style.transform); // Log the updated rotation
+            setFadingPlayer(selected);
 
-                // Select the player based on the segment
-                const selected = remainingPlayers[selectedIndex];
-                console.log('Selected Player:', selected);
-                setSelectedPlayer(selected);
+            // Delay the confirmation dialog by 1 second
+            // setTimeout(() => {
+            // const confirmMove = window.confirm(
+            //     `Do you want to move ${selected} (Final Angle: ${adjustedStopAngle}°, Player Range: ${playerRange}) to the Pre-Bracket Table?`
+            // );
+            // if (!confirmMove) {
+            //     setIsSpinning(false); // If the user cancels, stop spinning and do nothing
+            //     return;
+            // }
 
-                // Show confirmation window before updating the Pre-Bracket Table
-                const confirmMove = window.confirm(
-                    `Do you want to move ${selected} (Final Angle: ${randomAngle}°) to the Pre-Bracket Table?`
-                );
-                if (!confirmMove) {
-                    setIsSpinning(false); // If the user cancels, stop spinning and do nothing
-                    return;
+            // Trigger the fade-out animation
+            setFadingPlayer(selected);
+
+            // Wait for the fade-out animation to complete before updating the state
+            setRemainingPlayers((prevPlayers) => prevPlayers.filter((player) => player !== selected));
+            setFadingPlayer(null); // Reset the fading player
+
+            // Move to the next slot
+            setCurrentSlotIndex((prevIndex) => prevIndex + 1);
+
+            setIsSpinning(false);
+            console.log('--- Spin Complete ---');
+
+            // Update the pre-bracket pairs
+            setPreBracketPairs((prevPairs) => {
+                const updatedPairs = [...prevPairs];
+                const totalPairs = updatedPairs.length;
+
+                if (currentSlotIndex < totalPairs) {
+                    // Fill the first players (i.e., left side of the bracket)
+                    updatedPairs[currentSlotIndex][0] = selected;
+                } else {
+                    // Fill the opponents (i.e., right side of the bracket)
+                    const opponentIndex = currentSlotIndex - totalPairs;
+                    updatedPairs[opponentIndex][1] = selected;
                 }
 
-                // Update the pre-bracket pairs
-                setPreBracketPairs((prevPairs) => {
-                    const updatedPairs = [...prevPairs];
-                    const totalPairs = updatedPairs.length;
-
-                    // const totalPlayers = remainingPlayers.length;
-                    // const sliceAngle = 360 / totalPlayers; // Calculate the angle range for each player
-                    const minAngle = Math.floor(currentSlotIndex * sliceAngle);
-                    const maxAngle = Math.floor((currentSlotIndex + 1) * sliceAngle - 1);
-                    const angleRange = `${minAngle}° - ${maxAngle}°`; // Format the angle range
-                    console.log(`Placing ${selected} in slot ${currentSlotIndex} (Angle Range: ${angleRange})`);
-
-                    if (currentSlotIndex < totalPairs) {
-                        // Fill the first players (i.e., left side of the bracket)
-                        updatedPairs[currentSlotIndex][0] = selected;
-                    } else {
-                        // Fill the opponents (i.e., right side of the bracket)
-                        const opponentIndex = currentSlotIndex - totalPairs;
-                        updatedPairs[opponentIndex][1] = selected;
-                    }
-
-                    return updatedPairs;
-                });
-
-                // Remove the selected player from the remaining players
-                setRemainingPlayers((prevPlayers) => prevPlayers.filter((player) => player !== selected));
-
-                // Move to the next slot
-                setCurrentSlotIndex((prevIndex) => prevIndex + 1);
-
-                setIsSpinning(false);
-            }
-        };
-
-        requestAnimationFrame(animateSpin);
+                return updatedPairs;
+            });
+        }, spinDuration * 1000); // Match the spin duration
     };
 
     // Easing function for smooth deceleration
