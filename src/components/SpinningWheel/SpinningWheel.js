@@ -11,7 +11,7 @@ const SpinningWheel = ({ players, onStartTournament }) => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const canvasRef = useRef(null);
-    const [fadingPlayer, setFadingPlayer] = useState(null);
+    const [fadingSlice, setFadingSlice] = useState(null);
 
     // Initialize remaining players and pre-bracket pairs
     useEffect(() => {
@@ -43,7 +43,12 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             const startAngle = index * sliceAngle * (Math.PI / 180); // Convert degrees to radians
             const endAngle = (index + 1) * sliceAngle * (Math.PI / 180); // Convert degrees to radians
 
-            console.log(`Drawing segment for ${player} (${index * sliceAngle}° - ${(index + 1) * sliceAngle - 1}°)`);
+            // Set the opacity for the fading slice
+            if (player === fadingSlice) {
+                ctx.globalAlpha = fadingOpacity; // Apply fading opacity
+            } else {
+                ctx.globalAlpha = 1; // Full opacity for other slices
+            }
 
             // Draw the segment
             ctx.beginPath();
@@ -57,16 +62,64 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             ctx.save();
             ctx.translate(centerX, centerY);
             ctx.rotate(startAngle + (sliceAngle / 2) * (Math.PI / 180)); // Rotate to the middle of the slice
+            // Draw the text
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
             ctx.textAlign = 'right';
-            ctx.fillStyle = '#000'; // Set text color
-            ctx.font = '10px Arial'; // Set font size and family
-            ctx.fillText(
-                `${player} (${Math.floor(index * sliceAngle)}° - ${Math.floor((index + 1) * sliceAngle - 1)}°)`,
-                radius - 10,
-                5
-            );
+            ctx.fillText(`${player}`, radius - 10, 5);
             ctx.restore(); // Restore the canvas state
         });
+
+        // Reset global alpha
+        ctx.globalAlpha = 1;
+    };
+
+    const handleModalYes = () => {
+        setFadingSlice(selectedPlayer); // Set the slice to fade out
+
+        let opacity = 1; // Initial opacity
+        const fadeOut = () => {
+            drawWheel(opacity); // Redraw the wheel with the fading slice
+            opacity -= 0.05; // Reduce opacity
+            if (opacity > 0) {
+                requestAnimationFrame(fadeOut); // Continue the animation
+            } else {
+                // Remove the slice after the animation completes
+                setRemainingPlayers((prevPlayers) => prevPlayers.filter((player) => player !== selectedPlayer));
+
+                // Update the pre-bracket pairs
+                setPreBracketPairs((prevPairs) => {
+                    const updatedPairs = [...prevPairs];
+                    const totalPairs = updatedPairs.length;
+
+                    if (currentSlotIndex < totalPairs) {
+                        updatedPairs[currentSlotIndex][0] = selectedPlayer;
+                    } else {
+                        const opponentIndex = currentSlotIndex - totalPairs;
+                        console.log('Opponent Index:', opponentIndex);
+                        updatedPairs[opponentIndex][1] = selectedPlayer;
+                    }
+
+                    return updatedPairs;
+                });
+
+                // Move to the next slot
+                setCurrentSlotIndex((prevIndex) => prevIndex + 1);
+
+                // Reset the fading state after the animation completes
+                setIsModalVisible(false); // Hide the modal
+                setIsSpinning(false);
+                setFadingSlice(null); // Reset the fading slice
+            }
+        };
+        fadeOut();
+    };
+
+    const handleModalNo = () => {
+        // Handle "No" action
+        setIsModalVisible(false); // Hide the modal
+        setIsSpinning(false);
+        console.log('User canceled the action.');
     };
 
     // Spin the wheel
@@ -76,91 +129,73 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             return;
         }
 
-        console.log('--- Starting Spin ---');
         setIsSpinning(true);
 
         const totalPlayers = remainingPlayers.length;
-        const sliceAngle = 360 / totalPlayers;
 
-        // Randomize the number of full spins between 3 and 7
-        const fullSpins = Math.floor(Math.random() * (7 - 3 + 1) + 3) * 360;
+        if (totalPlayers === 0) {
+            console.error('No players remaining to spin.');
+            setIsSpinning(false);
+            return;
+        }
+
+        const sliceAngle = 360 / totalPlayers;
 
         // Calculate the stop angle
         const selectedIndex = Math.floor(Math.random() * totalPlayers);
+        const selected = remainingPlayers[selectedIndex];
+
+        // Calculate the stop angle to land on the selected player
         const stopAngle = 360 - selectedIndex * sliceAngle - sliceAngle / 2;
+
+        // Generate a random offset within the slice
+        const randomOffset = (Math.random() - 0.5) * sliceAngle; // Random value between -sliceAngle/2 and +sliceAngle/2
 
         // Add pointer offset
         const pointerOffset = 270;
-        const adjustedStopAngle = (stopAngle + pointerOffset) % 360;
+        const adjustedStopAngle = (stopAngle + pointerOffset + randomOffset) % 360;
+
+        // Calculate the total rotation angle based on the spin duration
+        const fullSpins = Math.floor(spinDuration) * 360; // 1 full spin per second
+        const totalRotation = fullSpins + adjustedStopAngle;
 
         // Total rotation angle
         const rotationAngle = fullSpins + adjustedStopAngle;
 
         // Apply the rotation to the wheel
         const wheel = document.querySelector(`.${classes.spinningWheelCanvas}`);
+        if (!wheel) {
+            console.error('Wheel element not found.');
+            setIsSpinning(false);
+            return;
+        }
 
-        // Force repaint
+        // Reset the wheel's transition and transform properties
         wheel.style.transition = 'none';
-        wheel.style.transform = 'rotate(0deg)';
-        void wheel.offsetWidth; // Trigger a repaint
-        wheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.17, 0.67, 0.83, 0.67)`;
-        wheel.style.transform = `rotate(${rotationAngle}deg)`;
+        wheel.style.transform = `rotate(0deg)`;
+        void wheel.offsetWidth; // Force a reflow to apply the reset
+
+        wheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+        wheel.style.transform = `rotate(${totalRotation}deg)`;
 
         // Stop the wheel after the animation
         setTimeout(() => {
-            const selected = remainingPlayers[selectedIndex];
-
             // Calculate the player's range for clarity
             const playerStartAngle = Math.floor(selectedIndex * sliceAngle);
             const playerEndAngle = Math.floor((selectedIndex + 1) * sliceAngle - 1);
             const playerRange = `${playerStartAngle}° - ${playerEndAngle}°`;
 
-            setFadingPlayer(selected);
+            setTimeout(() => {
+                setModalMessage(
+                    `Do you want to move ${selected} (Final Angle: ${adjustedStopAngle}°, Player Range: ${playerRange}) to the Pre-Bracket Table?`
+                );
+                setSelectedPlayer(selected);
+                setIsModalVisible(true);
 
-            // Delay the confirmation dialog by 1 second
-            // setTimeout(() => {
-            // const confirmMove = window.confirm(
-            //     `Do you want to move ${selected} (Final Angle: ${adjustedStopAngle}°, Player Range: ${playerRange}) to the Pre-Bracket Table?`
-            // );
-            // if (!confirmMove) {
-            //     setIsSpinning(false); // If the user cancels, stop spinning and do nothing
-            //     return;
-            // }
-
-            // Trigger the fade-out animation
-            setFadingPlayer(selected);
-
-            // Wait for the fade-out animation to complete before updating the state
-            setRemainingPlayers((prevPlayers) => prevPlayers.filter((player) => player !== selected));
-            setFadingPlayer(null); // Reset the fading player
-
-            // Move to the next slot
-            setCurrentSlotIndex((prevIndex) => prevIndex + 1);
-
-            setIsSpinning(false);
-            console.log('--- Spin Complete ---');
-
-            // Update the pre-bracket pairs
-            setPreBracketPairs((prevPairs) => {
-                const updatedPairs = [...prevPairs];
-                const totalPairs = updatedPairs.length;
-
-                if (currentSlotIndex < totalPairs) {
-                    // Fill the first players (i.e., left side of the bracket)
-                    updatedPairs[currentSlotIndex][0] = selected;
-                } else {
-                    // Fill the opponents (i.e., right side of the bracket)
-                    const opponentIndex = currentSlotIndex - totalPairs;
-                    updatedPairs[opponentIndex][1] = selected;
-                }
-
-                return updatedPairs;
-            });
+                setIsSpinning(false);
+            }, 1000); // 1-second delay
         }, spinDuration * 1000); // Match the spin duration
     };
-
-    // Easing function for smooth deceleration
-    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
     // Redraw the wheel whenever the remaining players change
     useEffect(() => {
@@ -199,6 +234,16 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                     className={classes.spinDurationInput}
                 />
             </div>
+            {isModalVisible && (
+                <div className={classes.modal}>
+                    <p>{modalMessage}</p>
+                    <div className={classes.modalButtons}>
+                        <button onClick={handleModalYes}>Yes</button>
+                        <button onClick={handleModalNo}>No</button>
+                    </div>
+                </div>
+            )}
+
             {/* Selected player */}
             {selectedPlayer && <p className={classes.selectedPlayer}>Selected Player: {selectedPlayer}</p>}
             {/* Pre-Bracket Table */}

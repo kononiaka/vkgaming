@@ -112,3 +112,99 @@
     background-color: #218838;
     transform: scale(1.05);
 }
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    text-align: center;
+    width: 300px;
+}
+
+.modal p {
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: #333;
+}
+
+.modalButtons {
+    display: flex;
+    justify-content: space-around;
+}
+
+.modal button {
+    padding: 10px 20px;
+    font-size: 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.modal button:first-of-type {
+    background-color: #007bff;
+    color: white;
+}
+
+.modal button:first-of-type:hover {
+    background-color: #0056b3;
+}
+
+.modal button:last-of-type {
+    background-color: #ccc;
+    color: black;
+}
+
+.modal button:last-of-type:hover {
+    background-color: #999;
+}
+.particleContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: #007bff;
+    border-radius: 50%;
+    animation: spread 1s ease-out forwards, fadeOut 1s ease-out forwards;
+}
+
+@keyframes spread {
+    0% {
+        transform: translate(0, 0);
+    }
+    100% {
+        transform: translate(calc(100px * (random() - 0.5)), calc(100px * (random() - 0.5)));
+    }
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+.slice {
+    transition: opacity 1s ease-out, transform 1s ease-out;
+    opacity: 1;
+}
+
+.slice.fading {
+    opacity: 0;
+    transform: scale(0.8); /* Optional: Shrink the slice as it fades out */
+}
