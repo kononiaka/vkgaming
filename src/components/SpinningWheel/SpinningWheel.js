@@ -81,29 +81,68 @@ const SpinningWheel = ({ players, onStartTournament }) => {
         const fadeOut = () => {
             drawWheel(opacity); // Redraw the wheel with the fading slice
             opacity -= 0.05; // Reduce opacity
+
             if (opacity > 0) {
                 requestAnimationFrame(fadeOut); // Continue the animation
             } else {
-                // Remove the slice after the animation completes
-                setRemainingPlayers((prevPlayers) => prevPlayers.filter((player) => player !== selectedPlayer));
+                // Remove the selected player and handle the last player logic
+                setRemainingPlayers((prevPlayers) => {
+                    const updatedPlayers = prevPlayers.filter((player) => player !== selectedPlayer);
+                    console.log('Updated Remaining Players:', updatedPlayers); // Log all remaining players
 
-                // Update the pre-bracket pairs
+                    // Check if only one player is left
+                    if (updatedPlayers.length === 1) {
+                        const lastPlayer = updatedPlayers[0];
+                        console.log('Last Remaining Player:', lastPlayer); // Debugging
+
+                        // Add the last player to the pre-bracket table after 1 second
+                        setTimeout(() => {
+                            setPreBracketPairs((prevPairs) => {
+                                const updatedPairs = [...prevPairs];
+                                const totalPairs = updatedPairs.length;
+
+                                if (currentSlotIndex < totalPairs) {
+                                    updatedPairs[currentSlotIndex][0] = lastPlayer; // Add to the first column of the current row
+                                } else {
+                                    const opponentIndex = currentSlotIndex - totalPairs;
+                                    updatedPairs[opponentIndex][1] = lastPlayer; // Add to the second column of the opponent row
+                                }
+
+                                console.log('Updated Pre-Bracket Pairs with Last Player:', updatedPairs); // Debugging
+                                return updatedPairs;
+                            });
+
+                            // Increment the current slot index
+                            setCurrentSlotIndex((prevIndex) => prevIndex + 1);
+
+                            // Clear the remaining players
+                            setRemainingPlayers([]);
+                        }, 1000); // 1-second delay
+                    }
+
+                    return updatedPlayers;
+                });
+
+                // Update the pre-bracket pairs for the selected player
                 setPreBracketPairs((prevPairs) => {
                     const updatedPairs = [...prevPairs];
                     const totalPairs = updatedPairs.length;
 
+                    console.log('Current Slot Index:', currentSlotIndex); // Debugging
+                    console.log('Total Pairs:', totalPairs); // Debugging
+
                     if (currentSlotIndex < totalPairs) {
-                        updatedPairs[currentSlotIndex][0] = selectedPlayer;
+                        updatedPairs[currentSlotIndex][0] = selectedPlayer; // Add to the first column of the current row
                     } else {
                         const opponentIndex = currentSlotIndex - totalPairs;
-                        console.log('Opponent Index:', opponentIndex);
-                        updatedPairs[opponentIndex][1] = selectedPlayer;
+                        updatedPairs[opponentIndex][1] = selectedPlayer; // Add to the second column of the opponent row
                     }
 
+                    console.log('Updated Pre-Bracket Pairs:', updatedPairs); // Debugging
                     return updatedPairs;
                 });
 
-                // Move to the next slot
+                // Increment the current slot index
                 setCurrentSlotIndex((prevIndex) => prevIndex + 1);
 
                 // Reset the fading state after the animation completes
