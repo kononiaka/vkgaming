@@ -1285,11 +1285,12 @@ export const TournamentBracket = ({
 
         let tournamentData = {
             stageLabels: stageLabels,
-            playoffPairs: isBracketComplete,
+            playoffPairs: bracket,
             status: 'Started!'
         };
         console.log('tournamentData to be sent:', tournamentData);
-        // tournamentResponse = await fetch(
+
+        // let tournamentResponse = await fetch(
         //     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
         //     {
         //         method: 'PATCH',

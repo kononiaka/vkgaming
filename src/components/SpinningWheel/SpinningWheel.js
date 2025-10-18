@@ -85,41 +85,10 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             if (opacity > 0) {
                 requestAnimationFrame(fadeOut); // Continue the animation
             } else {
-                // Remove the selected player and handle the last player logic
+                // Remove the selected player
                 setRemainingPlayers((prevPlayers) => {
                     const updatedPlayers = prevPlayers.filter((player) => player !== selectedPlayer);
                     console.log('Updated Remaining Players:', updatedPlayers); // Log all remaining players
-
-                    // Check if only one player is left
-                    if (updatedPlayers.length === 1) {
-                        const lastPlayer = updatedPlayers[0];
-                        console.log('Last Remaining Player:', lastPlayer); // Debugging
-
-                        // Add the last player to the pre-bracket table after 1 second
-                        setTimeout(() => {
-                            setPreBracketPairs((prevPairs) => {
-                                const updatedPairs = [...prevPairs];
-                                const totalPairs = updatedPairs.length;
-
-                                if (currentSlotIndex < totalPairs) {
-                                    updatedPairs[currentSlotIndex][0] = lastPlayer; // Add to the first column of the current row
-                                } else {
-                                    const opponentIndex = currentSlotIndex - totalPairs;
-                                    updatedPairs[opponentIndex][1] = lastPlayer; // Add to the second column of the opponent row
-                                }
-
-                                console.log('Updated Pre-Bracket Pairs with Last Player:', updatedPairs); // Debugging
-                                return updatedPairs;
-                            });
-
-                            // Increment the current slot index
-                            setCurrentSlotIndex((prevIndex) => prevIndex + 1);
-
-                            // Clear the remaining players
-                            setRemainingPlayers([]);
-                        }, 1000); // 1-second delay
-                    }
-
                     return updatedPlayers;
                 });
 
@@ -128,22 +97,98 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                     const updatedPairs = [...prevPairs];
                     const totalPairs = updatedPairs.length;
 
-                    console.log('Current Slot Index:', currentSlotIndex); // Debugging
-                    console.log('Total Pairs:', totalPairs); // Debugging
-
+                    // Determine the correct slot to update
                     if (currentSlotIndex < totalPairs) {
-                        updatedPairs[currentSlotIndex][0] = selectedPlayer; // Add to the first column of the current row
+                        // Fill the first column of the current row
+                        if (updatedPairs[currentSlotIndex][0] === 'TBD') {
+                            updatedPairs[currentSlotIndex][0] = selectedPlayer;
+                        } else {
+                            console.error(`Row ${currentSlotIndex}, Column 0 is already filled!`);
+                        }
                     } else {
-                        const opponentIndex = currentSlotIndex - totalPairs;
-                        updatedPairs[opponentIndex][1] = selectedPlayer; // Add to the second column of the opponent row
+                        if (
+                            currentSlotIndex != null &&
+                            !isNaN(currentSlotIndex) &&
+                            totalPairs != null &&
+                            !isNaN(totalPairs)
+                        ) {
+                            const opponentIndex = currentSlotIndex - totalPairs;
+
+                            // Ensure opponentIndex is valid
+                            if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
+                                if (updatedPairs[opponentIndex][1] === 'TBD') {
+                                    updatedPairs[opponentIndex][1] = selectedPlayer;
+                                } else {
+                                    console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
+                                }
+                            } else {
+                                console.error('Invalid Opponent Index:', opponentIndex);
+                            }
+                        } else {
+                            console.error('Invalid Current Slot Index or Total Pairs:', {
+                                currentSlotIndex,
+                                totalPairs
+                            });
+                        }
                     }
 
-                    console.log('Updated Pre-Bracket Pairs:', updatedPairs); // Debugging
+                    // Increment the current slot index AFTER updating the pairs
+                    setCurrentSlotIndex((prevIndex) => {
+                        const newIndex = prevIndex + 1;
+                        return newIndex;
+                    });
+
                     return updatedPairs;
                 });
 
-                // Increment the current slot index
-                setCurrentSlotIndex((prevIndex) => prevIndex + 1);
+                // Handle the last player logic after 1 second
+                setTimeout(() => {
+                    setRemainingPlayers((prevPlayers) => {
+                        if (prevPlayers.length === 1) {
+                            const lastPlayer = prevPlayers[0];
+
+                            // Manually calculate the updated slot index
+                            const updatedSlotIndex = currentSlotIndex + 1;
+
+                            // Add the last player to the pre-bracket table
+                            setPreBracketPairs((prevPairs) => {
+                                const updatedPairs = [...prevPairs];
+                                const totalPairs = updatedPairs.length;
+
+                                // Determine the correct slot to update
+                                if (updatedSlotIndex < totalPairs) {
+                                    // Fill the first column of the current row
+                                    if (updatedPairs[updatedSlotIndex][0] === 'TBD') {
+                                        updatedPairs[updatedSlotIndex][0] = lastPlayer;
+                                    } else {
+                                        console.error(`Row ${updatedSlotIndex}, Column 0 is already filled!`);
+                                    }
+                                } else {
+                                    // Calculate the opponent index for the second column
+                                    const opponentIndex = updatedSlotIndex - totalPairs;
+
+                                    // Ensure opponentIndex is valid
+                                    if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
+                                        if (updatedPairs[opponentIndex][1] === 'TBD') {
+                                            updatedPairs[opponentIndex][1] = lastPlayer;
+                                        } else {
+                                            console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
+                                        }
+                                    } else {
+                                        console.error('Invalid Opponent Index:', opponentIndex);
+                                    }
+                                }
+
+                                return updatedPairs;
+                            });
+
+                            // Clear the remaining players
+                            setRemainingPlayers([]);
+                        }
+
+                        return prevPlayers;
+                    });
+                }, 1000); // 1-second delay
 
                 // Reset the fading state after the animation completes
                 setIsModalVisible(false); // Hide the modal
