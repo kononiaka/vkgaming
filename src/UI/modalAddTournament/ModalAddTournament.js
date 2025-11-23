@@ -9,7 +9,7 @@ const Bracket = (props) => {
     const [date, setDate] = useState('');
     const [tournamentName, setTournamentName] = useState('');
     const [tournamentPlayer, setTournamentPlayer] = useState('');
-    const [prepareBracket, setPrepareBracket] = useState(false);
+    const [randomBracket, setRandomBracket] = useState(false);
 
     useEffect(() => {
         const now = new Date();
@@ -28,13 +28,13 @@ const Bracket = (props) => {
     const tournamentPlayoffGames = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentDateRef = useRef(null);
-    const prepareBracketRef = useRef(null);
+    const randomBracketRef = useRef(null);
 
     const objTournament = {};
 
-    const handlePrepareBracketChange = (event) => {
+    const handleRandomBracketChange = (event) => {
         event.preventDefault();
-        setPrepareBracket(event.target.checked);
+        setRandomBracket(event.target.checked);
     };
 
     const tournamentNameBlur = () => {
@@ -79,7 +79,7 @@ const Bracket = (props) => {
 
     const handleSave = async () => {
         // Save game data to database
-        objTournament.preparedBracket = prepareBracket;
+        objTournament.randomBracket = randomBracket;
 
         objTournament.status = 'Registration Started';
         objTournament.players = 0;
@@ -91,7 +91,7 @@ const Bracket = (props) => {
         };
         let playOffPairs;
 
-        if (prepareBracket) {
+        if (randomBracket) {
             objTournament.bracket = {};
 
             playOffPairs = shuffleArray(
@@ -130,14 +130,14 @@ const Bracket = (props) => {
             ) : (
                 <>
                     <div>
-                        <label htmlFor="prepareBracketRef">Random bracket:</label>
+                        <label htmlFor="prepareRandomRef">Random bracket:</label>
                         <input
                             type="checkbox"
-                            id="prepareBracket"
-                            label="Prepare Bracket"
-                            ref={prepareBracketRef}
-                            checked={prepareBracket}
-                            onChange={handlePrepareBracketChange}
+                            id="randomBracket"
+                            label="Random Bracket"
+                            ref={randomBracketRef}
+                            checked={randomBracket}
+                            onChange={handleRandomBracketChange}
                         />
                     </div>
                     <div>

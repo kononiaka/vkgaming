@@ -15,6 +15,8 @@ import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
 import StatsPopup from '../../StatsPopup/StatsPopup';
 import { findByName } from '../../../api/api.js';
+import SpinningWheel from '../../SpinningWheel/SpinningWheel';
+import Modal from '../../Modal/Modal.js';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
@@ -51,6 +53,8 @@ export const TournamentBracket = ({
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
+    const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
+    const [isTournamentBracketOpen, setIsTournamentBracketOpen] = useState(true); // State for tournament bracket visibility
 
     let BO3_DEFAULT;
     // let tournamentName;
@@ -242,35 +246,17 @@ export const TournamentBracket = ({
         let tournamentResponse = null;
         if (tournamentResponseGET.ok) {
             const data = await tournamentResponseGET.json();
-            const playoffsGames = data.tournamentPlayoffGames;
-            const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
-            const staticBrackets = data.preparedBracket;
+            // const playoffsGames = data.tournamentPlayoffGames;
+            // const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
+            const randomBrackets = data.randomBracket;
             playersObj = data.players;
-            let tournamentData = {};
+            // let tournamentData = {};
 
             setStartTournament(true);
             // Prepare the tournament data
-            if (!staticBrackets) {
-                let readyBracket = shuffleArray(null, playoffsGames, tournamentPlayoffGamesFinal, playersObj);
-
-                tournamentData = {
-                    stageLabels: stageLabels,
-                    playoffPairs: readyBracket,
-                    status: 'Started!'
-                };
-                tournamentResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
-                    {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            bracket: tournamentData,
-                            status: 'Started!'
-                        }),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
+            console.log('Random Brackets setting:', randomBrackets);
+            if (!randomBrackets) {
+                setIsSpinningWheelOpen(true);
             } else {
                 tournamentResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
@@ -284,19 +270,19 @@ export const TournamentBracket = ({
                         }
                     }
                 );
-            }
-
-            try {
-                if (tournamentResponse.ok) {
-                    console.log('Pairs posted to Firebase successfully');
-                } else {
-                    console.log('Failed to post pairs to Firebase');
+                try {
+                    if (tournamentResponse.ok) {
+                        console.log('Pairs posted to Firebase successfully');
+                    } else {
+                        console.log('Failed to post pairs to Firebase');
+                    }
+                } catch (error) {
+                    console.error('Error posting pairs to Firebase:', error);
                 }
-            } catch (error) {
-                console.error('Error posting pairs to Firebase:', error);
+
+                window.location.reload();
             }
         }
-        window.location.reload();
     };
 
     const updateTournament = async () => {
@@ -1280,6 +1266,198 @@ export const TournamentBracket = ({
         return [...castles].sort((a, b) => a.total - b.total);
     }
 
+    const onStartTournament = async (bracket) => {
+        console.log('Tournament ID:', tournamentId);
+        console.log('Tournament Bracket:', bracket);
+
+        const isBracketComplete = bracket.every((pair) => pair[0] !== 'TBD' && pair[1] !== 'TBD');
+
+        if (!isBracketComplete) {
+            console.error('Bracket is not complete. Please fill all slots.');
+            return;
+        }
+
+        // Calculate stage labels based on maxPlayers
+        let currentStageLabels = [];
+        if (+maxPlayers === 4) {
+            currentStageLabels = ['Semi-final', 'Third Place', 'Final'];
+        } else if (+maxPlayers === 8) {
+            currentStageLabels = ['Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+        } else if (+maxPlayers === 16) {
+            currentStageLabels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+        } else if (+maxPlayers === 32) {
+            currentStageLabels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+        }
+
+        // Fetch tournament data to get playoff games settings
+        let tournamentPlayoffGames = 'bo-1';
+        try {
+            const tournamentResponseGET = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+                {
+                    method: 'GET'
+                }
+            );
+            if (tournamentResponseGET.ok) {
+                const tournamentData = await tournamentResponseGET.json();
+                tournamentPlayoffGames = tournamentData.tournamentPlayoffGames || 'bo-1';
+            }
+        } catch (error) {
+            console.error('Error fetching tournament data:', error);
+        }
+
+        // Determine number of games based on bo-1 or bo-3
+        const numGames = tournamentPlayoffGames === 'bo-3' ? 3 : 1;
+        const gameType = tournamentPlayoffGames;
+
+        // Format bracket pairs with player data following the exact structure
+        const formattedBracket = bracket.map((pair) => {
+            const player1 = Object.values(playersObj).find((p) => p.name === pair[0]);
+            const player2 = Object.values(playersObj).find((p) => p.name === pair[1]);
+
+            // Get the latest ratings as strings
+            const ratings1 = player1?.ratings
+                ? typeof player1.ratings === 'string' && player1.ratings.includes(',')
+                    ? player1.ratings.split(',').pop().trim()
+                    : String(player1.ratings)
+                : '0';
+
+            const ratings2 = player2?.ratings
+                ? typeof player2.ratings === 'string' && player2.ratings.includes(',')
+                    ? player2.ratings.split(',').pop().trim()
+                    : String(player2.ratings)
+                : '0';
+
+            // Create games array based on tournament type
+            const games = Array.from({ length: numGames }, (_, index) => ({
+                castle1: '',
+                castle2: '',
+                castleWinner: '',
+                gameId: index,
+                gameStatus: 'Not Started',
+                gameWinner: ''
+            }));
+
+            return {
+                gameStatus: 'Not Started',
+                games: games,
+                ratings1: ratings1,
+                ratings2: ratings2,
+                score1: 0,
+                score2: 0,
+                stage: currentStageLabels[0] || 'Quarter-final',
+                stars1: player1?.stars || 0,
+                stars2: player2?.stars || 0,
+                team1: pair[0],
+                team2: pair[1],
+                type: gameType,
+                winner: null
+            };
+        });
+
+        try {
+            // Create the full bracket structure with all stages
+            const fullBracketStructure = [formattedBracket]; // Stage 0: Quarter-final
+
+            // Add empty stages for Semi-final, Third Place, and Final with placeholder objects
+            for (let i = 1; i < currentStageLabels.length; i++) {
+                const stageGames = [];
+                let pairsInStage;
+
+                // Determine number of pairs based on stage
+                const stageName = currentStageLabels[i];
+                if (stageName === 'Semi-final') {
+                    pairsInStage = 2;
+                } else if (stageName === 'Third Place' || stageName === 'Final') {
+                    pairsInStage = 1;
+                } else if (stageName === 'Quarter-final') {
+                    pairsInStage = 4;
+                } else if (stageName === '1/8 Final') {
+                    pairsInStage = 8;
+                } else if (stageName === '1/16 Final') {
+                    pairsInStage = 16;
+                } else {
+                    pairsInStage = 1; // Default fallback
+                }
+
+                for (let j = 0; j < pairsInStage; j++) {
+                    const emptyGames = Array.from({ length: numGames }, (_, index) => ({
+                        castle1: '',
+                        castle2: '',
+                        castleWinner: '',
+                        gameId: index,
+                        gameStatus: 'Not Started',
+                        gameWinner: ''
+                    }));
+
+                    stageGames.push({
+                        gameStatus: 'Not Started',
+                        games: emptyGames,
+                        ratings1: null,
+                        ratings2: null,
+                        score1: 0,
+                        score2: 0,
+                        stage: currentStageLabels[i],
+                        stars1: null,
+                        stars2: null,
+                        team1: 'TBD',
+                        team2: 'TBD',
+                        type: gameType,
+                        winner: null
+                    });
+                }
+
+                fullBracketStructure.push(stageGames);
+            }
+
+            console.log('Full bracket structure to be posted:', JSON.stringify(fullBracketStructure, null, 2));
+            console.log('Stage labels:', currentStageLabels);
+            console.log('Number of stages:', fullBracketStructure.length);
+
+            const tournamentResponse = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(fullBracketStructure),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (tournamentResponse.ok) {
+                console.log('Tournament Bracket Updated successfully!');
+                // Update tournament status
+                await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Started!'),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                console.log('Tournament successfully started!');
+                setIsSpinningWheelOpen(false);
+
+                // Fetch and update playoff pairs instead of reloading
+                const bracketResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`
+                );
+                if (bracketResponse.ok) {
+                    const updatedPairs = await bracketResponse.json();
+                    console.log('Fetched updated playoff pairs:', updatedPairs);
+                    setPlayoffPairs(updatedPairs);
+                }
+            } else {
+                console.error('Failed to update tournament bracket');
+            }
+        } catch (error) {
+            console.error('Error updating tournament:', error);
+        }
+    };
+
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
@@ -1306,6 +1484,14 @@ export const TournamentBracket = ({
                     <p style={{ color: 'brown', margin: 0 }}>Bronze: {tournamentWinners['3rd place']}</p>
                 )}
             </div>
+
+            {/* Render the spinning wheel modal */}
+            {isSpinningWheelOpen && (
+                <Modal onClose={() => setIsSpinningWheelOpen(false)}>
+                    <SpinningWheel players={playersObj} onStartTournament={onStartTournament} />
+                </Modal>
+            )}
+
             {showCastlesModal && (
                 <div
                     style={{

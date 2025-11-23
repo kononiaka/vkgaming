@@ -4,35 +4,73 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.3);
-    opacity: 0.4;
+    background: rgba(0, 0, 0, 0.6);
     z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: blur(4px);
 }
 
 .popup {
     position: relative;
-    background: #fff;
-    border: 2px solid #3e20c0;
-    border-radius: 8px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-    padding: 24px;
-    min-width: 320px;
-    /* height: 40vh; Limit the height to 80% of the viewport */
-    overflow-y: auto; /* Enable vertical scrolling */
-    color: black;
+    background: linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%);
+    border: 2px solid gold;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: 2rem;
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: white;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.popup h3 {
+    color: gold;
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0 0 1.5rem 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    padding-right: 2rem;
 }
 
 .closeButton {
     position: absolute;
-    top: 8px;
-    right: 12px;
-    background: transparent;
-    border: none;
-    font-size: 20px;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 215, 0, 0.2);
+    border: 2px solid gold;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 24px;
     cursor: pointer;
+    color: gold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    line-height: 1;
+    padding: 0;
+}
+
+.closeButton:hover {
+    background: gold;
+    color: rgb(62, 32, 192);
+    transform: rotate(90deg);
 }
 
 .statsList {
@@ -41,6 +79,73 @@
     margin: 0;
 }
 
+.statsList li {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    border-left: 3px solid rgba(255, 215, 0, 0.5);
+    transition: all 0.2s ease;
+}
+
+.statsList li:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-left-color: gold;
+    transform: translateX(4px);
+}
+
+.statsList li b {
+    color: gold;
+    font-weight: 600;
+}
+
 .lastGames {
-    margin-top: 12px;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.lastGames > b {
+    display: block;
+    color: gold;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Scrollbar styling */
+.popup::-webkit-scrollbar {
+    width: 8px;
+}
+
+.popup::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.popup::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.5);
+    border-radius: 4px;
+}
+
+.popup::-webkit-scrollbar-thumb:hover {
+    background: gold;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .popup {
+        min-width: 90vw;
+        padding: 1.5rem;
+    }
+
+    .popup h3 {
+        font-size: 1.2rem;
+    }
+
+    .statsList li {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
 }

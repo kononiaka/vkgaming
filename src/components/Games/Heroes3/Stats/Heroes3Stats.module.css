@@ -1,0 +1,96 @@
+.statsContainer {
+    padding: 2rem;
+    background: linear-gradient(135deg, rgba(62, 32, 192, 0.95) 0%, rgba(45, 20, 150, 0.95) 100%);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.title {
+    color: gold;
+    text-align: center;
+    font-size: 2rem;
+    margin: 0 0 1.5rem 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    font-weight: bold;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+}
+
+.statsTable {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+}
+
+.statsTable thead {
+    background: rgba(255, 215, 0, 0.2);
+    border-bottom: 2px solid gold;
+}
+
+.statsTable th {
+    padding: 1rem 0.75rem;
+    text-align: left;
+    color: gold;
+    font-weight: bold;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.statsTable tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background-color 0.2s ease;
+}
+
+.statsTable tbody tr:hover {
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.statsTable tbody tr:last-child {
+    border-bottom: none;
+}
+
+.statsTable td {
+    padding: 0.875rem 0.75rem;
+    color: white;
+    font-size: 0.95rem;
+}
+
+.statsTable td:first-child {
+    font-weight: bold;
+    color: gold;
+}
+
+.statsTable td:nth-child(2) {
+    font-weight: 600;
+    color: #FFD700;
+}
+
+.statsTable td:last-child {
+    font-weight: bold;
+    color: #90EE90;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .statsContainer {
+        padding: 1rem;
+    }
+
+    .title {
+        font-size: 1.5rem;
+    }
+
+    .statsTable th,
+    .statsTable td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.85rem;
+    }
+}
