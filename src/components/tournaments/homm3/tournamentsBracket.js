@@ -1283,31 +1283,118 @@ export const TournamentBracket = ({
             return;
         }
 
-        let tournamentData = {
-            stageLabels: stageLabels,
-            playoffPairs: bracket,
-            status: 'Started!'
-        };
-        console.log('tournamentData to be sent:', tournamentData);
+        // Fetch tournament data to get playoff games settings
+        let tournamentPlayoffGames = 'bo-1';
+        try {
+            const tournamentResponseGET = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+                {
+                    method: 'GET'
+                }
+            );
+            if (tournamentResponseGET.ok) {
+                const tournamentData = await tournamentResponseGET.json();
+                tournamentPlayoffGames = tournamentData.tournamentPlayoffGames || 'bo-1';
+            }
+        } catch (error) {
+            console.error('Error fetching tournament data:', error);
+        }
 
-        // let tournamentResponse = await fetch(
-        //     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
-        //     {
-        //         method: 'PATCH',
-        //         body: JSON.stringify({
-        //             bracket: tournamentData,
-        //             status: 'Started!'
-        //         }),
-        //         headers: {
-        //             'Content-Type': 'application/json'
-        //         }
-        //     }
-        // );
+        // Determine number of games based on bo-1 or bo-3
+        const numGames = tournamentPlayoffGames === 'bo-3' ? 3 : 1;
+        const gameType = tournamentPlayoffGames;
 
-        console.log('Updating Tournament Bracket...');
+        // Format bracket pairs with player data following the exact structure
+        const formattedBracket = bracket.map((pair) => {
+            const player1 = Object.values(playersObj).find((p) => p.name === pair[0]);
+            const player2 = Object.values(playersObj).find((p) => p.name === pair[1]);
 
-        console.log('Tournament Bracket Updated:', bracket);
-        console.log('Tournament successfully started!');
+            // Get the latest ratings as strings
+            const ratings1 = player1?.ratings
+                ? typeof player1.ratings === 'string' && player1.ratings.includes(',')
+                    ? player1.ratings.split(',').pop().trim()
+                    : String(player1.ratings)
+                : '0';
+
+            const ratings2 = player2?.ratings
+                ? typeof player2.ratings === 'string' && player2.ratings.includes(',')
+                    ? player2.ratings.split(',').pop().trim()
+                    : String(player2.ratings)
+                : '0';
+
+            // Create games array based on tournament type
+            const games = Array.from({ length: numGames }, (_, index) => ({
+                castle1: '',
+                castle2: '',
+                castleWinner: '',
+                gameId: index,
+                gameStatus: 'Not Started',
+                gameWinner: ''
+            }));
+
+            return {
+                gameStatus: 'Not Started',
+                games: games,
+                ratings1: ratings1,
+                ratings2: ratings2,
+                score1: 0,
+                score2: 0,
+                stage: stageLabels[0] || 'Quarter-final',
+                stars1: player1?.stars || 0,
+                stars2: player2?.stars || 0,
+                team1: pair[0],
+                team2: pair[1],
+                type: gameType,
+                winner: null
+            };
+        });
+
+        try {
+            // Create the full bracket structure with all stages
+            const fullBracketStructure = [formattedBracket]; // Stage 0: Quarter-final
+
+            // Add empty stages for Semi-final, Third Place, and Final
+            for (let i = 1; i < stageLabels.length; i++) {
+                fullBracketStructure.push([]);
+            }
+
+            console.log('Full bracket structure to be posted:', JSON.stringify(fullBracketStructure, null, 2));
+            console.log('Stage labels:', stageLabels);
+            console.log('Number of stages:', fullBracketStructure.length);
+
+            const tournamentResponse = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(fullBracketStructure),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (tournamentResponse.ok) {
+                console.log('Tournament Bracket Updated successfully!');
+                // Update tournament status
+                await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Started!'),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                console.log('Tournament successfully started!');
+                setIsSpinningWheelOpen(false);
+                window.location.reload(); // Reload to show updated bracket
+            } else {
+                console.error('Failed to update tournament bracket');
+            }
+        } catch (error) {
+            console.error('Error updating tournament:', error);
+        }
     };
 
     return (

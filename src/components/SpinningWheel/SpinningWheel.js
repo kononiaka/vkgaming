@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import StarsComponent from '../Stars/Stars';
 import classes from './SpinningWheel.module.css';
 
 const SpinningWheel = ({ players, onStartTournament }) => {
@@ -12,6 +13,7 @@ const SpinningWheel = ({ players, onStartTournament }) => {
     const [modalMessage, setModalMessage] = useState('');
     const canvasRef = useRef(null);
     const [fadingSlice, setFadingSlice] = useState(null);
+    const [pairDetails, setPairDetails] = useState({});
 
     // Initialize remaining players and pre-bracket pairs
     useEffect(() => {
@@ -21,9 +23,60 @@ const SpinningWheel = ({ players, onStartTournament }) => {
         setPreBracketPairs(pairs);
     }, [players]);
 
+    // Fetch head-to-head history between two players
+    const fetchHeadToHead = async (player1, player2) => {
+        if (player1 === 'TBD' || player2 === 'TBD') return null;
+        try {
+            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data) return null;
+
+            const games = Object.values(data).filter(
+                (game) =>
+                    (game.opponent1 === player1 && game.opponent2 === player2) ||
+                    (game.opponent1 === player2 && game.opponent2 === player1)
+            );
+
+            const total = games.length;
+            const player1Wins = games.filter((g) => g.winner === player1).length;
+            const player2Wins = games.filter((g) => g.winner === player2).length;
+
+            return { total, player1Wins, player2Wins };
+        } catch (error) {
+            console.error('Error fetching head-to-head:', error);
+            return null;
+        }
+    };
+
+    // Update pair details when preBracketPairs changes
+    useEffect(() => {
+        const updatePairDetails = async () => {
+            const details = {};
+            for (let i = 0; i < preBracketPairs.length; i++) {
+                const [player1, player2] = preBracketPairs[i];
+                if (player1 !== 'TBD' && player2 !== 'TBD') {
+                    const player1Data = Object.values(players).find((p) => p.name === player1);
+                    const player2Data = Object.values(players).find((p) => p.name === player2);
+                    const history = await fetchHeadToHead(player1, player2);
+                    details[i] = {
+                        player1Stars: player1Data?.stars || 0,
+                        player2Stars: player2Data?.stars || 0,
+                        history
+                    };
+                }
+            }
+            setPairDetails(details);
+        };
+        updatePairDetails();
+    }, [preBracketPairs, players]);
+
     // Draw the wheel on the canvas
     const drawWheel = () => {
         const canvas = canvasRef.current;
+        if (!canvas) {
+            return; // Exit if canvas is not rendered (hidden)
+        }
         const ctx = canvas.getContext('2d');
         const totalPlayers = remainingPlayers.length;
         if (totalPlayers === 0) {
@@ -286,38 +339,88 @@ const SpinningWheel = ({ players, onStartTournament }) => {
         drawWheel();
     }, [remainingPlayers]);
 
+    // Automatically add the last remaining player to the bracket
+    useEffect(() => {
+        if (remainingPlayers.length === 1 && !isSpinning) {
+            const lastPlayer = remainingPlayers[0];
+            console.log('Last remaining player detected:', lastPlayer);
+
+            // Add the last player to the pre-bracket table after a short delay
+            setTimeout(() => {
+                setPreBracketPairs((prevPairs) => {
+                    const updatedPairs = [...prevPairs];
+                    const totalPairs = updatedPairs.length;
+
+                    // Determine the correct slot to update
+                    if (currentSlotIndex < totalPairs) {
+                        // Fill the first column of the current row
+                        if (updatedPairs[currentSlotIndex][0] === 'TBD') {
+                            updatedPairs[currentSlotIndex][0] = lastPlayer;
+                            console.log(`Added ${lastPlayer} to Row ${currentSlotIndex}, Column 0`);
+                        } else {
+                            console.error(`Row ${currentSlotIndex}, Column 0 is already filled!`);
+                        }
+                    } else {
+                        // Calculate the opponent index for the second column
+                        const opponentIndex = currentSlotIndex - totalPairs;
+
+                        // Ensure opponentIndex is valid
+                        if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
+                            if (updatedPairs[opponentIndex][1] === 'TBD') {
+                                updatedPairs[opponentIndex][1] = lastPlayer;
+                                console.log(`Added ${lastPlayer} to Row ${opponentIndex}, Column 1`);
+                            } else {
+                                console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
+                            }
+                        } else {
+                            console.error('Invalid Opponent Index:', opponentIndex);
+                        }
+                    }
+
+                    return updatedPairs;
+                });
+
+                // Clear the remaining players
+                setRemainingPlayers([]);
+            }, 500); // Small delay to ensure smooth transition
+        }
+    }, [remainingPlayers, isSpinning, currentSlotIndex]);
+
     // Check if the bracket is complete
     const isBracketComplete = preBracketPairs.every((pair) => pair[0] !== 'TBD' && pair[1] !== 'TBD');
 
     return (
         <div className={classes.spinningWheelContainer}>
-            {/* Pointer */}
-            <div className={classes.pointer}></div>
-            {/* Canvas for the spinning wheel */}
-            <canvas ref={canvasRef} width="300" height="300" className={classes.spinningWheelCanvas}></canvas>
-            {/* Spin button */}
+            {/* Spinning wheel section - hide when all players are assigned */}
             {remainingPlayers.length > 0 && (
-                <button
-                    onClick={spinWheel}
-                    disabled={isSpinning}
-                    className={`${classes.spinButton} ${isSpinning ? classes.disabled : ''}`}
-                >
-                    {isSpinning ? 'Spinning...' : 'Spin'}
-                </button>
+                <>
+                    {/* Pointer */}
+                    <div className={classes.pointer}></div>
+                    {/* Canvas for the spinning wheel */}
+                    <canvas ref={canvasRef} width="300" height="300" className={classes.spinningWheelCanvas}></canvas>
+                    {/* Spin button */}
+                    <button
+                        onClick={spinWheel}
+                        disabled={isSpinning}
+                        className={`${classes.spinButton} ${isSpinning ? classes.disabled : ''}`}
+                    >
+                        {isSpinning ? 'Spinning...' : 'Spin'}
+                    </button>
+                    {/* Spin duration input */}
+                    <div className={classes.spinDurationContainer}>
+                        <label htmlFor="spin-duration">Spin Duration (seconds):</label>
+                        <input
+                            id="spin-duration"
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={spinDuration}
+                            onChange={(e) => setSpinDuration(Number(e.target.value))}
+                            className={classes.spinDurationInput}
+                        />
+                    </div>
+                </>
             )}
-            {/* Spin duration input */}
-            <div className={classes.spinDurationContainer}>
-                <label htmlFor="spin-duration">Spin Duration (seconds):</label>
-                <input
-                    id="spin-duration"
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={spinDuration}
-                    onChange={(e) => setSpinDuration(Number(e.target.value))}
-                    className={classes.spinDurationInput}
-                />
-            </div>
             {isModalVisible && (
                 <div className={classes.modal}>
                     <p>{modalMessage}</p>
@@ -331,13 +434,41 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             {/* Selected player */}
             {selectedPlayer && <p className={classes.selectedPlayer}>Selected Player: {selectedPlayer}</p>}
             {/* Pre-Bracket Table */}
-            <div className={classes.preBracketTable}>
+            <div
+                className={`${classes.preBracketTable} ${remainingPlayers.length === 0 ? classes.preBracketTableExpanded : ''}`}
+            >
                 <h2>Pre-Bracket Table</h2>
-                {preBracketPairs.map((pair, index) => (
-                    <div key={index} className={classes.bracketPair}>
-                        {pair[0]} vs {pair[1]}
-                    </div>
-                ))}
+                {preBracketPairs.map((pair, index) => {
+                    const details = pairDetails[index];
+                    const [player1, player2] = pair;
+                    return (
+                        <div key={index} className={classes.bracketPair}>
+                            <div className={classes.pairContainer}>
+                                <div className={classes.playerInfo}>
+                                    <span className={classes.playerName}>{player1}</span>
+                                    {remainingPlayers.length === 0 && details?.player1Stars && player1 !== 'TBD' && (
+                                        <StarsComponent stars={details.player1Stars} />
+                                    )}
+                                </div>
+                                <span className={classes.vsText}>vs</span>
+                                <div className={classes.playerInfo}>
+                                    <span className={classes.playerName}>{player2}</span>
+                                    {remainingPlayers.length === 0 && details?.player2Stars && player2 !== 'TBD' && (
+                                        <StarsComponent stars={details.player2Stars} />
+                                    )}
+                                </div>
+                            </div>
+                            {remainingPlayers.length === 0 && details?.history && (
+                                <div className={classes.historyInfo}>
+                                    <span>
+                                        History: {details.history.player1Wins} - {details.history.player2Wins}
+                                    </span>
+                                    <span className={classes.totalGames}>({details.history.total} games)</span>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
             {/* Start Tournament Button */}
             {isBracketComplete && (
