@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import classes from './Heroes3Stats.module.css';
 
 const Heroes3Stats = () => {
     let [castles, setCastles] = useState([]);
@@ -59,21 +60,23 @@ const Heroes3Stats = () => {
         return rows;
     };
     return (
-        <div>
-            <h2>Leaderboard</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Name</th>
-                        <th>Total Games</th>
-                        <th>Wins</th>
-                        <th>Loses</th>
-                        <th>Rate</th>
-                    </tr>
-                </thead>
-                <tbody>{getRows()}</tbody>
-            </table>
+        <div className={classes.statsContainer}>
+            <h2 className={classes.title}>Castle Statistics</h2>
+            <div className={classes.tableWrapper}>
+                <table className={classes.statsTable}>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Castle</th>
+                            <th>Total Games</th>
+                            <th>Wins</th>
+                            <th>Losses</th>
+                            <th>Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>{getRows()}</tbody>
+                </table>
+            </div>
         </div>
     );
 };
