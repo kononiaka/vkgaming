@@ -3,6 +3,18 @@ import StarsComponent from '../../../Stars/Stars';
 import { fetchLastGamesForPlayer } from '../../../../api/api';
 import classes from './PlayerBracket.module.css';
 
+// Import local castle images
+import castleImg from '../../../../image/castles/castle.jpeg';
+import rampartImg from '../../../../image/castles/rampart.jpeg';
+import towerImg from '../../../../image/castles/tower.jpeg';
+import infernoImg from '../../../../image/castles/inferno.jpeg';
+import necropolisImg from '../../../../image/castles/necropolis.jpeg';
+import dungeonImg from '../../../../image/castles/dungeon.jpeg';
+import strongholdImg from '../../../../image/castles/stronghold.jpeg';
+import fortressImg from '../../../../image/castles/fortress.jpeg';
+import confluxImg from '../../../../image/castles/conflux.jpeg';
+import coveImg from '../../../../image/castles/cove.jpeg';
+
 export const PlayerBracket = (props) => {
     const {
         pair,
@@ -33,7 +45,6 @@ export const PlayerBracket = (props) => {
             ? Number(typeof score1 === 'string' && score1.includes(',') ? score1.split(',').at(-1) : score1) || null
             : Number(typeof score2 === 'string' && score2.includes(',') ? score2.split(',').at(-1) : score2) || null;
     let playerCastle = team === 'team1' ? castle1 : castle2;
-    let isLive = false;
     let numberOfGames;
 
     numberOfGames = pair.games;
@@ -92,7 +103,7 @@ export const PlayerBracket = (props) => {
             </label>
 
             {teamPlayer}
-            {showTooltip && (
+            {showTooltip && teamPlayer !== 'TBD' && (
                 <div
                     style={{
                         position: 'absolute',
@@ -232,103 +243,90 @@ export const PlayerBracket = (props) => {
                     </div>
                 )}
             </div>
-            {hasTruthyPlayers &&
-                pair.games &&
-                numberOfGames.map((game, gameIndex) => {
-                    isLive = game.gameStatus === 'In Progress';
-                    // console.log('isLive', isLive);
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '52px' }}>
+                {hasTruthyPlayers &&
+                    pair.games &&
+                    numberOfGames.map((game, gameIndex) => {
+                        let castle =
+                            // pair.games.length > 1 &&
+                            game ? (team === 'team1' ? game.castle1 : game.castle2) : playerCastle ? playerCastle : '';
 
-                    let castle =
-                        // pair.games.length > 1 &&
-                        game ? (team === 'team1' ? game.castle1 : game.castle2) : playerCastle ? playerCastle : '';
+                        let checked =
+                            game.castle1 &&
+                            game.castle2 &&
+                            game.castleWinner === castle &&
+                            game.gameStatus === 'Processed';
 
-                    let checked =
-                        game.castle1 && game.castle2 && game.castleWinner === castle && game.gameStatus === 'Processed';
+                        // Extract castle name from format "Castle-Замок" -> "Castle"
+                        const getCastleName = (castleValue) => {
+                            if (!castleValue) {
+                                return '';
+                            }
+                            return castleValue.split('-')[0];
+                        };
 
-                    return (
-                        <div key={game.gameId} className="castle-dropdown-class">
-                            <select
-                                id={`castle-${team}-${pairIndex}${pair.games > 1 ? '-' + game : ''}`}
-                                value={castle}
-                                className={checked ? classes['castle-selected'] : ''}
-                                onChange={(event) =>
-                                    handleCastleChange(
-                                        stageIndex,
-                                        pairIndex,
-                                        teamIndex,
-                                        event.target.value,
-                                        setPlayoffPairs,
-                                        pair.games,
-                                        gameIndex
-                                    )
-                                }
-                            >
-                                <option value="">Select a castle</option>
-                                <option value="Castle-Замок">Castle</option>
-                                <option value="Rampart-Оплот">Rampart</option>
-                                <option value="Tower-Башня">Tower</option>
-                                <option value="Inferno-Инферно">Inferno</option>
-                                <option value="Necropolis-Некрополис">Necropolis</option>
-                                <option value="Dungeon-Подземелье">Dungeon</option>
-                                <option value="Stronghold-Цитадель">Stronghold</option>
-                                <option value="Fortress-Болото">Fortress</option>
-                                <option value="Conflux-Сопряжение">Conflux</option>
-                                <option value="Cove-Пиратская бухта">Cove</option>
-                                <option value="Factory-Фабрика">Factory</option>
-                            </select>
-                            <input
-                                type="radio"
-                                className={classes.radio_custom}
-                                id={`radio-${stageIndex}-${pairIndex}-${game.gameId}-${teamIndex}`}
-                                name={`radio-${stageIndex}-${pairIndex}-${game.gameId}`}
-                                onChange={(event) => {
-                                    handleRadioChange(
-                                        game.gameId,
-                                        teamIndex,
-                                        event.target.value,
-                                        setPlayoffPairs,
-                                        stageIndex,
-                                        pairIndex,
-                                        getWinner,
-                                        event.target.checked,
-                                        event.type
-                                    );
-                                }}
-                                checked={
-                                    checked ||
-                                    `radio-${stageIndex}-${pairIndex}-${game.gameId}-${teamIndex}` ===
-                                        clickedRadioButton
-                                }
-                                disabled={game.gameStatus === 'Processed'} // Disable if processed
-                            />
+                        // Map castle names to imported local images
+                        const getCastleImageUrl = (castleName) => {
+                            const castleImages = {
+                                Castle: castleImg,
+                                Rampart: rampartImg,
+                                Tower: towerImg,
+                                Inferno: infernoImg,
+                                Necropolis: necropolisImg,
+                                Dungeon: dungeonImg,
+                                Stronghold: strongholdImg,
+                                Fortress: fortressImg,
+                                Conflux: confluxImg,
+                                Cove: coveImg
+                            };
+                            return castleImages[castleName] || '';
+                        };
 
-                            <div
-                                key={game.gameId}
-                                className={`${isLive ? classes.player_bracket_live : ''} ${isLive ? classes.blink : ''}`}
-                            />
-                        </div>
-                    );
-                })}
-            {/* TODO: instead of input, use a custom component for score show */}
-            <input
-                type="text"
+                        const castleName = getCastleName(castle);
+                        const castleImageUrl = getCastleImageUrl(castleName);
+
+                        return (
+                            <div key={game.gameId} className="castle-image-display">
+                                {castleImageUrl && (
+                                    <img
+                                        src={castleImageUrl}
+                                        alt={castleName}
+                                        title={castleName}
+                                        className={checked ? classes['castle-selected'] : ''}
+                                        style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            border: checked ? '3px solid #FFD700' : '2px solid rgba(62, 32, 192, 0.3)',
+                                            borderRadius: '4px',
+                                            boxShadow: checked ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
+                                            cursor: 'pointer'
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
+            </div>
+            <div
                 id={`score-${team}-${pairIndex}`}
-                value={playerScore || 0}
-                onChange={(event) => handleScoreChange(stage, pairIndex, teamIndex, event.target.value)}
-                onBlur={(event) => handleBlur(stage, pairIndex, setPlayoffPairs, event.target.value)}
                 style={{
                     width: '3rem',
                     padding: '0.5rem 0.5rem',
                     textAlign: 'center',
-                    border: '2px solid #3e20c0',
-                    borderRadius: '3px',
-                    background: '#f5f5fa',
-                    color: '#2a1a6b',
+                    border: '2px solid rgba(255, 215, 0, 0.5)',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                    color: '#FFD700',
                     margin: '0.5rem 0',
-                    outline: 'none',
-                    boxShadow: '0 1px 3px rgba(62,32,192,0.07)'
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem',
+                    boxShadow: '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
+                    cursor: 'default',
+                    userSelect: 'none'
                 }}
-            />
+            >
+                {playerScore || 0}
+            </div>
         </div>
     );
 };

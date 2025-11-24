@@ -17,6 +17,7 @@ import StatsPopup from '../../StatsPopup/StatsPopup';
 import { findByName } from '../../../api/api.js';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
+import ReportGameModal from './ReportGameModal';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
@@ -55,6 +56,10 @@ export const TournamentBracket = ({
     const [stats, setStats] = useState(null);
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
     const [isTournamentBracketOpen, setIsTournamentBracketOpen] = useState(true); // State for tournament bracket visibility
+    const [showReportGameModal, setShowReportGameModal] = useState(false);
+    const [selectedPairToReport, setSelectedPairToReport] = useState(null);
+    const [selectedStageIndex, setSelectedStageIndex] = useState(null);
+    const [selectedPairIndex, setSelectedPairIndex] = useState(null);
 
     let BO3_DEFAULT;
     // let tournamentName;
@@ -1215,30 +1220,32 @@ export const TournamentBracket = ({
     };
 
     function renderShowStatsButton(team1, team2, onShowStats) {
+        // Only show button if both players are determined (not TBD)
+        if (team1 === 'TBD' || team2 === 'TBD' || !team1 || !team2) {
+            return null;
+        }
+
         return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <div
-                    onClick={() => onShowStats(team1, team2)}
-                    style={{
-                        width: '24px',
-                        height: '24px',
-                        background: 'rgb(62, 32, 192)', // same as main background
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'gold',
-                        fontWeight: 'bold',
-                        fontSize: '1em',
-                        cursor: 'pointer',
-                        border: '2px solid gold',
-                        marginTop: '2.5rem',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.10)'
-                    }}
-                    title="Show Stats"
-                >
-                    ?
-                </div>
+            <div
+                onClick={() => onShowStats(team1, team2)}
+                style={{
+                    width: '24px',
+                    height: '24px',
+                    background: 'rgb(62, 32, 192)',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'gold',
+                    fontWeight: 'bold',
+                    fontSize: '1em',
+                    cursor: 'pointer',
+                    border: '2px solid gold',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.10)'
+                }}
+                title="Show Stats"
+            >
+                ?
             </div>
         );
     }
@@ -1458,6 +1465,54 @@ export const TournamentBracket = ({
         }
     };
 
+    const handleOpenReportGame = (pair, stageIdx, pairIdx) => {
+        setSelectedPairToReport(pair);
+        setSelectedStageIndex(stageIdx);
+        setSelectedPairIndex(pairIdx);
+        setShowReportGameModal(true);
+    };
+
+    const handleSubmitGameReport = async (reportData) => {
+        try {
+            // Update the specific pair in playoffPairs
+            const updatedPairs = [...playoffPairs];
+            const pair = updatedPairs[selectedStageIndex][selectedPairIndex];
+
+            pair.score1 = reportData.score1;
+            pair.score2 = reportData.score2;
+            pair.winner = reportData.winner;
+            pair.games = reportData.games;
+            pair.gameStatus = 'Finished';
+
+            // Update local state
+            setPlayoffPairs(updatedPairs);
+
+            // Post to Firebase
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedPairs),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (response.ok) {
+                console.log('Game result reported successfully');
+                setShowReportGameModal(false);
+                alert('Game result reported successfully!');
+            } else {
+                console.error('Failed to report game result');
+                alert('Failed to report game result');
+            }
+        } catch (error) {
+            console.error('Error reporting game result:', error);
+            alert('Error reporting game result');
+        }
+    };
+
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
@@ -1473,15 +1528,64 @@ export const TournamentBracket = ({
                     borderBottom: '1px solid white'
                 }}
             >
-                {tournamentName}
-                {tournamentWinners && (
-                    <p style={{ color: 'gold', margin: 0 }}>Gold: {tournamentWinners['1st place']}</p>
+                {!startTournament && isUpdateButtonVisible && (
+                    <div
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}
+                    >
+                        <button
+                            id="update-tournament"
+                            onClick={() => updateTournament()}
+                            className={classes.actionButton}
+                            style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
+                        >
+                            Update Tournament
+                        </button>
+
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>{tournamentName}</div>
+                            {tournamentWinners && (
+                                <div style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>
+                                    <p style={{ color: 'gold', margin: '0.4rem 0' }}>
+                                        🥇 Gold: {tournamentWinners['1st place']}
+                                    </p>
+                                    <p style={{ color: 'silver', margin: '0.4rem 0' }}>
+                                        🥈 Silver: {tournamentWinners['2nd place']}
+                                    </p>
+                                    <p style={{ color: '#CD7F32', margin: '0.4rem 0' }}>
+                                        🥉 Bronze: {tournamentWinners['3rd place']}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => handleGetAvailableCastles()}
+                            className={classes.actionButton}
+                            style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
+                        >
+                            Get Available Castles
+                        </button>
+                    </div>
                 )}
-                {tournamentWinners && (
-                    <p style={{ color: 'grey', margin: 0 }}>Silver: {tournamentWinners['2nd place']}</p>
-                )}
-                {tournamentWinners && (
-                    <p style={{ color: 'brown', margin: 0 }}>Bronze: {tournamentWinners['3rd place']}</p>
+                {!startTournament && !isUpdateButtonVisible && (
+                    <div style={{ marginBottom: '1rem' }}>
+                        {tournamentName}
+                        {tournamentWinners && (
+                            <p style={{ color: 'gold', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
+                                🥇 Gold: {tournamentWinners['1st place']}
+                            </p>
+                        )}
+                        {tournamentWinners && (
+                            <p style={{ color: 'silver', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
+                                🥈 Silver: {tournamentWinners['2nd place']}
+                            </p>
+                        )}
+                        {tournamentWinners && (
+                            <p style={{ color: '#CD7F32', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
+                                🥉 Bronze: {tournamentWinners['3rd place']}
+                            </p>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -1498,29 +1602,80 @@ export const TournamentBracket = ({
                         position: 'fixed',
                         top: 0,
                         left: 0,
-                        width: '100vw',
-                        height: '100vh',
-                        background: 'rgba(0,0,0,0.5)',
+                        width: '100%',
+                        height: '100%',
+                        background: 'rgba(0, 0, 0, 0.6)',
+                        backdropFilter: 'blur(4px)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        zIndex: 9999
+                        zIndex: 10000,
+                        overflow: 'hidden'
                     }}
                     onClick={() => setShowCastlesModal(false)}
                 >
                     <div
                         style={{
-                            background: '#fff',
+                            background:
+                                'linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%)',
                             padding: '2rem',
-                            borderRadius: '8px',
-                            minWidth: '300px',
+                            borderRadius: '12px',
+                            border: '2px solid gold',
+                            minWidth: '400px',
+                            maxWidth: '600px',
                             maxHeight: '80vh',
-                            overflowY: 'auto'
+                            overflowY: 'auto',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                            position: 'relative',
+                            animation: 'slideIn 0.3s ease-out'
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h3>Available Castles</h3>
-                        <ul>
+                        <button
+                            onClick={() => setShowCastlesModal(false)}
+                            style={{
+                                position: 'absolute',
+                                top: '1rem',
+                                right: '1rem',
+                                background: 'gold',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
+                                color: 'rgb(62, 32, 192)',
+                                fontSize: '1.5rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                                transition: 'transform 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => (e.target.style.transform = 'rotate(90deg)')}
+                            onMouseLeave={(e) => (e.target.style.transform = 'rotate(0deg)')}
+                        >
+                            ×
+                        </button>
+                        <h3
+                            style={{
+                                color: 'gold',
+                                textAlign: 'center',
+                                marginBottom: '1.5rem',
+                                fontSize: '1.5rem',
+                                fontWeight: 'bold',
+                                textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)'
+                            }}
+                        >
+                            Available Castles
+                        </h3>
+                        <ul
+                            style={{
+                                listStyle: 'none',
+                                padding: 0,
+                                margin: 0
+                            }}
+                        >
                             {(() => {
                                 // Find min and max total values
                                 const totals = availableCastles.map((castle) => castle.total);
@@ -1531,39 +1686,81 @@ export const TournamentBracket = ({
                                     <li
                                         key={idx}
                                         style={{
+                                            padding: '0.75rem 1rem',
+                                            margin: '0.5rem 0',
+                                            background: 'rgba(45, 20, 150, 0.6)',
+                                            borderLeft: '4px solid gold',
+                                            borderRadius: '6px',
                                             color:
                                                 castle.total === minTotal
-                                                    ? 'green'
+                                                    ? '#4ade80'
                                                     : castle.total === maxTotal
-                                                      ? 'red'
-                                                      : 'inherit',
+                                                      ? '#f87171'
+                                                      : '#FFD700',
                                             fontWeight:
                                                 castle.total === minTotal || castle.total === maxTotal
                                                     ? 'bold'
-                                                    : 'normal'
+                                                    : 'normal',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                            cursor: 'default'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.target.style.transform = 'translateX(5px)';
+                                            e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.target.style.transform = 'translateX(0)';
+                                            e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
                                         }}
                                     >
-                                        {castle.name} — {castle.total}
+                                        <span style={{ fontWeight: 'bold' }}>{castle.name}</span>
+                                        <span style={{ float: 'right', color: 'white' }}>Games: {castle.total}</span>
                                     </li>
                                 ));
                             })()}
                         </ul>
-                        <button onClick={() => setShowCastlesModal(false)}>Close</button>
+                        <button
+                            onClick={() => setShowCastlesModal(false)}
+                            style={{
+                                marginTop: '1.5rem',
+                                width: '100%',
+                                padding: '0.75rem',
+                                background: 'linear-gradient(135deg, gold 0%, #FFD700 100%)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                color: 'rgb(62, 32, 192)',
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(255, 215, 0, 0.3)',
+                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = '0 6px 16px rgba(255, 215, 0, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
+                            }}
+                        >
+                            Close
+                        </button>
                     </div>
                 </div>
             )}
 
             {startButton && !startTournament && tournamentStatus === 'Registration finished!' && (
-                <button onClick={handleStartTournament}>Start Tournament</button>
+                <button onClick={handleStartTournament} className={classes.actionButton}>
+                    Start Tournament
+                </button>
             )}
-            {startTournament && <button onClick={() => shuffleArray(uniquePlayerNames)}>Shuffle</button>}
-            {!startTournament && isUpdateButtonVisible && (
-                <>
-                    <button id="update-tournament" onClick={() => updateTournament()}>
-                        Update Tournament
-                    </button>
-                    <button onClick={() => handleGetAvailableCastles()}>Get Available Castles</button>
-                </>
+            {startTournament && (
+                <button onClick={() => shuffleArray(uniquePlayerNames)} className={classes.actionButton}>
+                    Shuffle
+                </button>
             )}
 
             {stageLabels.length === 0 ? (
@@ -1591,7 +1788,23 @@ export const TournamentBracket = ({
                                         // ...BO3_DEFAULT logic if needed...
 
                                         return (
-                                            <div key={`final-${pairIndex}`} className={classes['game-block']}>
+                                            <div
+                                                key={`final-${pairIndex}`}
+                                                className={classes['game-block']}
+                                                style={{ position: 'relative' }}
+                                            >
+                                                {/* Stats button positioned top right */}
+                                                <div
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '0.5rem',
+                                                        right: '0.5rem',
+                                                        zIndex: 1
+                                                    }}
+                                                >
+                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                </div>
+
                                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
                                                     <div
                                                         style={{
@@ -1634,7 +1847,34 @@ export const TournamentBracket = ({
                                                             clickedRadioButton={clickedRadioButton}
                                                         />
                                                     </div>
-                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            gap: '0.5rem',
+                                                            alignItems: 'center',
+                                                            marginTop: '2.5rem'
+                                                        }}
+                                                    >
+                                                        {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleOpenReportGame(pair, stageIndex, pairIndex)
+                                                                }
+                                                                style={{
+                                                                    padding: '0.5rem 1rem',
+                                                                    background: 'gold',
+                                                                    border: 'none',
+                                                                    borderRadius: '6px',
+                                                                    color: 'rgb(62, 32, 192)',
+                                                                    fontWeight: 'bold',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                            >
+                                                                Report Game
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 {showStats && stats && (
                                                     <StatsPopup stats={stats} onClose={handleCloseStats} />
@@ -1753,8 +1993,20 @@ export const TournamentBracket = ({
                                         <div
                                             key={pairIndex}
                                             className={classes['game-block']}
-                                            // style={{ position: 'relative' }}
+                                            style={{ position: 'relative' }}
                                         >
+                                            {/* Live indicator - top right corner */}
+                                            {pair.games && pair.games.some((g) => g.gameStatus === 'In Progress') && (
+                                                <div
+                                                    className={classes.liveIndicator}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '0.5rem',
+                                                        right: '0.5rem',
+                                                        margin: 0
+                                                    }}
+                                                />
+                                            )}
                                             {stage !== 'Third Place' && stage !== 'Final' && (
                                                 <p>
                                                     {`Match ${pairIndex + 1}`} {`Best of ${stage === 'Final' ? 3 : 1}`}
@@ -1805,7 +2057,35 @@ export const TournamentBracket = ({
                                                         clickedRadioButton={clickedRadioButton}
                                                     />
                                                 </div>
-                                                {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        gap: '0.5rem',
+                                                        alignItems: 'center',
+                                                        marginTop: '2.5rem'
+                                                    }}
+                                                >
+                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                    {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
+                                                        <button
+                                                            onClick={() =>
+                                                                handleOpenReportGame(pair, stageIndex, pairIndex)
+                                                            }
+                                                            style={{
+                                                                padding: '0.5rem 1rem',
+                                                                background: 'gold',
+                                                                border: 'none',
+                                                                borderRadius: '6px',
+                                                                color: 'rgb(62, 32, 192)',
+                                                                fontWeight: 'bold',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.9rem'
+                                                            }}
+                                                        >
+                                                            Report Game
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                             {showStats && stats && (
                                                 <StatsPopup stats={stats} onClose={handleCloseStats} />
@@ -1817,6 +2097,15 @@ export const TournamentBracket = ({
                         );
                     })}
                 </div>
+            )}
+
+            {/* Report Game Modal */}
+            {showReportGameModal && selectedPairToReport && (
+                <ReportGameModal
+                    pair={selectedPairToReport}
+                    onClose={() => setShowReportGameModal(false)}
+                    onSubmit={handleSubmitGameReport}
+                />
             )}
         </div>
     );
