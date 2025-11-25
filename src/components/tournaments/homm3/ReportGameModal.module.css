@@ -1,0 +1,261 @@
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal {
+    position: relative;
+    background: linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%);
+    border: 2px solid gold;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: 2rem;
+    min-width: 500px;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+    color: white;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.closeButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 215, 0, 0.2);
+    border: 2px solid gold;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
+    cursor: pointer;
+    color: gold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    line-height: 1;
+    padding: 0;
+}
+
+.closeButton:hover {
+    background: gold;
+    color: rgb(62, 32, 192);
+    transform: rotate(90deg);
+}
+
+.title {
+    color: gold;
+    text-align: center;
+    font-size: 1.8rem;
+    margin: 0 0 1rem 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    padding-right: 2rem;
+}
+
+.matchup {
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.gameType {
+    text-align: center;
+    color: gold;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.gameSection {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    margin-bottom: 1rem;
+}
+
+.gameTitle {
+    color: gold;
+    font-size: 1.2rem;
+    margin: 0 0 1rem 0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.formGroup label {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.formGroup select,
+.formGroup input {
+    padding: 0.75rem;
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.formGroup select:focus,
+.formGroup input:focus {
+    outline: none;
+    border-color: gold;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.formGroup select option {
+    background: rgb(45, 20, 150);
+    color: white;
+}
+
+.scoreDisplay {
+    background: rgba(255, 215, 0, 0.15);
+    border: 2px solid gold;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    font-size: 1.2rem;
+    color: gold;
+    margin: 1rem 0;
+}
+
+.buttonGroup {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.submitButton,
+.cancelButton {
+    flex: 1;
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.submitButton {
+    background: gold;
+    color: rgb(62, 32, 192);
+    border: 2px solid gold;
+}
+
+.submitButton:hover {
+    background: #ffd700;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.cancelButton {
+    background: transparent;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.cancelButton:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: white;
+}
+
+/* Scrollbar styling */
+.modal::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.5);
+    border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb:hover {
+    background: gold;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .modal {
+        min-width: 90vw;
+        padding: 1.5rem;
+    }
+
+    .title {
+        font-size: 1.4rem;
+    }
+
+    .matchup {
+        font-size: 1.1rem;
+    }
+
+    .buttonGroup {
+        flex-direction: column;
+    }
+
+    .gameSection {
+        padding: 1rem;
+    }
+}

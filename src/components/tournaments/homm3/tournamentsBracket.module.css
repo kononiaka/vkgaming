@@ -1,9 +1,12 @@
 .brackets {
-    color: #ffffff;
+    color: gold;
+    font-weight: bold;
+    font-size: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .scrollable-list {
-    max-height: 450px; /* Adjust the height as needed */
+    max-height: 450px;
     overflow-y: auto;
 }
 
@@ -39,16 +42,9 @@
 .bracket-stages-container {
     color: #ffffff;
     display: flex;
-    /* flex-direction: row; */
-    /* align-items: flex-start; */
-    /* overflow-x: auto; */
-    gap: 1rem;
+    gap: 3rem;
     padding: 2rem 0;
-    /* width: 150%; */
-    /* box-sizing: border-box; */
-    /* justify-content: center; */
-    /* margin: 0 auto; This will center the flex container if possible */
-    /* Remove justify-content: center; */
+    position: relative;
 }
 
 .bracket-stages-container:has(.bracket-stages-column:last-child) {
@@ -57,28 +53,128 @@
 
 .bracket-stages-column {
     min-width: 600px;
-    background: #2a1a6b;
-    border-radius: 8px;
-    padding: 1rem;
+    background: linear-gradient(135deg, rgba(62, 32, 192, 0.3) 0%, rgba(45, 20, 150, 0.3) 100%);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
     margin-bottom: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center game blocks horizontally */
-    justify-content: center; /* Center game blocks vertically */
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* Connector lines between stages */
+.bracket-stages-column:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3rem;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.5) 0%, rgba(255, 215, 0, 0.2) 100%);
+    z-index: 0;
+}
+
+/* Add spacing between game blocks in semi-finals and later stages */
+.bracket-stages-column:nth-child(n+2) .game-block {
+    margin-bottom: 3rem;
+}
+
+.bracket-stages-column:nth-child(n+2) .game-block:last-child {
+    margin-bottom: 0;
+}
+
+.bracket-stages-column h3 {
+    color: gold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .game-block {
-    background: #21104a;
-    border: 2px solid #3e20c0;
-    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(62, 32, 192, 0.5) 0%, rgba(45, 20, 150, 0.5) 100%);
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    border-radius: 12px;
     margin-bottom: 1.5rem;
-    padding: 1rem;
-    box-shadow: 0 2px 8px rgba(62, 32, 192, 0.1);
-    transition: box-shadow 0.2s;
-    width: 100%; /* Ensure game blocks take full width of the column */
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    width: 100%;
+    position: relative;
 }
+
+.game-block:hover {
+    border-color: gold;
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
+    transform: translateY(-2px);
+}
+
 .game-block:last-child {
     margin-bottom: 0;
+}
+
+.game-block p {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Button Styles */
+.buttonGroup {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+
+.actionButton {
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, gold 0%, #ffd700 100%);
+    border: 2px solid gold;
+    border-radius: 8px;
+    color: rgb(62, 32, 192);
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.actionButton:hover {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+}
+
+.actionButton:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+.liveIndicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: red;
+    animation: blink 2s infinite;
+    margin-top: 0.5rem;
+}
+
+@keyframes blink {
+    0%,
+    49% {
+        opacity: 1;
+    }
+    50%,
+    100% {
+        opacity: 0.3;
+    }
 }
