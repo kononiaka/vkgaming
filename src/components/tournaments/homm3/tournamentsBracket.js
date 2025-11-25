@@ -1793,11 +1793,11 @@ export const TournamentBracket = ({
                                                 className={classes['game-block']}
                                                 style={{ position: 'relative' }}
                                             >
-                                                {/* Stats button positioned top right */}
+                                                {/* Stats button positioned bottom right */}
                                                 <div
                                                     style={{
                                                         position: 'absolute',
-                                                        top: '0.5rem',
+                                                        bottom: '0.5rem',
                                                         right: '0.5rem',
                                                         zIndex: 1
                                                     }}
@@ -1930,7 +1930,16 @@ export const TournamentBracket = ({
                                                             clickedRadioButton={clickedRadioButton}
                                                         />
                                                     </div>
-                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                    <div
+                                                        style={{
+                                                            position: 'absolute',
+                                                            bottom: '0.5rem',
+                                                            right: '0.5rem',
+                                                            zIndex: 2
+                                                        }}
+                                                    >
+                                                        {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                    </div>
                                                 </div>
                                                 {showStats && stats && (
                                                     <StatsPopup stats={stats} onClose={handleCloseStats} />
@@ -2007,6 +2016,17 @@ export const TournamentBracket = ({
                                                     }}
                                                 />
                                             )}
+                                            {/* Stats button - bottom right */}
+                                            <div
+                                                style={{
+                                                    position: 'absolute',
+                                                    bottom: '0.5rem',
+                                                    right: '0.5rem',
+                                                    zIndex: 2
+                                                }}
+                                            >
+                                                {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                            </div>
                                             {stage !== 'Third Place' && stage !== 'Final' && (
                                                 <p>
                                                     {`Match ${pairIndex + 1}`} {`Best of ${stage === 'Final' ? 3 : 1}`}
@@ -2059,13 +2079,22 @@ export const TournamentBracket = ({
                                                 </div>
                                                 <div
                                                     style={{
+                                                        position: 'absolute',
+                                                        bottom: '0.5rem',
+                                                        right: '0.5rem',
+                                                        zIndex: 2
+                                                    }}
+                                                >
+                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                </div>
+                                                <div
+                                                    style={{
                                                         display: 'flex',
                                                         gap: '0.5rem',
                                                         alignItems: 'center',
                                                         marginTop: '2.5rem'
                                                     }}
                                                 >
-                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
                                                     {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
                                                         <button
                                                             onClick={() =>

@@ -86,94 +86,100 @@ export const PlayerBracket = (props) => {
     };
 
     return (
-        <div className={classes.player_bracket} style={{ position: 'relative' }}>
-            <label
-                htmlFor={`score-${team}-${pairIndex}`}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={() => setShowTooltip(false)}
-                style={{ cursor: 'pointer' }}
-            >
-                {teamPlayer === winner ? (
-                    <div className={classes['green-indicator']}></div>
-                ) : winner === 'Tie' || winner === undefined ? (
-                    <div className={classes['grey-indicator']}></div>
-                ) : (
-                    <div className={classes['red-indicator']}></div>
-                )}
-            </label>
-
-            {teamPlayer}
-            {showTooltip && teamPlayer !== 'TBD' && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        left: 40, // adjust as needed to position right of the name/circle
-                        top: -30,
-                        background: '#fff',
-                        border: '1px solid #3e20c0',
-                        borderRadius: 6,
-                        padding: '8px 12px',
-                        zIndex: 9999,
-                        color: '#222',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        minWidth: 120
-                    }}
+        <div
+            className={classes.player_bracket}
+            style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', minWidth: '200px' }}>
+                <label
+                    htmlFor={`score-${team}-${pairIndex}`}
+                    onMouseEnter={handleMouseEnter}
                     onMouseLeave={() => setShowTooltip(false)}
-                    onMouseEnter={() => setShowTooltip(true)}
+                    style={{ cursor: 'pointer' }}
                 >
-                    <b>Last 5 games:</b>
-                    <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', gap: 6 }}>
-                        {streak.length === 0 && <li>No games found</li>}
-                        {streak.map((g, i) => (
-                            <li key={i} title={g.opponent} style={{ position: 'relative' }}>
-                                <span
-                                    style={{
-                                        display: 'inline-block',
-                                        width: 14,
-                                        height: 14,
-                                        borderRadius: '50%',
-                                        background: g.result === 'Win' ? '#4caf50' : '#f44336',
-                                        marginRight: 4,
-                                        verticalAlign: 'middle',
-                                        cursor: 'pointer'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                        if (tooltip) tooltip.style.display = 'block';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                        if (tooltip) tooltip.style.display = 'none';
-                                    }}
-                                ></span>
-                                {/* Hidden opponent name, shown on hover */}
-                                <span
-                                    id={`opponent-tooltip-${i}`}
-                                    style={{
-                                        display: 'none',
-                                        position: 'absolute',
-                                        top: '-28px',
-                                        left: '50%',
-                                        transform: 'translateX(-50%)',
-                                        background: '#222',
-                                        color: '#fff',
-                                        padding: '2px 8px',
-                                        borderRadius: 4,
-                                        fontSize: '0.95em',
-                                        whiteSpace: 'nowrap',
-                                        zIndex: 10000,
-                                        pointerEvents: 'none'
-                                    }}
-                                >
-                                    {g.opponent}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
+                    {teamPlayer === winner ? (
+                        <div className={classes['green-indicator']}></div>
+                    ) : winner === 'Tie' || winner === undefined ? (
+                        <div className={classes['grey-indicator']}></div>
+                    ) : (
+                        <div className={classes['red-indicator']}></div>
+                    )}
+                </label>
+
+                {teamPlayer}
+                {showTooltip && teamPlayer !== 'TBD' && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: 40, // adjust as needed to position right of the name/circle
+                            top: -30,
+                            background: '#fff',
+                            border: '1px solid #3e20c0',
+                            borderRadius: 6,
+                            padding: '8px 12px',
+                            zIndex: 9999,
+                            color: '#222',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            minWidth: 120
+                        }}
+                        onMouseLeave={() => setShowTooltip(false)}
+                        onMouseEnter={() => setShowTooltip(true)}
+                    >
+                        <b>Last 5 games:</b>
+                        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', gap: 6 }}>
+                            {streak.length === 0 && <li>No games found</li>}
+                            {streak.map((g, i) => (
+                                <li key={i} title={g.opponent} style={{ position: 'relative' }}>
+                                    <span
+                                        style={{
+                                            display: 'inline-block',
+                                            width: 14,
+                                            height: 14,
+                                            borderRadius: '50%',
+                                            background: g.result === 'Win' ? '#4caf50' : '#f44336',
+                                            marginRight: 4,
+                                            verticalAlign: 'middle',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            const tooltip = document.getElementById(`opponent-tooltip-${i}`);
+                                            if (tooltip) tooltip.style.display = 'block';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            const tooltip = document.getElementById(`opponent-tooltip-${i}`);
+                                            if (tooltip) tooltip.style.display = 'none';
+                                        }}
+                                    ></span>
+                                    {/* Hidden opponent name, shown on hover */}
+                                    <span
+                                        id={`opponent-tooltip-${i}`}
+                                        style={{
+                                            display: 'none',
+                                            position: 'absolute',
+                                            top: '-28px',
+                                            left: '50%',
+                                            transform: 'translateX(-50%)',
+                                            background: '#222',
+                                            color: '#fff',
+                                            padding: '2px 8px',
+                                            borderRadius: 4,
+                                            fontSize: '0.95em',
+                                            whiteSpace: 'nowrap',
+                                            zIndex: 10000,
+                                            pointerEvents: 'none'
+                                        }}
+                                    >
+                                        {g.opponent}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+
             {/* TODO: add the stars image when the tournament just started */}
-            <div className={classes.stars_container}>
+            <div className={classes.stars_container} style={{ minWidth: '120px' }}>
                 {playerStars && playerStars !== 'TBD' && (
                     <div className={classes.stars_wrapper} style={{ cursor: 'pointer' }}>
                         <StarsComponent stars={playerStars} />

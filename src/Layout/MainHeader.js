@@ -3,7 +3,7 @@ import CartButton from '../UI/LoginBtn/CartButton';
 // import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 
-import logo from '../image/logo.png';
+import logo from '../image/konoplay-logo-invert-1.png';
 // import AuthContext from '../store/auth-context';
 
 import classes from './MainHeader.module.css';
@@ -18,8 +18,8 @@ const MainHeader = (props) => (
     <header className={classes.header}>
         <div>
             <Link to="/">
-                <div className={classes.logo} style={{ width: '300px', height: '45px' }}>
-                    <img src={logo} alt="Logo" style={{ height: '100%' }} />
+                <div className={classes.logo}>
+                    <img src={logo} alt="Logo" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
                 </div>
             </Link>
             <div className={classes['logo-credo']}>Play with us!</div>

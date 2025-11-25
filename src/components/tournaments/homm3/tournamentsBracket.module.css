@@ -119,37 +119,6 @@
     margin-bottom: 0;
 }
 
-/* Horizontal line extending from each game block to the right */
-.bracket-stages-column:not(:last-child) .game-block::after {
-    content: '';
-    position: absolute;
-    right: -1.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.5rem;
-    height: 2px;
-    background: rgba(255, 215, 0, 0.5);
-    z-index: 1;
-}
-
-/* Vertical connecting lines for pairs */
-.bracket-stages-column:not(:last-child) .game-block:nth-child(odd):not(:last-child)::before {
-    content: '';
-    position: absolute;
-    right: -1.5rem;
-    top: 50%;
-    width: 2px;
-    height: calc(100% + 1.5rem);
-    background: rgba(255, 215, 0, 0.5);
-    z-index: 0;
-}
-
-/* Connecting line to next stage */
-.bracket-stages-column:not(:last-child):not(:nth-last-child(2))::after {
-    right: -3rem;
-    width: 1.5rem;
-}
-
 .game-block p {
     color: rgba(255, 255, 255, 0.9);
     font-weight: 600;
