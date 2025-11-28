@@ -113,6 +113,7 @@ const Layout = (props) => {
     // console.log('authCtx', JSON.stringify(authCtx));
     return (
         <Fragment>
+            <DonatorsBar />
             <MainHeader />
             <Container>{props.children}</Container>
             <GrafBanner handleGrafClick={handleGrafClick} onClose={helpCloseHandler}></GrafBanner>
@@ -147,7 +148,6 @@ const Layout = (props) => {
             {showAddTournament && <ModalAddTournament onClose={helpCloseHandler} addTournament />}
 
             <Notification />
-            <DonatorsBar />
         </Fragment>
     );
 };

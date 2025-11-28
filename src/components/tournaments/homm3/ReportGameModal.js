@@ -22,23 +22,25 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [score2, setScore2] = useState(0);
     const [gameResults, setGameResults] = useState([]);
 
-    // Available castles
+    // Available castles - using database format with Russian names
     const castles = [
-        'Castle',
-        'Rampart',
-        'Tower',
-        'Inferno',
-        'Necropolis',
-        'Dungeon',
-        'Stronghold',
-        'Fortress',
-        'Conflux',
-        'Cove',
-        'Factory'
+        'Castle-Замок',
+        'Rampart-Оплот',
+        'Tower-Башня',
+        'Inferno-Инферно',
+        'Necropolis-Некрополис',
+        'Dungeon-Подземелье',
+        'Stronghold-Цитадель',
+        'Fortress-Болото',
+        'Conflux-Сопряжение',
+        'Cove-Пиратская бухта',
+        'Factory-Фабрика'
     ];
 
     // Map castle names to imported images
     const getCastleImageUrl = (castleName) => {
+        // Extract English name from "Castle-Замок" format
+        const englishName = castleName.split('-')[0];
         const castleImages = {
             Castle: castleImg,
             Rampart: rampartImg,
@@ -52,7 +54,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             Cove: coveImg,
             Factory: factoryImg
         };
-        return castleImages[castleName] || '';
+        return castleImages[englishName] || '';
     };
 
     // Initialize game results for bo-3

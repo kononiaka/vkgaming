@@ -118,7 +118,7 @@
         "no-trailing-spaces": "off",
         "no-var": 1,
         "react/react-in-jsx-scope": "off",
-        "prettier/prettier": ["error", { "tabWidth": 4 }],
+        "prettier/prettier": ["warn", { "tabWidth": 4, "endOfLine": "auto" }],
         "indent": "off",
         "no-multiple-empty-lines": ["error", { "max": 5, "maxEOF": 1 }]
     },

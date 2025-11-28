@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import ReactDOM from 'react-dom';
 import classes from './DonatorsBar.module.css';
 
 const DonatorsBar = () => {
@@ -87,7 +86,7 @@ const DonatorsBar = () => {
         return '💰';
     };
 
-    const barContent = (
+    return (
         <div className={classes.donatorsBar}>
             <div className={classes.donatorsTrack}>
                 {duplicatedDonators.map((donator, index) => (
@@ -100,15 +99,6 @@ const DonatorsBar = () => {
             </div>
         </div>
     );
-
-    // Use portal to render at overlays level to ensure fixed positioning works
-    const overlaysElement = typeof window !== 'undefined' && window.document.getElementById('overlays');
-
-    if (overlaysElement) {
-        return ReactDOM.createPortal(barContent, overlaysElement);
-    }
-
-    return barContent;
 };
 
 export default DonatorsBar;
