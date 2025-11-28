@@ -29,3 +29,144 @@
     background-clip: text;
     filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8));
 }
+
+.tournamentsSection {
+    margin-top: 3rem;
+}
+
+.tournamentsSection h2 {
+    font-size: 1.5rem;
+    color: #00ffff;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    margin-bottom: 2rem;
+}
+
+.tournamentsList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.tournamentCard {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%);
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.tournamentCard:hover {
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(0, 255, 255, 0.1) 100%);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(255, 215, 0, 0.3);
+}
+
+.tournamentStatus {
+    font-size: 0.8rem;
+    color: #00ffff;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tournamentName {
+    font-size: 1.2rem;
+    color: #FFD700;
+    margin-bottom: 0.75rem;
+    font-weight: bold;
+}
+
+.tournamentDetails {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.liveGameCard {
+    background: linear-gradient(135deg, rgba(220, 20, 60, 0.2) 0%, rgba(139, 0, 0, 0.3) 100%);
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 
+        2px 2px 0 rgba(0, 0, 0, 0.5),
+        0 0 10px rgba(255, 0, 0, 0.3);
+    position: relative;
+}
+
+.liveGameCard:hover {
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 0, 0, 0.3) 0%, rgba(255, 215, 0, 0.2) 100%);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(255, 215, 0, 0.4);
+}
+
+.liveIndicator {
+    font-size: 0.75rem;
+    color: #ff0000;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        text-shadow: 0 0 5px #ff0000;
+    }
+    50% {
+        opacity: 0.6;
+        text-shadow: 0 0 15px #ff0000;
+    }
+}
+
+.matchup {
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.playerName {
+    font-size: 1rem;
+    color: #00ffff;
+    font-weight: bold;
+}
+
+.score {
+    font-size: 1.2rem;
+    color: #FFD700;
+    font-weight: bold;
+    min-width: 30px;
+    text-align: center;
+}
+
+.vs {
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.gameType {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-top: 0.5rem;
+    text-transform: uppercase;
+}

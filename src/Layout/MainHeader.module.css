@@ -8,14 +8,18 @@
     background: linear-gradient(180deg, #1a1a2e 0%, #0f172a 100%);
     border-bottom: 4px solid #FFD700;
     box-shadow:
-        0 0 0 2px #00ffff,
         0 4px 0 0 #0a0a0a,
         0 8px 16px rgba(0, 0, 0, 0.8);
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    z-index: 100;
 }
 
 .navLink {
     display: flex;
+    overflow: visible;
 }
 
 .navLink-link {
@@ -39,8 +43,10 @@
     /* visibility: hidden; */
     transition: opacity 0.8s ease-in-out;
     z-index: -1;
-    top: 60px;
+    top: 100%;
     left: 0px;
+    margin-top: 0;
+    min-width: 300px;
     /* transition: opacity 1s ease-in-out; */
 }
 .navLink-dropdown-statistic {
@@ -50,7 +56,9 @@
     transition: opacity 0.8s ease-in-out;
     z-index: -1;
     top: 0px;
-    left: 260px;
+    left: 100%;
+    margin-left: 4px;
+    min-width: 250px;
     /* transition: opacity 1s ease-in-out; */
 }
 
@@ -76,7 +84,7 @@
 .navLink-item:hover .navLink-dropdown {
     opacity: 1;
     /* visibility: visible; */
-    z-index: 1;
+    z-index: 250;
 }
 
 .navLink-dropdown-item {
@@ -103,13 +111,14 @@
 .navLink-dropdown:hover .navLink-dropdown-statistic {
     opacity: 1;
     /* visibility: visible; */
-    z-index: 1;
+    z-index: 250;
 }
 
 .navLink-item {
     padding: 25px;
     cursor: pointer;
     position: relative;
+    overflow: visible;
 }
 
 .navLink-item:hover {
@@ -125,18 +134,29 @@
     justify-content: center;
 }
 
+.navLink-item-btn:hover {
+    background: none;
+    box-shadow: none;
+}
 
+
+
+.logo img {
+    display: block;
+    height: 40px;
+    width: auto;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+}
 
 .logo-credo {
     text-decoration: none;
-    color: #00ffff;
+    color: #ffffff;
     text-transform: uppercase;
-    padding: 10px 0px;
-    font-size: 7px;
+    padding: 4px 0px;
+    font-size: 6px;
     position: relative;
     text-align: center;
-    margin-top: 7px;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
 }
 

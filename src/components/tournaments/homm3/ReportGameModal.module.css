@@ -23,6 +23,7 @@
 }
 
 .modal {
+    top: -50px;
     position: relative;
     background: linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%);
     border: 2px solid gold;

@@ -71,7 +71,7 @@ const AuthForm = () => {
     const submitFormHandler = async (event) => {
         event.preventDefault();
 
-        const enteredEmail = emailRef.current.value;
+        const enteredEmail = emailRef.current.value.toLowerCase().trim();
         const enteredPassword = passwordRef.current.value;
         let enteredNickname;
         if (!isLogin) {
@@ -155,10 +155,16 @@ const AuthForm = () => {
                     // Fetch all users to find the userId by nickname
                     const usersRes = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
                     const usersData = await usersRes.json();
+
+                    if (!usersData) {
+                        console.error('No users data found');
+                        return;
+                    }
+
                     let userId = null;
                     let userObj = null;
                     for (const [id, user] of Object.entries(usersData)) {
-                        if (user.enteredNickname === enteredNickname) {
+                        if (user && user.enteredNickname === enteredNickname) {
                             userId = id;
                             userObj = user;
                             break;
@@ -190,32 +196,53 @@ const AuthForm = () => {
                 navigate('/');
             })
             .catch((err) => {
-                alert(err.message);
+                let friendlyMessage = 'An error occurred during authentication.';
+
+                if (err.message.includes('EMAIL_NOT_FOUND')) {
+                    friendlyMessage = 'No account found with this email address.';
+                } else if (err.message.includes('INVALID_PASSWORD')) {
+                    friendlyMessage = 'Incorrect password. Please try again.';
+                } else if (err.message.includes('INVALID_LOGIN_CREDENTIALS')) {
+                    friendlyMessage = 'Invalid email or password. Please try again.';
+                } else if (err.message.includes('EMAIL_EXISTS')) {
+                    friendlyMessage = 'This email is already registered. Please login instead.';
+                } else if (err.message.includes('TOO_MANY_ATTEMPTS')) {
+                    friendlyMessage = 'Too many failed attempts. Please try again later.';
+                } else if (err.message.includes('USER_DISABLED')) {
+                    friendlyMessage = 'This account has been disabled.';
+                } else {
+                    friendlyMessage = err.message;
+                }
+
+                authCtx.setNotificationShown(true, friendlyMessage, 'error', 5);
+                setIsLoading(false);
             });
     };
     return (
         <section className={classes.auth}>
-            <h1>{isLogin ? 'Login' : 'Sign Up'}</h1>
-            <form onSubmit={submitFormHandler}>
+            <h1 className={classes.header}>{isLogin ? '🔑 Login' : '✨ Sign Up'}</h1>
+            <form onSubmit={submitFormHandler} className={classes.form}>
                 {!isLogin ? (
                     <div className={classes.control}>
-                        <label htmlFor="nickname">Your Nickname</label>
-                        <input type="name" id="nickname" ref={nicknameRef} required />
+                        <label htmlFor="nickname">🎮 Your Nickname</label>
+                        <input type="name" id="nickname" ref={nicknameRef} required placeholder="Enter your nickname" />
                     </div>
                 ) : null}
                 <div className={classes.control}>
-                    <label htmlFor="email">Your Email</label>
-                    <input type="email" id="email" ref={emailRef} required />
+                    <label htmlFor="email">📧 Your Email</label>
+                    <input type="email" id="email" ref={emailRef} required placeholder="Enter your email" />
                 </div>
                 <div className={classes.control}>
-                    <label htmlFor="password">Your Password</label>
-                    <input type="password" id="password" ref={passwordRef} required />
+                    <label htmlFor="password">🔒 Your Password</label>
+                    <input type="password" id="password" ref={passwordRef} required placeholder="Enter your password" />
                 </div>
                 <div className={classes.actions}>
-                    {!isLoading && <button>{isLogin ? 'Login' : 'Create Account'}</button>}
-                    {isLoading && <p>Loading...</p>}
+                    {!isLoading && (
+                        <button className={classes.submitBtn}>{isLogin ? '🚀 Login' : '✨ Create Account'}</button>
+                    )}
+                    {isLoading && <p className={classes.loading}>⏳ Loading...</p>}
                     <button type="button" className={classes.toggle} onClick={switchAuthModeHandler}>
-                        {isLogin ? 'Create new account' : 'Login with existing account'}
+                        {isLogin ? '🆕 Create new account' : '🔙 Login with existing account'}
                     </button>
                 </div>
             </form>

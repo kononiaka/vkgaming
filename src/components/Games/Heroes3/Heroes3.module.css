@@ -1,8 +1,311 @@
-.games-list {
-    color: #ffffff;
+.gamesContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-radius: 15px;
+    border: 3px solid #FFD700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.1);
 }
 
-.scrollable-list {
-    max-height: 700px; /* Adjust the height as needed */
+.header {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #FFD700;
+    text-align: center;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 215, 0, 0.5);
+    border: 4px solid #FFD700;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 255, 255, 0.1));
+    border-radius: 10px;
+}
+
+.loading {
+    text-align: center;
+    font-size: 1.5rem;
+    color: #00ffff;
+    padding: 40px;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+
+.searchBox,
+.sortBox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.controlLabel {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #00ffff;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    white-space: nowrap;
+}
+
+.searchInput {
+    padding: 10px 20px;
+    font-size: 1rem;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.3s ease;
+    min-width: 250px;
+}
+
+.searchInput::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.searchInput:hover {
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.searchInput:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.sortSelect {
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+    min-width: 200px;
+}
+
+.sortSelect:hover {
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.sortSelect:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.sortSelect option {
+    background: #1a1a2e;
+    color: #fff;
+}
+
+.gamesList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 20px;
+    max-height: 800px;
     overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* Scrollbar styling */
+.gamesList::-webkit-scrollbar {
+    width: 10px;
+}
+
+.gamesList::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+.gamesList::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #00ffff, #FFD700);
+    border-radius: 5px;
+}
+
+.gamesList::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #FFD700, #00ffff);
+}
+
+.gameCard {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.gameCard:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 255, 255, 0.4), 0 0 20px rgba(255, 215, 0, 0.2);
+    border-color: #FFD700;
+}
+
+.gameHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+}
+
+.gameDate {
+    font-size: 0.95rem;
+    color: #00ffff;
+    font-weight: bold;
+}
+
+.gameType {
+    font-size: 0.85rem;
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.2);
+    padding: 4px 12px;
+    border-radius: 12px;
+    border: 1px solid #FFD700;
+}
+
+.tournamentInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 255, 255, 0.1));
+    border-radius: 8px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    flex-wrap: wrap;
+}
+
+.tournamentName {
+    font-size: 0.9rem;
+    color: #FFD700;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+}
+
+.stage {
+    font-size: 0.85rem;
+    color: #00ffff;
+    background: rgba(0, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 10px;
+    border: 1px solid #00ffff;
+    font-weight: bold;
+}
+
+.matchup {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.player {
+    flex: 1;
+    text-align: center;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.player:hover {
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.winnerPlayer {
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+}
+
+.playerName {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.winnerPlayer .playerName {
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.castle {
+    font-size: 0.9rem;
+    color: #00ffff;
+    margin-top: 5px;
+}
+
+.vs {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #f44336;
+    background: rgba(244, 67, 54, 0.2);
+    padding: 8px 15px;
+    border-radius: 8px;
+    border: 2px solid #f44336;
+    text-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
+}
+
+.score {
+    text-align: center;
+    font-size: 1rem;
+    color: #fff;
+    margin: 15px 0 10px 0;
+    padding: 8px;
+    background: rgba(0, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.winner {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #FFD700;
+    padding: 10px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    margin-top: 10px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .gamesList {
+        grid-template-columns: 1fr;
+    }
+
+    .matchup {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .vs {
+        transform: rotate(90deg);
+    }
+
+    .header {
+        font-size: 2rem;
+    }
 }

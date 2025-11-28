@@ -4,22 +4,26 @@
     left: 0;
     width: 100%;
     height: 100vh;
-    z-index: 20;
-    background-color: rgba(219, 216, 216, 0.75);
-    opacity: 0.8;
+    z-index: 150;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
 }
 
 .modal {
     position: fixed;
-    top: 70vh;
+    top: 50vh;
     font-size: 10px;
     left: calc(50% + 35rem);
     width: 35em;
-    background-color: white;
-    padding: 1rem;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 2rem;
     border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    border: 3px solid #00ffff;
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(0, 255, 255, 0.3),
+        inset 0 2px 4px rgba(255, 215, 0, 0.1);
+    z-index: 200;
     animation: slide-down 300ms ease-out forwards;
 }
 
@@ -99,7 +103,7 @@
     padding: 1rem;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    z-index: 200;
     animation: slide-down 300ms ease-out forwards;
 }
 
@@ -114,7 +118,7 @@
     padding: 1rem;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    z-index: 200;
     animation: slide-left 300ms ease-out forwards;
 }
 
@@ -125,11 +129,15 @@
     bottom: 15vh;
     right: calc(50% + 25rem);
     width: 30em;
-    background-color: white;
-    padding: 1rem 1rem 1rem 3rem;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 2rem 2rem 2rem 3rem;
     border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    border: 3px solid #FFD700;
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(255, 215, 0, 0.3),
+        inset 0 2px 4px rgba(0, 255, 255, 0.1);
+    z-index: 200;
     animation: slide-left 300ms ease-out forwards;
 }
 
@@ -142,12 +150,88 @@
     top: calc(-5% + 5rem);
     width: 90em;
     height: 55em;
-    background-color: white;
-    padding: 1rem 1rem 1rem 3rem;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 2rem 2rem 2rem 3rem;
     border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    border: 3px solid #4caf50;
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(76, 175, 80, 0.4);
+    z-index: 200;
     animation: slide-left 300ms ease-out forwards;
+    color: #00ffff;
+}
+
+.modal_addGame label {
+    color: #FFD700;
+    font-weight: bold;
+    display: block;
+    margin-top: 0.5rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+}
+
+.modal_addGame select,
+.modal_addGame input {
+    width: calc(50% - 1rem);
+    padding: 0.5rem;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    color: #00ffff;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    margin-right: 0.5rem;
+    display: inline-block;
+}
+
+.modal_addGame select:focus,
+.modal_addGame input:focus {
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.modal_addGame button {
+    position: absolute;
+    bottom: 2rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    color: #000;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modal_addGame button:first-of-type {
+    left: 3rem;
+}
+
+.modal_addGame button:last-of-type {
+    left: 12rem;
+}
+
+.modal_addGame button:hover {
+    background: linear-gradient(135deg, #00ffff, #0099cc);
+    border-color: #00ffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 255, 0.5);
+}
+
+.modal_addGame button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(100%);
+    background: linear-gradient(135deg, #666, #444);
+    border-color: #666;
+}
+
+.modal_addGame button:disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 .modal_addTournament {
@@ -159,12 +243,88 @@
     top: calc(-5% + 5rem);
     width: 90em;
     height: 55em;
-    background-color: white;
-    padding: 1rem 1rem 1rem 3rem;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 2rem 2rem 2rem 3rem;
     border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    border: 3px solid #e91e63;
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(233, 30, 99, 0.4);
+    z-index: 200;
     animation: slide-left 300ms ease-out forwards;
+    color: #00ffff;
+}
+
+.modal_addTournament label {
+    color: #FFD700;
+    font-weight: bold;
+    display: block;
+    margin-top: 0.5rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+}
+
+.modal_addTournament select,
+.modal_addTournament input {
+    width: calc(50% - 1rem);
+    padding: 0.5rem;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    color: #00ffff;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    margin-right: 0.5rem;
+    display: inline-block;
+}
+
+.modal_addTournament select:focus,
+.modal_addTournament input:focus {
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.modal_addTournament button {
+    position: absolute;
+    bottom: 2rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    color: #000;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modal_addTournament button:first-of-type {
+    left: 3rem;
+}
+
+.modal_addTournament button:last-of-type {
+    left: 12rem;
+}
+
+.modal_addTournament button:hover {
+    background: linear-gradient(135deg, #00ffff, #0099cc);
+    border-color: #00ffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 255, 0.5);
+}
+
+.modal_addTournament button:disabled {
+    opacity: 0.4;
+    filter: grayscale(100%);
+    background: linear-gradient(135deg, #666, #555);
+    border-color: #666;
+    cursor: not-allowed;
+}
+
+.modal_addTournament button:disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 @keyframes slide-left {
@@ -191,7 +351,7 @@
     padding: 1rem;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    z-index: 200;
     animation: slide-down 300ms ease-out forwards;
 }
 
@@ -205,7 +365,7 @@
     padding: 0.5rem;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    z-index: 200;
     animation: slide-down 300ms ease-out forwards;
 }
 
@@ -219,6 +379,6 @@
     padding: 1rem;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    z-index: 200;
     animation: slide-down 300ms ease-out forwards;
 }

@@ -11,6 +11,8 @@ import dungeonImg from '../../../image/castles/dungeon.jpeg';
 import strongholdImg from '../../../image/castles/stronghold.jpeg';
 import fortressImg from '../../../image/castles/fortress.jpeg';
 import confluxImg from '../../../image/castles/conflux.jpeg';
+import coveImg from '../../../image/castles/cove.jpeg';
+import factoryImg from '../../../image/castles/factory.jpeg';
 
 const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [selectedWinner, setSelectedWinner] = useState('');
@@ -30,7 +32,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
         'Dungeon',
         'Stronghold',
         'Fortress',
-        'Conflux'
+        'Conflux',
+        'Cove',
+        'Factory'
     ];
 
     // Map castle names to imported images
@@ -44,7 +48,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             Dungeon: dungeonImg,
             Stronghold: strongholdImg,
             Fortress: fortressImg,
-            Conflux: confluxImg
+            Conflux: confluxImg,
+            Cove: coveImg,
+            Factory: factoryImg
         };
         return castleImages[castleName] || '';
     };
@@ -167,74 +173,72 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     <h3 className={classes.gameTitle}>Game {idx + 1}</h3>
                                     <div className={classes.formGroup}>
                                         <label>{pair.team1} Castle:</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            {!game.castle1 ? (
-                                                <select
-                                                    value={game.castle1}
-                                                    onChange={(e) =>
-                                                        handleGameResultChange(idx, 'castle1', e.target.value)
-                                                    }
-                                                >
-                                                    <option value="">Select Castle</option>
-                                                    {castles.map((c) => (
-                                                        <option key={c} value={c}>
-                                                            {c}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            ) : (
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(6, 1fr)',
+                                                gap: '0.5rem',
+                                                maxWidth: '600px'
+                                            }}
+                                        >
+                                            {castles.map((c) => (
                                                 <img
-                                                    src={getCastleImageUrl(game.castle1)}
-                                                    alt={game.castle1}
-                                                    title={game.castle1}
+                                                    key={c}
+                                                    src={getCastleImageUrl(c)}
+                                                    alt={c}
+                                                    title={c}
                                                     style={{
-                                                        height: '48px',
-                                                        width: 'auto',
-                                                        maxWidth: '120px',
-                                                        border: '2px solid gold',
+                                                        width: '90px',
+                                                        height: '60px',
+                                                        border:
+                                                            game.castle1 === c
+                                                                ? '3px solid #FFD700'
+                                                                : '2px solid #00ffff',
                                                         borderRadius: '4px',
-                                                        objectFit: 'contain',
-                                                        cursor: 'pointer'
+                                                        objectFit: 'cover',
+                                                        cursor: 'pointer',
+                                                        opacity: game.castle1 === c ? 1 : 0.6,
+                                                        transform: game.castle1 === c ? 'scale(1.05)' : 'scale(1)',
+                                                        transition: 'all 0.2s ease'
                                                     }}
-                                                    onClick={() => handleGameResultChange(idx, 'castle1', '')}
+                                                    onClick={() => handleGameResultChange(idx, 'castle1', c)}
                                                 />
-                                            )}
+                                            ))}
                                         </div>
                                     </div>
                                     <div className={classes.formGroup}>
                                         <label>{pair.team2} Castle:</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            {!game.castle2 ? (
-                                                <select
-                                                    value={game.castle2}
-                                                    onChange={(e) =>
-                                                        handleGameResultChange(idx, 'castle2', e.target.value)
-                                                    }
-                                                >
-                                                    <option value="">Select Castle</option>
-                                                    {castles.map((c) => (
-                                                        <option key={c} value={c}>
-                                                            {c}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            ) : (
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(6, 1fr)',
+                                                gap: '0.5rem',
+                                                maxWidth: '600px'
+                                            }}
+                                        >
+                                            {castles.map((c) => (
                                                 <img
-                                                    src={getCastleImageUrl(game.castle2)}
-                                                    alt={game.castle2}
-                                                    title={game.castle2}
+                                                    key={c}
+                                                    src={getCastleImageUrl(c)}
+                                                    alt={c}
+                                                    title={c}
                                                     style={{
-                                                        height: '48px',
-                                                        width: 'auto',
-                                                        maxWidth: '120px',
-                                                        border: '2px solid gold',
+                                                        width: '90px',
+                                                        height: '60px',
+                                                        border:
+                                                            game.castle2 === c
+                                                                ? '3px solid #FFD700'
+                                                                : '2px solid #00ffff',
                                                         borderRadius: '4px',
-                                                        objectFit: 'contain',
-                                                        cursor: 'pointer'
+                                                        objectFit: 'cover',
+                                                        cursor: 'pointer',
+                                                        opacity: game.castle2 === c ? 1 : 0.6,
+                                                        transform: game.castle2 === c ? 'scale(1.05)' : 'scale(1)',
+                                                        transition: 'all 0.2s ease'
                                                     }}
-                                                    onClick={() => handleGameResultChange(idx, 'castle2', '')}
+                                                    onClick={() => handleGameResultChange(idx, 'castle2', c)}
                                                 />
-                                            )}
+                                            ))}
                                         </div>
                                     </div>
                                     <div className={classes.formGroup}>
@@ -259,64 +263,66 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             {/* BO-1 Game Result */}
                             <div className={classes.formGroup}>
                                 <label>{pair.team1} Castle:</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {!castle1 ? (
-                                        <select value={castle1} onChange={(e) => setCastle1(e.target.value)}>
-                                            <option value="">Select Castle</option>
-                                            {castles.map((c) => (
-                                                <option key={c} value={c}>
-                                                    {c}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(6, 1fr)',
+                                        gap: '0.5rem',
+                                        maxWidth: '600px'
+                                    }}
+                                >
+                                    {castles.map((c) => (
                                         <img
-                                            src={getCastleImageUrl(castle1)}
-                                            alt={castle1}
-                                            title={castle1}
+                                            key={c}
+                                            src={getCastleImageUrl(c)}
+                                            alt={c}
+                                            title={c}
                                             style={{
-                                                height: '48px',
-                                                width: 'auto',
-                                                maxWidth: '120px',
-                                                border: '2px solid gold',
+                                                width: '90px',
+                                                height: '60px',
+                                                border: castle1 === c ? '3px solid #FFD700' : '2px solid #00ffff',
                                                 borderRadius: '4px',
-                                                objectFit: 'contain',
-                                                cursor: 'pointer'
+                                                objectFit: 'cover',
+                                                cursor: 'pointer',
+                                                opacity: castle1 === c ? 1 : 0.6,
+                                                transform: castle1 === c ? 'scale(1.05)' : 'scale(1)',
+                                                transition: 'all 0.2s ease'
                                             }}
-                                            onClick={() => setCastle1('')}
+                                            onClick={() => setCastle1(c)}
                                         />
-                                    )}
+                                    ))}
                                 </div>
                             </div>
                             <div className={classes.formGroup}>
                                 <label>{pair.team2} Castle:</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {!castle2 ? (
-                                        <select value={castle2} onChange={(e) => setCastle2(e.target.value)}>
-                                            <option value="">Select Castle</option>
-                                            {castles.map((c) => (
-                                                <option key={c} value={c}>
-                                                    {c}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(6, 1fr)',
+                                        gap: '0.5rem',
+                                        maxWidth: '600px'
+                                    }}
+                                >
+                                    {castles.map((c) => (
                                         <img
-                                            src={getCastleImageUrl(castle2)}
-                                            alt={castle2}
-                                            title={castle2}
+                                            key={c}
+                                            src={getCastleImageUrl(c)}
+                                            alt={c}
+                                            title={c}
                                             style={{
-                                                height: '48px',
-                                                width: 'auto',
-                                                maxWidth: '120px',
-                                                border: '2px solid gold',
+                                                width: '90px',
+                                                height: '60px',
+                                                border: castle2 === c ? '3px solid #FFD700' : '2px solid #00ffff',
                                                 borderRadius: '4px',
-                                                objectFit: 'contain',
-                                                cursor: 'pointer'
+                                                objectFit: 'cover',
+                                                cursor: 'pointer',
+                                                opacity: castle2 === c ? 1 : 0.6,
+                                                transform: castle2 === c ? 'scale(1.05)' : 'scale(1)',
+                                                transition: 'all 0.2s ease'
                                             }}
-                                            onClick={() => setCastle2('')}
+                                            onClick={() => setCastle2(c)}
                                         />
-                                    )}
+                                    ))}
                                 </div>
                             </div>
                             <div className={classes.formGroup}>

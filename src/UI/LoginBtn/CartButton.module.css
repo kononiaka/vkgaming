@@ -2,20 +2,181 @@
     width: 150px;
 }
 
+.buttonGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.statBox {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    padding: 8px 0;
+    width: 80px;
+    height: 40px;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.statBox.starsBox {
+    justify-content: flex-start;
+    padding-left: 8px;
+    width: auto;
+    min-width: 50px;
+    max-width: 160px;
+    padding-right: 8px;
+}
+
+.statBox:hover {
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.statBox:hover .tooltip {
+    opacity: 1;
+}
+
+.starsBox {
+    margin-right: 80px;
+}
+
+.coinIcon {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, 
+        #FFD700 0%, #FFD700 20%,
+        #FFA500 20%, #FFA500 40%,
+        #FFD700 40%, #FFD700 60%,
+        #FFA500 60%, #FFA500 80%,
+        #FFD700 80%, #FFD700 100%
+    );
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 
+        inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+        inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+        0 0 8px rgba(255, 215, 0, 0.6);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    pointer-events: none;
+}
+
+.coinIcon::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background: #B8860B;
+    border-radius: 50%;
+    box-shadow: 
+        0 0 0 2px #FFD700,
+        0 0 0 3px #B8860B;
+}
+
+.coinIcon::after {
+    content: '$';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-size: 12px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    text-shadow: 
+        1px 1px 0 #000,
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000;
+}
+
+.statValue {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 1rem;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+    pointer-events: none;
+}
+
 .button {
     font: inherit;
     cursor: pointer;
     padding: 0.5rem 1.5rem;
     border-radius: 6px;
     background-color: transparent;
-    color: #1ad1b9;
-    border: 1px solid #1ad1b9;
+    color: #00ffff;
+    border: 1px solid #00ffff;
     text-decoration: none;
+    transition: all 0.3s ease;
 }
 
 .button:hover,
 .button:active {
-    background-color: #1ac5d1;
-    border-color: #1ac5d1;
-    color: white;
+    background-color: #00ffff;
+    border-color: #FFD700;
+    color: #1a1a2e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 255, 255, 0.3);
+}
+
+.iconButton {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.iconButton:hover {
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.icon {
+    font-size: 1.5rem;
+}
+
+.tooltip {
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #00ffff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 2px solid #FFD700;
+    font-size: 0.85rem;
+    font-weight: bold;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 9999;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.iconButton:hover .tooltip {
+    opacity: 1;
+    z-index: 9;
 }

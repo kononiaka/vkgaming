@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { lookForUserId, fetchLeaderboard } from '../../../api/api';
 import AuthContext from '../../../store/auth-context';
 import { getTournamentData } from '../../tournaments/tournament_api';
@@ -7,6 +8,7 @@ import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
 const TournamentList = () => {
+    const { tournamentId } = useParams();
     const [tournaments, setTournaments] = useState([]);
     const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
@@ -15,14 +17,15 @@ const TournamentList = () => {
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
+    const [statusFilter, setStatusFilter] = useState('all');
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
-    const toggleShowPlayers = (tournamentId) => {
+    const toggleShowPlayers = (competitionId) => {
         setShowPlayers((prev) => {
             const updatedState = {
                 ...prev,
-                [tournamentId]: !prev[tournamentId]
+                [competitionId]: !prev[competitionId]
             };
             return updatedState;
         });
@@ -63,6 +66,19 @@ const TournamentList = () => {
     useEffect(() => {
         fetchTournaments();
     }, []);
+
+    // Auto-open tournament details if tournamentId is in URL
+    useEffect(() => {
+        if (tournamentId && tournaments.length > 0) {
+            const tournament = tournaments.find((t) => t.id === tournamentId);
+            if (tournament) {
+                setClickedId(tournamentId);
+                setShowDetails(true);
+                setTournamentStatus(tournament.status);
+                setTournamentWinners(tournament.winners || '');
+            }
+        }
+    }, [tournamentId, tournaments]);
 
     const checkRegisterUser = (currentUser, players) => {
         const registeredPlayers = Object.values(players).filter((player) => player !== null);
@@ -232,91 +248,141 @@ const TournamentList = () => {
         setTournamentWinners(currentTournamentWinnersObject);
     };
 
+    const filteredTournaments = tournaments.filter((tournament) => {
+        if (statusFilter === 'all') {
+            return true;
+        }
+        if (statusFilter === 'registration') {
+            return tournament.status === 'Registration' || tournament.status === 'Registration Started';
+        }
+        if (statusFilter === 'started') {
+            return tournament.status === 'Started!';
+        }
+        if (statusFilter === 'finished') {
+            return tournament.status.includes('Finished');
+        }
+        return true;
+    });
+
     const tournamentList =
         tournaments.length > 0 ? (
-            <ul>
-                {tournaments
-                    .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort tournaments by date
+            <ul className={classes.tournamentList}>
+                {filteredTournaments
+                    .sort((a, b) => {
+                        const statusOrder = {
+                            'Registration Started': 1,
+                            Registration: 1,
+                            'Started!': 2,
+                            'Tournament Finished': 3
+                        };
+                        const statusDiff = (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
+                        if (statusDiff !== 0) {
+                            return statusDiff;
+                        }
+                        return new Date(b.date) - new Date(a.date);
+                    })
                     .map((tournament) => {
                         maxTournamnetPlayers = tournament.maxPlayers;
 
+                        const getStatusClass = (status) => {
+                            if (status === 'Registration' || status.includes('Registration')) return 'registration';
+                            if (status === 'Started!') return 'started';
+                            if (status.includes('Finished')) return 'finished';
+                            return '';
+                        };
+
+                        const getMedalEmoji = (place) => {
+                            if (place === '1st' || place === '1') return '🥇';
+                            if (place === '2nd' || place === '2') return '🥈';
+                            if (place === '3rd' || place === '3') return '🥉';
+                            return '🏅';
+                        };
+
                         return (
                             <li key={tournament.id} className={classes.bracket}>
-                                <h3 style={{ color: 'red' }}>{`${tournament.name} (${tournament.date})`}</h3>
-                                <p>Status: {tournament.status}</p>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <p>Players registered: {Object.values(tournament.players).length}</p>
-                                    {showPlayers[tournament.id] && (
-                                        <>
-                                            {'players' in tournament && (
-                                                <ul>
-                                                    {Object.values(tournament.players)
-                                                        .filter(
-                                                            (player) =>
-                                                                player !== null &&
-                                                                player.name !== undefined &&
-                                                                player.name.trim() !== ''
-                                                        )
-                                                        .map((player, index) => (
-                                                            <li key={index}>{player.name}</li>
-                                                        ))}
-                                                </ul>
-                                            )}
-                                        </>
+                                <h3 className={classes.tournamentTitle}>{`${tournament.name} (${tournament.date})`}</h3>
+                                <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
+                                    {tournament.status}
+                                </div>
+                                <div className={classes.infoGrid}>
+                                    <div className={classes.infoItem}>
+                                        <p>
+                                            <strong>{Object.values(tournament.players).length}</strong> /{' '}
+                                            {maxTournamnetPlayers}
+                                        </p>
+                                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
+                                            Players Registered
+                                        </p>
+                                    </div>
+                                    <div className={classes.infoItem}>
+                                        <p>
+                                            <strong>{maxTournamnetPlayers}</strong>
+                                        </p>
+                                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
+                                            Max Players
+                                        </p>
+                                    </div>
+                                    {tournament.winner && tournament.status.includes('Finished') && (
+                                        <div className={classes.infoItem} style={{ gridColumn: '1 / -1' }}>
+                                            <div className={classes.winnersPreview}>
+                                                {Object.entries(tournament.winners)
+                                                    .slice(0, 3)
+                                                    .map(([place, winner]) => (
+                                                        <div key={place} className={classes.winnerPreviewItem}>
+                                                            <span className={classes.medal}>
+                                                                {getMedalEmoji(place)}
+                                                            </span>
+                                                            <span className={classes.winnerName}>{winner}</span>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
                                     )}
-
-                                    <button
-                                        style={{ marginLeft: '10px' }}
-                                        onClick={() => toggleShowPlayers(tournament.id)}
-                                    >
-                                        {showPlayers[tournament.id] ? 'Hide Players' : 'Show Players'}
-                                    </button>
                                 </div>
 
-                                <p>Max players: {maxTournamnetPlayers}</p>
-                                <button
-                                    onClick={() =>
-                                        showDetailsHandler(tournament.status, tournament.winners, tournament.id)
-                                    }
-                                >
-                                    View details
-                                </button>
+                                <div className={classes.playersSection}>
+                                    <div className={classes.playersHeader}>
+                                        <button
+                                            className={`${classes.btn} ${classes.btnToggle}`}
+                                            onClick={() => toggleShowPlayers(tournament.id)}
+                                        >
+                                            {showPlayers[tournament.id] ? '👥 Hide Players' : '👥 Show Players'}
+                                        </button>
+                                    </div>
+                                    {showPlayers[tournament.id] && 'players' in tournament && (
+                                        <ul className={classes.playersList}>
+                                            {Object.values(tournament.players)
+                                                .filter(
+                                                    (player) =>
+                                                        player !== null &&
+                                                        player.name !== undefined &&
+                                                        player.name.trim() !== ''
+                                                )
+                                                .map((player, index) => (
+                                                    <li key={index}>{player.name}</li>
+                                                ))}
+                                        </ul>
+                                    )}
+                                </div>
 
-                                {'players' in tournament &&
-                                Object.keys(tournament.players).length < tournament.maxPlayers ? (
-                                    checkRegisterUser(userNickName, tournament.players) ? (
-                                        <div>
-                                            {/* TODO make a toggle */}
-                                            <p>You are already registered!</p>
-                                        </div>
-                                    ) : (
-                                        isLogged && (
-                                            <button
-                                                onClick={() =>
-                                                    addUserTournament(
-                                                        tournament.id,
-                                                        userNickName,
-                                                        tournament.players,
-                                                        tournament.maxPlayers
-                                                    )
-                                                }
-                                            >
-                                                Register-1
-                                            </button>
-                                        )
-                                    )
-                                ) : (
-                                    <p>{tournament.status}</p>
-                                )}
+                                <div className={classes.actionButtons}>
+                                    <button
+                                        className={`${classes.btn} ${classes.btnPrimary}`}
+                                        onClick={() =>
+                                            showDetailsHandler(tournament.status, tournament.winners, tournament.id)
+                                        }
+                                    >
+                                        🏆 View Bracket
+                                    </button>
 
-                                {'players' in tournament ? (
-                                    showDetails && renderPlayerList(tournament.players)
-                                ) : (
-                                    <>
-                                        <p>No players registered.</p>
-                                        {isLogged &&
-                                            +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
+                                    {'players' in tournament &&
+                                    Object.keys(tournament.players).length < tournament.maxPlayers ? (
+                                        checkRegisterUser(userNickName, tournament.players) ? (
+                                            <div className={classes.registeredBadge}>✓ You are registered!</div>
+                                        ) : (
+                                            isLogged && (
                                                 <button
+                                                    className={classes.btn}
                                                     onClick={() =>
                                                         addUserTournament(
                                                             tournament.id,
@@ -326,19 +392,45 @@ const TournamentList = () => {
                                                         )
                                                     }
                                                 >
-                                                    Register-2
+                                                    📝 Register Now
+                                                </button>
+                                            )
+                                        )
+                                    ) : null}
+                                </div>
+
+                                {'players' in tournament ? (
+                                    showDetails && renderPlayerList(tournament.players)
+                                ) : (
+                                    <>
+                                        <p style={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>
+                                            No players registered yet.
+                                        </p>
+                                        {isLogged &&
+                                            +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
+                                                <button
+                                                    className={classes.btn}
+                                                    onClick={() =>
+                                                        addUserTournament(
+                                                            tournament.id,
+                                                            userNickName,
+                                                            tournament.players,
+                                                            tournament.maxPlayers
+                                                        )
+                                                    }
+                                                >
+                                                    📝 Be the First to Register
                                                 </button>
                                             )}
                                     </>
                                 )}
-                                <p>Price Pull</p>
-
                                 {tournament.status === 'Registration Started' &&
                                     +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
-                                        <div>
+                                        <div className={classes.inputGroup}>
                                             <label htmlFor="nickname">Player's Nickname</label>
                                             <input type="name" id="nickname" ref={nicknameRef} required />
                                             <button
+                                                className={classes.btn}
                                                 onClick={() =>
                                                     addUserTournament(
                                                         tournament.id,
@@ -348,31 +440,112 @@ const TournamentList = () => {
                                                     )
                                                 }
                                             >
-                                                Add Player
+                                                ➕ Add Player
                                             </button>
                                         </div>
                                     )}
-                                {/* {console.log(tournament)} */}
-                                {Object.entries(tournament.pricePull).map(([place, prize]) => (
-                                    <div key={place}>{`${place}: ${prize}$`}</div>
-                                ))}
-                                {tournament.winner && <p>Winners</p>}
-                                {/* {console.log(tournament.winner)} */}
-                                {tournament.winner &&
-                                    Object.entries(tournament.winners).map(([place, winner]) => (
-                                        <div key={place}>{`${place}: ${winner}`}</div>
-                                    ))}
+
+                                {!tournament.status.includes('Finished') ? (
+                                    <div className={classes.prizePool}>
+                                        <h4>💰 Prize Pool</h4>
+                                        {Object.entries(tournament.pricePull).map(([place, prize]) => (
+                                            <div key={place} className={classes.prizeItem}>
+                                                <span className={classes.medal}>{getMedalEmoji(place)}</span>
+                                                <span className={classes.prizePlace}>{place}:</span>
+                                                <span className={classes.prizeAmount}>${prize}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    tournament.winners && (
+                                        <div className={classes.winnersSection}>
+                                            <h4>🏆 Tournament Winners</h4>
+                                            {Object.entries(tournament.winners).map(([place, winner]) => {
+                                                // Find prize amount by matching the place key (case-insensitive)
+                                                let prize = null;
+                                                if (tournament.pricePull) {
+                                                    // Try exact match first
+                                                    prize = tournament.pricePull[place];
+                                                    // If not found, try case-insensitive match
+                                                    if (!prize) {
+                                                        const prizeKey = Object.keys(tournament.pricePull).find(
+                                                            (key) => key.toLowerCase() === place.toLowerCase()
+                                                        );
+                                                        prize = prizeKey ? tournament.pricePull[prizeKey] : null;
+                                                    }
+                                                }
+                                                return (
+                                                    <div key={place} className={classes.winnerItem}>
+                                                        <span className={classes.medalLarge}>
+                                                            {getMedalEmoji(place)}
+                                                        </span>
+                                                        <span className={classes.placeLabel}>{place}</span>
+                                                        <span className={classes.winnerNameLarge}>
+                                                            {winner}
+                                                            {prize && (
+                                                                <span className={classes.prizeInBrackets}>
+                                                                    {' '}
+                                                                    (${prize})
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )
+                                )}
                             </li>
                         );
                     })}
             </ul>
         ) : (
-            <ul>No current tournaments</ul>
+            <div className={classes.noTournaments}>No current tournaments available</div>
         );
 
     return (
-        <div>
-            <h2>Current Tournaments</h2>
+        <div className={classes.tournamentContainer}>
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '1.5rem'
+                }}
+            >
+                <h2 style={{ margin: 0, flex: 1 }} className={classes.tournamentHeader}>
+                    Current Tournaments
+                </h2>
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05))',
+                        border: '2px solid #00ffff',
+                        borderRadius: '8px',
+                        color: '#00ffff',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        minWidth: '200px',
+                        flexShrink: 0
+                    }}
+                >
+                    <option value="all" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        All Tournaments
+                    </option>
+                    <option value="registration" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        📝 Registration Open
+                    </option>
+                    <option value="started" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        🎮 In Progress
+                    </option>
+                    <option value="finished" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        🏆 Finished
+                    </option>
+                </select>
+            </div>
             {tournamentList}
             {showDetails && (
                 <Modal onClose={closeModalHandler}>

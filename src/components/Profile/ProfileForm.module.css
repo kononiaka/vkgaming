@@ -1,45 +1,392 @@
-.form {
-    width: 95%;
-    max-width: 25rem;
-    margin: 2rem auto;
+.profileContainer {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 3px solid #FFD700;
+    border-radius: 15px;
+    padding: 40px;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), inset 0 0 30px rgba(0, 255, 255, 0.1);
 }
 
-.control {
-    margin-bottom: 0.5rem;
+.avatarSection {
+    text-align: center;
+    margin-bottom: 30px;
 }
 
-.control label {
+.avatar {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    border: 4px solid #FFD700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    object-fit: cover;
+}
+
+.uploadSection {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.uploadLabel {
+    display: block;
+    color: #00ffff;
     font-weight: bold;
-    margin-bottom: 2rem;
-    color: #ffffff;
-    display: block;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
 }
 
-.control input {
-    display: block;
-    font: inherit;
-    width: 100%;
-    border-radius: 4px;
-    border: 1px solid #38015c;
-    padding: 0.5rem;
-    background-color: #f7f0fa;
-}
-
-.action {
-    margin-top: 3rem;
-}
-
-.action button {
-    font: inherit;
+.uploadBtn {
+    padding: 12px 30px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #1a1a2e;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: 2px solid #FFD700;
+    border-radius: 8px;
     cursor: pointer;
-    padding: 0.5rem 1.5rem;
-    border-radius: 4px;
-    background-color: #38015c;
-    color: white;
-    border: 1px solid #38015c;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
-.action button:hover {
-    background-color: #540d83;
-    border-color: #540d83;
+.uploadBtn:hover {
+    background: linear-gradient(135deg, #00ffff, #00CED1);
+    border-color: #00ffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 255, 255, 0.5);
+}
+
+.quickStats {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.statBox {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    padding: 20px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-width: 150px;
+}
+
+.statLabel {
+    font-size: 1rem;
+    color: #00ffff;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.coinIcon {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, 
+        #FFD700 0%, #FFD700 20%,
+        #FFA500 20%, #FFA500 40%,
+        #FFD700 40%, #FFD700 60%,
+        #FFA500 60%, #FFA500 80%,
+        #FFD700 80%, #FFD700 100%
+    );
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 
+        inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+        inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+        0 0 10px rgba(255, 215, 0, 0.8);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.coinIcon::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background: #B8860B;
+    border-radius: 50%;
+    box-shadow: 
+        0 0 0 2px #FFD700,
+        0 0 0 3px #B8860B;
+}
+
+.coinIcon::after {
+    content: '$';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    text-shadow: 
+        1px 1px 0 #000,
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000;
+}
+
+.statValue {
+    font-size: 2rem;
+    color: #FFD700;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.statsSection {
+    margin: 30px 0;
+}
+
+.sectionTitle {
+    color: #FFD700;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    border-bottom: 3px solid #00ffff;
+    padding-bottom: 10px;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.statItem {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.statItem .label {
+    color: #00ffff;
+    font-weight: bold;
+}
+
+.statItem .value {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.prizesSection {
+    margin: 30px 0;
+}
+
+.prizesList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.prizeItem {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 255, 255, 0.05));
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.tournamentName {
+    color: #00ffff;
+    font-weight: bold;
+    flex: 1;
+    min-width: 150px;
+}
+
+.prizePlace {
+    color: #fff;
+    background: rgba(0, 255, 255, 0.2);
+    padding: 5px 15px;
+    border-radius: 12px;
+    border: 1px solid #00ffff;
+}
+
+.prizeAmount {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.noPrizes {
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    padding: 20px;
+}
+
+.socialSection {
+    margin: 30px 0;
+}
+
+.socialGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.socialItem {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.socialLabel {
+    color: #00ffff;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.socialValue {
+    color: #fff;
+    font-size: 1rem;
+}
+
+.infoSection {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.infoItem {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    padding: 15px;
+    display: inline-flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.infoLabel {
+    color: #00ffff;
+    font-weight: bold;
+}
+
+.infoValue {
+    color: #FFD700;
+    font-weight: bold;
+}
+
+.passwordForm {
+    margin-top: 40px;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    padding: 30px;
+}
+
+.formTitle {
+    color: #FFD700;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.formControl {
+    margin-bottom: 20px;
+}
+
+.formControl label {
+    display: block;
+    color: #00ffff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.formControl input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
+    color: #fff;
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.formControl input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.formControl input:hover {
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.formControl input:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.formAction {
+    text-align: center;
+}
+
+.submitBtn {
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1a1a2e;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: 3px solid #FFD700;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.submitBtn:hover {
+    background: linear-gradient(135deg, #00ffff, #00CED1);
+    border-color: #00ffff;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 255, 255, 0.5);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .profileContainer {
+        padding: 20px;
+    }
+
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .socialGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .quickStats {
+        flex-direction: column;
+    }
 }

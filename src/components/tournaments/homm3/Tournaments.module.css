@@ -1,3 +1,382 @@
+.tournamentContainer {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+
+.tournamentHeader {
+    text-align: center;
+    font-size: 2rem;
+    color: #FFD700;
+    text-shadow: 
+        2px 2px 0 #8B4513,
+        4px 4px 0 rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(255, 215, 0, 0.5);
+    letter-spacing: 2px;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 3px solid #FFD700;
+    box-shadow: 0 4px 0 0 #0a0a0a, 0 8px 16px rgba(0, 0, 0, 0.8);
+}
+
+.tournamentList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.noTournaments {
+    text-align: center;
+    color: #00ffff;
+    font-size: 1.2rem;
+    padding: 3rem;
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(22, 33, 62, 0.8));
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+}
+
 .bracket {
-    color: #ffffff;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 3px solid #00ffff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 
+        2px 2px 0 rgba(0, 0, 0, 0.5),
+        0 0 15px rgba(0, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.bracket:hover {
+    border-color: #FFD700;
+    box-shadow: 
+        2px 2px 0 rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(255, 215, 0, 0.5);
+    transform: translateY(-2px);
+}
+
+.tournamentTitle {
+    color: #FFD700 !important;
+    font-size: 1.5rem !important;
+    margin: 0 0 1rem 0 !important;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    border-bottom: 2px solid #00ffff;
+    padding-bottom: 0.5rem;
+}
+
+.statusBadge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 128, 255, 0.3));
+    border: 2px solid #00ffff;
+    border-radius: 4px;
+    color: #00ffff;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    margin: 0.5rem 0;
+}
+
+.statusBadge.registration {
+    background: linear-gradient(135deg, rgba(50, 205, 50, 0.2), rgba(34, 139, 34, 0.3));
+    border-color: #32CD32;
+    color: #32CD32;
+}
+
+.statusBadge.started {
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.2), rgba(255, 140, 0, 0.3));
+    border-color: #FFA500;
+    color: #FFA500;
+}
+
+.statusBadge.finished {
+    background: linear-gradient(135deg, rgba(220, 20, 60, 0.2), rgba(178, 34, 34, 0.3));
+    border-color: #DC143C;
+    color: #DC143C;
+}
+
+.infoGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.infoItem {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1rem;
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.infoItem p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+}
+
+.infoItem strong {
+    color: #FFD700;
+    font-size: 1.1rem;
+}
+
+.playersSection {
+    margin: 1rem 0;
+}
+
+.playersHeader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.playersList {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.playersList li {
+    background: rgba(0, 255, 255, 0.1);
+    padding: 0.5rem;
+    border: 1px solid #00ffff;
+    border-radius: 4px;
+    color: #00ffff;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: 2px solid #00ffff;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 128, 255, 0.3));
+    color: #00ffff;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.btn:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
+    border-color: #FFD700;
+    color: #FFD700;
+    transform: translateX(4px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+}
+
+.btnPrimary {
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
+    color: #FFD700;
+}
+
+.btnPrimary:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.5), rgba(255, 165, 0, 0.6));
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.btnToggle {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+.registeredBadge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, rgba(50, 205, 50, 0.3), rgba(34, 139, 34, 0.4));
+    border: 2px solid #32CD32;
+    border-radius: 4px;
+    color: #32CD32;
+    font-weight: bold;
+    margin: 0.5rem 0;
+}
+
+.prizePool {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: rgba(255, 215, 0, 0.1);
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+}
+
+.prizePool h4 {
+    color: #FFD700;
+    margin: 0 0 1rem 0;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    font-size: 1.2rem;
+}
+
+.winnersSection {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: rgba(255, 215, 0, 0.15);
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+}
+
+.winnersSection h4 {
+    color: #FFD700;
+    margin: 0 0 1rem 0;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    font-size: 1.2rem;
+}
+
+.inputGroup {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.inputGroup label {
+    display: block;
+    color: #00ffff;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.inputGroup input {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #00ffff;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.inputGroup input:focus {
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.medal {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+    display: inline-block;
+}
+
+.medalLarge {
+    font-size: 2rem;
+    margin-right: 1rem;
+    display: inline-block;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.winnersPreview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.2));
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+
+.winnerPreviewItem {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border-left: 3px solid #FFD700;
+}
+
+.winnerPreviewItem .medal {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.winnerPreviewItem .winnerName {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+.winnerItem {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    margin: 0.75rem 0;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.3));
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+}
+
+.placeLabel {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: normal;
+    font-size: 0.9rem;
+    min-width: 40px;
+}
+
+.winnerNameLarge {
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 1.2rem;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    flex: 1;
+}
+
+.prizeInBrackets {
+    color: #32CD32;
+    font-size: 1rem;
+    font-weight: bold;
+    margin-left: 0.5rem;
+}
+
+.prizeItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    background: rgba(0, 0, 0, 0.3);
+    border-left: 3px solid #FFD700;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+}
+
+.prizePlace {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: normal;
+}
+
+.prizeAmount {
+    color: #32CD32;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.prizeWinner {
+    color: #FFD700;
+    font-weight: bold;
+    margin-left: 0.5rem;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
 }

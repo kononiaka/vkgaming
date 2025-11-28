@@ -1487,6 +1487,53 @@ export const TournamentBracket = ({
             // Update local state
             setPlayoffPairs(updatedPairs);
 
+            // Update castle statistics for each game
+            for (const game of reportData.games) {
+                if (game.castle1 && game.castle2 && game.gameWinner) {
+                    // Update castle1 stats
+                    const castle1Response = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                    );
+                    if (castle1Response.ok) {
+                        const castle1Data = await castle1Response.json();
+                        const isWinner = game.castleWinner === game.castle1;
+                        await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                            {
+                                method: 'PUT',
+                                body: JSON.stringify({
+                                    win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
+                                    lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
+                                    total: (castle1Data.total || 0) + 1
+                                }),
+                                headers: { 'Content-Type': 'application/json' }
+                            }
+                        );
+                    }
+
+                    // Update castle2 stats
+                    const castle2Response = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                    );
+                    if (castle2Response.ok) {
+                        const castle2Data = await castle2Response.json();
+                        const isWinner = game.castleWinner === game.castle2;
+                        await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                            {
+                                method: 'PUT',
+                                body: JSON.stringify({
+                                    win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
+                                    lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
+                                    total: (castle2Data.total || 0) + 1
+                                }),
+                                headers: { 'Content-Type': 'application/json' }
+                            }
+                        );
+                    }
+                }
+            }
+
             // Post to Firebase
             const response = await fetch(
                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
@@ -1500,15 +1547,12 @@ export const TournamentBracket = ({
             );
 
             if (response.ok) {
-                console.log('Game result reported successfully');
                 setShowReportGameModal(false);
                 alert('Game result reported successfully!');
             } else {
-                console.error('Failed to report game result');
                 alert('Failed to report game result');
             }
         } catch (error) {
-            console.error('Error reporting game result:', error);
             alert('Error reporting game result');
         }
     };
