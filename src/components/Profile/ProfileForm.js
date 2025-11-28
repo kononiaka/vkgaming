@@ -136,14 +136,16 @@ const ProfileForm = () => {
     };
 
     return (
-        <>
+        <div className={classes.profileContainer}>
             {avatarBase64 && (
-                <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                    <img src={avatarBase64} alt="Selected Avatar" style={{ width: '200px', height: '180px' }} />
+                <div className={classes.avatarSection}>
+                    <img src={avatarBase64} alt="Selected Avatar" className={classes.avatar} />
                 </div>
             )}
-            <div className={classes.control}>
-                <label htmlFor="avatar">Avatar (max 200KB)</label>
+            <div className={classes.uploadSection}>
+                <label htmlFor="avatar" className={classes.uploadLabel}>
+                    📸 Avatar (max 200KB)
+                </label>
                 <input
                     type="file"
                     id="avatar"
@@ -152,64 +154,133 @@ const ProfileForm = () => {
                     style={{ display: 'none' }}
                     ref={avatarInputRef}
                 />
-                <button type="button" onClick={handleUploadClick}>
-                    Upload Avatar
+                <button type="button" onClick={handleUploadClick} className={classes.uploadBtn}>
+                    📤 Upload Avatar
                 </button>
             </div>
-            <p>Coins: {playerObj.coins || 'N/A'}</p>
-            <p>Your score: {playerObj.score}</p>
-            {isLoading && (
-                <ul>
-                    Statistic:
-                    <li>Win: {playerObj.gamesPlayed.heroes3.total - playerObj.gamesPlayed.heroes3.lose}</li>
-                    <li>Lose: {playerObj.gamesPlayed.heroes3.lose}</li>
-                    <li>Total: {playerObj.gamesPlayed.heroes3.total}</li>
-                    <li>
-                        Rating:
-                        {playerObj.ratings
-                            ? Number(
-                                  playerObj.ratings
-                                      .split(',')
-                                      .map((r) => r.trim())
-                                      .filter(Boolean)
-                                      .pop()
-                              ).toFixed(2)
-                            : 'N/A'}
-                    </li>
-                    <li>Stars: {playerObj.stars}</li>
-                    <li>Total win: {playerObj.totalPrize ? playerObj.totalPrize : '0$'}</li>
-                    <li>Place in Leaderboard: {playerObj.totalPrize}</li>
-                    <li>
-                        Prizes:
-                        <ul>
-                            {Array.isArray(playerObj.prizes) && playerObj.prizes.length > 0 ? (
-                                [...playerObj.prizes].reverse().map((prize, idx) => (
-                                    <li key={idx}>
-                                        {prize.tournamentName} — {prize.place} place — {prize.prizeAmount}
-                                    </li>
-                                ))
-                            ) : (
-                                <li>No prizes</li>
-                            )}
-                        </ul>
-                    </li>
-                    <li>Twitch: {playerObj.twitch || 'N/A'}</li>
-                    <li>Youtube: {playerObj.youtube || 'N/A'}</li>
-                    <li>Telegram: {playerObj.telegram || 'N/A'}</li>
-                    <li>Discord: {playerObj.discord || 'N/A'}</li>
-                    <li>Last login date: {playerObj.lastLoginDate || 'N/A'}</li>
-                </ul>
-            )}
-            <form className={classes.form} onSubmit={submitHandler}>
-                <div className={classes.control}>
-                    <label htmlFor="new-password">New Password</label>
-                    <input type="password" id="new-password" ref={newPasswordInsertedRef} />
+
+            <div className={classes.quickStats}>
+                <div className={classes.statBox}>
+                    <span className={classes.statLabel}>
+                        <span className={classes.coinIcon}></span>
+                        Coins
+                    </span>
+                    <span className={classes.statValue}>{playerObj.coins || 'N/A'}</span>
                 </div>
-                <div className={classes.action}>
-                    <button>Change Password</button>
+                <div className={classes.statBox}>
+                    <span className={classes.statLabel}>⭐ Score</span>
+                    <span className={classes.statValue}>{playerObj.score}</span>
+                </div>
+            </div>
+
+            {isLoading && (
+                <div className={classes.statsSection}>
+                    <h3 className={classes.sectionTitle}>📊 Statistics</h3>
+                    <div className={classes.statsGrid}>
+                        <div className={classes.statItem}>
+                            <span className={classes.label}>🏆 Wins:</span>
+                            <span className={classes.value}>
+                                {playerObj.gamesPlayed.heroes3.total - playerObj.gamesPlayed.heroes3.lose}
+                            </span>
+                        </div>
+                        <div className={classes.statItem}>
+                            <span className={classes.label}>❌ Losses:</span>
+                            <span className={classes.value}>{playerObj.gamesPlayed.heroes3.lose}</span>
+                        </div>
+                        <div className={classes.statItem}>
+                            <span className={classes.label}>🎮 Total Games:</span>
+                            <span className={classes.value}>{playerObj.gamesPlayed.heroes3.total}</span>
+                        </div>
+                        <div className={classes.statItem}>
+                            <span className={classes.label}>📈 Rating:</span>
+                            <span className={classes.value}>
+                                {playerObj.ratings
+                                    ? Number(
+                                          playerObj.ratings
+                                              .split(',')
+                                              .map((r) => r.trim())
+                                              .filter(Boolean)
+                                              .pop()
+                                      ).toFixed(2)
+                                    : 'N/A'}
+                            </span>
+                        </div>
+                        <div className={classes.statItem}>
+                            <span className={classes.label}>⭐ Stars:</span>
+                            <span className={classes.value}>{playerObj.stars}</span>
+                        </div>
+                        <div className={classes.statItem}>
+                            <span className={classes.label}>💰 Total Winnings:</span>
+                            <span className={classes.value}>${playerObj.totalPrize || '0'}</span>
+                        </div>
+                    </div>
+
+                    <div className={classes.prizesSection}>
+                        <h3 className={classes.sectionTitle}>🏆 Tournament Prizes</h3>
+                        {Array.isArray(playerObj.prizes) && playerObj.prizes.length > 0 ? (
+                            <ul className={classes.prizesList}>
+                                {[...playerObj.prizes].reverse().map((prize, idx) => (
+                                    <li key={idx} className={classes.prizeItem}>
+                                        <span className={classes.tournamentName}>{prize.tournamentName}</span>
+                                        <span className={classes.prizePlace}>{prize.place} place</span>
+                                        <span className={classes.prizeAmount}>${prize.prizeAmount}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className={classes.noPrizes}>No prizes yet</p>
+                        )}
+                    </div>
+
+                    <div className={classes.socialSection}>
+                        <h3 className={classes.sectionTitle}>🌐 Social Links</h3>
+                        <div className={classes.socialGrid}>
+                            <div className={classes.socialItem}>
+                                <span className={classes.socialLabel}>📺 Twitch:</span>
+                                <span className={classes.socialValue}>{playerObj.twitch || 'N/A'}</span>
+                            </div>
+                            <div className={classes.socialItem}>
+                                <span className={classes.socialLabel}>🎥 Youtube:</span>
+                                <span className={classes.socialValue}>{playerObj.youtube || 'N/A'}</span>
+                            </div>
+                            <div className={classes.socialItem}>
+                                <span className={classes.socialLabel}>💬 Telegram:</span>
+                                <span className={classes.socialValue}>{playerObj.telegram || 'N/A'}</span>
+                            </div>
+                            <div className={classes.socialItem}>
+                                <span className={classes.socialLabel}>🎮 Discord:</span>
+                                <span className={classes.socialValue}>{playerObj.discord || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={classes.infoSection}>
+                        <p className={classes.infoItem}>
+                            <span className={classes.infoLabel}>📅 Last login:</span>
+                            <span className={classes.infoValue}>{playerObj.lastLoginDate || 'N/A'}</span>
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            <form className={classes.passwordForm} onSubmit={submitHandler}>
+                <h3 className={classes.formTitle}>🔒 Change Password</h3>
+                <div className={classes.formControl}>
+                    <label htmlFor="new-password">🔑 New Password</label>
+                    <input
+                        type="password"
+                        id="new-password"
+                        ref={newPasswordInsertedRef}
+                        placeholder="Enter new password"
+                    />
+                </div>
+                <div className={classes.formAction}>
+                    <button type="submit" className={classes.submitBtn}>
+                        🔄 Change Password
+                    </button>
                 </div>
             </form>
-        </>
+        </div>
     );
 };
 

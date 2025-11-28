@@ -1,71 +1,133 @@
+.help_header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.help_header p {
+    color: #FFD700;
+    font-size: 1.5rem;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    margin: 0;
+}
+
+.help_subtitle {
+    color: #00ffff;
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 25px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
 .discord_logo_block {
     display: flex;
-    margin-top: 5px;
-    /* width: 50%; */
+    align-items: center;
+    margin: 15px 0;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, rgba(114, 137, 218, 0.1), rgba(114, 137, 218, 0.05));
+    border: 2px solid #7289da;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.discord_logo_block:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(114, 137, 218, 0.3);
 }
 
 .discord_logo {
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
     background-size: cover;
     background-image: url('./discord.png');
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .discord_logo_block a {
-    color: #000;
-    margin-left: 10px;
+    color: #00ffff;
+    margin-left: 15px;
     text-decoration: none;
+    font-weight: bold;
+    font-size: 1rem;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .discord_logo_block a:hover {
-    color: rgb(104, 99, 99);
-    text-decoration: none;
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
 .tg_logo_block {
     display: flex;
-    margin-top: 5px;
-    /* width: 50%; */
+    align-items: center;
+    margin: 15px 0;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, rgba(0, 136, 204, 0.1), rgba(0, 136, 204, 0.05));
+    border: 2px solid #0088cc;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.tg_logo_block:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(0, 136, 204, 0.3);
 }
 
 .tg_logo {
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
     background-size: cover;
     background-image: url('./tg_bcg.png');
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .tg_logo_block a {
     text-decoration: none;
-    color: #000;
-    margin-left: 11px;
+    color: #00ffff;
+    margin-left: 15px;
+    font-weight: bold;
+    font-size: 1rem;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .tg_logo_block a:hover {
-    color: rgb(104, 99, 99);
-    text-decoration: none;
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
 .youtube_logo_block {
     display: flex;
-    margin-top: 3px;
-    /* width: 50%; */
+    align-items: center;
+    margin: 15px 0;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, rgba(255, 0, 0, 0.1), rgba(255, 0, 0, 0.05));
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.youtube_logo_block:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
 }
 
 .youtube_logo {
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
     background-size: cover;
     background-image: url('./youtube.png');
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .youtube_logo_block a {
     text-decoration: none;
-    color: #000;
-    margin-left: 14px;
+    color: #00ffff;
+    margin-left: 15px;
+    font-weight: bold;
+    font-size: 1rem;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .youtube_logo_block a:hover {
-    color: rgb(104, 99, 99);
-    text-decoration: none;
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }

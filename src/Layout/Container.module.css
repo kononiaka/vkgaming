@@ -1,16 +1,15 @@
 .container {
-    max-width: 1200px;
-    /* height: 92vh; */
+    max-width: 1400px;
+    min-height: calc(100vh - 126px);
     margin: 0 auto;
-    /* background-color: grey; */
-    overflow: hidden;
+    margin-top: 126px;
+    overflow: visible;
     box-shadow:
         0 40px 160px rgba(177, 170, 170, 0.2),
         0 16px 32px rgba(226, 219, 219, 0.2),
         0 32px 64px rgba(231, 217, 217, 0.2),
         0 64px 128px rgba(167, 154, 154, 0.2),
         0 128px 256px rgba(0, 0, 0, 0.2);
-    transform: translateZ(0);
 }
 
 .container:before {

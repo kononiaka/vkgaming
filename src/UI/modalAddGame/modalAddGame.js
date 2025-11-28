@@ -45,8 +45,10 @@ function AddGameModal(props) {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        setDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+        // Round to nearest 30 minutes
+        const minutes = now.getMinutes();
+        const roundedMinutes = minutes < 30 ? '00' : '30';
+        setDate(`${year}-${month}-${day}T${hours}:${roundedMinutes}`);
 
         const fetchOpponentList = async () => {
             try {
@@ -136,6 +138,17 @@ function AddGameModal(props) {
     //     const data = await fetchTournaments();
     //     console.log('data', data);
     // };
+
+    const isFormValid = () =>
+        tournamentName &&
+        opponent1 &&
+        opponent1Castle &&
+        opponent2 &&
+        opponent2Castle &&
+        score &&
+        date &&
+        gameName &&
+        gameType;
 
     const handleSave = async () => {
         // Save game data to database
@@ -301,8 +314,12 @@ function AddGameModal(props) {
             )}
             {/* Add other form elements for choosing castle, etc. */}
             {winner && <p>{winner} wins!</p>}
-            <button onClick={handleSave}>Save</button>
-            <button onClick={props.onClose}>Cancel</button>
+            <button type="button" onClick={handleSave} disabled={!isFormValid()}>
+                Save
+            </button>
+            <button type="button" onClick={props.onClose}>
+                Cancel
+            </button>
         </Modal>
     );
 }

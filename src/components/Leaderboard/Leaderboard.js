@@ -178,8 +178,8 @@ const Leaderboard = () => {
 
     return (
         <div className={classes.leaderboard}>
-            <h2>Leaderboard</h2>
-            <button onClick={recalculateStars}>Recalculate Stars</button>
+            <h2>🏆 Leaderboard</h2>
+            <button onClick={recalculateStars}>⭐ Recalculate Stars</button>
             <table>
                 <thead>
                     <tr>

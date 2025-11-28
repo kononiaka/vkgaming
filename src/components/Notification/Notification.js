@@ -20,12 +20,17 @@ const Notification = () => {
 
     return (
         <div className={`${classes['notification-box']} ${classes[status]}`}>
-            <span>{message}</span>
-            {countdown > 0 && (
-                <span style={{ marginLeft: 10, fontSize: '0.9em', color: '#fff' }}>(closing in {countdown}s)</span>
-            )}
+            <div className={classes.iconWrapper}>
+                {status === 'success' && <span className={classes.icon}>✔️</span>}
+                {status === 'error' && <span className={classes.icon}>❌</span>}
+                {status === 'warning' && <span className={classes.icon}>⚠️</span>}
+            </div>
+            <div className={classes.content}>
+                <span className={classes.message}>{message}</span>
+                {countdown > 0 && <span className={classes.countdown}>(closing in {countdown}s)</span>}
+            </div>
             <button className={classes['notification-close']} onClick={handleClose}>
-                ×
+                ✖
             </button>
         </div>
     );

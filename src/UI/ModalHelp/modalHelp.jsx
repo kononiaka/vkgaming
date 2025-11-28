@@ -4,10 +4,12 @@ import classes from './modalHelp.module.css';
 
 const ModalHelp = (props) => (
     <Modal onClick={props.onClose}>
-        <p>
-            <b>Need Help?</b>{' '}
-        </p>
-        <p style={{ marginBottom: '15px' }}>Reach or Email Now:</p>
+        <div className={classes.help_header}>
+            <p>
+                <b>Need Help? 🆘</b>
+            </p>
+        </div>
+        <p className={classes.help_subtitle}>Reach out to us:</p>
         <div className={classes.discord_logo_block}>
             <div className={classes.discord_logo}></div>
             <a href="https://discord.gg/9edXZJZZ" target="_blank">

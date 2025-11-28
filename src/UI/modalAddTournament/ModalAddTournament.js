@@ -7,9 +7,6 @@ import { shuffleArray, setStageLabels } from '../../components/tournaments/tourn
 const Bracket = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [date, setDate] = useState('');
-    const [tournamentName, setTournamentName] = useState('');
-    const [tournamentPlayer, setTournamentPlayer] = useState('');
-    const [randomBracket, setRandomBracket] = useState(false);
 
     useEffect(() => {
         const now = new Date();
@@ -17,8 +14,9 @@ const Bracket = (props) => {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        setDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+        const minutes = now.getMinutes();
+        const roundedMinutes = minutes < 30 ? '00' : '30';
+        setDate(`${year}-${month}-${day}T${hours}:${roundedMinutes}`);
         setIsLoading(false);
     }, []);
 
@@ -30,68 +28,40 @@ const Bracket = (props) => {
     const tournamentDateRef = useRef(null);
     const randomBracketRef = useRef(null);
 
-    const objTournament = {};
-
-    const handleRandomBracketChange = (event) => {
-        event.preventDefault();
-        setRandomBracket(event.target.checked);
-    };
-
-    const tournamentNameBlur = () => {
-        // Access the input value using the ref
-        const tournamentNameValue = tournamentNameRef.current.value;
-        if (tournamentNameValue.length > 0) {
-            objTournament.name = tournamentNameValue;
-            // setTournamentName(tournamentNameValue);
-        }
-    };
-    const tournamentPlayersBlur = () => {
-        // Access the input value using the ref
-        const tournamentPlayerValue = tournamentPlayerRef.current.value;
-        if (tournamentPlayerValue.length > 0) {
-            objTournament.maxPlayers = tournamentPlayerValue;
-            // setTournamentPlayer(tournamentPlayerValue);
-        }
-    };
-    const tournamentPricePoolBlur = () => {
-        // Access the input value using the ref
-        const tournamentPricePoolValue = tournamentPricePoolRef.current.value;
-        if (tournamentPricePoolValue.length > 0) {
-            objTournament.pricePull = determineTournamentPrizes(tournamentPricePoolValue);
-            // objTournament.pricePull = tournamentPricePoolValue;
-            // setTournamentPlayer(tournamentPricePoolValue);
-        }
-    };
-    const tournamentDateBlur = () => {
-        // Access the input value using the ref
-        const tournamentDateValue = tournamentDateRef.current.value;
-        if (tournamentDateValue.length > 0) {
-            objTournament.date = tournamentDateValue;
-            // setTournamentPlayer(tournamentDateValue);
-        }
-    };
-    const tournamentPlayoffGamesBlur = () => {
-        objTournament.tournamentPlayoffGames = tournamentPlayoffGames.current.value;
-    };
-    const tournamentPlayoffGamesFinalBlur = () => {
-        objTournament.tournamentPlayoffGamesFinal = tournamentPlayoffGamesFinal.current.value;
-    };
+    const isFormValid = () =>
+        tournamentNameRef.current?.value?.trim() !== '' &&
+        tournamentPlayerRef.current?.value?.trim() !== '' &&
+        tournamentPricePoolRef.current?.value?.trim() !== '' &&
+        date.trim() !== '' &&
+        tournamentPlayoffGames.current?.value?.trim() !== '' &&
+        tournamentPlayoffGamesFinal.current?.value?.trim() !== '';
 
     const handleSave = async () => {
-        // Save game data to database
-        objTournament.randomBracket = randomBracket;
+        if (!isFormValid()) {
+            return;
+        }
 
-        objTournament.status = 'Registration Started';
-        objTournament.players = 0;
-
-        objTournament.winners = {
-            '1st place': 'TBD',
-            '2nd place': 'TBD',
-            '3rd place': 'TBD'
+        // Build tournament object from current values
+        const objTournament = {
+            name: tournamentNameRef.current.value,
+            maxPlayers: tournamentPlayerRef.current.value,
+            pricePull: determineTournamentPrizes(tournamentPricePoolRef.current.value),
+            date: date,
+            tournamentPlayoffGames: tournamentPlayoffGames.current.value,
+            tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
+            randomBracket: randomBracketRef.current.checked,
+            status: 'Registration Started',
+            players: 0,
+            winners: {
+                '1st place': 'TBD',
+                '2nd place': 'TBD',
+                '3rd place': 'TBD'
+            }
         };
+
         let playOffPairs;
 
-        if (randomBracket) {
+        if (randomBracketRef.current.checked) {
             objTournament.bracket = {};
 
             playOffPairs = shuffleArray(
@@ -119,7 +89,7 @@ const Bracket = (props) => {
         await response.json();
 
         props.onClose();
-        window.location.reload();
+        window.location.href = '/tournaments/homm3';
     };
 
     return (
@@ -130,15 +100,8 @@ const Bracket = (props) => {
             ) : (
                 <>
                     <div>
-                        <label htmlFor="prepareRandomRef">Random bracket:</label>
-                        <input
-                            type="checkbox"
-                            id="randomBracket"
-                            label="Random Bracket"
-                            ref={randomBracketRef}
-                            checked={randomBracket}
-                            onChange={handleRandomBracketChange}
-                        />
+                        <label htmlFor="prepareRandomRef">Spinning Wheel:</label>
+                        <input type="checkbox" id="randomBracket" label="Spinning Wheel" ref={randomBracketRef} />
                     </div>
                     <div>
                         <label htmlFor="tournamentDate">Tournament Date:</label>
@@ -146,41 +109,39 @@ const Bracket = (props) => {
                             type="datetime-local"
                             id="tournamentDate"
                             ref={tournamentDateRef}
-                            onBlur={tournamentDateBlur}
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            step={1800}
                         />
                     </div>
                     <div>
                         <label htmlFor="tournamentName">Tournament Name:</label>
-                        <input id="tournamentName" ref={tournamentNameRef} onBlur={tournamentNameBlur} />
+                        <input id="tournamentName" ref={tournamentNameRef} />
                     </div>
                     <div>
                         <label htmlFor="tournamentPlayers">Tournament Players:</label>
-                        <input id="tournamentPlayers" ref={tournamentPlayerRef} onBlur={tournamentPlayersBlur} />
+                        <input id="tournamentPlayers" type="number" ref={tournamentPlayerRef} />
                     </div>
                     <div>
-                        <label htmlFor="tournamentPricePool">Tournament Price:</label>
-                        <input id="tournamentPricePool" ref={tournamentPricePoolRef} onBlur={tournamentPricePoolBlur} />
+                        <label htmlFor="tournamentPricePool">Tournament Price Pool:</label>
+                        <input id="tournamentPricePool" type="number" ref={tournamentPricePoolRef} />
                     </div>
                     <div>
-                        <label htmlFor="tournamentPlayoffGames">Tournament PlayOff Games:</label>
-                        <input
-                            id="tournamentPlayoffGames"
-                            ref={tournamentPlayoffGames}
-                            onBlur={tournamentPlayoffGamesBlur}
-                        />
+                        <label htmlFor="tournamentPlayoffGames">PlayOff Games:</label>
+                        <input id="tournamentPlayoffGames" type="number" ref={tournamentPlayoffGames} />
                     </div>
                     <div>
-                        <label htmlFor="tournamentPlayoffGamesFinal">Tournament PlayOff Final Games:</label>
-                        <input
-                            id="tournamentPlayoffGamesFinal"
-                            ref={tournamentPlayoffGamesFinal}
-                            onBlur={tournamentPlayoffGamesFinalBlur}
-                        />
+                        <label htmlFor="tournamentPlayoffGamesFinal">PlayOff Final Games:</label>
+                        <input id="tournamentPlayoffGamesFinal" type="number" ref={tournamentPlayoffGamesFinal} />
                     </div>
                 </>
             )}
-            <button onClick={handleSave}>Save</button>
-            <button onClick={props.onClose}>Cancel</button>
+            <button type="button" onClick={handleSave} disabled={!isFormValid()}>
+                Save
+            </button>
+            <button type="button" onClick={props.onClose}>
+                Cancel
+            </button>
         </Modal>
     );
 };

@@ -28,6 +28,7 @@ function App() {
                 <Routes>
                     <Route path="/games/homm3" element={<Heroes3Games />} />
                     <Route path="/tournaments/homm3" element={<TournamentList />} />
+                    <Route path="/tournaments/homm3/:tournamentId" element={<TournamentList />} />
                     <Route path="/videos" element={<Videos />} />
                     <Route path="/games/homm3/statistics" element={<Heroes3Stats />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />

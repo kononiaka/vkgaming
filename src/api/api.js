@@ -708,3 +708,52 @@ export async function fetchFullCastleStatsForPlayer(playerName) {
 
     return castleStats;
 }
+
+/**
+ * Returns the best and worst opponents for a player based on win/loss record.
+ * @param {string} playerName
+ * @returns {Promise<{ best: { opponent: string, wins: number, loses: number }, worst: { opponent: string, wins: number, loses: number } }>}
+ */
+export async function fetchBestAndWorstOpponentForPlayer(playerName) {
+    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    if (!response.ok) return { best: null, worst: null };
+    const data = await response.json();
+    if (!data) return { best: null, worst: null };
+
+    // Collect all games where the player participated
+    const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
+
+    // Count wins and loses by opponent
+    const opponentStats = {};
+
+    games.forEach((g) => {
+        const opponent = g.opponent1 === playerName ? g.opponent2 : g.opponent1;
+        const isWin = g.winner === playerName;
+
+        if (!opponent) return; // Skip if opponent is missing
+
+        if (!opponentStats[opponent]) {
+            opponentStats[opponent] = { wins: 0, loses: 0 };
+        }
+
+        if (isWin) {
+            opponentStats[opponent].wins += 1;
+        } else {
+            opponentStats[opponent].loses += 1;
+        }
+    });
+
+    // Find best (most wins) and worst (most loses) opponents
+    let best = null,
+        worst = null;
+    for (const [opponent, stats] of Object.entries(opponentStats)) {
+        if (!best || stats.wins > best.wins) {
+            best = { opponent, wins: stats.wins, loses: stats.loses };
+        }
+        if (!worst || stats.loses > worst.loses) {
+            worst = { opponent, wins: stats.wins, loses: stats.loses };
+        }
+    }
+
+    return { best, worst };
+}
