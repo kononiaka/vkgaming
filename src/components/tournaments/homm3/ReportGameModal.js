@@ -15,11 +15,11 @@ import coveImg from '../../../image/castles/cove.jpeg';
 import factoryImg from '../../../image/castles/factory.jpeg';
 
 const ReportGameModal = ({ pair, onClose, onSubmit }) => {
-    const [selectedWinner, setSelectedWinner] = useState('');
+    const [selectedWinner, setSelectedWinner] = useState(pair.winner || '');
     const [castle1, setCastle1] = useState('');
     const [castle2, setCastle2] = useState('');
-    const [score1, setScore1] = useState(0);
-    const [score2, setScore2] = useState(0);
+    const [score1, setScore1] = useState(pair.score1 || 0);
+    const [score2, setScore2] = useState(pair.score2 || 0);
     const [gameResults, setGameResults] = useState([]);
 
     // Available castles - using database format with Russian names
@@ -59,6 +59,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
     // Initialize game results for bo-3
     React.useEffect(() => {
+        // Initialize winner and scores from pair
+        setSelectedWinner(pair.winner || '');
+        setScore1(pair.score1 || 0);
+        setScore2(pair.score2 || 0);
+
         if (pair.type === 'bo-3') {
             setGameResults(
                 pair.games.map((game, idx) => ({
@@ -245,14 +250,107 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
                                     <div className={classes.formGroup}>
                                         <label>Winner:</label>
-                                        <select
-                                            value={game.winner}
-                                            onChange={(e) => handleGameResultChange(idx, 'winner', e.target.value)}
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: '1rem',
+                                                justifyContent: 'center',
+                                                alignItems: 'center'
+                                            }}
                                         >
-                                            <option value="">Select Winner</option>
-                                            <option value={pair.team1}>{pair.team1}</option>
-                                            <option value={pair.team2}>{pair.team2}</option>
-                                        </select>
+                                            <div
+                                                onClick={() => handleGameResultChange(idx, 'winner', pair.team1)}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    cursor: 'pointer',
+                                                    padding: '1rem',
+                                                    border:
+                                                        game.winner === pair.team1
+                                                            ? '3px solid #FFD700'
+                                                            : '2px solid #00ffff',
+                                                    borderRadius: '8px',
+                                                    background:
+                                                        game.winner === pair.team1
+                                                            ? 'rgba(255, 215, 0, 0.1)'
+                                                            : 'rgba(0, 255, 255, 0.05)',
+                                                    opacity: game.winner === pair.team1 ? 1 : 0.6,
+                                                    transform: game.winner === pair.team1 ? 'scale(1.05)' : 'scale(1)',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: '60px',
+                                                        height: '60px',
+                                                        borderRadius: '50%',
+                                                        background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '24px',
+                                                        fontWeight: 'bold',
+                                                        color: '#FFD700',
+                                                        marginBottom: '0.5rem',
+                                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                                                    }}
+                                                >
+                                                    {pair.team1.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div
+                                                    style={{ color: '#00ffff', fontSize: '12px', textAlign: 'center' }}
+                                                >
+                                                    {pair.team1}
+                                                </div>
+                                            </div>
+                                            <div
+                                                onClick={() => handleGameResultChange(idx, 'winner', pair.team2)}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    cursor: 'pointer',
+                                                    padding: '1rem',
+                                                    border:
+                                                        game.winner === pair.team2
+                                                            ? '3px solid #FFD700'
+                                                            : '2px solid #00ffff',
+                                                    borderRadius: '8px',
+                                                    background:
+                                                        game.winner === pair.team2
+                                                            ? 'rgba(255, 215, 0, 0.1)'
+                                                            : 'rgba(0, 255, 255, 0.05)',
+                                                    opacity: game.winner === pair.team2 ? 1 : 0.6,
+                                                    transform: game.winner === pair.team2 ? 'scale(1.05)' : 'scale(1)',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: '60px',
+                                                        height: '60px',
+                                                        borderRadius: '50%',
+                                                        background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '24px',
+                                                        fontWeight: 'bold',
+                                                        color: '#FFD700',
+                                                        marginBottom: '0.5rem',
+                                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                                                    }}
+                                                >
+                                                    {pair.team2.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div
+                                                    style={{ color: '#00ffff', fontSize: '12px', textAlign: 'center' }}
+                                                >
+                                                    {pair.team2}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -329,27 +427,123 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             </div>
                             <div className={classes.formGroup}>
                                 <label>Winner:</label>
-                                <select
-                                    value={selectedWinner}
-                                    onChange={(e) => {
-                                        const winner = e.target.value;
-                                        setSelectedWinner(winner);
-                                        if (winner === pair.team1) {
-                                            setScore1(1);
-                                            setScore2(0);
-                                        } else if (winner === pair.team2) {
-                                            setScore1(0);
-                                            setScore2(1);
-                                        } else {
-                                            setScore1(0);
-                                            setScore2(0);
-                                        }
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        gap: '1rem',
+                                        justifyContent: 'center',
+                                        alignItems: 'center'
                                     }}
                                 >
-                                    <option value="">Select Winner</option>
-                                    <option value={pair.team1}>{pair.team1}</option>
-                                    <option value={pair.team2}>{pair.team2}</option>
-                                </select>
+                                    <div
+                                        onClick={() => {
+                                            setSelectedWinner(pair.team1);
+                                            setScore1(1);
+                                            setScore2(0);
+                                        }}
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            cursor: 'pointer',
+                                            padding: '1rem',
+                                            border:
+                                                selectedWinner === pair.team1
+                                                    ? '3px solid #FFD700'
+                                                    : '2px solid #00ffff',
+                                            borderRadius: '8px',
+                                            background:
+                                                selectedWinner === pair.team1
+                                                    ? 'rgba(255, 215, 0, 0.1)'
+                                                    : 'rgba(0, 255, 255, 0.05)',
+                                            opacity: selectedWinner === pair.team1 ? 1 : 0.6,
+                                            transform: selectedWinner === pair.team1 ? 'scale(1.05)' : 'scale(1)',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                width: '60px',
+                                                height: '60px',
+                                                borderRadius: '50%',
+                                                background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '24px',
+                                                fontWeight: 'bold',
+                                                color: '#FFD700',
+                                                marginBottom: '0.5rem',
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                                            }}
+                                        >
+                                            {pair.team1.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div
+                                            style={{
+                                                color: '#00ffff',
+                                                fontSize: '12px',
+                                                textAlign: 'center'
+                                            }}
+                                        >
+                                            {pair.team1}
+                                        </div>
+                                    </div>
+                                    <div
+                                        onClick={() => {
+                                            setSelectedWinner(pair.team2);
+                                            setScore1(0);
+                                            setScore2(1);
+                                        }}
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            cursor: 'pointer',
+                                            padding: '1rem',
+                                            border:
+                                                selectedWinner === pair.team2
+                                                    ? '3px solid #FFD700'
+                                                    : '2px solid #00ffff',
+                                            borderRadius: '8px',
+                                            background:
+                                                selectedWinner === pair.team2
+                                                    ? 'rgba(255, 215, 0, 0.1)'
+                                                    : 'rgba(0, 255, 255, 0.05)',
+                                            opacity: selectedWinner === pair.team2 ? 1 : 0.6,
+                                            transform: selectedWinner === pair.team2 ? 'scale(1.05)' : 'scale(1)',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                width: '60px',
+                                                height: '60px',
+                                                borderRadius: '50%',
+                                                background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '24px',
+                                                fontWeight: 'bold',
+                                                color: '#FFD700',
+                                                marginBottom: '0.5rem',
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                                            }}
+                                        >
+                                            {pair.team2.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div
+                                            style={{
+                                                color: '#00ffff',
+                                                fontSize: '12px',
+                                                textAlign: 'center'
+                                            }}
+                                        >
+                                            {pair.team2}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div className={classes.scoreDisplay}>
                                 <strong>Score:</strong> {pair.team1} {score1} - {score2} {pair.team2}

@@ -57,7 +57,6 @@ export const TournamentBracket = ({
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
     const [isTournamentBracketOpen, setIsTournamentBracketOpen] = useState(true); // State for tournament bracket visibility
     const [showReportGameModal, setShowReportGameModal] = useState(false);
-    const [selectedPairToReport, setSelectedPairToReport] = useState(null);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
 
@@ -1466,10 +1465,180 @@ export const TournamentBracket = ({
     };
 
     const handleOpenReportGame = (pair, stageIdx, pairIdx) => {
-        setSelectedPairToReport(pair);
         setSelectedStageIndex(stageIdx);
         setSelectedPairIndex(pairIdx);
         setShowReportGameModal(true);
+    };
+
+    // Helper function to update player ratings and statistics after a game
+    const updatePlayerRatings = async (team1, team2, winnerId) => {
+        try {
+            // Get player IDs
+            const opponent1Id = await lookForUserId(team1);
+            const opponent2Id = await lookForUserId(team2);
+
+            const confirmPlayerIds = confirmWindow(
+                `Player IDs fetched:\n${team1}: ${opponent1Id}\n${team2}: ${opponent2Id}\n\nContinue?`
+            );
+            if (!confirmPlayerIds) return false;
+
+            // Fetch current player data
+            const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
+            const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
+
+            const opponent1Stats = opponent1PrevData.games?.heroes3 || { total: 0, win: 0, lose: 0 };
+            console.log('opponent1Stats', opponent1Stats);
+            const opponent2Stats = opponent2PrevData.games?.heroes3 || { total: 0, win: 0, lose: 0 };
+
+            //TODO: Fix database structure - 'win' field may be missing in all records
+            // Calculate win from total - lose if win field is missing
+            const opponent1Win =
+                opponent1Stats.win !== undefined
+                    ? opponent1Stats.win
+                    : (opponent1Stats.total || 0) - (opponent1Stats.lose || 0);
+            const opponent2Win =
+                opponent2Stats.win !== undefined
+                    ? opponent2Stats.win
+                    : (opponent2Stats.total || 0) - (opponent2Stats.lose || 0);
+
+            // Extract most recent ratings
+            const opponent1Rating = opponent1PrevData.ratings?.split(',').pop().trim() || '0';
+            console.log('opponent1Rating', opponent1Rating);
+            const opponent2Rating = opponent2PrevData.ratings?.split(',').pop().trim() || '0';
+
+            const confirmCurrentStats = confirmWindow(
+                `Current Stats:\n\n${team1}:\nRating: ${opponent1Rating}\nTotal: ${opponent1Stats.total}, Win: ${opponent1Win}, Lose: ${opponent1Stats.lose}\n\n${team2}:\nRating: ${opponent2Rating}\nTotal: ${opponent2Stats.total}, Win: ${opponent2Win}, Lose: ${opponent2Stats.lose}\n\nContinue?`
+            );
+            if (!confirmCurrentStats) return false;
+
+            // Determine winners
+            const didWinOpponent1 = winnerId === opponent1Id;
+            const didWinOpponent2 = winnerId === opponent2Id;
+
+            const winnerName = didWinOpponent1 ? team1 : team2;
+            const loserName = didWinOpponent1 ? team2 : team1;
+
+            const confirmWinner = confirmWindow(`Winner determined: ${winnerName}\nLoser: ${loserName}\n\nContinue?`);
+            if (!confirmWinner) return false;
+
+            // Update player game statistics (win/lose/total) - calculate before rating updates
+            // Use calculated opponent1Win/opponent2Win instead of opponent1Stats.win to handle missing 'win' field
+            const updatedOpponent1Stats = {
+                total: (opponent1Stats.total || 0) + 1,
+                win: opponent1Win + (didWinOpponent1 ? 1 : 0),
+                lose: (opponent1Stats.lose || 0) + (didWinOpponent1 ? 0 : 1)
+            };
+
+            const updatedOpponent2Stats = {
+                total: (opponent2Stats.total || 0) + 1,
+                win: opponent2Win + (didWinOpponent2 ? 1 : 0),
+                lose: (opponent2Stats.lose || 0) + (didWinOpponent2 ? 0 : 1)
+            };
+
+            // Extract latest ratings
+            const opponent1CurrentRating = parseFloat(opponent1PrevData.ratings.split(',').pop().trim());
+            const opponent2CurrentRating = parseFloat(opponent2PrevData.ratings.split(',').pop().trim());
+
+            // Calculate new ratings
+            const opponent1NewRating = await getNewRating(
+                opponent1CurrentRating,
+                opponent2CurrentRating,
+                didWinOpponent1
+            );
+            const opponent2NewRating = await getNewRating(
+                opponent2CurrentRating,
+                opponent1CurrentRating,
+                didWinOpponent2
+            );
+
+            const confirmRatingChanges = confirmWindow(
+                `Rating Changes:\n\n${team1}:\nOld: ${opponent1CurrentRating.toFixed(2)}\nNew: ${opponent1NewRating.toFixed(2)}\nChange: ${(opponent1NewRating - opponent1CurrentRating).toFixed(2)}\n\n${team2}:\nOld: ${opponent2CurrentRating.toFixed(2)}\nNew: ${opponent2NewRating.toFixed(2)}\nChange: ${(opponent2NewRating - opponent2CurrentRating).toFixed(2)}\n\nUpdate ratings?`
+            );
+            if (!confirmRatingChanges) {
+                console.log('Rating changes preview cancelled - skipping ratings update but continuing to statistics');
+            }
+
+            // Confirm before updating ratings (only if preview was confirmed)
+            if (confirmRatingChanges) {
+                const confirmRatingsUpdate = confirmWindow(
+                    `Update player ratings to database?\n\n${team1}: ${opponent1CurrentRating.toFixed(2)} → ${opponent1NewRating.toFixed(2)}\n${team2}: ${opponent2CurrentRating.toFixed(2)} → ${opponent2NewRating.toFixed(2)}\n\nUpdate ratings?`
+                );
+                if (confirmRatingsUpdate) {
+                    await addScoreToUser(
+                        opponent1Id,
+                        opponent1PrevData,
+                        opponent1NewRating,
+                        winnerId,
+                        tournamentId,
+                        team1
+                    );
+                    await addScoreToUser(
+                        opponent2Id,
+                        opponent2PrevData,
+                        opponent2NewRating,
+                        winnerId,
+                        tournamentId,
+                        team2
+                    );
+                    console.log('Player ratings updated successfully');
+                } else {
+                    console.log('Player ratings update skipped by user');
+                }
+            }
+
+            // Separate step for player statistics
+            const confirmStatistics = confirmWindow(
+                `Update Player Statistics?\n\n${team1}:\nOld - Total: ${opponent1Stats.total}, Win: ${opponent1Win}, Lose: ${opponent1Stats.lose}\nNew - Total: ${updatedOpponent1Stats.total}, Win: ${updatedOpponent1Stats.win}, Lose: ${updatedOpponent1Stats.lose}\n\n${team2}:\nOld - Total: ${opponent2Stats.total}, Win: ${opponent2Win}, Lose: ${opponent2Stats.lose}\nNew - Total: ${updatedOpponent2Stats.total}, Win: ${updatedOpponent2Stats.win}, Lose: ${updatedOpponent2Stats.lose}\n\nUpdate?`
+            );
+            if (!confirmStatistics) {
+                console.log('Player statistics update skipped by user');
+                alert('⚠️ Player statistics update skipped - continuing with next steps');
+                return true; // Continue to next steps
+            }
+
+            // Update opponent 1 statistics
+            const confirmStats1 = confirmWindow(
+                `Update ${team1} statistics to database?\n\nTotal: ${updatedOpponent1Stats.total}, Win: ${updatedOpponent1Stats.win}, Lose: ${updatedOpponent1Stats.lose}\n\nUpdate?`
+            );
+            if (confirmStats1) {
+                await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponent1Id}/gamesPlayed/heroes3.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(updatedOpponent1Stats),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                console.log(`${team1} statistics updated successfully`);
+            } else {
+                console.log(`${team1} statistics update skipped by user`);
+            }
+
+            // Update opponent 2 statistics
+            const confirmStats2 = confirmWindow(
+                `Update ${team2} statistics to database?\n\nTotal: ${updatedOpponent2Stats.total}, Win: ${updatedOpponent2Stats.win}, Lose: ${updatedOpponent2Stats.lose}\n\nUpdate?`
+            );
+            if (confirmStats2) {
+                await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponent2Id}/gamesPlayed/heroes3.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(updatedOpponent2Stats),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                console.log(`${team2} statistics updated successfully`);
+            } else {
+                console.log(`${team2} statistics update skipped by user`);
+            }
+
+            console.log('Player ratings and statistics process completed');
+            alert('✅ Player ratings and statistics process completed!');
+            return true; // Return success indicator
+        } catch (error) {
+            console.error('Error updating player ratings and statistics:', error);
+            throw error;
+        }
     };
 
     const handleSubmitGameReport = async (reportData) => {
@@ -1488,122 +1657,389 @@ export const TournamentBracket = ({
             // Update local state
             setPlayoffPairs(updatedPairs);
 
-            // Update castle statistics for each game
-            for (const game of reportData.games) {
-                if (game.castle1 && game.castle2) {
-                    // If winner is selected, update win/lose stats
-                    if (game.gameWinner) {
-                        // Update castle1 stats
-                        const castle1Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                        );
-                        if (castle1Response.ok) {
-                            const castle1Data = await castle1Response.json();
-                            const isWinner = game.castleWinner === game.castle1;
-                            await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                {
-                                    method: 'PUT',
-                                    body: JSON.stringify({
-                                        win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
-                                        lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
-                                        total: (castle1Data.total || 0) + 1
-                                    }),
-                                    headers: { 'Content-Type': 'application/json' }
-                                }
-                            );
-                        }
+            // Post finished game to games collection if winner is selected
+            if (reportData.winner) {
+                // Update player ratings FIRST
+                const winnerId = await lookForUserId(reportData.winner);
+                const ratingsUpdated = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
 
-                        // Update castle2 stats
-                        const castle2Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                        );
-                        if (castle2Response.ok) {
-                            const castle2Data = await castle2Response.json();
-                            const isWinner = game.castleWinner === game.castle2;
-                            await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                {
-                                    method: 'PUT',
-                                    body: JSON.stringify({
-                                        win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
-                                        lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
-                                        total: (castle2Data.total || 0) + 1
-                                    }),
-                                    headers: { 'Content-Type': 'application/json' }
-                                }
-                            );
-                        }
-                    } else {
-                        // No winner selected, just increment total (game in progress)
-                        const castleResponseAll = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
-                        );
-                        const castlesData = await castleResponseAll.json();
-                        console.log('castlesData', castlesData);
-                        // Update castle1 total
-                        const castle1Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                        );
-                        if (castle1Response.ok) {
-                            const castle1Data = await castle1Response.json();
-                            console.log('castle1Data', castle1Data);
-                            await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                {
-                                    method: 'PUT',
-                                    body: JSON.stringify({
-                                        win: castle1Data.win || 0,
-                                        lose: castle1Data.lose || 0,
-                                        total: (castle1Data.total || 0) + 1
-                                    }),
-                                    headers: { 'Content-Type': 'application/json' }
-                                }
-                            );
-                        }
+                // Log if ratings were skipped, but continue with castle stats and game posting
+                if (!ratingsUpdated) {
+                    console.log('Rating update cancelled by user - continuing with castle stats and game posting');
+                }
 
-                        console.log('castle1 total updated');
-
-                        // Update castle2 total
-                        const castle2Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                        );
-                        if (castle2Response.ok) {
-                            const castle2Data = await castle2Response.json();
-                            await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                {
-                                    method: 'PUT',
-                                    body: JSON.stringify({
-                                        win: castle2Data.win || 0,
-                                        lose: castle2Data.lose || 0,
-                                        total: (castle2Data.total || 0) + 1
-                                    }),
-                                    headers: { 'Content-Type': 'application/json' }
-                                }
+                // Update castle statistics for each game (continues even if ratings were skipped)
+                for (const game of reportData.games) {
+                    if (game.castle1 && game.castle2) {
+                        // If winner is selected, update win/lose stats
+                        if (game.gameWinner) {
+                            // Update castle1 stats
+                            const castle1Response = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
                             );
+                            if (castle1Response.ok) {
+                                const castle1Data = await castle1Response.json();
+                                const isWinner = game.castleWinner === game.castle1;
+                                const updatedCastle1Stats = {
+                                    win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
+                                    lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
+                                    total: (castle1Data.total || 0) + 1
+                                };
+
+                                const confirmCastle1 = confirmWindow(
+                                    `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
+                                );
+                                if (confirmCastle1) {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify(updatedCastle1Stats),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log(`${game.castle1} castle stats updated`);
+                                } else {
+                                    console.log(`${game.castle1} castle stats update skipped`);
+                                }
+                            }
+
+                            // Update castle2 stats
+                            const castle2Response = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                            );
+                            if (castle2Response.ok) {
+                                const castle2Data = await castle2Response.json();
+                                const isWinner = game.castleWinner === game.castle2;
+                                const updatedCastle2Stats = {
+                                    win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
+                                    lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
+                                    total: (castle2Data.total || 0) + 1
+                                };
+
+                                const confirmCastle2 = confirmWindow(
+                                    `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
+                                );
+                                if (confirmCastle2) {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify(updatedCastle2Stats),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log(`${game.castle2} castle stats updated`);
+                                } else {
+                                    console.log(`${game.castle2} castle stats update skipped`);
+                                }
+                            }
+                        } else {
+                            // No winner selected, just increment total (game in progress)
+                            const castleResponseAll = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
+                            );
+                            const castlesData = await castleResponseAll.json();
+                            console.log('castlesData', castlesData);
+                            // Update castle1 total
+                            const castle1Response = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                            );
+                            if (castle1Response.ok) {
+                                const castle1Data = await castle1Response.json();
+                                console.log('castle1Data', castle1Data);
+                                const updatedCastle1Total = {
+                                    win: castle1Data.win || 0,
+                                    lose: castle1Data.lose || 0,
+                                    total: (castle1Data.total || 0) + 1
+                                };
+
+                                const confirmCastle1Total = confirmWindow(
+                                    `Update ${game.castle1} castle total (game in progress)?\n\nOld Total: ${castle1Data.total || 0}\nNew Total: ${updatedCastle1Total.total}\n\nUpdate?`
+                                );
+                                if (confirmCastle1Total) {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify(updatedCastle1Total),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log(`${game.castle1} castle total updated`);
+                                } else {
+                                    console.log(`${game.castle1} castle total update skipped`);
+                                }
+                            }
+
+                            // Update castle2 total
+                            const castle2Response = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                            );
+                            if (castle2Response.ok) {
+                                const castle2Data = await castle2Response.json();
+                                const updatedCastle2Total = {
+                                    win: castle2Data.win || 0,
+                                    lose: castle2Data.lose || 0,
+                                    total: (castle2Data.total || 0) + 1
+                                };
+
+                                const confirmCastle2Total = confirmWindow(
+                                    `Update ${game.castle2} castle total (game in progress)?\n\nOld Total: ${castle2Data.total || 0}\nNew Total: ${updatedCastle2Total.total}\n\nUpdate?`
+                                );
+                                if (confirmCastle2Total) {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify(updatedCastle2Total),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log(`${game.castle2} castle total updated`);
+                                } else {
+                                    console.log(`${game.castle2} castle total update skipped`);
+                                }
+                            }
                         }
                     }
                 }
+
+                // Post game to database
+                const gameData = {
+                    opponent1: pair.team1,
+                    opponent2: pair.team2,
+                    date: new Date().toISOString(),
+                    games: reportData.games,
+                    tournamentName: tournamentName,
+                    gameType: pair.type,
+                    opponent1Castle: reportData.games[0]?.castle1 || '',
+                    opponent2Castle: reportData.games[0]?.castle2 || '',
+                    score: `${reportData.score1}-${reportData.score2}`,
+                    winner: reportData.winner
+                };
+
+                const confirmGamePost = confirmWindow(
+                    `Post game to database?\n\n${pair.team1} vs ${pair.team2}\nScore: ${reportData.score1}-${reportData.score2}\nWinner: ${reportData.winner}\n\nPost game?`
+                );
+                if (confirmGamePost) {
+                    await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
+                        method: 'POST',
+                        body: JSON.stringify(gameData),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log('Game posted to database successfully');
+                } else {
+                    console.log('Game posting skipped by user');
+                }
+
+                // Mark pair and all games as 'Processed' (regardless of what was skipped)
+                pair.gameStatus = 'Processed';
+                reportData.games.forEach((game) => {
+                    game.gameStatus = 'Processed';
+                });
+
+                // Promote winner and loser to next stage
+                const currentStage = stageLabels[selectedStageIndex];
+                const winner = reportData.winner;
+                const loser = pair.team1 === winner ? pair.team2 : pair.team1;
+
+                console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
+
+                // Promote based on current stage
+                if (currentStage === 'Semi-final') {
+                    // Winner goes to Final, Loser goes to Third Place
+                    const finalStageIndex = stageLabels.indexOf('Final');
+                    const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
+
+                    // Promote winner to Final
+                    if (finalStageIndex !== -1 && updatedPairs[finalStageIndex] && updatedPairs[finalStageIndex][0]) {
+                        const finalPair = updatedPairs[finalStageIndex][0];
+                        const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
+
+                        const confirmPromoteToFinal = confirmWindow(
+                            `Promote winner to Final?\n\n${winner} → Final ${teamSlot}\n\nPromote?`
+                        );
+
+                        if (confirmPromoteToFinal) {
+                            // Determine which slot to fill based on which semi-final this is
+                            if (selectedPairIndex === 0) {
+                                // First semi-final winner goes to team1 of Final
+                                if (finalPair.team1 === 'TBD' || !finalPair.team1) {
+                                    finalPair.team1 = winner;
+                                    finalPair.ratings1 = pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    finalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(`Promoted ${winner} to Final team1`);
+                                }
+                            } else if (selectedPairIndex === 1) {
+                                // Second semi-final winner goes to team2 of Final
+                                if (finalPair.team2 === 'TBD' || !finalPair.team2) {
+                                    finalPair.team2 = winner;
+                                    finalPair.ratings2 = pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    finalPair.stars2 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(`Promoted ${winner} to Final team2`);
+                                }
+                            }
+                        } else {
+                            console.log(`Promotion to Final cancelled by user`);
+                        }
+                    }
+
+                    // Promote loser to Third Place
+                    if (
+                        thirdPlaceStageIndex !== -1 &&
+                        updatedPairs[thirdPlaceStageIndex] &&
+                        updatedPairs[thirdPlaceStageIndex][0]
+                    ) {
+                        const thirdPlacePair = updatedPairs[thirdPlaceStageIndex][0];
+                        const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
+
+                        const confirmPromoteToThirdPlace = confirmWindow(
+                            `Promote loser to Third Place?\n\n${loser} → Third Place ${teamSlot}\n\nPromote?`
+                        );
+
+                        if (confirmPromoteToThirdPlace) {
+                            // Determine which slot to fill based on which semi-final this is
+                            if (selectedPairIndex === 0) {
+                                // First semi-final loser goes to team1 of Third Place
+                                if (thirdPlacePair.team1 === 'TBD' || !thirdPlacePair.team1) {
+                                    thirdPlacePair.team1 = loser;
+                                    thirdPlacePair.ratings1 =
+                                        pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1;
+                                    thirdPlacePair.stars1 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
+                                    console.log(`Promoted ${loser} to Third Place team1`);
+                                }
+                            } else if (selectedPairIndex === 1) {
+                                // Second semi-final loser goes to team2 of Third Place
+                                if (thirdPlacePair.team2 === 'TBD' || !thirdPlacePair.team2) {
+                                    thirdPlacePair.team2 = loser;
+                                    thirdPlacePair.ratings2 =
+                                        pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1;
+                                    thirdPlacePair.stars2 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
+                                    console.log(`Promoted ${loser} to Third Place team2`);
+                                }
+                            }
+                        } else {
+                            console.log(`Promotion to Third Place cancelled by user`);
+                        }
+                    }
+                } else if (currentStage === 'Quarter-final') {
+                    // Winner goes to Semi-final
+                    const semiStageIndex = stageLabels.indexOf('Semi-final');
+                    if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
+                        const semiPairIndex = Math.floor(selectedPairIndex / 2);
+                        const semiPair = updatedPairs[semiStageIndex][semiPairIndex];
+                        if (semiPair) {
+                            const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
+                            const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
+
+                            const confirmPromoteToSemi = confirmWindow(
+                                `Promote winner to Semi-final?\n\n${winner} → Semi-final ${semiPairIndex + 1} ${teamSlot}\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToSemi) {
+                                if (semiPair[teamSlot] === 'TBD' || !semiPair[teamSlot]) {
+                                    semiPair[teamSlot] = winner;
+                                    semiPair[ratingsSlot] = pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    semiPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(`Promoted ${winner} to Semi-final ${semiPairIndex} ${teamSlot}`);
+                                }
+                            } else {
+                                console.log(`Promotion to Semi-final cancelled by user`);
+                            }
+                        }
+                    }
+                } else if (currentStage === '1/8 Final') {
+                    // Winner goes to Quarter-final
+                    const quarterStageIndex = stageLabels.indexOf('Quarter-final');
+                    if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
+                        const quarterPairIndex = Math.floor(selectedPairIndex / 2);
+                        const quarterPair = updatedPairs[quarterStageIndex][quarterPairIndex];
+                        if (quarterPair) {
+                            const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
+                            const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
+
+                            const confirmPromoteToQuarter = confirmWindow(
+                                `Promote winner to Quarter-final?\n\n${winner} → Quarter-final ${quarterPairIndex + 1} ${teamSlot}\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToQuarter) {
+                                if (quarterPair[teamSlot] === 'TBD' || !quarterPair[teamSlot]) {
+                                    quarterPair[teamSlot] = winner;
+                                    quarterPair[ratingsSlot] =
+                                        pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    quarterPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(`Promoted ${winner} to Quarter-final ${quarterPairIndex} ${teamSlot}`);
+                                }
+                            } else {
+                                console.log(`Promotion to Quarter-final cancelled by user`);
+                            }
+                        }
+                    }
+                } else if (currentStage === '1/16 Final') {
+                    // Winner goes to 1/8 Final
+                    const eighthStageIndex = stageLabels.indexOf('1/8 Final');
+                    if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
+                        const eighthPairIndex = Math.floor(selectedPairIndex / 2);
+                        const eighthPair = updatedPairs[eighthStageIndex][eighthPairIndex];
+                        if (eighthPair) {
+                            const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
+                            const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
+
+                            const confirmPromoteToEighth = confirmWindow(
+                                `Promote winner to 1/8 Final?\n\n${winner} → 1/8 Final ${eighthPairIndex + 1} ${teamSlot}\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToEighth) {
+                                if (eighthPair[teamSlot] === 'TBD' || !eighthPair[teamSlot]) {
+                                    eighthPair[teamSlot] = winner;
+                                    eighthPair[ratingsSlot] =
+                                        pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    eighthPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(`Promoted ${winner} to 1/8 Final ${eighthPairIndex} ${teamSlot}`);
+                                }
+                            } else {
+                                console.log(`Promotion to 1/8 Final cancelled by user`);
+                            }
+                        }
+                    }
+                }
+
+                // Update the local state with promoted players
+                setPlayoffPairs(updatedPairs);
             }
 
             // Post to Firebase
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(updatedPairs),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
+            const confirmBracketUpdate = confirmWindow(
+                `Update tournament bracket in database?\n\nThis will save all changes to the tournament.\n\nUpdate bracket?`
             );
+            if (confirmBracketUpdate) {
+                const response = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(updatedPairs),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
 
-            if (response.ok) {
-                setShowReportGameModal(false);
-                alert('Game result reported successfully!');
+                if (response.ok) {
+                    setShowReportGameModal(false);
+                    alert('Game result reported successfully!');
+                } else {
+                    alert('Error updating tournament bracket');
+                }
             } else {
-                alert('Failed to report game result');
+                console.log('Bracket update skipped by user');
+                alert('Bracket update cancelled - local changes saved but not synced to database');
+                setShowReportGameModal(false);
             }
         } catch (error) {
             console.error('Error reporting game result:', error);
@@ -1960,10 +2396,16 @@ export const TournamentBracket = ({
                                                                 }
                                                                 style={{
                                                                     padding: '0.5rem 1rem',
-                                                                    background: 'gold',
+                                                                    background:
+                                                                        pair.gameStatus === 'Processed'
+                                                                            ? '#808080'
+                                                                            : 'gold',
                                                                     border: 'none',
                                                                     borderRadius: '6px',
-                                                                    color: 'rgb(62, 32, 192)',
+                                                                    color:
+                                                                        pair.gameStatus === 'Processed'
+                                                                            ? '#ffffff'
+                                                                            : 'rgb(62, 32, 192)',
                                                                     fontWeight: 'bold',
                                                                     cursor: 'pointer',
                                                                     fontSize: '0.9rem'
@@ -2027,6 +2469,40 @@ export const TournamentBracket = ({
                                                             isManualScore={isManualScore}
                                                             clickedRadioButton={clickedRadioButton}
                                                         />
+                                                    </div>
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            gap: '0.5rem',
+                                                            alignItems: 'center',
+                                                            marginTop: '2.5rem'
+                                                        }}
+                                                    >
+                                                        {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleOpenReportGame(pair, stageIndex, pairIndex)
+                                                                }
+                                                                style={{
+                                                                    padding: '0.5rem 1rem',
+                                                                    background:
+                                                                        pair.gameStatus === 'Processed'
+                                                                            ? '#808080'
+                                                                            : 'gold',
+                                                                    border: 'none',
+                                                                    borderRadius: '6px',
+                                                                    color:
+                                                                        pair.gameStatus === 'Processed'
+                                                                            ? '#ffffff'
+                                                                            : 'rgb(62, 32, 192)',
+                                                                    fontWeight: 'bold',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                            >
+                                                                Report Game
+                                                            </button>
+                                                        )}
                                                     </div>
                                                     <div
                                                         style={{
@@ -2200,10 +2676,16 @@ export const TournamentBracket = ({
                                                             }
                                                             style={{
                                                                 padding: '0.5rem 1rem',
-                                                                background: 'gold',
+                                                                background:
+                                                                    pair.gameStatus === 'Processed'
+                                                                        ? '#808080'
+                                                                        : 'gold',
                                                                 border: 'none',
                                                                 borderRadius: '6px',
-                                                                color: 'rgb(62, 32, 192)',
+                                                                color:
+                                                                    pair.gameStatus === 'Processed'
+                                                                        ? '#ffffff'
+                                                                        : 'rgb(62, 32, 192)',
                                                                 fontWeight: 'bold',
                                                                 cursor: 'pointer',
                                                                 fontSize: '0.9rem'
@@ -2227,9 +2709,9 @@ export const TournamentBracket = ({
             )}
 
             {/* Report Game Modal */}
-            {showReportGameModal && selectedPairToReport && (
+            {showReportGameModal && selectedStageIndex !== null && selectedPairIndex !== null && (
                 <ReportGameModal
-                    pair={selectedPairToReport}
+                    pair={playoffPairs[selectedStageIndex]?.[selectedPairIndex]}
                     onClose={() => setShowReportGameModal(false)}
                     onSubmit={handleSubmitGameReport}
                 />
