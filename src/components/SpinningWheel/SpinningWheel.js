@@ -13,6 +13,8 @@ const SpinningWheel = ({ players, onStartTournament }) => {
     const [modalMessage, setModalMessage] = useState('');
     const canvasRef = useRef(null);
     const [fadingSlice, setFadingSlice] = useState(null);
+    const [fadingOpacity, setFadingOpacity] = useState(1);
+    const [particles, setParticles] = useState([]);
     const [pairDetails, setPairDetails] = useState({});
 
     // Initialize remaining players and pre-bracket pairs
@@ -115,141 +117,197 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             ctx.save();
             ctx.translate(centerX, centerY);
             ctx.rotate(startAngle + (sliceAngle / 2) * (Math.PI / 180)); // Rotate to the middle of the slice
-            // Draw the text
+            // Draw the text with shadow
             ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
+            ctx.font = 'bold 20px Arial';
             ctx.textAlign = 'right';
-            ctx.fillText(`${player}`, radius - 10, 5);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fillText(`${player}`, radius - 20, 8);
             ctx.restore(); // Restore the canvas state
         });
 
         // Reset global alpha
         ctx.globalAlpha = 1;
+
+        // Draw particles
+        particles.forEach((particle) => {
+            ctx.globalAlpha = particle.opacity;
+            ctx.fillStyle = particle.color;
+            ctx.fillRect(particle.x - particle.size / 2, particle.y - particle.size / 2, particle.size, particle.size);
+        });
+        ctx.globalAlpha = 1;
     };
 
     const handleModalYes = () => {
-        setFadingSlice(selectedPlayer); // Set the slice to fade out
+        setFadingSlice(selectedPlayer); // Set the slice to break
+        setIsModalVisible(false); // Hide the modal immediately
 
-        let opacity = 1; // Initial opacity
-        const fadeOut = () => {
-            drawWheel(opacity); // Redraw the wheel with the fading slice
-            opacity -= 0.05; // Reduce opacity
+        // Create particles from the selected slice
+        const selectedIndex = remainingPlayers.indexOf(selectedPlayer);
+        const totalPlayers = remainingPlayers.length;
+        const sliceAngle = (360 / totalPlayers) * (Math.PI / 180);
+        const startAngle = selectedIndex * sliceAngle;
+        const centerX = 250; // Canvas center
+        const centerY = 250;
+        const radius = 250;
 
-            if (opacity > 0) {
-                requestAnimationFrame(fadeOut); // Continue the animation
-            } else {
-                // Remove the selected player
-                setRemainingPlayers((prevPlayers) => {
-                    const updatedPlayers = prevPlayers.filter((player) => player !== selectedPlayer);
-                    console.log('Updated Remaining Players:', updatedPlayers); // Log all remaining players
-                    return updatedPlayers;
-                });
+        // Generate particles
+        const newParticles = [];
+        const particleCount = 300; // Number of particles
 
-                // Update the pre-bracket pairs for the selected player
-                setPreBracketPairs((prevPairs) => {
-                    const updatedPairs = [...prevPairs];
-                    const totalPairs = updatedPairs.length;
+        for (let i = 0; i < particleCount; i++) {
+            const angle = startAngle + Math.random() * sliceAngle;
+            const distance = Math.random() * radius * 0.8 + radius * 0.2;
+            const x = centerX + Math.cos(angle) * distance;
+            const y = centerY + Math.sin(angle) * distance;
 
-                    // Determine the correct slot to update
-                    if (currentSlotIndex < totalPairs) {
-                        // Fill the first column of the current row
-                        if (updatedPairs[currentSlotIndex][0] === 'TBD') {
-                            updatedPairs[currentSlotIndex][0] = selectedPlayer;
-                        } else {
-                            console.error(`Row ${currentSlotIndex}, Column 0 is already filled!`);
-                        }
-                    } else {
-                        if (
-                            currentSlotIndex != null &&
-                            !isNaN(currentSlotIndex) &&
-                            totalPairs != null &&
-                            !isNaN(totalPairs)
-                        ) {
-                            const opponentIndex = currentSlotIndex - totalPairs;
+            newParticles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * (2 + Math.random() * 3),
+                vy: Math.sin(angle) * (2 + Math.random() * 3),
+                size: 3 + Math.random() * 5,
+                opacity: 1,
+                color: `hsl(${(selectedIndex * 360) / totalPlayers}, 70%, 70%)`
+            });
+        }
+        setParticles(newParticles);
 
-                            // Ensure opponentIndex is valid
-                            if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
-                                if (updatedPairs[opponentIndex][1] === 'TBD') {
-                                    updatedPairs[opponentIndex][1] = selectedPlayer;
-                                } else {
-                                    console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
-                                }
+        // Animate particles
+        const animateParticles = () => {
+            setParticles((prevParticles) => {
+                const updatedParticles = prevParticles
+                    .map((p) => ({
+                        ...p,
+                        x: p.x + p.vx,
+                        y: p.y + p.vy,
+                        vx: p.vx * 0.98, // Slow down
+                        vy: p.vy * 0.98,
+                        opacity: p.opacity - 0.02
+                    }))
+                    .filter((p) => p.opacity > 0);
+
+                if (updatedParticles.length > 0) {
+                    requestAnimationFrame(animateParticles);
+                } else {
+                    // Remove the selected player
+                    setRemainingPlayers((prevPlayers) => {
+                        const updatedPlayers = prevPlayers.filter((player) => player !== selectedPlayer);
+                        console.log('Updated Remaining Players:', updatedPlayers); // Log all remaining players
+                        return updatedPlayers;
+                    });
+
+                    // Update the pre-bracket pairs for the selected player
+                    setPreBracketPairs((prevPairs) => {
+                        const updatedPairs = [...prevPairs];
+                        const totalPairs = updatedPairs.length;
+
+                        // Determine the correct slot to update
+                        if (currentSlotIndex < totalPairs) {
+                            // Fill the first column of the current row
+                            if (updatedPairs[currentSlotIndex][0] === 'TBD') {
+                                updatedPairs[currentSlotIndex][0] = selectedPlayer;
                             } else {
-                                console.error('Invalid Opponent Index:', opponentIndex);
+                                console.error(`Row ${currentSlotIndex}, Column 0 is already filled!`);
                             }
                         } else {
-                            console.error('Invalid Current Slot Index or Total Pairs:', {
-                                currentSlotIndex,
-                                totalPairs
-                            });
-                        }
-                    }
+                            if (
+                                currentSlotIndex != null &&
+                                !isNaN(currentSlotIndex) &&
+                                totalPairs != null &&
+                                !isNaN(totalPairs)
+                            ) {
+                                const opponentIndex = currentSlotIndex - totalPairs;
 
-                    // Increment the current slot index AFTER updating the pairs
-                    setCurrentSlotIndex((prevIndex) => {
-                        const newIndex = prevIndex + 1;
-                        return newIndex;
-                    });
-
-                    return updatedPairs;
-                });
-
-                // Handle the last player logic after 1 second
-                setTimeout(() => {
-                    setRemainingPlayers((prevPlayers) => {
-                        if (prevPlayers.length === 1) {
-                            const lastPlayer = prevPlayers[0];
-
-                            // Manually calculate the updated slot index
-                            const updatedSlotIndex = currentSlotIndex + 1;
-
-                            // Add the last player to the pre-bracket table
-                            setPreBracketPairs((prevPairs) => {
-                                const updatedPairs = [...prevPairs];
-                                const totalPairs = updatedPairs.length;
-
-                                // Determine the correct slot to update
-                                if (updatedSlotIndex < totalPairs) {
-                                    // Fill the first column of the current row
-                                    if (updatedPairs[updatedSlotIndex][0] === 'TBD') {
-                                        updatedPairs[updatedSlotIndex][0] = lastPlayer;
+                                // Ensure opponentIndex is valid
+                                if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
+                                    if (updatedPairs[opponentIndex][1] === 'TBD') {
+                                        updatedPairs[opponentIndex][1] = selectedPlayer;
                                     } else {
-                                        console.error(`Row ${updatedSlotIndex}, Column 0 is already filled!`);
+                                        console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
                                     }
                                 } else {
-                                    // Calculate the opponent index for the second column
-                                    const opponentIndex = updatedSlotIndex - totalPairs;
-
-                                    // Ensure opponentIndex is valid
-                                    if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
-                                        if (updatedPairs[opponentIndex][1] === 'TBD') {
-                                            updatedPairs[opponentIndex][1] = lastPlayer;
-                                        } else {
-                                            console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
-                                        }
-                                    } else {
-                                        console.error('Invalid Opponent Index:', opponentIndex);
-                                    }
+                                    console.error('Invalid Opponent Index:', opponentIndex);
                                 }
-
-                                return updatedPairs;
-                            });
-
-                            // Clear the remaining players
-                            setRemainingPlayers([]);
+                            } else {
+                                console.error('Invalid Current Slot Index or Total Pairs:', {
+                                    currentSlotIndex,
+                                    totalPairs
+                                });
+                            }
                         }
 
-                        return prevPlayers;
-                    });
-                }, 1000); // 1-second delay
+                        // Increment the current slot index AFTER updating the pairs
+                        setCurrentSlotIndex((prevIndex) => {
+                            const newIndex = prevIndex + 1;
+                            return newIndex;
+                        });
 
-                // Reset the fading state after the animation completes
-                setIsModalVisible(false); // Hide the modal
-                setIsSpinning(false);
-                setFadingSlice(null); // Reset the fading slice
-            }
+                        return updatedPairs;
+                    });
+
+                    // Handle the last player logic after 1 second
+                    setTimeout(() => {
+                        setRemainingPlayers((prevPlayers) => {
+                            if (prevPlayers.length === 1) {
+                                const lastPlayer = prevPlayers[0];
+
+                                // Manually calculate the updated slot index
+                                const updatedSlotIndex = currentSlotIndex + 1;
+
+                                // Add the last player to the pre-bracket table
+                                setPreBracketPairs((prevPairs) => {
+                                    const updatedPairs = [...prevPairs];
+                                    const totalPairs = updatedPairs.length;
+
+                                    // Determine the correct slot to update
+                                    if (updatedSlotIndex < totalPairs) {
+                                        // Fill the first column of the current row
+                                        if (updatedPairs[updatedSlotIndex][0] === 'TBD') {
+                                            updatedPairs[updatedSlotIndex][0] = lastPlayer;
+                                        } else {
+                                            console.error(`Row ${updatedSlotIndex}, Column 0 is already filled!`);
+                                        }
+                                    } else {
+                                        // Calculate the opponent index for the second column
+                                        const opponentIndex = updatedSlotIndex - totalPairs;
+
+                                        // Ensure opponentIndex is valid
+                                        if (opponentIndex >= 0 && opponentIndex < updatedPairs.length) {
+                                            if (updatedPairs[opponentIndex][1] === 'TBD') {
+                                                updatedPairs[opponentIndex][1] = lastPlayer;
+                                            } else {
+                                                console.error(`Row ${opponentIndex}, Column 1 is already filled!`);
+                                            }
+                                        } else {
+                                            console.error('Invalid Opponent Index:', opponentIndex);
+                                        }
+                                    }
+
+                                    return updatedPairs;
+                                });
+
+                                // Clear the remaining players
+                                setRemainingPlayers([]);
+                            }
+
+                            return prevPlayers;
+                        });
+                    }, 1000); // 1-second delay
+
+                    // All particles faded, clean up
+                    setIsSpinning(false);
+                    setFadingSlice(null);
+                    setParticles([]);
+                }
+
+                return updatedParticles;
+            });
         };
-        fadeOut();
+        animateParticles();
     };
 
     const handleModalNo = () => {
@@ -323,9 +381,7 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             const playerRange = `${playerStartAngle}° - ${playerEndAngle}°`;
 
             setTimeout(() => {
-                setModalMessage(
-                    `Do you want to move ${selected} (Final Angle: ${adjustedStopAngle}°, Player Range: ${playerRange}) to the Pre-Bracket Table?`
-                );
+                setModalMessage(`Add ${selected} to the Pre-Bracket Table?`);
                 setSelectedPlayer(selected);
                 setIsModalVisible(true);
 
@@ -334,10 +390,10 @@ const SpinningWheel = ({ players, onStartTournament }) => {
         }, spinDuration * 1000); // Match the spin duration
     };
 
-    // Redraw the wheel whenever the remaining players change
+    // Redraw the wheel whenever the remaining players, fading state, or particles change
     useEffect(() => {
         drawWheel();
-    }, [remainingPlayers]);
+    }, [remainingPlayers, fadingOpacity, fadingSlice, particles]);
 
     // Automatically add the last remaining player to the bracket
     useEffect(() => {
@@ -393,11 +449,11 @@ const SpinningWheel = ({ players, onStartTournament }) => {
         <div className={classes.spinningWheelContainer}>
             {/* Spinning wheel section - hide when all players are assigned */}
             {remainingPlayers.length > 0 && (
-                <>
+                <div className={classes.wheelSection}>
                     {/* Pointer */}
                     <div className={classes.pointer}></div>
                     {/* Canvas for the spinning wheel */}
-                    <canvas ref={canvasRef} width="300" height="300" className={classes.spinningWheelCanvas}></canvas>
+                    <canvas ref={canvasRef} width="500" height="500" className={classes.spinningWheelCanvas}></canvas>
                     {/* Spin button */}
                     <button
                         onClick={spinWheel}
@@ -419,20 +475,8 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                             className={classes.spinDurationInput}
                         />
                     </div>
-                </>
-            )}
-            {isModalVisible && (
-                <div className={classes.modal}>
-                    <p>{modalMessage}</p>
-                    <div className={classes.modalButtons}>
-                        <button onClick={handleModalYes}>Yes</button>
-                        <button onClick={handleModalNo}>No</button>
-                    </div>
                 </div>
             )}
-
-            {/* Selected player */}
-            {selectedPlayer && <p className={classes.selectedPlayer}>Selected Player: {selectedPlayer}</p>}
             {/* Pre-Bracket Table */}
             <div
                 className={`${classes.preBracketTable} ${remainingPlayers.length === 0 ? classes.preBracketTableExpanded : ''}`}
@@ -475,6 +519,17 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                 <button onClick={() => onStartTournament(preBracketPairs)} className={classes.startTournamentButton}>
                     Start Tournament
                 </button>
+            )}
+
+            {/* Modal */}
+            {isModalVisible && (
+                <div className={classes.modal}>
+                    <p>{modalMessage}</p>
+                    <div className={classes.modalButtons}>
+                        <button onClick={handleModalYes}>Yes</button>
+                        <button onClick={handleModalNo}>No</button>
+                    </div>
+                </div>
             )}
         </div>
     );
