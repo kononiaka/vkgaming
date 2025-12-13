@@ -241,6 +241,7 @@ export const TournamentBracket = ({
     };
 
     const handleStartTournament = async () => {
+        console.log('handleStartTournament called');
         const tournamentResponseGET = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
             {
@@ -250,18 +251,23 @@ export const TournamentBracket = ({
         let tournamentResponse = null;
         if (tournamentResponseGET.ok) {
             const data = await tournamentResponseGET.json();
+            console.log('Tournament data:', data);
             // const playoffsGames = data.tournamentPlayoffGames;
             // const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
             const randomBrackets = data.randomBracket;
             playersObj = data.players;
+            console.log('playersObj:', playersObj);
             // let tournamentData = {};
 
             setStartTournament(true);
             // Prepare the tournament data
             console.log('Random Brackets setting:', randomBrackets);
-            if (!randomBrackets) {
+            console.log('Should open spinning wheel?', !randomBrackets);
+            if (randomBrackets) {
+                console.log('Opening spinning wheel...');
                 setIsSpinningWheelOpen(true);
             } else {
+                console.log('Random bracket is true, skipping spinning wheel');
                 tournamentResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
                     {
@@ -284,7 +290,7 @@ export const TournamentBracket = ({
                     console.error('Error posting pairs to Firebase:', error);
                 }
 
-                window.location.reload();
+                // window.location.reload();
             }
         }
     };
@@ -2008,6 +2014,253 @@ export const TournamentBracket = ({
                             }
                         }
                     }
+                } else if (currentStage === 'Third Place') {
+                    // Award Third Place prize to the winner
+                    console.log(`Third Place game completed. Winner: ${winner}`);
+
+                    const confirmThirdPlacePrize = confirmWindow(
+                        `Award Third Place prize to ${winner}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
+                    );
+
+                    if (confirmThirdPlacePrize) {
+                        try {
+                            // Get tournament prizes
+                            const prizes = await pullTournamentPrizes(tournamentId);
+                            const prizeAmount = prizes['3rd Place'];
+
+                            console.log('Third Place Prize:', prizeAmount);
+
+                            // Find and update player record
+                            const playerId = await lookForUserId(winner);
+                            if (playerId) {
+                                const playerData = await loadUserById(playerId);
+
+                                if (playerData) {
+                                    // Initialize prizes array if it doesn't exist
+                                    if (!playerData.prizes) {
+                                        playerData.prizes = [];
+                                    }
+
+                                    // Add new prize
+                                    playerData.prizes.push({
+                                        tournamentName: tournamentName,
+                                        place: '3rd Place',
+                                        prizeAmount: prizeAmount
+                                    });
+
+                                    // Calculate new total prize
+                                    const currentTotal = await getPlayerPrizeTotal(playerId);
+                                    const newTotal = parseFloat(currentTotal || 0) + parseFloat(prizeAmount);
+                                    playerData.totalPrize = newTotal;
+
+                                    console.log('Updated player data:', playerData);
+
+                                    // Update tournament winners
+                                    const confirmUpdateWinner = confirmWindow(
+                                        `Update tournament 3rd place winner?\n\nWinner: ${winner}\nPrize: ${prizeAmount}\n\nUpdate?`
+                                    );
+
+                                    if (confirmUpdateWinner) {
+                                        await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify(winner),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Tournament 3rd place winner updated');
+                                    }
+
+                                    // Update player record
+                                    const confirmUpdatePlayer = confirmWindow(
+                                        `Update player record with prize?\n\nPlayer: ${winner}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
+                                    );
+
+                                    if (confirmUpdatePlayer) {
+                                        await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${playerId}.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify(playerData),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Player record updated with 3rd place prize');
+                                    }
+                                } else {
+                                    console.log('Player data not found');
+                                    alert('Could not load player data for prize award');
+                                }
+                            } else {
+                                console.log('Player ID not found');
+                                alert('Could not find player ID for prize award');
+                            }
+                        } catch (error) {
+                            console.error('Error awarding Third Place prize:', error);
+                            alert('Error awarding Third Place prize: ' + error.message);
+                        }
+                    } else {
+                        console.log('Third Place prize award cancelled by user');
+                    }
+                } else if (currentStage === 'Final') {
+                    // Award Final prizes to winner (1st place) and loser (2nd place)
+                    console.log(`Final game completed. Winner: ${winner}, Runner-up: ${loser}`);
+
+                    const confirmFinalPrizes = confirmWindow(
+                        `Award Final prizes?\n\n1st Place: ${winner}\n2nd Place: ${loser}\n\nThis will update tournament winners and player prize records.\n\nAward prizes?`
+                    );
+
+                    if (confirmFinalPrizes) {
+                        try {
+                            // Get tournament prizes
+                            const prizes = await pullTournamentPrizes(tournamentId);
+                            const firstPlacePrize = prizes['1st Place'];
+                            const secondPlacePrize = prizes['2nd Place'];
+
+                            console.log('1st Place Prize:', firstPlacePrize);
+                            console.log('2nd Place Prize:', secondPlacePrize);
+
+                            // Award 1st place prize
+                            const firstPlacePlayerId = await lookForUserId(winner);
+                            if (firstPlacePlayerId) {
+                                const winnerData = await loadUserById(firstPlacePlayerId);
+                                if (winnerData) {
+                                    // Initialize prizes array if it doesn't exist
+                                    if (!winnerData.prizes) {
+                                        winnerData.prizes = [];
+                                    }
+
+                                    // Add new prize
+                                    winnerData.prizes.push({
+                                        tournamentName: tournamentName,
+                                        place: '1st Place',
+                                        prizeAmount: firstPlacePrize
+                                    });
+
+                                    // Calculate new total prize
+                                    const winnerCurrentTotal = await getPlayerPrizeTotal(winnerId);
+                                    const winnerNewTotal =
+                                        parseFloat(winnerCurrentTotal || 0) + parseFloat(firstPlacePrize);
+                                    winnerData.totalPrize = winnerNewTotal;
+
+                                    console.log('Updated winner data:', winnerData);
+
+                                    // Update tournament 1st place winner
+                                    const confirmUpdateWinner = confirmWindow(
+                                        `Update tournament 1st place winner?\n\nWinner: ${winner}\nPrize: ${firstPlacePrize}\n\nUpdate?`
+                                    );
+
+                                    if (confirmUpdateWinner) {
+                                        await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/1st place.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify(winner),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Tournament 1st place winner updated');
+                                    }
+
+                                    // Update winner record
+                                    const confirmUpdateWinnerPlayer = confirmWindow(
+                                        `Update winner record with prize?\n\nPlayer: ${winner}\nOld Total: ${winnerCurrentTotal}\nNew Total: ${winnerNewTotal}\n\nUpdate?`
+                                    );
+
+                                    if (confirmUpdateWinnerPlayer) {
+                                        await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlacePlayerId}.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify(winnerData),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Winner record updated with 1st place prize');
+                                    }
+                                } else {
+                                    console.log('Winner data not found');
+                                    alert('Could not load winner data for prize award');
+                                }
+                            } else {
+                                console.log('Winner ID not found');
+                                alert('Could not find winner ID for prize award');
+                            }
+
+                            // Award 2nd place prize
+                            const secondPlacePlayerId = await lookForUserId(loser);
+                            if (secondPlacePlayerId) {
+                                const loserData = await loadUserById(secondPlacePlayerId);
+                                if (loserData) {
+                                    // Initialize prizes array if it doesn't exist
+                                    if (!loserData.prizes) {
+                                        loserData.prizes = [];
+                                    }
+
+                                    // Add new prize
+                                    loserData.prizes.push({
+                                        tournamentName: tournamentName,
+                                        place: '2nd Place',
+                                        prizeAmount: secondPlacePrize
+                                    });
+
+                                    // Calculate new total prize
+                                    const loserCurrentTotal = await getPlayerPrizeTotal(loserId);
+                                    const loserNewTotal =
+                                        parseFloat(loserCurrentTotal || 0) + parseFloat(secondPlacePrize);
+                                    loserData.totalPrize = loserNewTotal;
+
+                                    console.log('Updated runner-up data:', loserData);
+
+                                    // Update tournament 2nd place winner
+                                    const confirmUpdateRunnerUp = confirmWindow(
+                                        `Update tournament 2nd place winner?\n\nRunner-up: ${loser}\nPrize: ${secondPlacePrize}\n\nUpdate?`
+                                    );
+
+                                    if (confirmUpdateRunnerUp) {
+                                        await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/2nd place.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify(loser),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Tournament 2nd place winner updated');
+                                    }
+
+                                    // Update runner-up record
+                                    const confirmUpdateLoserPlayer = confirmWindow(
+                                        `Update runner-up record with prize?\n\nPlayer: ${loser}\nOld Total: ${loserCurrentTotal}\nNew Total: ${loserNewTotal}\n\nUpdate?`
+                                    );
+
+                                    if (confirmUpdateLoserPlayer) {
+                                        await fetch(
+                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlacePlayerId}.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify(loserData),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Runner-up record updated with 2nd place prize');
+                                    }
+                                } else {
+                                    console.log('Runner-up data not found');
+                                    alert('Could not load runner-up data for prize award');
+                                }
+                            } else {
+                                console.log('Runner-up ID not found');
+                                alert('Could not find runner-up ID for prize award');
+                            }
+                        } catch (error) {
+                            console.error('Error awarding Final prizes:', error);
+                            alert('Error awarding Final prizes: ' + error.message);
+                        }
+                    } else {
+                        console.log('Final prizes award cancelled by user');
+                    }
                 }
 
                 // Update the local state with promoted players
@@ -2057,7 +2310,7 @@ export const TournamentBracket = ({
                     backgroundColor: 'rgb(62, 32, 192)', // Match the modal background
                     color: 'yellow',
                     padding: '1rem',
-                    zIndex: 101,
+                    zIndex: 1,
                     textAlign: 'center',
                     borderBottom: '1px solid white'
                 }}
@@ -2286,12 +2539,12 @@ export const TournamentBracket = ({
                 </div>
             )}
 
-            {startButton && !startTournament && tournamentStatus === 'Registration finished!' && (
+            {!startTournament && tournamentStatus === 'Registration finished!' && (
                 <button onClick={handleStartTournament} className={classes.actionButton}>
                     Start Tournament
                 </button>
             )}
-            {startTournament && (
+            {startTournament && playoffPairs.length === 0 && (
                 <button onClick={() => shuffleArray(uniquePlayerNames)} className={classes.actionButton}>
                     Shuffle
                 </button>
@@ -2416,9 +2669,6 @@ export const TournamentBracket = ({
                                                         )}
                                                     </div>
                                                 </div>
-                                                {showStats && stats && (
-                                                    <StatsPopup stats={stats} onClose={handleCloseStats} />
-                                                )}
                                             </div>
                                         );
                                     })}
@@ -2481,7 +2731,11 @@ export const TournamentBracket = ({
                                                         {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
                                                             <button
                                                                 onClick={() =>
-                                                                    handleOpenReportGame(pair, stageIndex, pairIndex)
+                                                                    handleOpenReportGame(
+                                                                        pair,
+                                                                        thirdPlaceIndex,
+                                                                        pairIndex
+                                                                    )
                                                                 }
                                                                 style={{
                                                                     padding: '0.5rem 1rem',
@@ -2515,9 +2769,6 @@ export const TournamentBracket = ({
                                                         {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
                                                     </div>
                                                 </div>
-                                                {showStats && stats && (
-                                                    <StatsPopup stats={stats} onClose={handleCloseStats} />
-                                                )}
                                             </div>
                                         );
                                     })}
@@ -2696,9 +2947,6 @@ export const TournamentBracket = ({
                                                     )}
                                                 </div>
                                             </div>
-                                            {showStats && stats && (
-                                                <StatsPopup stats={stats} onClose={handleCloseStats} />
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -2707,6 +2955,9 @@ export const TournamentBracket = ({
                     })}
                 </div>
             )}
+
+            {/* Stats Popup - Single instance for all games */}
+            {showStats && stats && <StatsPopup stats={stats} onClose={handleCloseStats} />}
 
             {/* Report Game Modal */}
             {showReportGameModal && selectedStageIndex !== null && selectedPairIndex !== null && (

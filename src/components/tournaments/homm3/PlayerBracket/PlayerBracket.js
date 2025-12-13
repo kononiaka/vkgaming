@@ -12,6 +12,7 @@ import necropolisImg from '../../../../image/castles/necropolis.jpeg';
 import dungeonImg from '../../../../image/castles/dungeon.jpeg';
 import strongholdImg from '../../../../image/castles/stronghold.jpeg';
 import fortressImg from '../../../../image/castles/fortress.jpeg';
+import factoryImg from '../../../../image/castles/factory.jpeg';
 import confluxImg from '../../../../image/castles/conflux.jpeg';
 import coveImg from '../../../../image/castles/cove.jpeg';
 
@@ -282,6 +283,7 @@ export const PlayerBracket = (props) => {
                                 Dungeon: dungeonImg,
                                 Stronghold: strongholdImg,
                                 Fortress: fortressImg,
+                                Factory: factoryImg,
                                 Conflux: confluxImg,
                                 Cove: coveImg
                             };

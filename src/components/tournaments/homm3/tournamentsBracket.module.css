@@ -45,6 +45,7 @@
     gap: 3rem;
     padding: 2rem 0;
     position: relative;
+    z-index: 1;
 }
 
 .bracket-stages-container:has(.bracket-stages-column:last-child) {
@@ -64,6 +65,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    z-index: 1;
 }
 
 /* Connector lines between stages */
@@ -80,11 +82,11 @@
 }
 
 /* Add spacing between game blocks in semi-finals and later stages */
-.bracket-stages-column:nth-child(n+2) .game-block {
+.bracket-stages-column:nth-child(n + 2) .game-block {
     margin-bottom: 3rem;
 }
 
-.bracket-stages-column:nth-child(n+2) .game-block:last-child {
+.bracket-stages-column:nth-child(n + 2) .game-block:last-child {
     margin-bottom: 0;
 }
 
@@ -107,6 +109,7 @@
     transition: all 0.3s ease;
     width: 100%;
     position: relative;
+    z-index: 1;
 }
 
 .game-block:hover {

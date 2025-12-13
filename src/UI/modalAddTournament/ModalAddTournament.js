@@ -28,18 +28,36 @@ const Bracket = (props) => {
     const tournamentDateRef = useRef(null);
     const randomBracketRef = useRef(null);
 
-    const isFormValid = () =>
-        tournamentNameRef.current?.value?.trim() !== '' &&
-        tournamentPlayerRef.current?.value?.trim() !== '' &&
-        tournamentPricePoolRef.current?.value?.trim() !== '' &&
-        date.trim() !== '' &&
-        tournamentPlayoffGames.current?.value?.trim() !== '' &&
-        tournamentPlayoffGamesFinal.current?.value?.trim() !== '';
+    const isFormValid = () => {
+        const nameValid = tournamentNameRef.current?.value?.trim() !== '';
+        const playersValid = tournamentPlayerRef.current?.value?.trim() !== '';
+        const priceValid = tournamentPricePoolRef.current?.value?.trim() !== '';
+        const dateValid = date.trim() !== '';
+        const playoffGamesValid = tournamentPlayoffGames.current?.value?.trim() !== '';
+        const playoffFinalValid = tournamentPlayoffGamesFinal.current?.value?.trim() !== '';
+
+        console.log('Form validation:', {
+            nameValid,
+            playersValid,
+            priceValid,
+            dateValid,
+            playoffGamesValid,
+            playoffFinalValid,
+            name: tournamentNameRef.current?.value,
+            players: tournamentPlayerRef.current?.value,
+            price: tournamentPricePoolRef.current?.value,
+            date: date,
+            playoffGames: tournamentPlayoffGames.current?.value,
+            playoffFinal: tournamentPlayoffGamesFinal.current?.value
+        });
+
+        return nameValid && playersValid && priceValid && dateValid && playoffGamesValid && playoffFinalValid;
+    };
 
     const handleSave = async () => {
-        if (!isFormValid()) {
-            return;
-        }
+        // if (!isFormValid()) {
+        //     return;
+        // }
 
         // Build tournament object from current values
         const objTournament = {
@@ -136,7 +154,11 @@ const Bracket = (props) => {
                     </div>
                 </>
             )}
-            <button type="button" onClick={handleSave} disabled={!isFormValid()}>
+            <button
+                type="button"
+                onClick={handleSave}
+                // disabled={!isFormValid()}
+            >
                 Save
             </button>
             <button type="button" onClick={props.onClose}>

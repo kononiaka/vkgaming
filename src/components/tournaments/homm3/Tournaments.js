@@ -163,6 +163,139 @@ const TournamentList = () => {
         return response;
     };
 
+    const fillTournamentWithRandomPlayers = async (tourId, tournamentPlayers, maxPlayers) => {
+        try {
+            // Get all users from database
+            const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const allUsers = await usersResponse.json();
+
+            if (!allUsers) {
+                alert('No users found in database');
+                return;
+            }
+
+            // Get current tournament players
+            const currentPlayerNames = Object.values(tournamentPlayers)
+                .filter((player) => player !== null)
+                .map((player) => player.name);
+
+            console.log('Current tournament players:', currentPlayerNames);
+            console.log('All users in database:', allUsers);
+
+            // Filter eligible users: not in tournament and have at least 1 game played
+            const eligibleUsers = Object.entries(allUsers)
+                .filter(([userId, user]) => {
+                    if (!user || !user.enteredNickname) return false;
+
+                    // Check if already in tournament
+                    if (currentPlayerNames.includes(user.enteredNickname)) return false;
+
+                    // Check if has at least 1 game played
+                    console.log('User games user:', user);
+                    const totalGames = user.gamesPlayed?.heroes3?.total || 0;
+                    return totalGames >= 1;
+                })
+                .map(([userId, user]) => ({
+                    userId,
+                    name: user.enteredNickname,
+                    stars: user.stars || 0,
+                    ratings: user.ratings || '0',
+                    gamesPlayed: user.gamesPlayed
+                }));
+
+            if (eligibleUsers.length === 0) {
+                alert('No eligible players found (must have at least 1 game played and not already in tournament)');
+                return;
+            }
+
+            // Calculate how many players we need to add
+            const spotsToFill = maxPlayers - Object.keys(tournamentPlayers).length;
+
+            if (spotsToFill <= 0) {
+                alert('Tournament is already full');
+                return;
+            }
+
+            const playersToAdd = Math.min(spotsToFill, eligibleUsers.length);
+
+            const confirm = confirmWindow(
+                `Found ${eligibleUsers.length} eligible players.\nAdd ${playersToAdd} random players to fill the tournament?`
+            );
+
+            if (!confirm) return;
+
+            // Shuffle and select random players
+            const shuffled = [...eligibleUsers].sort(() => Math.random() - 0.5);
+            const selectedPlayers = shuffled.slice(0, playersToAdd);
+
+            // Add each selected player
+            for (const player of selectedPlayers) {
+                const lastRating = parseFloat(player.ratings.split(',').pop().trim()).toFixed(2);
+                const placeInLeaderboard = await fetchLeaderboard(player.gamesPlayed);
+
+                const userData = {
+                    name: player.name,
+                    stars: player.stars,
+                    ratings: lastRating,
+                    placeInLeaderboard: placeInLeaderboard
+                };
+
+                // Add to tournament
+                await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
+                    {
+                        method: 'POST',
+                        body: JSON.stringify(userData),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                // Check if tournament has prepared bracket and substitute TBD
+                const tournamentData = await getTournamentData(tourId);
+                if (tournamentData.preparedBracket) {
+                    await substituteTBDPlayer({ name: player.name }, tourId, player.stars, lastRating);
+                }
+            }
+
+            // Check if tournament is now full and update status
+            const newPlayerCount = Object.keys(tournamentPlayers).length + playersToAdd;
+            console.log('newPlayerCount: ' + newPlayerCount);
+            console.log('maxPlayers: ' + maxPlayers);
+            console.log('maxPlayers type:', typeof maxPlayers);
+            console.log('Comparison result:', newPlayerCount === maxPlayers);
+            console.log('Comparison result (number):', newPlayerCount === +maxPlayers);
+
+            if (newPlayerCount === +maxPlayers) {
+                console.log('Updating status to Registration finished!');
+                const statusResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Registration finished!'),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                console.log('Status update response:', statusResponse.ok, statusResponse.status);
+                if (statusResponse.ok) {
+                    console.log('Status successfully updated to Registration finished!');
+                } else {
+                    console.error('Failed to update status:', await statusResponse.text());
+                }
+                alert(`Successfully added ${playersToAdd} players! Tournament is now full and ready to start.`);
+            } else {
+                alert(`Successfully added ${playersToAdd} players to the tournament!`);
+            }
+            window.location.reload();
+        } catch (error) {
+            console.error('Error filling tournament with random players:', error);
+            alert('Error adding players to tournament');
+        }
+    };
+
     const closeModalHandler = () => {
         setShowDetails(false);
         // setSelectedTournament(null);
@@ -429,21 +562,76 @@ const TournamentList = () => {
                                         <div className={classes.inputGroup}>
                                             <label htmlFor="nickname">Player's Nickname</label>
                                             <input type="name" id="nickname" ref={nicknameRef} required />
-                                            <button
-                                                className={classes.btn}
-                                                onClick={() =>
-                                                    addUserTournament(
-                                                        tournament.id,
-                                                        nicknameRef.current.value,
-                                                        tournament.players,
-                                                        tournament.maxPlayers
-                                                    )
-                                                }
-                                            >
-                                                ➕ Add Player
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                <button
+                                                    className={classes.btn}
+                                                    onClick={() =>
+                                                        addUserTournament(
+                                                            tournament.id,
+                                                            nicknameRef.current.value,
+                                                            tournament.players,
+                                                            tournament.maxPlayers
+                                                        )
+                                                    }
+                                                >
+                                                    ➕ Add Player
+                                                </button>
+                                                <button
+                                                    className={classes.btn}
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, #ff6b6b, #ee5a6f)',
+                                                        border: '2px solid #ff6b6b'
+                                                    }}
+                                                    onClick={() =>
+                                                        fillTournamentWithRandomPlayers(
+                                                            tournament.id,
+                                                            tournament.players,
+                                                            tournament.maxPlayers
+                                                        )
+                                                    }
+                                                >
+                                                    🎲 Fill with Random Players
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
+
+                                {tournament.status === 'Registration finished!' && (
+                                    <div
+                                        style={{
+                                            padding: '1rem',
+                                            background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
+                                            borderRadius: '8px',
+                                            textAlign: 'center',
+                                            marginTop: '1rem'
+                                        }}
+                                    >
+                                        <p
+                                            style={{
+                                                margin: '0 0 0.5rem 0',
+                                                color: '#1a1a2e',
+                                                fontWeight: 'bold',
+                                                fontSize: '1.1rem'
+                                            }}
+                                        >
+                                            ✅ Tournament is Full!
+                                        </p>
+                                        <button
+                                            className={`${classes.btn} ${classes.btnPrimary}`}
+                                            style={{
+                                                background: 'linear-gradient(135deg, #4caf50, #45a049)',
+                                                border: '2px solid #4caf50',
+                                                fontSize: '1.1rem',
+                                                padding: '0.75rem 1.5rem'
+                                            }}
+                                            onClick={() =>
+                                                showDetailsHandler(tournament.status, tournament.winners, tournament.id)
+                                            }
+                                        >
+                                            🎮 Start Tournament
+                                        </button>
+                                    </div>
+                                )}
 
                                 {!tournament.status.includes('Finished') ? (
                                     <div className={classes.prizePool}>

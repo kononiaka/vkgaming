@@ -85,13 +85,24 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const handleGameResultChange = (gameIdx, field, value) => {
         const updated = [...gameResults];
         updated[gameIdx] = { ...updated[gameIdx], [field]: value };
-        setGameResults(updated);
 
         // Auto-calculate scores based on winners
         const team1Wins = updated.filter((g) => g.winner === pair.team1).length;
         const team2Wins = updated.filter((g) => g.winner === pair.team2).length;
         setScore1(team1Wins);
         setScore2(team2Wins);
+
+        // Auto-add Game 3 if score is 1-1 and only 2 games exist
+        if (team1Wins === 1 && team2Wins === 1 && updated.length === 2) {
+            updated.push({
+                gameId: 2,
+                castle1: '',
+                castle2: '',
+                winner: ''
+            });
+        }
+
+        setGameResults(updated);
 
         // Auto-select winner if reached 2 wins
         if (team1Wins >= 2) {
@@ -104,21 +115,33 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Only validate if a winner is selected (full game report)
-        // Allow submission without winner to mark game as started
-        if (selectedWinner) {
-            if (pair.type === 'bo-3') {
-                // Validate bo-3
-                if (gameResults.some((g) => !g.castle1 || !g.castle2 || !g.winner)) {
-                    alert('Please fill in all game details for BO-3');
+        // Validate based on what's being reported
+        if (pair.type === 'bo-3') {
+            // For bo-3, validate each game that has any data filled in
+            for (let i = 0; i < gameResults.length; i++) {
+                const game = gameResults[i];
+                // If game has a winner, it must have castles
+                if (game.winner && (!game.castle1 || !game.castle2)) {
+                    alert(`Game ${i + 1}: Please select castles for both players before selecting a winner`);
                     return;
                 }
+                // If game has castles selected, it should be complete (have both castles)
+                if ((game.castle1 || game.castle2) && (!game.castle1 || !game.castle2)) {
+                    alert(`Game ${i + 1}: Please select castles for both players`);
+                    return;
+                }
+            }
+
+            // If overall winner is selected, validate the series is properly concluded
+            if (selectedWinner) {
                 if ((score1 !== 2 && score2 !== 2) || (score1 === 2 && score2 === 2)) {
-                    alert('Invalid score for BO-3. One player must have exactly 2 wins.');
+                    alert('Invalid score for BO-3. One player must have exactly 2 wins to determine a match winner.');
                     return;
                 }
-            } else {
-                // Validate bo-1
+            }
+        } else {
+            // Validate bo-1
+            if (selectedWinner) {
                 if (!castle1 || !castle2) {
                     alert('Please select castles for both players');
                     return;

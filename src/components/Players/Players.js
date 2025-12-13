@@ -10,6 +10,19 @@ import {
 import classes from './Players.module.css';
 import StarsComponent from '../Stars/Stars';
 
+// Import castle images
+import castleImg from '../../image/castles/castle.jpeg';
+import rampartImg from '../../image/castles/rampart.jpeg';
+import towerImg from '../../image/castles/tower.jpeg';
+import infernoImg from '../../image/castles/inferno.jpeg';
+import necropolisImg from '../../image/castles/necropolis.jpeg';
+import dungeonImg from '../../image/castles/dungeon.jpeg';
+import strongholdImg from '../../image/castles/stronghold.jpeg';
+import fortressImg from '../../image/castles/fortress.jpeg';
+import factoryImg from '../../image/castles/factory.jpeg';
+import confluxImg from '../../image/castles/conflux.jpeg';
+import coveImg from '../../image/castles/cove.jpeg';
+
 const PlayerDetails = () => {
     const [player, setPlayer] = useState(null);
     const { id } = useParams();
@@ -238,36 +251,76 @@ const PlayerDetails = () => {
                         <>
                             <div className={classes.popupOverlay} onClick={() => setShowPopup(false)}></div>
                             <div className={classes.popup}>
-                                <h3 className={classes.popupTitle}>🏯 Full Castle Statistics</h3>
-                                <table className={classes.castleStatsTable}>
-                                    <thead>
-                                        <tr>
-                                            <th>Castle</th>
-                                            <th>Wins</th>
-                                            <th>Losses</th>
-                                            <th>Win Rate</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Object.entries(castleStats).map(([castle, stats]) => {
+                                <div className={classes.castleStatsHeader}>
+                                    <div className={classes.castleStatsTitle}>CASTLE WINRATE</div>
+                                    <div className={classes.castleStatsSubtitle}>ALL TIME</div>
+                                </div>
+                                <div className={classes.castleStatsGrid}>
+                                    {(() => {
+                                        // Define all available castles with their images
+                                        const allCastles = [
+                                            { name: 'Castle', image: castleImg },
+                                            { name: 'Rampart', image: rampartImg },
+                                            { name: 'Tower', image: towerImg },
+                                            { name: 'Inferno', image: infernoImg },
+                                            { name: 'Necropolis', image: necropolisImg },
+                                            { name: 'Dungeon', image: dungeonImg },
+                                            { name: 'Stronghold', image: strongholdImg },
+                                            { name: 'Fortress', image: fortressImg },
+                                            { name: 'Factory', image: factoryImg },
+                                            { name: 'Conflux', image: confluxImg },
+                                            { name: 'Cove', image: coveImg }
+                                        ];
+
+                                        // Merge actual stats with all castles
+                                        const mergedData = allCastles.map(({ name, image }) => {
+                                            // Find matching stats (handle both "Castle" and "Castle-Замок" formats)
+                                            const statsEntry = Object.entries(castleStats).find(([key]) => {
+                                                const keyName = key.includes('-') ? key.split('-')[0] : key;
+                                                return keyName === name;
+                                            });
+
+                                            const stats = statsEntry ? statsEntry[1] : { wins: 0, loses: 0 };
                                             const total = stats.wins + stats.loses;
-                                            const winRate = total > 0 ? ((stats.wins / total) * 100).toFixed(1) : '0.0';
-                                            return (
-                                                <tr key={castle}>
-                                                    <td>{castle}</td>
-                                                    <td style={{ color: '#4caf50', fontWeight: 'bold' }}>
-                                                        {stats.wins}
-                                                    </td>
-                                                    <td style={{ color: '#f44336', fontWeight: 'bold' }}>
-                                                        {stats.loses}
-                                                    </td>
-                                                    <td style={{ color: '#FFD700', fontWeight: 'bold' }}>{winRate}%</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                                <button className={classes.btn} onClick={() => setShowPopup(false)}>
+                                            const winRate = total > 0 ? Math.round((stats.wins / total) * 100) : 0;
+
+                                            return {
+                                                name,
+                                                image,
+                                                stats,
+                                                total,
+                                                winRate
+                                            };
+                                        });
+
+                                        // Sort by total games (most played first)
+                                        mergedData.sort((a, b) => b.total - a.total);
+
+                                        return mergedData.map(({ name, image, stats, total, winRate }) => (
+                                            <div key={name} className={classes.castleStatsCard}>
+                                                <div className={classes.castleImageWrapper}>
+                                                    {image && (
+                                                        <img
+                                                            src={image}
+                                                            alt={name}
+                                                            className={classes.castleStatsImage}
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div className={classes.castleStatsName}>{name.toUpperCase()}</div>
+                                                <div className={classes.castleStatsTotalGames}>
+                                                    <div className={classes.castleStatsLabel}>TOTAL GAMES</div>
+                                                    <div className={classes.castleStatsTotalValue}>{total}</div>
+                                                </div>
+                                                <div className={classes.castleStatsWinRate}>
+                                                    <div className={classes.castleStatsLabel}>WIN RATE</div>
+                                                    <div className={classes.castleStatsWinValue}>{winRate}%</div>
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                                <button className={classes.closeBtn} onClick={() => setShowPopup(false)}>
                                     ✖ Close
                                 </button>
                             </div>
