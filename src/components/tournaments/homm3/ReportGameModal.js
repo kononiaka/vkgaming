@@ -155,8 +155,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
         const reportData = {
             winner: selectedWinner || null,
-            score1: selectedWinner ? score1 : 0,
-            score2: selectedWinner ? score2 : 0,
+            score1: score1,
+            score2: score2,
             games:
                 pair.type === 'bo-3'
                     ? gameResults.map((g) => ({

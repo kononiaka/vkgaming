@@ -1663,152 +1663,156 @@ export const TournamentBracket = ({
             // Update local state
             setPlayoffPairs(updatedPairs);
 
-            // Post finished game to games collection if winner is selected
+            // Update castle statistics for each game (runs regardless of overall winner)
+            for (const game of reportData.games) {
+                if (game.castle1 && game.castle2) {
+                    // If winner is selected, update win/lose stats
+                    if (game.gameWinner) {
+                        // Update castle1 stats
+                        const castle1Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                        );
+                        if (castle1Response.ok) {
+                            const castle1Data = await castle1Response.json();
+                            const isWinner = game.castleWinner === game.castle1;
+                            const updatedCastle1Stats = {
+                                win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
+                                lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
+                                total: (castle1Data.total || 0) + 1
+                            };
+
+                            const confirmCastle1 = confirmWindow(
+                                `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle1) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle1Stats),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle1} castle stats updated`);
+                            } else {
+                                console.log(`${game.castle1} castle stats update skipped`);
+                            }
+                        }
+
+                        // Update castle2 stats
+                        const castle2Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                        );
+                        if (castle2Response.ok) {
+                            const castle2Data = await castle2Response.json();
+                            const isWinner = game.castleWinner === game.castle2;
+                            const updatedCastle2Stats = {
+                                win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
+                                lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
+                                total: (castle2Data.total || 0) + 1
+                            };
+
+                            const confirmCastle2 = confirmWindow(
+                                `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle2) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle2Stats),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle2} castle stats updated`);
+
+                                // Mark game as processed after both castle stats are updated
+                                game.gameStatus = 'Processed';
+                                console.log(`Game ${game.gameId + 1} marked as Processed`);
+                            } else {
+                                console.log(`${game.castle2} castle stats update skipped`);
+                            }
+                        }
+                    } else {
+                        // No winner selected, just increment total (game in progress)
+                        const castleResponseAll = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
+                        );
+                        const castlesData = await castleResponseAll.json();
+                        console.log('castlesData', castlesData);
+                        // Update castle1 total
+                        const castle1Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                        );
+                        if (castle1Response.ok) {
+                            const castle1Data = await castle1Response.json();
+                            console.log('castle1Data', castle1Data);
+                            const updatedCastle1Total = {
+                                win: castle1Data.win || 0,
+                                lose: castle1Data.lose || 0,
+                                total: (castle1Data.total || 0) + 1
+                            };
+
+                            const confirmCastle1Total = confirmWindow(
+                                `Update ${game.castle1} castle total (game in progress)?\n\nOld Total: ${castle1Data.total || 0}\nNew Total: ${updatedCastle1Total.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle1Total) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle1Total),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle1} castle total updated`);
+                            } else {
+                                console.log(`${game.castle1} castle total update skipped`);
+                            }
+                        }
+
+                        // Update castle2 total
+                        const castle2Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                        );
+                        if (castle2Response.ok) {
+                            const castle2Data = await castle2Response.json();
+                            const updatedCastle2Total = {
+                                win: castle2Data.win || 0,
+                                lose: castle2Data.lose || 0,
+                                total: (castle2Data.total || 0) + 1
+                            };
+
+                            const confirmCastle2Total = confirmWindow(
+                                `Update ${game.castle2} castle total (game in progress)?\n\nOld Total: ${castle2Data.total || 0}\nNew Total: ${updatedCastle2Total.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle2Total) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle2Total),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle2} castle total updated`);
+                            } else {
+                                console.log(`${game.castle2} castle total update skipped`);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If overall winner is selected, handle ratings, game posting, and promotions
             if (reportData.winner) {
                 // Update player ratings FIRST
                 const winnerId = await lookForUserId(reportData.winner);
                 const ratingsUpdated = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
 
-                // Log if ratings were skipped, but continue with castle stats and game posting
+                // Log if ratings were skipped, but continue with game posting
                 if (!ratingsUpdated) {
-                    console.log('Rating update cancelled by user - continuing with castle stats and game posting');
-                }
-
-                // Update castle statistics for each game (continues even if ratings were skipped)
-                for (const game of reportData.games) {
-                    if (game.castle1 && game.castle2) {
-                        // If winner is selected, update win/lose stats
-                        if (game.gameWinner) {
-                            // Update castle1 stats
-                            const castle1Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                            );
-                            if (castle1Response.ok) {
-                                const castle1Data = await castle1Response.json();
-                                const isWinner = game.castleWinner === game.castle1;
-                                const updatedCastle1Stats = {
-                                    win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
-                                    lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
-                                    total: (castle1Data.total || 0) + 1
-                                };
-
-                                const confirmCastle1 = confirmWindow(
-                                    `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle1) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle1Stats),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle1} castle stats updated`);
-                                } else {
-                                    console.log(`${game.castle1} castle stats update skipped`);
-                                }
-                            }
-
-                            // Update castle2 stats
-                            const castle2Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                            );
-                            if (castle2Response.ok) {
-                                const castle2Data = await castle2Response.json();
-                                const isWinner = game.castleWinner === game.castle2;
-                                const updatedCastle2Stats = {
-                                    win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
-                                    lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
-                                    total: (castle2Data.total || 0) + 1
-                                };
-
-                                const confirmCastle2 = confirmWindow(
-                                    `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle2) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle2Stats),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle2} castle stats updated`);
-                                } else {
-                                    console.log(`${game.castle2} castle stats update skipped`);
-                                }
-                            }
-                        } else {
-                            // No winner selected, just increment total (game in progress)
-                            const castleResponseAll = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
-                            );
-                            const castlesData = await castleResponseAll.json();
-                            console.log('castlesData', castlesData);
-                            // Update castle1 total
-                            const castle1Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                            );
-                            if (castle1Response.ok) {
-                                const castle1Data = await castle1Response.json();
-                                console.log('castle1Data', castle1Data);
-                                const updatedCastle1Total = {
-                                    win: castle1Data.win || 0,
-                                    lose: castle1Data.lose || 0,
-                                    total: (castle1Data.total || 0) + 1
-                                };
-
-                                const confirmCastle1Total = confirmWindow(
-                                    `Update ${game.castle1} castle total (game in progress)?\n\nOld Total: ${castle1Data.total || 0}\nNew Total: ${updatedCastle1Total.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle1Total) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle1Total),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle1} castle total updated`);
-                                } else {
-                                    console.log(`${game.castle1} castle total update skipped`);
-                                }
-                            }
-
-                            // Update castle2 total
-                            const castle2Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                            );
-                            if (castle2Response.ok) {
-                                const castle2Data = await castle2Response.json();
-                                const updatedCastle2Total = {
-                                    win: castle2Data.win || 0,
-                                    lose: castle2Data.lose || 0,
-                                    total: (castle2Data.total || 0) + 1
-                                };
-
-                                const confirmCastle2Total = confirmWindow(
-                                    `Update ${game.castle2} castle total (game in progress)?\n\nOld Total: ${castle2Data.total || 0}\nNew Total: ${updatedCastle2Total.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle2Total) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle2Total),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle2} castle total updated`);
-                                } else {
-                                    console.log(`${game.castle2} castle total update skipped`);
-                                }
-                            }
-                        }
-                    }
+                    console.log('Rating update cancelled by user - continuing with game posting');
                 }
 
                 // Post game to database
