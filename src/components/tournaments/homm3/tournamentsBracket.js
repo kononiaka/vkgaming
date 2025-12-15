@@ -1665,6 +1665,12 @@ export const TournamentBracket = ({
 
             // Update castle statistics for each game (runs regardless of overall winner)
             for (const game of reportData.games) {
+                // Skip games that have already been processed
+                if (game.gameStatus === 'Processed') {
+                    console.log(`Game ${game.gameId + 1} already processed, skipping castle stats update`);
+                    continue;
+                }
+
                 if (game.castle1 && game.castle2) {
                     // If winner is selected, update win/lose stats
                     if (game.gameWinner) {

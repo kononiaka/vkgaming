@@ -70,7 +70,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     gameId: idx,
                     castle1: game.castle1 || '',
                     castle2: game.castle2 || '',
-                    winner: game.gameWinner || ''
+                    winner: game.gameWinner || '',
+                    gameStatus: game.gameStatus || 'Not Started'
                 }))
             );
         } else {
@@ -164,7 +165,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                           castle2: g.castle2 || '',
                           castleWinner: g.winner ? (g.winner === pair.team1 ? g.castle1 : g.castle2) : '',
                           gameWinner: g.winner || '',
-                          gameStatus: g.winner ? 'Finished' : 'In Progress',
+                          gameStatus:
+                              g.gameStatus === 'Processed' ? 'Processed' : g.winner ? 'Finished' : 'In Progress',
                           gameId: g.gameId
                       }))
                     : [
