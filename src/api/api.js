@@ -84,6 +84,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                             return player.ratings;
                         })
                 );
+
                 let newStars = calculateStarsFromRating(scoreToAdd, highestRating, lowestRating);
                 // console.log('tournamentData before', tournamentData);
 
@@ -345,26 +346,30 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) 
     return newRating;
 };
 
-export const calculateStarsFromRating = (rating, highestRating, lowestRating) => {
+export const calculateStarsFromRating = (rating, highestRating, lowestRating, minStars = 0.5) => {
     let cappedStars;
     if (rating > 0) {
         const totalStars = 5;
         const range = highestRating - lowestRating;
-        const interval = range / totalStars;
 
-        // Adjust the stars calculation based on the relative difference
-        const ratingDifference = highestRating - rating;
-        const adjustmentFactor = ratingDifference > interval ? 0.5 : 1; // Reduce stars gain for lower-rated wins
-        const unroundedStars = ((rating - lowestRating) / interval) * adjustmentFactor;
+        // Linear distribution from 0.5 to 5.0 stars
+        const normalized = range === 0 ? 1 : (rating - lowestRating) / range;
+        const rawStars = normalized * (totalStars - minStars) + minStars;
 
-        const rawStars = Math.round(unroundedStars * 2) / 2 + 0.5; // Start from 0.5
-        cappedStars = Math.min(rawStars, totalStars); // Cap stars at 5
+        console.log(
+            `calculateStarsFromRating: rating=${rating}, highest=${highestRating}, lowest=${lowestRating}, minStars=${minStars}, normalized=${normalized}, rawStars=${rawStars}`
+        );
+
+        cappedStars = Math.round(rawStars * 2) / 2; // Round to nearest 0.5
+        cappedStars = Math.min(cappedStars, totalStars); // Cap stars at 5
+
+        console.log(`Final capped stars: ${cappedStars}`);
     } else {
-        cappedStars = 0.5;
+        cappedStars = minStars;
     }
 
-    if (+cappedStars < 0.5) {
-        cappedStars = 0.5;
+    if (+cappedStars < minStars) {
+        cappedStars = minStars;
     }
 
     return cappedStars;
