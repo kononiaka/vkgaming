@@ -35,7 +35,6 @@ const StartingPageContent = () => {
                     const tournamentList = Object.keys(data)
                         .map((key) => {
                             const tournament = data[key];
-                            console.log('tournament', tournament);
                             return tournament ? { id: key, ...tournament } : null;
                         })
                         .filter(Boolean)
@@ -69,24 +68,23 @@ const StartingPageContent = () => {
                             tournament.bracket.playoffPairs.forEach((stage, stageIndex) => {
                                 if (Array.isArray(stage)) {
                                     stage.forEach((pair) => {
-                                        // Game is live if both teams exist, not TBD, and not finished
-                                        if (
-                                            pair.team1 &&
-                                            pair.team2 &&
-                                            pair.team1 !== 'TBD' &&
-                                            pair.team2 !== 'TBD' &&
-                                            pair.gameStatus !== 'Finished' &&
-                                            pair.gameStatus !== 'Processed'
-                                        ) {
-                                            games.push({
-                                                tournamentId,
-                                                tournamentName: tournament.name,
-                                                team1: pair.team1,
-                                                team2: pair.team2,
-                                                score1: pair.score1 || 0,
-                                                score2: pair.score2 || 0,
-                                                type: pair.type,
-                                                stageIndex
+                                        // Check if pair has games with castles selected but no winner
+                                        if (pair.games && Array.isArray(pair.games)) {
+                                            pair.games.forEach((game) => {
+                                                if (game.castle1 && game.castle2 && !game.castleWinner) {
+                                                    games.push({
+                                                        tournamentId,
+                                                        tournamentName: tournament.name,
+                                                        team1: pair.team1,
+                                                        team2: pair.team2,
+                                                        score1: pair.score1 || 0,
+                                                        score2: pair.score2 || 0,
+                                                        type: pair.type,
+                                                        stageIndex,
+                                                        castle1: game.castle1,
+                                                        castle2: game.castle2
+                                                    });
+                                                }
                                             });
                                         }
                                     });
@@ -103,7 +101,21 @@ const StartingPageContent = () => {
         fetchActiveTournaments();
     }, []);
 
-    console.log('activeTournaments', activeTournaments);
+    // Check if tournament has live games (castles selected but no winner)
+    const hasLiveGames = (tournament) => {
+        if (!tournament.bracket || !tournament.bracket.playoffPairs) {
+            return false;
+        }
+
+        return tournament.bracket.playoffPairs.some((stage) =>
+            stage.some((pair) => {
+                if (pair.games && Array.isArray(pair.games)) {
+                    return pair.games.some((game) => game.castle1 && game.castle2 && !game.castleWinner);
+                }
+                return false;
+            })
+        );
+    };
 
     const filteredTournaments = activeTournaments.filter((tournament) => {
         if (statusFilter === 'all') return true;
@@ -111,6 +123,7 @@ const StartingPageContent = () => {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
         if (statusFilter === 'started') return tournament.status === 'Started!';
         if (statusFilter === 'finished') return tournament.status === 'Tournament Finished';
+        if (statusFilter === 'live') return hasLiveGames(tournament);
         return true;
     });
 
@@ -144,6 +157,7 @@ const StartingPageContent = () => {
                             <option value="all">All Tournaments</option>
                             <option value="registration">📝 Registration Open</option>
                             <option value="started">🎮 In Progress</option>
+                            <option value="live">🔴 Live Games</option>
                             <option value="finished">🏆 Finished</option>
                         </select>
                     </div>
