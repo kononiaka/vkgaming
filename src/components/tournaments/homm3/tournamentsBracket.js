@@ -9,7 +9,8 @@ import {
     lookForUserId,
     lookForUserPrevScore,
     pullTournamentPrizes,
-    fetchCastlesList
+    fetchCastlesList,
+    calculateStarsFromRating
 } from '../../../api/api';
 import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
@@ -242,6 +243,7 @@ export const TournamentBracket = ({
 
     const handleStartTournament = async () => {
         console.log('handleStartTournament called');
+
         const tournamentResponseGET = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
             {
@@ -258,6 +260,75 @@ export const TournamentBracket = ({
             playersObj = data.players;
             console.log('playersObj:', playersObj);
             // let tournamentData = {};
+
+            // Recalculate stars for tournament attendees before starting
+            const confirmRecalculateStars = confirmWindow(
+                `Recalculate stars for tournament attendees?\n\nThis will update stars for players participating in this tournament.\n\nRecalculate stars?`
+            );
+
+            if (confirmRecalculateStars) {
+                try {
+                    // Fetch all users to get global highest/lowest ratings
+                    const usersResponse = await fetch(
+                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json'
+                    );
+                    const usersData = await usersResponse.json();
+
+                    // Get all players with ratings > 0 for global distribution
+                    const allPlayers = Object.entries(usersData)
+                        .map(([id, userData]) => ({
+                            id,
+                            name: userData.name,
+                            ratings: parseFloat(userData.ratings) || 0
+                        }))
+                        .filter((player) => player.ratings > 0)
+                        .sort((a, b) => b.ratings - a.ratings);
+
+                    if (allPlayers.length > 0) {
+                        const highestRating = allPlayers[0].ratings;
+                        const lowestRating = Math.min(...allPlayers.map((p) => p.ratings));
+
+                        console.log(
+                            `Recalculating stars for attendees - Highest: ${highestRating}, Lowest: ${lowestRating}`
+                        );
+
+                        // Get tournament attendees
+                        const attendeeNames = Object.values(playersObj)
+                            .filter((player) => player && player.name)
+                            .map((player) => player.name);
+
+                        console.log('Tournament attendees:', attendeeNames);
+
+                        // Update stars only for tournament attendees
+                        for (const player of allPlayers) {
+                            if (attendeeNames.includes(player.name)) {
+                                const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
+
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                                    {
+                                        method: 'PATCH',
+                                        body: JSON.stringify({ stars: newStars }),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+
+                                console.log(
+                                    `Updated attendee ${player.name}: ${player.ratings} rating → ${newStars} stars`
+                                );
+                            }
+                        }
+
+                        console.log('Tournament attendees stars recalculated successfully');
+                        alert('Tournament attendees stars recalculated successfully!');
+                    }
+                } catch (error) {
+                    console.error('Error recalculating stars:', error);
+                    alert('Error recalculating stars: ' + error.message);
+                }
+            } else {
+                console.log('Star recalculation cancelled by user');
+            }
 
             setStartTournament(true);
             // Prepare the tournament data
@@ -1663,152 +1734,162 @@ export const TournamentBracket = ({
             // Update local state
             setPlayoffPairs(updatedPairs);
 
-            // Post finished game to games collection if winner is selected
+            // Update castle statistics for each game (runs regardless of overall winner)
+            for (const game of reportData.games) {
+                // Skip games that have already been processed
+                if (game.gameStatus === 'Processed') {
+                    console.log(`Game ${game.gameId + 1} already processed, skipping castle stats update`);
+                    continue;
+                }
+
+                if (game.castle1 && game.castle2) {
+                    // If winner is selected, update win/lose stats
+                    if (game.gameWinner) {
+                        // Update castle1 stats
+                        const castle1Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                        );
+                        if (castle1Response.ok) {
+                            const castle1Data = await castle1Response.json();
+                            const isWinner = game.castleWinner === game.castle1;
+                            const updatedCastle1Stats = {
+                                win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
+                                lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
+                                total: (castle1Data.total || 0) + 1
+                            };
+
+                            const confirmCastle1 = confirmWindow(
+                                `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle1) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle1Stats),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle1} castle stats updated`);
+                            } else {
+                                console.log(`${game.castle1} castle stats update skipped`);
+                            }
+                        }
+
+                        // Update castle2 stats
+                        const castle2Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                        );
+                        if (castle2Response.ok) {
+                            const castle2Data = await castle2Response.json();
+                            const isWinner = game.castleWinner === game.castle2;
+                            const updatedCastle2Stats = {
+                                win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
+                                lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
+                                total: (castle2Data.total || 0) + 1
+                            };
+
+                            const confirmCastle2 = confirmWindow(
+                                `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle2) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle2Stats),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle2} castle stats updated`);
+
+                                // Mark game as processed after both castle stats are updated
+                                game.gameStatus = 'Processed';
+                                console.log(`Game ${game.gameId + 1} marked as Processed`);
+                            } else {
+                                console.log(`${game.castle2} castle stats update skipped`);
+                            }
+                        }
+                    } else {
+                        // No winner selected, just increment total (game in progress)
+                        const castleResponseAll = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
+                        );
+                        const castlesData = await castleResponseAll.json();
+                        console.log('castlesData', castlesData);
+                        // Update castle1 total
+                        const castle1Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                        );
+                        if (castle1Response.ok) {
+                            const castle1Data = await castle1Response.json();
+                            console.log('castle1Data', castle1Data);
+                            const updatedCastle1Total = {
+                                win: castle1Data.win || 0,
+                                lose: castle1Data.lose || 0,
+                                total: (castle1Data.total || 0) + 1
+                            };
+
+                            const confirmCastle1Total = confirmWindow(
+                                `Update ${game.castle1} castle total (game in progress)?\n\nOld Total: ${castle1Data.total || 0}\nNew Total: ${updatedCastle1Total.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle1Total) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle1Total),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle1} castle total updated`);
+                            } else {
+                                console.log(`${game.castle1} castle total update skipped`);
+                            }
+                        }
+
+                        // Update castle2 total
+                        const castle2Response = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                        );
+                        if (castle2Response.ok) {
+                            const castle2Data = await castle2Response.json();
+                            const updatedCastle2Total = {
+                                win: castle2Data.win || 0,
+                                lose: castle2Data.lose || 0,
+                                total: (castle2Data.total || 0) + 1
+                            };
+
+                            const confirmCastle2Total = confirmWindow(
+                                `Update ${game.castle2} castle total (game in progress)?\n\nOld Total: ${castle2Data.total || 0}\nNew Total: ${updatedCastle2Total.total}\n\nUpdate?`
+                            );
+                            if (confirmCastle2Total) {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify(updatedCastle2Total),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log(`${game.castle2} castle total updated`);
+                            } else {
+                                console.log(`${game.castle2} castle total update skipped`);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If overall winner is selected, handle ratings, game posting, and promotions
             if (reportData.winner) {
                 // Update player ratings FIRST
                 const winnerId = await lookForUserId(reportData.winner);
                 const ratingsUpdated = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
 
-                // Log if ratings were skipped, but continue with castle stats and game posting
+                // Log if ratings were skipped, but continue with game posting
                 if (!ratingsUpdated) {
-                    console.log('Rating update cancelled by user - continuing with castle stats and game posting');
-                }
-
-                // Update castle statistics for each game (continues even if ratings were skipped)
-                for (const game of reportData.games) {
-                    if (game.castle1 && game.castle2) {
-                        // If winner is selected, update win/lose stats
-                        if (game.gameWinner) {
-                            // Update castle1 stats
-                            const castle1Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                            );
-                            if (castle1Response.ok) {
-                                const castle1Data = await castle1Response.json();
-                                const isWinner = game.castleWinner === game.castle1;
-                                const updatedCastle1Stats = {
-                                    win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
-                                    lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
-                                    total: (castle1Data.total || 0) + 1
-                                };
-
-                                const confirmCastle1 = confirmWindow(
-                                    `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle1) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle1Stats),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle1} castle stats updated`);
-                                } else {
-                                    console.log(`${game.castle1} castle stats update skipped`);
-                                }
-                            }
-
-                            // Update castle2 stats
-                            const castle2Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                            );
-                            if (castle2Response.ok) {
-                                const castle2Data = await castle2Response.json();
-                                const isWinner = game.castleWinner === game.castle2;
-                                const updatedCastle2Stats = {
-                                    win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
-                                    lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
-                                    total: (castle2Data.total || 0) + 1
-                                };
-
-                                const confirmCastle2 = confirmWindow(
-                                    `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle2) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle2Stats),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle2} castle stats updated`);
-                                } else {
-                                    console.log(`${game.castle2} castle stats update skipped`);
-                                }
-                            }
-                        } else {
-                            // No winner selected, just increment total (game in progress)
-                            const castleResponseAll = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
-                            );
-                            const castlesData = await castleResponseAll.json();
-                            console.log('castlesData', castlesData);
-                            // Update castle1 total
-                            const castle1Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                            );
-                            if (castle1Response.ok) {
-                                const castle1Data = await castle1Response.json();
-                                console.log('castle1Data', castle1Data);
-                                const updatedCastle1Total = {
-                                    win: castle1Data.win || 0,
-                                    lose: castle1Data.lose || 0,
-                                    total: (castle1Data.total || 0) + 1
-                                };
-
-                                const confirmCastle1Total = confirmWindow(
-                                    `Update ${game.castle1} castle total (game in progress)?\n\nOld Total: ${castle1Data.total || 0}\nNew Total: ${updatedCastle1Total.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle1Total) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle1Total),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle1} castle total updated`);
-                                } else {
-                                    console.log(`${game.castle1} castle total update skipped`);
-                                }
-                            }
-
-                            // Update castle2 total
-                            const castle2Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                            );
-                            if (castle2Response.ok) {
-                                const castle2Data = await castle2Response.json();
-                                const updatedCastle2Total = {
-                                    win: castle2Data.win || 0,
-                                    lose: castle2Data.lose || 0,
-                                    total: (castle2Data.total || 0) + 1
-                                };
-
-                                const confirmCastle2Total = confirmWindow(
-                                    `Update ${game.castle2} castle total (game in progress)?\n\nOld Total: ${castle2Data.total || 0}\nNew Total: ${updatedCastle2Total.total}\n\nUpdate?`
-                                );
-                                if (confirmCastle2Total) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify(updatedCastle2Total),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log(`${game.castle2} castle total updated`);
-                                } else {
-                                    console.log(`${game.castle2} castle total update skipped`);
-                                }
-                            }
-                        }
-                    }
+                    console.log('Rating update cancelled by user - continuing with game posting');
                 }
 
                 // Post game to database
@@ -2139,7 +2220,7 @@ export const TournamentBracket = ({
                                     });
 
                                     // Calculate new total prize
-                                    const winnerCurrentTotal = await getPlayerPrizeTotal(winnerId);
+                                    const winnerCurrentTotal = await getPlayerPrizeTotal(firstPlacePlayerId);
                                     const winnerNewTotal =
                                         parseFloat(winnerCurrentTotal || 0) + parseFloat(firstPlacePrize);
                                     winnerData.totalPrize = winnerNewTotal;
@@ -2206,7 +2287,7 @@ export const TournamentBracket = ({
                                     });
 
                                     // Calculate new total prize
-                                    const loserCurrentTotal = await getPlayerPrizeTotal(loserId);
+                                    const loserCurrentTotal = await getPlayerPrizeTotal(secondPlacePlayerId);
                                     const loserNewTotal =
                                         parseFloat(loserCurrentTotal || 0) + parseFloat(secondPlacePrize);
                                     loserData.totalPrize = loserNewTotal;
@@ -2257,6 +2338,94 @@ export const TournamentBracket = ({
                         } catch (error) {
                             console.error('Error awarding Final prizes:', error);
                             alert('Error awarding Final prizes: ' + error.message);
+                        }
+
+                        // Update tournament status to "Tournament Finished"
+                        const confirmStatusUpdate = confirmWindow(
+                            `Update tournament status to 'Tournament Finished'?\n\nThis will mark the tournament as complete.\n\nUpdate status?`
+                        );
+
+                        if (confirmStatusUpdate) {
+                            try {
+                                await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                                    {
+                                        method: 'PUT',
+                                        body: JSON.stringify('Tournament Finished'),
+                                        headers: { 'Content-Type': 'application/json' }
+                                    }
+                                );
+                                console.log('Tournament status updated to Tournament Finished');
+
+                                // Recalculate stars for all players based on new ratings
+                                const confirmRecalculateStars = confirmWindow(
+                                    `Recalculate stars for all players based on updated ratings?\n\nThis will update player stars according to their new ratings.\n\nRecalculate stars?`
+                                );
+
+                                if (confirmRecalculateStars) {
+                                    try {
+                                        // Fetch all users
+                                        const usersResponse = await fetch(
+                                            'https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json'
+                                        );
+                                        const usersData = await usersResponse.json();
+
+                                        // Get all players with ratings > 0
+                                        const players = Object.entries(usersData)
+                                            .map(([id, data]) => ({
+                                                id,
+                                                name: data.name,
+                                                ratings: parseFloat(data.ratings) || 0
+                                            }))
+                                            .filter((player) => player.ratings > 0)
+                                            .sort((a, b) => b.ratings - a.ratings);
+
+                                        if (players.length > 0) {
+                                            const highestRating = players[0].ratings;
+                                            const lowestRating = Math.min(...players.map((p) => p.ratings));
+
+                                            console.log(
+                                                `Recalculating stars - Highest: ${highestRating}, Lowest: ${lowestRating}`
+                                            );
+
+                                            // Update stars for each player
+                                            for (const player of players) {
+                                                const newStars = calculateStarsFromRating(
+                                                    player.ratings,
+                                                    highestRating,
+                                                    lowestRating
+                                                );
+
+                                                await fetch(
+                                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                                                    {
+                                                        method: 'PATCH',
+                                                        body: JSON.stringify({ stars: newStars }),
+                                                        headers: { 'Content-Type': 'application/json' }
+                                                    }
+                                                );
+
+                                                console.log(
+                                                    `Updated ${player.name}: ${player.ratings} rating → ${newStars} stars`
+                                                );
+                                            }
+
+                                            console.log('All player stars recalculated successfully');
+                                            alert('Player stars recalculated successfully!');
+                                        }
+                                    } catch (error) {
+                                        console.error('Error recalculating stars:', error);
+                                        alert('Error recalculating stars: ' + error.message);
+                                    }
+                                } else {
+                                    console.log('Star recalculation cancelled by user');
+                                }
+                            } catch (error) {
+                                console.error('Error updating tournament status:', error);
+                                alert('Error updating tournament status: ' + error.message);
+                            }
+                        } else {
+                            console.log('Tournament status update cancelled by user');
                         }
                     } else {
                         console.log('Final prizes award cancelled by user');

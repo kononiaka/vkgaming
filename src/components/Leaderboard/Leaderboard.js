@@ -80,53 +80,85 @@ const Leaderboard = () => {
     }, []);
 
     const recalculateStars = async () => {
-        const highestRating = playerRating[0].ratings;
+        // Only recalculate for players with rating > 0 and at least 1 game
+        const playersWithRating = playerRating.filter((player) => player.ratings > 0 && player.games > 0);
+
+        if (playersWithRating.length === 0) {
+            alert('No players with games played to recalculate.');
+            return;
+        }
+
+        const highestRating = playersWithRating[0].ratings;
         console.log('highestRating', highestRating);
 
-        const lowestRating = Math.min(
-            ...playerRating.filter((player) => player.ratings > 0).map((player) => player.ratings)
-        );
+        const lowestRating = Math.min(...playersWithRating.map((player) => player.ratings));
 
         console.log('lowestRating', lowestRating);
 
-        const updatedPlayerRating = playerRating.map((player) => ({
-            ...player,
-            stars: calculateStarsFromRating(player.ratings, highestRating, lowestRating)
-        }));
+        const updatedPlayerRating = playersWithRating.map((player) => {
+            const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
+            console.log(
+                `${player.enteredNickname}: ${player.ratings} rating, ${player.games} games → ${newStars} stars (old: ${player.stars})`
+            );
+            return {
+                ...player,
+                stars: newStars
+            };
+        });
 
         setPlayerRating(updatedPlayerRating);
 
-        for (const player of updatedPlayerRating) {
-            const userId = player.id;
-            const newStars = player.stars;
+        // Single confirmation for all players
+        const confirmRecalculate = confirm(
+            `Recalculate stars for ${updatedPlayerRating.length} players?\n\nHighest Rating: ${highestRating}\nLowest Rating: ${lowestRating}\n\nThis will update all player stars.`
+        );
 
-            console.log('newStars', newStars);
+        if (!confirmRecalculate) {
+            console.log('Star recalculation cancelled by user');
+            return;
+        }
 
-            let starsMessage = confirm(`Do you want to update the stars for user ${userId} newStars ${newStars}`);
-            let userResponse;
+        try {
+            let successCount = 0;
+            let errorCount = 0;
 
-            if (starsMessage) {
-                userResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
-                    {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            stars: newStars
-                        }),
-                        headers: {
-                            'Content-Type': 'application/json'
+            for (const player of updatedPlayerRating) {
+                const userId = player.id;
+                const newStars = player.stars;
+
+                console.log(`Updating ${player.enteredNickname}: ${player.ratings} rating → ${newStars} stars`);
+
+                try {
+                    const userResponse = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                        {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                stars: newStars
+                            }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         }
+                    );
+
+                    if (userResponse.ok) {
+                        console.log(`Stars updated successfully for ${player.enteredNickname}`);
+                        successCount++;
+                    } else {
+                        console.error(`Failed to update stars for ${player.enteredNickname}`);
+                        errorCount++;
                     }
-                );
-            } else {
-                console.log('You pressed Cancel!');
+                } catch (error) {
+                    console.error(`Error updating stars for ${player.enteredNickname}:`, error);
+                    errorCount++;
+                }
             }
 
-            if (userResponse && userResponse.ok) {
-                console.log(`Stars updated successfully for user ${userId}`);
-            } else {
-                console.error(`Failed to update stars for user ${userId}`);
-            }
+            alert(`Star recalculation complete!\n\nSuccessful: ${successCount}\nErrors: ${errorCount}`);
+        } catch (error) {
+            console.error('Error during star recalculation:', error);
+            alert('Error recalculating stars: ' + error.message);
         }
     };
 

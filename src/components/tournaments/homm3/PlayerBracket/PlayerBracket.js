@@ -250,7 +250,7 @@ export const PlayerBracket = (props) => {
                     </div>
                 )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '52px' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '0.25rem', minWidth: '52px' }}>
                 {hasTruthyPlayers &&
                     pair.games &&
                     numberOfGames.map((game, gameIndex) => {
