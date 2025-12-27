@@ -42,7 +42,8 @@ const StartingPageContent = () => {
                             (t) =>
                                 t.status === 'Registration' ||
                                 t.status === 'Registration Started' ||
-                                t.status === 'Started!'
+                                t.status === 'Started!' ||
+                                t.status === 'Tournament Finished'
                         )
                         .sort((a, b) => {
                             const statusOrder = {
@@ -167,12 +168,18 @@ const StartingPageContent = () => {
                                 key={tournament.id}
                                 to={`/tournaments/homm3/${tournament.id}`}
                                 className={classes.tournamentCard}
+                                style={{
+                                    opacity: tournament.status === 'Tournament Finished' ? 0.6 : 1,
+                                    transition: 'opacity 0.3s ease'
+                                }}
                             >
                                 <div className={classes.tournamentStatus}>
                                     {tournament.status === 'Registration' ||
                                     tournament.status === 'Registration Started'
                                         ? '📝 Registration Open'
-                                        : '🎮 In Progress'}
+                                        : tournament.status === 'Started!'
+                                          ? '🎮 In Progress'
+                                          : '🏆 Finished'}
                                 </div>
                                 <div className={classes.tournamentName}>{tournament.name}</div>
                                 <div className={classes.tournamentDetails}>
@@ -186,35 +193,63 @@ const StartingPageContent = () => {
                     </div>
                 </div>
             )}
-            {liveGames.length > 0 && (
+            {activeTournaments.some((t) => t.status === 'Started!') && (
                 <div className={classes.tournamentsSection}>
                     <h2>🔴 Live Games</h2>
-                    <div className={classes.tournamentsList}>
-                        {liveGames.map((game, index) => (
-                            <Link
-                                key={index}
-                                to={`/tournaments/homm3/${game.tournamentId}`}
-                                className={classes.liveGameCard}
+                    {liveGames.length > 0 ? (
+                        <div className={classes.tournamentsList}>
+                            {liveGames.map((game, index) => (
+                                <Link
+                                    key={index}
+                                    to={`/tournaments/homm3/${game.tournamentId}`}
+                                    className={classes.liveGameCard}
+                                >
+                                    <div className={classes.liveIndicator}>● LIVE</div>
+                                    <div className={classes.tournamentName}>{game.tournamentName}</div>
+                                    <div className={classes.matchup}>
+                                        <div className={classes.player}>
+                                            <span className={classes.playerName}>{game.team1}</span>
+                                            <span className={classes.score}>{game.score1}</span>
+                                        </div>
+                                        <div className={classes.vs}>VS</div>
+                                        <div className={classes.player}>
+                                            <span className={classes.score}>{game.score2}</span>
+                                            <span className={classes.playerName}>{game.team2}</span>
+                                        </div>
+                                    </div>
+                                    <div className={classes.gameType}>
+                                        {game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <div
+                            style={{
+                                textAlign: 'center',
+                                padding: '3rem 2rem',
+                                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(255, 215, 0, 0.03))',
+                                border: '2px dashed #00ffff',
+                                borderRadius: '12px',
+                                color: '#FFD700',
+                                fontSize: '1.2rem',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
+                            <div>Oops! No active games right now...</div>
+                            <div
+                                style={{
+                                    fontSize: '0.9rem',
+                                    marginTop: '0.5rem',
+                                    fontWeight: 'normal',
+                                    color: '#FFA500'
+                                }}
                             >
-                                <div className={classes.liveIndicator}>● LIVE</div>
-                                <div className={classes.tournamentName}>{game.tournamentName}</div>
-                                <div className={classes.matchup}>
-                                    <div className={classes.player}>
-                                        <span className={classes.playerName}>{game.team1}</span>
-                                        <span className={classes.score}>{game.score1}</span>
-                                    </div>
-                                    <div className={classes.vs}>VS</div>
-                                    <div className={classes.player}>
-                                        <span className={classes.score}>{game.score2}</span>
-                                        <span className={classes.playerName}>{game.team2}</span>
-                                    </div>
-                                </div>
-                                <div className={classes.gameType}>
-                                    {game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
+                                Time to fire one up! 🔥
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </section>

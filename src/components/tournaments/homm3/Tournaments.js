@@ -17,7 +17,7 @@ const TournamentList = () => {
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('started');
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
