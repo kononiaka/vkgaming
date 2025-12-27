@@ -2663,36 +2663,6 @@ export const TournamentBracket = ({
                             }}
                         >
                             {(() => {
-                                // Check if there are any live games
-                                const hasLiveGames = availableCastles.some((castle) => castle.liveGames > 0);
-
-                                if (!hasLiveGames) {
-                                    return (
-                                        <div
-                                            style={{
-                                                textAlign: 'center',
-                                                padding: '2rem',
-                                                color: '#FFD700',
-                                                fontSize: '1.2rem',
-                                                fontWeight: 'bold'
-                                            }}
-                                        >
-                                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
-                                            <div>Oops! No active games right now...</div>
-                                            <div
-                                                style={{
-                                                    fontSize: '0.9rem',
-                                                    marginTop: '0.5rem',
-                                                    fontWeight: 'normal',
-                                                    color: '#FFA500'
-                                                }}
-                                            >
-                                                Time to fire one up! 🔥
-                                            </div>
-                                        </div>
-                                    );
-                                }
-
                                 // Find min and max total values
                                 const totals = availableCastles.map((castle) => castle.total);
                                 const minTotal = Math.min(...totals);
