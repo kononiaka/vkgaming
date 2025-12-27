@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import StarsComponent from '../../../Stars/Stars';
-import { fetchLastGamesForPlayer } from '../../../../api/api';
+import { fetchLastGamesForPlayer, getAvatar, lookForUserId } from '../../../../api/api';
 import classes from './PlayerBracket.module.css';
 
 // Import local castle images
@@ -60,7 +61,30 @@ export const PlayerBracket = (props) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const [streak, setStreak] = useState([]);
+    const [avatarUrl, setAvatarUrl] = useState(null);
+    const [userId, setUserId] = useState(null);
     const tooltipTimeout = useRef(null);
+
+    // Fetch player avatar and userId
+    useEffect(() => {
+        const fetchAvatar = async () => {
+            if (teamPlayer && teamPlayer !== 'TBD') {
+                try {
+                    const uid = await lookForUserId(teamPlayer);
+                    if (uid) {
+                        setUserId(uid);
+                        const avatar = await getAvatar(uid);
+                        setAvatarUrl(avatar);
+                    }
+                } catch (error) {
+                    console.error('Error fetching avatar:', error);
+                    setAvatarUrl(null);
+                    setUserId(null);
+                }
+            }
+        };
+        fetchAvatar();
+    }, [teamPlayer]);
 
     // Ensure only one tooltip is visible at a time (global for this component type)
     window.__playerBracketTooltipHideAll = window.__playerBracketTooltipHideAll || (() => {});
@@ -107,7 +131,38 @@ export const PlayerBracket = (props) => {
                     )}
                 </label>
 
-                {teamPlayer}
+                {avatarUrl && (
+                    <img
+                        src={avatarUrl}
+                        alt={teamPlayer}
+                        style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            marginRight: '8px',
+                            border: '2px solid #00ffff',
+                            objectFit: 'cover',
+                            boxShadow: '0 2px 4px rgba(0, 255, 255, 0.3)'
+                        }}
+                    />
+                )}
+                {userId && teamPlayer !== 'TBD' ? (
+                    <NavLink
+                        to={`/players/${userId}`}
+                        style={{
+                            color: '#00ffff',
+                            textDecoration: 'none',
+                            fontWeight: 'bold',
+                            transition: 'color 0.2s'
+                        }}
+                        onMouseEnter={(e) => (e.target.style.color = '#00cccc')}
+                        onMouseLeave={(e) => (e.target.style.color = '#00ffff')}
+                    >
+                        {teamPlayer}
+                    </NavLink>
+                ) : (
+                    teamPlayer
+                )}
                 {showTooltip && teamPlayer !== 'TBD' && (
                     <div
                         style={{

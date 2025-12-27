@@ -9,7 +9,7 @@ const StartingPageContent = () => {
     let { userNickName, isLogged, notificationShown } = authCtx;
     const [activeTournaments, setActiveTournaments] = useState([]);
     const [liveGames, setLiveGames] = useState([]);
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('started');
 
     if (userNickName === 'undefined') {
         userNickName = localStorage.getItem('userName');
@@ -35,7 +35,6 @@ const StartingPageContent = () => {
                     const tournamentList = Object.keys(data)
                         .map((key) => {
                             const tournament = data[key];
-                            console.log('tournament', tournament);
                             return tournament ? { id: key, ...tournament } : null;
                         })
                         .filter(Boolean)
@@ -43,7 +42,8 @@ const StartingPageContent = () => {
                             (t) =>
                                 t.status === 'Registration' ||
                                 t.status === 'Registration Started' ||
-                                t.status === 'Started!'
+                                t.status === 'Started!' ||
+                                t.status === 'Tournament Finished'
                         )
                         .sort((a, b) => {
                             const statusOrder = {
@@ -69,24 +69,23 @@ const StartingPageContent = () => {
                             tournament.bracket.playoffPairs.forEach((stage, stageIndex) => {
                                 if (Array.isArray(stage)) {
                                     stage.forEach((pair) => {
-                                        // Game is live if both teams exist, not TBD, and not finished
-                                        if (
-                                            pair.team1 &&
-                                            pair.team2 &&
-                                            pair.team1 !== 'TBD' &&
-                                            pair.team2 !== 'TBD' &&
-                                            pair.gameStatus !== 'Finished' &&
-                                            pair.gameStatus !== 'Processed'
-                                        ) {
-                                            games.push({
-                                                tournamentId,
-                                                tournamentName: tournament.name,
-                                                team1: pair.team1,
-                                                team2: pair.team2,
-                                                score1: pair.score1 || 0,
-                                                score2: pair.score2 || 0,
-                                                type: pair.type,
-                                                stageIndex
+                                        // Check if pair has games with castles selected but no winner
+                                        if (pair.games && Array.isArray(pair.games)) {
+                                            pair.games.forEach((game) => {
+                                                if (game.castle1 && game.castle2 && !game.castleWinner) {
+                                                    games.push({
+                                                        tournamentId,
+                                                        tournamentName: tournament.name,
+                                                        team1: pair.team1,
+                                                        team2: pair.team2,
+                                                        score1: pair.score1 || 0,
+                                                        score2: pair.score2 || 0,
+                                                        type: pair.type,
+                                                        stageIndex,
+                                                        castle1: game.castle1,
+                                                        castle2: game.castle2
+                                                    });
+                                                }
                                             });
                                         }
                                     });
@@ -103,7 +102,21 @@ const StartingPageContent = () => {
         fetchActiveTournaments();
     }, []);
 
-    console.log('activeTournaments', activeTournaments);
+    // Check if tournament has live games (castles selected but no winner)
+    const hasLiveGames = (tournament) => {
+        if (!tournament.bracket || !tournament.bracket.playoffPairs) {
+            return false;
+        }
+
+        return tournament.bracket.playoffPairs.some((stage) =>
+            stage.some((pair) => {
+                if (pair.games && Array.isArray(pair.games)) {
+                    return pair.games.some((game) => game.castle1 && game.castle2 && !game.castleWinner);
+                }
+                return false;
+            })
+        );
+    };
 
     const filteredTournaments = activeTournaments.filter((tournament) => {
         if (statusFilter === 'all') return true;
@@ -111,6 +124,7 @@ const StartingPageContent = () => {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
         if (statusFilter === 'started') return tournament.status === 'Started!';
         if (statusFilter === 'finished') return tournament.status === 'Tournament Finished';
+        if (statusFilter === 'live') return hasLiveGames(tournament);
         return true;
     });
 
@@ -144,6 +158,7 @@ const StartingPageContent = () => {
                             <option value="all">All Tournaments</option>
                             <option value="registration">📝 Registration Open</option>
                             <option value="started">🎮 In Progress</option>
+                            <option value="live">🔴 Live Games</option>
                             <option value="finished">🏆 Finished</option>
                         </select>
                     </div>
@@ -153,12 +168,18 @@ const StartingPageContent = () => {
                                 key={tournament.id}
                                 to={`/tournaments/homm3/${tournament.id}`}
                                 className={classes.tournamentCard}
+                                style={{
+                                    opacity: tournament.status === 'Tournament Finished' ? 0.6 : 1,
+                                    transition: 'opacity 0.3s ease'
+                                }}
                             >
                                 <div className={classes.tournamentStatus}>
                                     {tournament.status === 'Registration' ||
                                     tournament.status === 'Registration Started'
                                         ? '📝 Registration Open'
-                                        : '🎮 In Progress'}
+                                        : tournament.status === 'Started!'
+                                          ? '🎮 In Progress'
+                                          : '🏆 Finished'}
                                 </div>
                                 <div className={classes.tournamentName}>{tournament.name}</div>
                                 <div className={classes.tournamentDetails}>
@@ -172,35 +193,63 @@ const StartingPageContent = () => {
                     </div>
                 </div>
             )}
-            {liveGames.length > 0 && (
+            {activeTournaments.some((t) => t.status === 'Started!') && (
                 <div className={classes.tournamentsSection}>
                     <h2>🔴 Live Games</h2>
-                    <div className={classes.tournamentsList}>
-                        {liveGames.map((game, index) => (
-                            <Link
-                                key={index}
-                                to={`/tournaments/homm3/${game.tournamentId}`}
-                                className={classes.liveGameCard}
+                    {liveGames.length > 0 ? (
+                        <div className={classes.tournamentsList}>
+                            {liveGames.map((game, index) => (
+                                <Link
+                                    key={index}
+                                    to={`/tournaments/homm3/${game.tournamentId}`}
+                                    className={classes.liveGameCard}
+                                >
+                                    <div className={classes.liveIndicator}>● LIVE</div>
+                                    <div className={classes.tournamentName}>{game.tournamentName}</div>
+                                    <div className={classes.matchup}>
+                                        <div className={classes.player}>
+                                            <span className={classes.playerName}>{game.team1}</span>
+                                            <span className={classes.score}>{game.score1}</span>
+                                        </div>
+                                        <div className={classes.vs}>VS</div>
+                                        <div className={classes.player}>
+                                            <span className={classes.score}>{game.score2}</span>
+                                            <span className={classes.playerName}>{game.team2}</span>
+                                        </div>
+                                    </div>
+                                    <div className={classes.gameType}>
+                                        {game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <div
+                            style={{
+                                textAlign: 'center',
+                                padding: '3rem 2rem',
+                                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(255, 215, 0, 0.03))',
+                                border: '2px dashed #00ffff',
+                                borderRadius: '12px',
+                                color: '#FFD700',
+                                fontSize: '1.2rem',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
+                            <div>Oops! No active games right now...</div>
+                            <div
+                                style={{
+                                    fontSize: '0.9rem',
+                                    marginTop: '0.5rem',
+                                    fontWeight: 'normal',
+                                    color: '#FFA500'
+                                }}
                             >
-                                <div className={classes.liveIndicator}>● LIVE</div>
-                                <div className={classes.tournamentName}>{game.tournamentName}</div>
-                                <div className={classes.matchup}>
-                                    <div className={classes.player}>
-                                        <span className={classes.playerName}>{game.team1}</span>
-                                        <span className={classes.score}>{game.score1}</span>
-                                    </div>
-                                    <div className={classes.vs}>VS</div>
-                                    <div className={classes.player}>
-                                        <span className={classes.score}>{game.score2}</span>
-                                        <span className={classes.playerName}>{game.team2}</span>
-                                    </div>
-                                </div>
-                                <div className={classes.gameType}>
-                                    {game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
+                                Time to fire one up! 🔥
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </section>

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAvatar, updateAvatar, addCoinsToUser } from '../../api/api';
+import { getAvatar, updateAvatar } from '../../api/api';
+import { addCoins } from '../../api/coinTransactions';
 import AuthContext from '../../store/auth-context';
 
 import classes from './ProfileForm.module.css';
@@ -14,6 +15,7 @@ const ProfileForm = () => {
     const [playerObj, setPlayerObj] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [avatarBase64, setAvatarBase64] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     let { userNickName } = authCtx;
     userNickName = localStorage.getItem('userName');
@@ -76,10 +78,10 @@ const ProfileForm = () => {
                 await updateAvatar(userId, base64);
 
                 if (hadNoAvatar) {
-                    await addCoinsToUser(userId, 1);
+                    await addCoins(userId, 1, 'avatar_upload', 'First avatar upload bonus');
                     authCtx.setNotificationShown(
                         true,
-                        'Congrats! You received 1 coin point for avatar upload!',
+                        'Congrats! You received 1 coin for avatar upload!',
                         'success',
                         5
                     );
@@ -98,6 +100,68 @@ const ProfileForm = () => {
         // Trigger the file input click
         if (avatarInputRef.current) {
             avatarInputRef.current.click();
+        }
+    };
+
+    const handleGenerateAvatar = async () => {
+        setIsGenerating(true);
+        try {
+            // Map character classes to pixel art styles with different colors
+            const avatarStyles = {
+                knight: { style: 'pixel-art', backgroundColor: 'b6e3f4' },
+                elf: { style: 'pixel-art', backgroundColor: 'c0aede' },
+                dwarf: { style: 'pixel-art-neutral', backgroundColor: 'd1d4f9' },
+                wizard: { style: 'pixel-art', backgroundColor: '8b5cf6' },
+                necromancer: { style: 'pixel-art-neutral', backgroundColor: '1e293b' },
+                barbarian: { style: 'pixel-art', backgroundColor: 'ff6b6b' },
+                sorceress: { style: 'pixel-art-neutral', backgroundColor: 'fbbf24' },
+                warlock: { style: 'pixel-art', backgroundColor: '7c3aed' },
+                cleric: { style: 'pixel-art-neutral', backgroundColor: 'fde047' },
+                demon: { style: 'pixel-art-neutral', backgroundColor: 'dc2626' }
+            };
+
+            // Pick random character class
+            const characterClasses = Object.keys(avatarStyles);
+            const randomClass = characterClasses[Math.floor(Math.random() * characterClasses.length)];
+            const config = avatarStyles[randomClass];
+
+            // Generate random seed based on character class and timestamp for uniqueness
+            const seed = `${randomClass}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+            // Use DiceBear free API - no API key required!
+            const imageUrl = `https://api.dicebear.com/7.x/${config.style}/svg?seed=${seed}&backgroundColor=${config.backgroundColor}&size=256`;
+
+            // Fetch and convert to base64
+            const imageResponse = await fetch(imageUrl);
+            const svgText = await imageResponse.text();
+
+            // Convert SVG to data URI (UTF-8 safe, no need for base64)
+            const base64 = `data:image/svg+xml,${encodeURIComponent(svgText)}`;
+            setAvatarBase64(base64);
+
+            // Check if first avatar and save
+            const userRes = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`);
+            const userData = await userRes.json();
+            const hadNoAvatar = !userData.avatar;
+
+            await updateAvatar(userId, base64);
+
+            if (hadNoAvatar) {
+                await addCoins(userId, 1, 'avatar_upload', 'First avatar (generated) bonus');
+                authCtx.setNotificationShown(
+                    true,
+                    'Congrats! You received 1 coin for your first avatar!',
+                    'success',
+                    5
+                );
+            } else {
+                authCtx.setNotificationShown(true, 'Avatar generated successfully!', 'success', 3);
+            }
+        } catch (error) {
+            console.error('Generation error:', error);
+            authCtx.setNotificationShown(true, 'Avatar generation failed. Please try again.', 'error', 5);
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -154,9 +218,39 @@ const ProfileForm = () => {
                     style={{ display: 'none' }}
                     ref={avatarInputRef}
                 />
-                <button type="button" onClick={handleUploadClick} className={classes.uploadBtn}>
-                    📤 Upload Avatar
-                </button>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button type="button" onClick={handleUploadClick} className={classes.uploadBtn}>
+                        📤 Upload Avatar
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleGenerateAvatar}
+                        disabled={isGenerating}
+                        className={classes.generateBtn}
+                        style={{
+                            background: 'linear-gradient(135deg, #9b59b6, #8e44ad)',
+                            border: '2px solid #9b59b6',
+                            color: 'white',
+                            padding: '0.75rem 1.5rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '1rem',
+                            fontWeight: 'bold',
+                            transition: 'all 0.3s ease',
+                            boxShadow: '0 4px 12px rgba(155, 89, 182, 0.3)'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 6px 16px rgba(155, 89, 182, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(155, 89, 182, 0.3)';
+                        }}
+                    >
+                        {isGenerating ? '⏳ Generating...' : '🎨 Generate AI Avatar'}
+                    </button>
+                </div>
             </div>
 
             <div className={classes.quickStats}>

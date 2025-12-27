@@ -162,12 +162,14 @@ export const TournamentBracket = ({
         const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json');
         const data = await response.json();
 
-        // Filter games where both players played
-        const games = Object.values(data.heroes3 || {}).filter(
-            (game) =>
-                (game.opponent1 === team1 && game.opponent2 === team2) ||
-                (game.opponent1 === team2 && game.opponent2 === team1)
-        );
+        // Filter games where both players played and include game IDs
+        const games = Object.entries(data.heroes3 || {})
+            .filter(
+                ([id, game]) =>
+                    (game.opponent1 === team1 && game.opponent2 === team2) ||
+                    (game.opponent1 === team2 && game.opponent2 === team1)
+            )
+            .map(([id, game]) => ({ ...game, id }));
 
         const total = games.length;
         const wins = games.filter((g) => g.winner === team1).length;
@@ -729,20 +731,20 @@ export const TournamentBracket = ({
                                 .map((pair) => {
                                     const result = findByName(playersData, pair.winner);
 
-                                    let playerRecentStar = result ? result.stars : null;
+                                    // Always use ratings from DB (fresh), but preserve stars from tournament entry
                                     let playerRecentRatings = result ? result.ratings : null;
 
                                     if (pair.winner === pair.team1) {
                                         return {
                                             winner: pair.winner,
                                             ratings: result ? playerRecentRatings : pair.ratings1,
-                                            stars: result ? playerRecentStar : pair.stars1
+                                            stars: pair.stars1 // Always preserve original tournament entry stars
                                         };
                                     } else {
                                         return {
                                             winner: pair.winner,
                                             ratings: result ? playerRecentRatings : pair.ratings2,
-                                            stars: result ? playerRecentStar : pair.stars2
+                                            stars: pair.stars2 // Always preserve original tournament entry stars
                                         };
                                     }
                                 })
@@ -777,15 +779,20 @@ export const TournamentBracket = ({
                                             loserName = 'TBD';
                                         }
 
-                                        // Find the player data for the loser
+                                        // Use stars from the pair (original tournament entry), not from DB
+                                        // Fetch updated ratings from DB for losers
                                         const loserData = Object.values(playersData).find(
                                             (player) => player.name === loserName
                                         );
 
                                         return {
                                             winner: loserName,
-                                            stars: loserData ? loserData.stars : null,
-                                            ratings: loserData ? loserData.ratings : null
+                                            stars: match.winner === match.team1 ? match.stars2 : match.stars1,
+                                            ratings: loserData
+                                                ? loserData.ratings
+                                                : match.winner === match.team1
+                                                  ? match.ratings2
+                                                  : match.ratings1
                                         };
                                     });
 
@@ -1337,16 +1344,39 @@ export const TournamentBracket = ({
 
     //TODO: implement the getAvailableCastles function to filter castles based on the number of games played
     function getAvailableCastles(castles) {
-        const maxGames = Math.max(
-            ...castles.map((c) => {
-                console.log('c', c.total);
-                // console.log('c', c.name);
-                return c.total;
-            })
-        );
-        // console.log('maxGames', maxGames);
-        // return castles.filter((c) => c.total < maxGames);
-        return [...castles].sort((a, b) => a.total - b.total);
+        // Calculate live games for each castle (castles selected but no winner yet)
+        const castlesWithLiveGames = castles.map((castle) => {
+            let liveGames = 0;
+
+            // Count live games across all stages
+            playoffPairs.forEach((stage) => {
+                stage.forEach((pair) => {
+                    if (pair.games && Array.isArray(pair.games)) {
+                        pair.games.forEach((game) => {
+                            // Game is live if:
+                            // 1. gameStatus is 'In Progress', OR
+                            // 2. Both castles are selected but no winner declared
+                            const isInProgress = game.gameStatus === 'In Progress';
+                            const hasCastlesNoWinner = game.castle1 && game.castle2 && !game.castleWinner;
+
+                            if (
+                                (game.castle1 === castle.name || game.castle2 === castle.name) &&
+                                (isInProgress || hasCastlesNoWinner)
+                            ) {
+                                liveGames++;
+                            }
+                        });
+                    }
+                });
+            });
+
+            return {
+                ...castle,
+                liveGames: liveGames
+            };
+        });
+
+        return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
     }
 
     const onStartTournament = async (bracket) => {
@@ -2474,14 +2504,16 @@ export const TournamentBracket = ({
             <div
                 className={classes.brackets}
                 style={{
-                    position: 'sticky',
+                    position: 'fixed',
                     top: 0,
                     backgroundColor: 'rgb(62, 32, 192)', // Match the modal background
                     color: 'yellow',
                     padding: '1rem',
-                    zIndex: 1,
+                    zIndex: 1000,
                     textAlign: 'center',
-                    borderBottom: '1px solid white'
+                    borderBottom: '1px solid white',
+                    width: '100%',
+                    left: 0
                 }}
             >
                 {!startTournament && isUpdateButtonVisible && (
@@ -2638,43 +2670,78 @@ export const TournamentBracket = ({
                                 const minTotal = Math.min(...totals);
                                 const maxTotal = Math.max(...totals);
 
-                                return availableCastles.map((castle, idx) => (
-                                    <li
-                                        key={idx}
-                                        style={{
-                                            padding: '0.75rem 1rem',
-                                            margin: '0.5rem 0',
-                                            background: 'rgba(45, 20, 150, 0.6)',
-                                            borderLeft: '4px solid gold',
-                                            borderRadius: '6px',
-                                            color:
-                                                castle.total === minTotal
-                                                    ? '#4ade80'
-                                                    : castle.total === maxTotal
-                                                      ? '#f87171'
-                                                      : '#FFD700',
-                                            fontWeight:
-                                                castle.total === minTotal || castle.total === maxTotal
-                                                    ? 'bold'
-                                                    : 'normal',
-                                            fontSize: '1.1rem',
-                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                                            cursor: 'default'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.target.style.transform = 'translateX(5px)';
-                                            e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.target.style.transform = 'translateX(0)';
-                                            e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-                                        }}
-                                    >
-                                        <span style={{ fontWeight: 'bold' }}>{castle.name}</span>
-                                        <span style={{ float: 'right', color: 'white' }}>Games: {castle.total}</span>
-                                    </li>
-                                ));
+                                return availableCastles.map((castle, idx) => {
+                                    const isLive = castle.liveGames > 0;
+                                    return (
+                                        <li
+                                            key={idx}
+                                            style={{
+                                                padding: '0.75rem 1rem',
+                                                margin: '0.5rem 0',
+                                                background: isLive
+                                                    ? 'rgba(255, 165, 0, 0.3)'
+                                                    : 'rgba(45, 20, 150, 0.6)',
+                                                borderLeft: isLive ? '4px solid #ff6b00' : '4px solid gold',
+                                                borderRadius: '6px',
+                                                color:
+                                                    castle.total === minTotal
+                                                        ? '#4ade80'
+                                                        : castle.total === maxTotal
+                                                          ? '#f87171'
+                                                          : '#FFD700',
+                                                fontWeight:
+                                                    castle.total === minTotal || castle.total === maxTotal
+                                                        ? 'bold'
+                                                        : 'normal',
+                                                fontSize: '1.1rem',
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                                                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                                cursor: 'default'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.target.style.transform = 'translateX(5px)';
+                                                e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.target.style.transform = 'translateX(0)';
+                                                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+                                            }}
+                                        >
+                                            <span style={{ fontWeight: 'bold' }}>
+                                                {castle.name}
+                                                {isLive && (
+                                                    <span
+                                                        style={{
+                                                            marginLeft: '8px',
+                                                            padding: '2px 6px',
+                                                            background: '#ff6b00',
+                                                            color: 'white',
+                                                            borderRadius: '4px',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        🔴 LIVE ({castle.liveGames})
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span style={{ float: 'right', color: 'white' }}>
+                                                Games: {castle.total}
+                                                {isLive && (
+                                                    <span
+                                                        style={{
+                                                            color: '#ff6b00',
+                                                            fontWeight: 'bold',
+                                                            marginLeft: '4px'
+                                                        }}
+                                                    >
+                                                        +{castle.liveGames}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </li>
+                                    );
+                                });
                             })()}
                         </ul>
                         <button
@@ -2722,7 +2789,7 @@ export const TournamentBracket = ({
             {stageLabels.length === 0 ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : (
-                <div className={classes['bracket-stages-container']}>
+                <div className={classes['bracket-stages-container']} style={{ marginTop: '100px' }}>
                     {stageLabels.map(function (stage, stageIndex) {
                         // Combine Final and Third Place in one column
                         if (stage === 'Final') {

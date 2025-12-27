@@ -5,7 +5,8 @@ import {
     fetchBestAndWorstCastleForPlayer,
     fetchFullCastleStatsForPlayer,
     fetchLeaderboard,
-    fetchBestAndWorstOpponentForPlayer
+    fetchBestAndWorstOpponentForPlayer,
+    getAvatar
 } from '../../api/api'; // Make sure this path is correct
 import classes from './Players.module.css';
 import StarsComponent from '../Stars/Stars';
@@ -34,6 +35,7 @@ const PlayerDetails = () => {
     const [worstOpponent, setWorstOpponent] = useState(null);
     const [castleStats, setCastleStats] = useState(null);
     const [showPopup, setShowPopup] = useState(false);
+    const [avatarUrl, setAvatarUrl] = useState(null);
 
     useEffect(() => {
         // Fetch player details based on the ID from the database
@@ -47,6 +49,16 @@ const PlayerDetails = () => {
                 }
                 const data = await response.json();
                 setPlayer(data);
+
+                // Fetch avatar
+                if (data && id) {
+                    try {
+                        const avatar = await getAvatar(id);
+                        setAvatarUrl(avatar);
+                    } catch (error) {
+                        console.error('Error fetching avatar:', error);
+                    }
+                }
             } catch (error) {
                 console.error('Error fetching player details:', error);
             }
@@ -116,7 +128,55 @@ const PlayerDetails = () => {
             {player ? (
                 <>
                     <h2 className={classes.header}>🎮 Player Details</h2>
-                    <p className={classes.playerName}>{player.enteredNickname}</p>
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '15px',
+                            marginBottom: '20px'
+                        }}
+                    >
+                        {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt={`${player.enteredNickname}'s avatar`}
+                                style={{
+                                    width: '60px',
+                                    height: '60px',
+                                    borderRadius: '50%',
+                                    border: '3px solid #ffd700',
+                                    objectFit: 'cover',
+                                    boxShadow: '0 4px 8px rgba(255, 215, 0, 0.4)'
+                                }}
+                            />
+                        ) : (
+                            <div
+                                style={{
+                                    width: '60px',
+                                    height: '60px',
+                                    borderRadius: '50%',
+                                    border: '3px solid #ffd700',
+                                    backgroundColor: '#1a1a2e',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontFamily: '"Press Start 2P", "Courier New", monospace',
+                                    fontSize: '24px',
+                                    fontWeight: 'bold',
+                                    color: '#00ffff',
+                                    textShadow: '2px 2px 4px rgba(0, 255, 255, 0.5)',
+                                    boxShadow: '0 4px 8px rgba(255, 215, 0, 0.4)',
+                                    imageRendering: 'pixelated'
+                                }}
+                            >
+                                {player.enteredNickname.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+                        <p className={classes.playerName} style={{ margin: 0 }}>
+                            {player.enteredNickname}
+                        </p>
+                    </div>
 
                     <div className={classes.statsGrid}>
                         <div className={classes.statCard}>
