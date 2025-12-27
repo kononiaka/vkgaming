@@ -162,12 +162,14 @@ export const TournamentBracket = ({
         const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json');
         const data = await response.json();
 
-        // Filter games where both players played
-        const games = Object.values(data.heroes3 || {}).filter(
-            (game) =>
-                (game.opponent1 === team1 && game.opponent2 === team2) ||
-                (game.opponent1 === team2 && game.opponent2 === team1)
-        );
+        // Filter games where both players played and include game IDs
+        const games = Object.entries(data.heroes3 || {})
+            .filter(
+                ([id, game]) =>
+                    (game.opponent1 === team1 && game.opponent2 === team2) ||
+                    (game.opponent1 === team2 && game.opponent2 === team1)
+            )
+            .map(([id, game]) => ({ ...game, id }));
 
         const total = games.length;
         const wins = games.filter((g) => g.winner === team1).length;

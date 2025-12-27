@@ -9,7 +9,7 @@ const StartingPageContent = () => {
     let { userNickName, isLogged, notificationShown } = authCtx;
     const [activeTournaments, setActiveTournaments] = useState([]);
     const [liveGames, setLiveGames] = useState([]);
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('started');
 
     if (userNickName === 'undefined') {
         userNickName = localStorage.getItem('userName');
