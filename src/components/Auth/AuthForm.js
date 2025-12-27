@@ -2,6 +2,7 @@ import { useContext, useRef, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 import { addCoinsToUser } from '../../api/api';
+import { addCoins } from '../../api/coinTransactions';
 import AuthContext from '../../store/auth-context';
 
 import classes from './AuthForm.module.css';
@@ -33,8 +34,8 @@ const AuthForm = () => {
             });
 
             const data = await response.json();
-            await addCoinsToUser(data.name, 1);
-            authCtx.setNotificationShown(true, 'Congrats! You received 1 score point for the registration!', 'success');
+            await addCoins(data.name, 1, 'registration', 'Registration bonus');
+            authCtx.setNotificationShown(true, 'Congrats! You received 1 coin for the registration!', 'success');
         } catch (error) {
             console.error(error);
         }
@@ -182,7 +183,7 @@ const AuthForm = () => {
                                     body: JSON.stringify({ lastLoginDate: today })
                                 }
                             );
-                            await addCoinsToUser(userId, 1);
+                            await addCoins(userId, 1, 'daily_login', 'Daily login reward');
                             authCtx.setNotificationShown(
                                 true,
                                 'Congrats! You received 1 coin for your first login today!',

@@ -1,12 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { determineTournamentPrizes } from '../../api/api';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { determineTournamentPrizes, lookForUserId } from '../../api/api';
+import { deductCoins } from '../../api/coinTransactions';
 import Modal from '../Modal/Modal';
 import classes from './ModalAddTournament.module.css';
 import { shuffleArray, setStageLabels } from '../../components/tournaments/tournament_api';
+import AuthContext from '../../store/auth-context';
 
 const Bracket = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [date, setDate] = useState('');
+    const authCtx = useContext(AuthContext);
 
     useEffect(() => {
         const now = new Date();
@@ -104,7 +107,39 @@ const Bracket = (props) => {
             }
         );
 
-        await response.json();
+        const result = await response.json();
+
+        // Deduct 5 coins from user's account after successful tournament creation
+        if (response.ok && authCtx.userNickName) {
+            try {
+                const userId = await lookForUserId(authCtx.userNickName);
+
+                // Use the coin transaction system to deduct coins and log the transaction
+                const deductResult = await deductCoins(
+                    userId,
+                    5,
+                    'tournament_creation',
+                    `Tournament created: ${objTournament.name}`,
+                    {
+                        tournamentName: objTournament.name,
+                        tournamentId: result.name, // Firebase returns the new ID in .name
+                        maxPlayers: objTournament.maxPlayers,
+                        prizePool: objTournament.pricePull
+                    }
+                );
+
+                if (deductResult.success) {
+                    console.log(
+                        `Successfully deducted 5 coins for tournament creation. New balance: ${deductResult.newBalance}`
+                    );
+                } else {
+                    console.error('Failed to deduct coins for tournament creation:', deductResult.error);
+                }
+            } catch (error) {
+                console.error('Error processing coin deduction for tournament:', error);
+                // Don't prevent tournament creation if coin deduction fails
+            }
+        }
 
         props.onClose();
         window.location.href = '/tournaments/homm3';

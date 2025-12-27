@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { calculateStarsFromRating } from '../../api/api';
+import { calculateStarsFromRating, getAvatar } from '../../api/api';
 import StarsComponent from '../Stars/Stars';
 import classes from './Leaderboard.module.css';
 
 const Leaderboard = () => {
     // const [playerScores, setPlayerScores] = useState([]);
     const [playerRating, setPlayerRating] = useState([]);
+    const [avatars, setAvatars] = useState({});
 
     useEffect(() => {
         const fetchPlayerScores = async () => {
@@ -72,6 +73,23 @@ const Leaderboard = () => {
                         : [];
 
                 setPlayerRating(playerObjWithStars);
+                // Fetch avatars for top 10 players
+                const avatarPromises = playerObjWithStars.slice(0, 10).map(async (player) => {
+                    try {
+                        const avatar = await getAvatar(player.id);
+                        return { id: player.id, avatar };
+                    } catch (error) {
+                        console.error(`Error fetching avatar for ${player.enteredNickname}:`, error);
+                        return { id: player.id, avatar: null };
+                    }
+                });
+
+                const avatarResults = await Promise.all(avatarPromises);
+                const avatarMap = {};
+                avatarResults.forEach(({ id, avatar }) => {
+                    avatarMap[id] = avatar;
+                });
+                setAvatars(avatarMap);
             } catch (error) {
                 console.error(error);
             }
@@ -195,7 +213,26 @@ const Leaderboard = () => {
                     {/* <td>{enteredNickname}</td> */}
                     <td>
                         {/* Wrap the content in a Link component */}
-                        <NavLink to={`/players/${playerId}`}>{enteredNickname}</NavLink>
+                        <NavLink
+                            to={`/players/${playerId}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            {avatars[playerId] && (
+                                <img
+                                    src={avatars[playerId]}
+                                    alt={enteredNickname}
+                                    style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '50%',
+                                        border: i < 3 ? '2px solid #ffd700' : '2px solid #00ffff',
+                                        objectFit: 'cover',
+                                        boxShadow: '0 2px 4px rgba(0, 255, 255, 0.3)'
+                                    }}
+                                />
+                            )}
+                            {enteredNickname}
+                        </NavLink>
                     </td>
                     <td>{score}</td>
                     <td>{games}</td>

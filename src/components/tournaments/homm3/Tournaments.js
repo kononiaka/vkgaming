@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { lookForUserId, fetchLeaderboard } from '../../../api/api';
+import { addCoins } from '../../../api/coinTransactions';
 import AuthContext from '../../../store/auth-context';
 import { getTournamentData } from '../../tournaments/tournament_api';
 import Modal from '../../Modal/Modal';
@@ -131,6 +132,27 @@ const TournamentList = () => {
                 }
             }
         );
+
+        // Award coins for tournament registration
+        if (response.ok) {
+            try {
+                await addCoins(
+                    userId,
+                    2,
+                    'tournament_registration',
+                    `Registered for tournament: ${tournamentData.name}`,
+                    { tournamentId: tourId, tournamentName: tournamentData.name }
+                );
+                authCtx.setNotificationShown(
+                    true,
+                    'Success! You received 2 coins for tournament registration!',
+                    'success',
+                    5
+                );
+            } catch (error) {
+                console.error('Error awarding registration coins:', error);
+            }
+        }
 
         if (response.ok && +Object.keys(tournamentPlayers).length === +maxPlayers - 1) {
             let tournamentStatusResponse = {};

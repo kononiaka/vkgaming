@@ -3,10 +3,10 @@
 }
 
 .buttonGroup {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
 }
 
 .statBox {
@@ -35,7 +35,7 @@
 }
 
 .statBox:hover {
-    border-color: #FFD700;
+    border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
     transform: translateY(-2px);
 }
@@ -51,16 +51,22 @@
 .coinIcon {
     width: 20px;
     height: 20px;
-    background: linear-gradient(135deg, 
-        #FFD700 0%, #FFD700 20%,
-        #FFA500 20%, #FFA500 40%,
-        #FFD700 40%, #FFD700 60%,
-        #FFA500 60%, #FFA500 80%,
-        #FFD700 80%, #FFD700 100%
+    background: linear-gradient(
+        135deg,
+        #ffd700 0%,
+        #ffd700 20%,
+        #ffa500 20%,
+        #ffa500 40%,
+        #ffd700 40%,
+        #ffd700 60%,
+        #ffa500 60%,
+        #ffa500 80%,
+        #ffd700 80%,
+        #ffd700 100%
     );
     border-radius: 50%;
     position: relative;
-    box-shadow: 
+    box-shadow:
         inset -2px -2px 0 rgba(0, 0, 0, 0.3),
         inset 2px 2px 0 rgba(255, 255, 255, 0.3),
         0 0 8px rgba(255, 215, 0, 0.6);
@@ -78,11 +84,11 @@
     transform: translate(-50%, -50%);
     width: 10px;
     height: 10px;
-    background: #B8860B;
+    background: #b8860b;
     border-radius: 50%;
-    box-shadow: 
-        0 0 0 2px #FFD700,
-        0 0 0 3px #B8860B;
+    box-shadow:
+        0 0 0 2px #ffd700,
+        0 0 0 3px #b8860b;
 }
 
 .coinIcon::after {
@@ -91,11 +97,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #FFD700;
+    color: #ffd700;
     font-size: 12px;
     font-weight: bold;
     font-family: 'Courier New', monospace;
-    text-shadow: 
+    text-shadow:
         1px 1px 0 #000,
         -1px -1px 0 #000,
         1px -1px 0 #000,
@@ -103,7 +109,7 @@
 }
 
 .statValue {
-    color: #FFD700;
+    color: #ffd700;
     font-weight: bold;
     font-size: 1rem;
     text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
@@ -125,7 +131,7 @@
 .button:hover,
 .button:active {
     background-color: #00ffff;
-    border-color: #FFD700;
+    border-color: #ffd700;
     color: #1a1a2e;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 255, 255, 0.3);
@@ -147,7 +153,7 @@
 }
 
 .iconButton:hover {
-    border-color: #FFD700;
+    border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
     transform: translateY(-2px);
 }
@@ -165,7 +171,7 @@
     color: #00ffff;
     padding: 6px 12px;
     border-radius: 6px;
-    border: 2px solid #FFD700;
+    border: 2px solid #ffd700;
     font-size: 0.85rem;
     font-weight: bold;
     white-space: nowrap;
@@ -179,4 +185,157 @@
 .iconButton:hover .tooltip {
     opacity: 1;
     z-index: 9;
+}
+/* Transaction Modal Styles */
+.modalBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 999;
+}
+
+.transactionsModal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 3px solid #00ffff;
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 2px solid #00ffff;
+}
+
+.modalHeader h3 {
+    margin: 0;
+    color: #ffd700;
+    font-size: 1.5rem;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.closeButton {
+    background: transparent;
+    border: 2px solid #ffd700;
+    color: #ffd700;
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    line-height: 1;
+}
+
+.closeButton:hover {
+    background: #ffd700;
+    color: #1a1a2e;
+    transform: rotate(90deg);
+}
+
+.modalBody {
+    padding: 1.5rem;
+    overflow-y: auto;
+    max-height: calc(80vh - 100px);
+}
+
+.noTransactions {
+    text-align: center;
+    color: #00ffff;
+    font-size: 1.2rem;
+    padding: 2rem;
+}
+
+.transactionsList {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.transactionItem {
+    background: rgba(0, 255, 255, 0.05);
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.transactionItem:hover {
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    transform: translateX(5px);
+}
+
+.transactionItem.positive {
+    border-left: 4px solid #4ade80;
+}
+
+.transactionItem.negative {
+    border-left: 4px solid #f87171;
+}
+
+.transactionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.transactionType {
+    color: #00ffff;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+.transactionAmount {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.amountPositive {
+    color: #4ade80;
+}
+
+.amountNegative {
+    color: #f87171;
+}
+
+.transactionDescription {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+}
+
+.transactionFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.transactionDate {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.transactionBalance {
+    color: #ffd700;
+    font-weight: bold;
 }
