@@ -112,8 +112,9 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                                         lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
                                     }
                                 },
-                                ratings: updatedRatings,
-                                stars: newStars
+                                ratings: updatedRatings
+                                // NOTE: Stars are NOT updated here - only at tournament end
+                                // This preserves tournament entry stars throughout the tournament
                             }),
                             headers: {
                                 'Content-Type': 'application/json'

@@ -17,7 +17,7 @@ const TournamentList = () => {
     const [firstStagePairs, setFirstStagePairs] = useState([]);
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('started');
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
@@ -381,6 +381,22 @@ const TournamentList = () => {
         setTournamentWinners(currentTournamentWinnersObject);
     };
 
+    // Check if tournament has live games (castles selected but no winner)
+    const hasLiveGames = (tournament) => {
+        if (!tournament.bracket || !tournament.bracket.playoffPairs) {
+            return false;
+        }
+
+        return tournament.bracket.playoffPairs.some((stage) =>
+            stage.some((pair) => {
+                if (pair.games && Array.isArray(pair.games)) {
+                    return pair.games.some((game) => game.castle1 && game.castle2 && !game.castleWinner);
+                }
+                return false;
+            })
+        );
+    };
+
     const filteredTournaments = tournaments.filter((tournament) => {
         if (statusFilter === 'all') {
             return true;
@@ -393,6 +409,9 @@ const TournamentList = () => {
         }
         if (statusFilter === 'finished') {
             return tournament.status.includes('Finished');
+        }
+        if (statusFilter === 'live') {
+            return hasLiveGames(tournament);
         }
         return true;
     });
@@ -728,6 +747,9 @@ const TournamentList = () => {
                     </option>
                     <option value="started" style={{ background: '#1a1a2e', color: '#00ffff' }}>
                         🎮 In Progress
+                    </option>
+                    <option value="live" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        🔴 Live Games
                     </option>
                     <option value="finished" style={{ background: '#1a1a2e', color: '#00ffff' }}>
                         🏆 Finished
