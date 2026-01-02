@@ -13,6 +13,7 @@ import fortressImg from '../../../image/castles/fortress.jpeg';
 import confluxImg from '../../../image/castles/conflux.jpeg';
 import coveImg from '../../../image/castles/cove.jpeg';
 import factoryImg from '../../../image/castles/factory.jpeg';
+import kronverkImg from '../../../image/castles/kronverk.jpeg';
 
 const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [selectedWinner, setSelectedWinner] = useState(pair.winner || '');
@@ -34,7 +35,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
         'Fortress-Болото',
         'Conflux-Сопряжение',
         'Cove-Пиратская бухта',
-        'Factory-Фабрика'
+        'Factory-Фабрика',
+        'Kronverk-Кронверк'
     ];
 
     // Map castle names to imported images
@@ -52,7 +54,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             Fortress: fortressImg,
             Conflux: confluxImg,
             Cove: coveImg,
-            Factory: factoryImg
+            Factory: factoryImg,
+            Kronverk: kronverkImg
         };
         return castleImages[englishName] || '';
     };

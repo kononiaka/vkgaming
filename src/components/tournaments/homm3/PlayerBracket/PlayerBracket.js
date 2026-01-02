@@ -16,6 +16,7 @@ import fortressImg from '../../../../image/castles/fortress.jpeg';
 import factoryImg from '../../../../image/castles/factory.jpeg';
 import confluxImg from '../../../../image/castles/conflux.jpeg';
 import coveImg from '../../../../image/castles/cove.jpeg';
+import kronverkImg from '../../../../image/castles/kronverk.jpeg';
 
 export const PlayerBracket = (props) => {
     const {
@@ -340,7 +341,8 @@ export const PlayerBracket = (props) => {
                                 Fortress: fortressImg,
                                 Factory: factoryImg,
                                 Conflux: confluxImg,
-                                Cove: coveImg
+                                Cove: coveImg,
+                                Kronverk: kronverkImg
                             };
                             return castleImages[castleName] || '';
                         };

@@ -274,17 +274,20 @@ export const lookForCastleStats = async (castle, action) => {
 
     const castleData = await response.json();
 
+    // Initialize castle data if it doesn't exist
+    const currentStats = castleData || { total: 0, win: 0, lose: 0 };
+
     if (action === 'win') {
         body = JSON.stringify({
-            total: castleData.total + 1,
-            win: castleData.win + 1,
-            lose: castleData.lose
+            total: currentStats.total + 1,
+            win: currentStats.win + 1,
+            lose: currentStats.lose
         });
     } else {
         body = JSON.stringify({
-            total: castleData.total + 1,
-            win: castleData.win,
-            lose: castleData.lose + 1
+            total: currentStats.total + 1,
+            win: currentStats.win,
+            lose: currentStats.lose + 1
         });
     }
 

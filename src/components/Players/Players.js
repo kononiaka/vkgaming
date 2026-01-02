@@ -23,6 +23,7 @@ import fortressImg from '../../image/castles/fortress.jpeg';
 import factoryImg from '../../image/castles/factory.jpeg';
 import confluxImg from '../../image/castles/conflux.jpeg';
 import coveImg from '../../image/castles/cove.jpeg';
+import kronverkImg from '../../image/castles/kronverk.jpeg';
 
 const PlayerDetails = () => {
     const [player, setPlayer] = useState(null);
@@ -329,7 +330,8 @@ const PlayerDetails = () => {
                                             { name: 'Fortress', image: fortressImg },
                                             { name: 'Factory', image: factoryImg },
                                             { name: 'Conflux', image: confluxImg },
-                                            { name: 'Cove', image: coveImg }
+                                            { name: 'Cove', image: coveImg },
+                                            { name: 'Kronverk', image: kronverkImg }
                                         ];
 
                                         // Merge actual stats with all castles

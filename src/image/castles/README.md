@@ -13,6 +13,7 @@ Please place the Heroes of Might and Magic 3 castle images in this directory wit
 - `conflux.png`, `conflux.jpeg`, `conflux.jpg`, or `conflux.gif` - Conflux town
 - `cove.png`, `cove.jpeg`, `cove.jpg`, or `cove.gif` - Cove town (HotA)
 - `factory.png`, `factory.jpeg`, `factory.jpg`, or `factory.gif` - Factory town (HotA)
+- `kronverk.png`, `kronverk.jpeg`, `kronverk.jpg`, or `kronverk.gif` - Kronverk town (HotA)
 
 ## Image Requirements
 - Recommended size: 48x48 pixels
