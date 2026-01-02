@@ -34,7 +34,8 @@ function AddGameModal(props) {
         'Fortress-Болото',
         'Conflux-Сопряжение',
         'Cove-Пиратская бухта',
-        'Factory-Фабрика'
+        'Factory-Фабрика',
+        'Kronverk-Кронверк'
     ];
 
     const gameNameRef = useRef(null);
