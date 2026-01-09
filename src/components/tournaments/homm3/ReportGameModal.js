@@ -22,6 +22,14 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [score1, setScore1] = useState(pair.score1 || 0);
     const [score2, setScore2] = useState(pair.score2 || 0);
     const [gameResults, setGameResults] = useState([]);
+    const [color1, setColor1] = useState('red'); // Default color for team1
+    const [color2, setColor2] = useState('blue'); // Default color for team2
+    const [gold1, setGold1] = useState(0); // Gold for team1
+    const [gold2, setGold2] = useState(0); // Gold for team2
+    const [restart1_111, setRestart1_111] = useState(0); // 111 restarts for team1 (max 2)
+    const [restart1_112, setRestart1_112] = useState(0); // 112 restarts for team1 (max 1)
+    const [restart2_111, setRestart2_111] = useState(0); // 111 restarts for team2 (max 2)
+    const [restart2_112, setRestart2_112] = useState(0); // 112 restarts for team2 (max 1)
 
     // Available castles - using database format with Russian names
     const castles = [
@@ -67,6 +75,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
         setScore1(pair.score1 || 0);
         setScore2(pair.score2 || 0);
 
+        // Initialize colors from pair data if available
+        if (pair.color1) setColor1(pair.color1);
+        if (pair.color2) setColor2(pair.color2);
+
         if (pair.type === 'bo-3') {
             setGameResults(
                 pair.games.map((game, idx) => ({
@@ -74,7 +86,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     castle1: game.castle1 || '',
                     castle2: game.castle2 || '',
                     winner: game.gameWinner || '',
-                    gameStatus: game.gameStatus || 'Not Started'
+                    gameStatus: game.gameStatus || 'Not Started',
+                    color1: game.color1 || 'red',
+                    color2: game.color2 || 'blue',
+                    gold1: game.gold1 || 0,
+                    gold2: game.gold2 || 0,
+                    restart1_111: game.restart1_111 || 0,
+                    restart1_112: game.restart1_112 || 0,
+                    restart2_111: game.restart2_111 || 0,
+                    restart2_112: game.restart2_112 || 0
                 }))
             );
         } else {
@@ -82,6 +102,14 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             if (pair.games && pair.games[0]) {
                 setCastle1(pair.games[0].castle1 || '');
                 setCastle2(pair.games[0].castle2 || '');
+                if (pair.games[0].color1) setColor1(pair.games[0].color1);
+                if (pair.games[0].color2) setColor2(pair.games[0].color2);
+                if (pair.games[0].gold1) setGold1(pair.games[0].gold1);
+                if (pair.games[0].gold2) setGold2(pair.games[0].gold2);
+                if (pair.games[0].restart1_111) setRestart1_111(pair.games[0].restart1_111);
+                if (pair.games[0].restart1_112) setRestart1_112(pair.games[0].restart1_112);
+                if (pair.games[0].restart2_111) setRestart2_111(pair.games[0].restart2_111);
+                if (pair.games[0].restart2_112) setRestart2_112(pair.games[0].restart2_112);
             }
         }
     }, [pair]);
@@ -102,7 +130,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                 gameId: 2,
                 castle1: '',
                 castle2: '',
-                winner: ''
+                winner: '',
+                color1: 'red',
+                color2: 'blue',
+                gold1: 0,
+                gold2: 0,
+                restart1_111: 0,
+                restart1_112: 0,
+                restart2_111: 0,
+                restart2_112: 0
             });
         }
 
@@ -161,6 +197,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             winner: selectedWinner || null,
             score1: score1,
             score2: score2,
+            color1: color1,
+            color2: color2,
             games:
                 pair.type === 'bo-3'
                     ? gameResults.map((g) => ({
@@ -170,7 +208,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                           gameWinner: g.winner || '',
                           gameStatus:
                               g.gameStatus === 'Processed' ? 'Processed' : g.winner ? 'Finished' : 'In Progress',
-                          gameId: g.gameId
+                          gameId: g.gameId,
+                          color1: g.color1 || color1,
+                          color2: g.color2 || color2,
+                          gold1: g.gold1 || 0,
+                          gold2: g.gold2 || 0,
+                          restart1_111: g.restart1_111 || 0,
+                          restart1_112: g.restart1_112 || 0,
+                          restart2_111: g.restart2_111 || 0,
+                          restart2_112: g.restart2_112 || 0
                       }))
                     : [
                           {
@@ -179,7 +225,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                               castleWinner: selectedWinner ? (selectedWinner === pair.team1 ? castle1 : castle2) : '',
                               gameWinner: selectedWinner || '',
                               gameStatus: selectedWinner ? 'Finished' : 'In Progress',
-                              gameId: 0
+                              gameId: 0,
+                              color1: color1,
+                              color2: color2,
+                              gold1: gold1,
+                              gold2: gold2,
+                              restart1_111: restart1_111,
+                              restart1_112: restart1_112,
+                              restart2_111: restart2_111,
+                              restart2_112: restart2_112
                           }
                       ]
         };
@@ -206,6 +260,714 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             {gameResults.map((game, idx) => (
                                 <div key={idx} className={classes.gameSection}>
                                     <h3 className={classes.gameTitle}>Game {idx + 1}</h3>
+
+                                    {/* Color Selection for BO-3 */}
+                                    <div className={classes.formGroup}>
+                                        <label>Player Colors:</label>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: '2rem',
+                                                justifyContent: 'center',
+                                                marginBottom: '1rem'
+                                            }}
+                                        >
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {pair.team1}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <div
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                color1: 'red',
+                                                                color2: 'blue'
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        style={{
+                                                            width: '60px',
+                                                            height: '60px',
+                                                            borderRadius: '8px',
+                                                            background:
+                                                                'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)',
+                                                            border:
+                                                                game.color1 === 'red'
+                                                                    ? '4px solid #FFD700'
+                                                                    : '3px solid #4a0000',
+                                                            cursor: 'pointer',
+                                                            boxShadow:
+                                                                game.color1 === 'red'
+                                                                    ? '0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                            transform:
+                                                                game.color1 === 'red' ? 'scale(1.1)' : 'scale(1)',
+                                                            transition: 'all 0.2s ease',
+                                                            position: 'relative',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        {game.color1 === 'red' && (
+                                                            <span
+                                                                style={{
+                                                                    color: '#FFD700',
+                                                                    fontSize: '24px',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                ✓
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                color1: 'blue',
+                                                                color2: 'red'
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        style={{
+                                                            width: '60px',
+                                                            height: '60px',
+                                                            borderRadius: '8px',
+                                                            background:
+                                                                'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
+                                                            border:
+                                                                game.color1 === 'blue'
+                                                                    ? '4px solid #FFD700'
+                                                                    : '3px solid #000045',
+                                                            cursor: 'pointer',
+                                                            boxShadow:
+                                                                game.color1 === 'blue'
+                                                                    ? '0 0 20px rgba(0, 0, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                            transform:
+                                                                game.color1 === 'blue' ? 'scale(1.1)' : 'scale(1)',
+                                                            transition: 'all 0.2s ease',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        {game.color1 === 'blue' && (
+                                                            <span
+                                                                style={{
+                                                                    color: '#FFD700',
+                                                                    fontSize: '24px',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                ✓
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {pair.team2}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <div
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                color2: 'red',
+                                                                color1: 'blue'
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        style={{
+                                                            width: '60px',
+                                                            height: '60px',
+                                                            borderRadius: '8px',
+                                                            background:
+                                                                'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)',
+                                                            border:
+                                                                game.color2 === 'red'
+                                                                    ? '4px solid #FFD700'
+                                                                    : '3px solid #4a0000',
+                                                            cursor: 'pointer',
+                                                            boxShadow:
+                                                                game.color2 === 'red'
+                                                                    ? '0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                            transform:
+                                                                game.color2 === 'red' ? 'scale(1.1)' : 'scale(1)',
+                                                            transition: 'all 0.2s ease',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        {game.color2 === 'red' && (
+                                                            <span
+                                                                style={{
+                                                                    color: '#FFD700',
+                                                                    fontSize: '24px',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                ✓
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                color2: 'blue',
+                                                                color1: 'red'
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        style={{
+                                                            width: '60px',
+                                                            height: '60px',
+                                                            borderRadius: '8px',
+                                                            background:
+                                                                'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
+                                                            border:
+                                                                game.color2 === 'blue'
+                                                                    ? '4px solid #FFD700'
+                                                                    : '3px solid #000045',
+                                                            cursor: 'pointer',
+                                                            boxShadow:
+                                                                game.color2 === 'blue'
+                                                                    ? '0 0 20px rgba(0, 0, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                            transform:
+                                                                game.color2 === 'blue' ? 'scale(1.1)' : 'scale(1)',
+                                                            transition: 'all 0.2s ease',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        {game.color2 === 'blue' && (
+                                                            <span
+                                                                style={{
+                                                                    color: '#FFD700',
+                                                                    fontSize: '24px',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                ✓
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Gold Input for BO-3 */}
+                                    <div className={classes.formGroup}>
+                                        <label>Gold Advantage:</label>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: '2rem',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                marginBottom: '1rem'
+                                            }}
+                                        >
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {pair.team1}
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={game.gold1 || 0}
+                                                    onChange={(e) => {
+                                                        const value = parseInt(e.target.value) || 0;
+                                                        const updated = [...gameResults];
+                                                        updated[idx] = { ...updated[idx], gold1: value, gold2: -value };
+                                                        setGameResults(updated);
+                                                    }}
+                                                    style={{
+                                                        width: '120px',
+                                                        padding: '0.5rem',
+                                                        fontSize: '16px',
+                                                        textAlign: 'center',
+                                                        border: '3px solid #FFD700',
+                                                        borderRadius: '8px',
+                                                        background:
+                                                            'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                        color:
+                                                            game.gold1 > 0
+                                                                ? '#00FF00'
+                                                                : game.gold1 < 0
+                                                                  ? '#FF0000'
+                                                                  : '#FFD700',
+                                                        fontWeight: 'bold',
+                                                        boxShadow:
+                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                                    }}
+                                                />
+                                            </div>
+                                            <div style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>
+                                                ⚔️
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {pair.team2}
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={game.gold2 || 0}
+                                                    onChange={(e) => {
+                                                        const value = parseInt(e.target.value) || 0;
+                                                        const updated = [...gameResults];
+                                                        updated[idx] = { ...updated[idx], gold2: value, gold1: -value };
+                                                        setGameResults(updated);
+                                                    }}
+                                                    style={{
+                                                        width: '120px',
+                                                        padding: '0.5rem',
+                                                        fontSize: '16px',
+                                                        textAlign: 'center',
+                                                        border: '3px solid #FFD700',
+                                                        borderRadius: '8px',
+                                                        background:
+                                                            'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                        color:
+                                                            game.gold2 > 0
+                                                                ? '#00FF00'
+                                                                : game.gold2 < 0
+                                                                  ? '#FF0000'
+                                                                  : '#FFD700',
+                                                        fontWeight: 'bold',
+                                                        boxShadow:
+                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Restarts Input for BO-3 */}
+                                    <div className={classes.formGroup}>
+                                        <label>Restarts:</label>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: '2rem',
+                                                justifyContent: 'center',
+                                                marginBottom: '1rem'
+                                            }}
+                                        >
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {pair.team1}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div
+                                                            style={{
+                                                                fontSize: '12px',
+                                                                color: '#FFD700',
+                                                                marginBottom: '0.25rem'
+                                                            }}
+                                                        >
+                                                            111
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart1_111 || 0;
+                                                                    if (
+                                                                        current < 2 &&
+                                                                        (updated[idx].restart1_112 || 0) === 0
+                                                                    ) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart1_111: current + 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(0, 255, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                +
+                                                            </button>
+                                                            <div
+                                                                style={{
+                                                                    width: '40px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background:
+                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                                    color: '#FFD700',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                {game.restart1_111 || 0}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart1_111 || 0;
+                                                                    if (current > 0) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart1_111: current - 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(255, 0, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                −
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div
+                                                            style={{
+                                                                fontSize: '12px',
+                                                                color: '#FFD700',
+                                                                marginBottom: '0.25rem'
+                                                            }}
+                                                        >
+                                                            112
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart1_112 || 0;
+                                                                    if (
+                                                                        current < 1 &&
+                                                                        (updated[idx].restart1_111 || 0) === 0
+                                                                    ) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart1_112: current + 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(0, 255, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                +
+                                                            </button>
+                                                            <div
+                                                                style={{
+                                                                    width: '40px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background:
+                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                                    color: '#FFD700',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                {game.restart1_112 || 0}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart1_112 || 0;
+                                                                    if (current > 0) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart1_112: current - 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(255, 0, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                −
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    {pair.team2}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div
+                                                            style={{
+                                                                fontSize: '12px',
+                                                                color: '#FFD700',
+                                                                marginBottom: '0.25rem'
+                                                            }}
+                                                        >
+                                                            111
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart2_111 || 0;
+                                                                    if (
+                                                                        current < 2 &&
+                                                                        (updated[idx].restart2_112 || 0) === 0
+                                                                    ) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart2_111: current + 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(0, 255, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                +
+                                                            </button>
+                                                            <div
+                                                                style={{
+                                                                    width: '40px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background:
+                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                                    color: '#FFD700',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                {game.restart2_111 || 0}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart2_111 || 0;
+                                                                    if (current > 0) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart2_111: current - 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(255, 0, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                −
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div
+                                                            style={{
+                                                                fontSize: '12px',
+                                                                color: '#FFD700',
+                                                                marginBottom: '0.25rem'
+                                                            }}
+                                                        >
+                                                            112
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart2_112 || 0;
+                                                                    if (
+                                                                        current < 1 &&
+                                                                        (updated[idx].restart2_111 || 0) === 0
+                                                                    ) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart2_112: current + 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(0, 255, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                +
+                                                            </button>
+                                                            <div
+                                                                style={{
+                                                                    width: '40px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background:
+                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                                    color: '#FFD700',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                {game.restart2_112 || 0}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = [...gameResults];
+                                                                    const current = updated[idx].restart2_112 || 0;
+                                                                    if (current > 0) {
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart2_112: current - 1
+                                                                        };
+                                                                        setGameResults(updated);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    border: '2px solid #FFD700',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(255, 0, 0, 0.2)',
+                                                                    color: '#FFD700',
+                                                                    fontSize: '16px',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold'
+                                                                }}
+                                                            >
+                                                                −
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className={classes.formGroup}>
                                         <label>{pair.team1} Castle:</label>
                                         <div
@@ -389,6 +1151,567 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     ) : (
                         <>
                             {/* BO-1 Game Result */}
+
+                            {/* Color Selection for BO-1 */}
+                            <div className={classes.formGroup}>
+                                <label>Player Colors:</label>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        gap: '2rem',
+                                        justifyContent: 'center',
+                                        marginBottom: '1rem'
+                                    }}
+                                >
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
+                                            {pair.team1}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <div
+                                                onClick={() => {
+                                                    setColor1('red');
+                                                    setColor2('blue');
+                                                }}
+                                                style={{
+                                                    width: '60px',
+                                                    height: '60px',
+                                                    borderRadius: '8px',
+                                                    background: 'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)',
+                                                    border:
+                                                        color1 === 'red' ? '4px solid #FFD700' : '3px solid #4a0000',
+                                                    cursor: 'pointer',
+                                                    boxShadow:
+                                                        color1 === 'red'
+                                                            ? '0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                            : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                    transform: color1 === 'red' ? 'scale(1.1)' : 'scale(1)',
+                                                    transition: 'all 0.2s ease',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                            >
+                                                {color1 === 'red' && (
+                                                    <span
+                                                        style={{
+                                                            color: '#FFD700',
+                                                            fontSize: '24px',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        ✓
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div
+                                                onClick={() => {
+                                                    setColor1('blue');
+                                                    setColor2('red');
+                                                }}
+                                                style={{
+                                                    width: '60px',
+                                                    height: '60px',
+                                                    borderRadius: '8px',
+                                                    background: 'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
+                                                    border:
+                                                        color1 === 'blue' ? '4px solid #FFD700' : '3px solid #000045',
+                                                    cursor: 'pointer',
+                                                    boxShadow:
+                                                        color1 === 'blue'
+                                                            ? '0 0 20px rgba(0, 0, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                            : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                    transform: color1 === 'blue' ? 'scale(1.1)' : 'scale(1)',
+                                                    transition: 'all 0.2s ease',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                            >
+                                                {color1 === 'blue' && (
+                                                    <span
+                                                        style={{
+                                                            color: '#FFD700',
+                                                            fontSize: '24px',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        ✓
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
+                                            {pair.team2}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <div
+                                                onClick={() => {
+                                                    setColor2('red');
+                                                    setColor1('blue');
+                                                }}
+                                                style={{
+                                                    width: '60px',
+                                                    height: '60px',
+                                                    borderRadius: '8px',
+                                                    background: 'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)',
+                                                    border:
+                                                        color2 === 'red' ? '4px solid #FFD700' : '3px solid #4a0000',
+                                                    cursor: 'pointer',
+                                                    boxShadow:
+                                                        color2 === 'red'
+                                                            ? '0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                            : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                    transform: color2 === 'red' ? 'scale(1.1)' : 'scale(1)',
+                                                    transition: 'all 0.2s ease',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                            >
+                                                {color2 === 'red' && (
+                                                    <span
+                                                        style={{
+                                                            color: '#FFD700',
+                                                            fontSize: '24px',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        ✓
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div
+                                                onClick={() => {
+                                                    setColor2('blue');
+                                                    setColor1('red');
+                                                }}
+                                                style={{
+                                                    width: '60px',
+                                                    height: '60px',
+                                                    borderRadius: '8px',
+                                                    background: 'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
+                                                    border:
+                                                        color2 === 'blue' ? '4px solid #FFD700' : '3px solid #000045',
+                                                    cursor: 'pointer',
+                                                    boxShadow:
+                                                        color2 === 'blue'
+                                                            ? '0 0 20px rgba(0, 0, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+                                                            : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                                                    transform: color2 === 'blue' ? 'scale(1.1)' : 'scale(1)',
+                                                    transition: 'all 0.2s ease',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                            >
+                                                {color2 === 'blue' && (
+                                                    <span
+                                                        style={{
+                                                            color: '#FFD700',
+                                                            fontSize: '24px',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        ✓
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Gold Input for BO-1 */}
+                            <div className={classes.formGroup}>
+                                <label>Gold Advantage:</label>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        gap: '2rem',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        marginBottom: '1rem'
+                                    }}
+                                >
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
+                                            {pair.team1}
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={gold1}
+                                            onChange={(e) => {
+                                                const value = parseInt(e.target.value) || 0;
+                                                setGold1(value);
+                                                setGold2(-value);
+                                            }}
+                                            style={{
+                                                width: '120px',
+                                                padding: '0.5rem',
+                                                fontSize: '16px',
+                                                textAlign: 'center',
+                                                border: '3px solid #FFD700',
+                                                borderRadius: '8px',
+                                                background:
+                                                    'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                color: gold1 > 0 ? '#00FF00' : gold1 < 0 ? '#FF0000' : '#FFD700',
+                                                fontWeight: 'bold',
+                                                boxShadow:
+                                                    '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                            }}
+                                        />
+                                    </div>
+                                    <div style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>⚔️</div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
+                                            {pair.team2}
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={gold2}
+                                            onChange={(e) => {
+                                                const value = parseInt(e.target.value) || 0;
+                                                setGold2(value);
+                                                setGold1(-value);
+                                            }}
+                                            style={{
+                                                width: '120px',
+                                                padding: '0.5rem',
+                                                fontSize: '16px',
+                                                textAlign: 'center',
+                                                border: '3px solid #FFD700',
+                                                borderRadius: '8px',
+                                                background:
+                                                    'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                color: gold2 > 0 ? '#00FF00' : gold2 < 0 ? '#FF0000' : '#FFD700',
+                                                fontWeight: 'bold',
+                                                boxShadow:
+                                                    '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Restarts Input for BO-1 */}
+                            <div className={classes.formGroup}>
+                                <label>Restarts:</label>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        gap: '2rem',
+                                        justifyContent: 'center',
+                                        marginBottom: '1rem'
+                                    }}
+                                >
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
+                                            {pair.team1}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        color: '#FFD700',
+                                                        marginBottom: '0.25rem'
+                                                    }}
+                                                >
+                                                    111
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart1_111 < 2 && restart1_112 === 0) {
+                                                                setRestart1_111(restart1_111 + 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(0, 255, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        +
+                                                    </button>
+                                                    <div
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background:
+                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                            color: '#FFD700',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        {restart1_111}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart1_111 > 0) {
+                                                                setRestart1_111(restart1_111 - 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255, 0, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        −
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        color: '#FFD700',
+                                                        marginBottom: '0.25rem'
+                                                    }}
+                                                >
+                                                    112
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart1_112 < 1 && restart1_111 === 0) {
+                                                                setRestart1_112(restart1_112 + 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(0, 255, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        +
+                                                    </button>
+                                                    <div
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background:
+                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                            color: '#FFD700',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        {restart1_112}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart1_112 > 0) {
+                                                                setRestart1_112(restart1_112 - 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255, 0, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        −
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
+                                            {pair.team2}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        color: '#FFD700',
+                                                        marginBottom: '0.25rem'
+                                                    }}
+                                                >
+                                                    111
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart2_111 < 2 && restart2_112 === 0) {
+                                                                setRestart2_111(restart2_111 + 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(0, 255, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        +
+                                                    </button>
+                                                    <div
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background:
+                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                            color: '#FFD700',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        {restart2_111}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart2_111 > 0) {
+                                                                setRestart2_111(restart2_111 - 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255, 0, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        −
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        color: '#FFD700',
+                                                        marginBottom: '0.25rem'
+                                                    }}
+                                                >
+                                                    112
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart2_112 < 1 && restart2_111 === 0) {
+                                                                setRestart2_112(restart2_112 + 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(0, 255, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        +
+                                                    </button>
+                                                    <div
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background:
+                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                            color: '#FFD700',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        {restart2_112}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (restart2_112 > 0) {
+                                                                setRestart2_112(restart2_112 - 1);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '30px',
+                                                            height: '30px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255, 0, 0, 0.2)',
+                                                            color: '#FFD700',
+                                                            fontSize: '16px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        −
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className={classes.formGroup}>
                                 <label>{pair.team1} Castle:</label>
                                 <div

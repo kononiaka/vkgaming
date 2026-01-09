@@ -1217,7 +1217,15 @@ export const TournamentBracket = ({
                     castleWinner: '',
                     gameId: j,
                     gameStatus: 'Not Started',
-                    gameWinner: ''
+                    gameWinner: '',
+                    color1: 'red',
+                    color2: 'blue',
+                    gold1: 0,
+                    gold2: 0,
+                    restart1_111: 0,
+                    restart1_112: 0,
+                    restart2_111: 0,
+                    restart2_112: 0
                 });
             }
 
@@ -1232,7 +1240,9 @@ export const TournamentBracket = ({
                 stars2: (winners[i + 1] && winners[i + 1].stars) || null,
                 ratings2: (winners[i + 1] && winners[i + 1].ratings) || null,
                 type: games.length > 1 ? 'bo-3' : 'bo-1',
-                games: games
+                games: games,
+                color1: 'red',
+                color2: 'blue'
             };
 
             nextPairings.push(pair);
@@ -1255,10 +1265,20 @@ export const TournamentBracket = ({
                         castleWinner: '',
                         gameId: 0,
                         gameStatus: 'Not Started',
-                        gameWinner: ''
+                        gameWinner: '',
+                        color1: 'red',
+                        color2: 'blue',
+                        gold1: 0,
+                        gold2: 0,
+                        restart1_111: 0,
+                        restart1_112: 0,
+                        restart2_111: 0,
+                        restart2_112: 0
                     }
                 ],
-                type: 'bo-1'
+                type: 'bo-1',
+                color1: 'red',
+                color2: 'blue'
             };
 
             nextPairings.push(pair);
@@ -1448,7 +1468,15 @@ export const TournamentBracket = ({
                 castleWinner: '',
                 gameId: index,
                 gameStatus: 'Not Started',
-                gameWinner: ''
+                gameWinner: '',
+                color1: 'red',
+                color2: 'blue',
+                gold1: 0,
+                gold2: 0,
+                restart1_111: 0,
+                restart1_112: 0,
+                restart2_111: 0,
+                restart2_112: 0
             }));
 
             return {
@@ -1464,7 +1492,9 @@ export const TournamentBracket = ({
                 team1: pair[0],
                 team2: pair[1],
                 type: gameType,
-                winner: null
+                winner: null,
+                color1: 'red',
+                color2: 'blue'
             };
         });
 
@@ -1500,7 +1530,15 @@ export const TournamentBracket = ({
                         castleWinner: '',
                         gameId: index,
                         gameStatus: 'Not Started',
-                        gameWinner: ''
+                        gameWinner: '',
+                        color1: 'red',
+                        color2: 'blue',
+                        gold1: 0,
+                        gold2: 0,
+                        restart1_111: 0,
+                        restart1_112: 0,
+                        restart2_111: 0,
+                        restart2_112: 0
                     }));
 
                     stageGames.push({
@@ -1516,7 +1554,9 @@ export const TournamentBracket = ({
                         team1: 'TBD',
                         team2: 'TBD',
                         type: gameType,
-                        winner: null
+                        winner: null,
+                        color1: 'red',
+                        color2: 'blue'
                     });
                 }
 
