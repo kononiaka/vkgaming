@@ -602,179 +602,152 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     {pair.team1}
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                    <div style={{ textAlign: 'center' }}>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '12px',
-                                                                color: '#FFD700',
-                                                                marginBottom: '0.25rem'
-                                                            }}
-                                                        >
-                                                            111
-                                                        </div>
-                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart1_111 || 0;
-                                                                    if (
-                                                                        current < 2 &&
-                                                                        (updated[idx].restart1_112 || 0) === 0
-                                                                    ) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart1_111: current + 1
-                                                                        };
-                                                                        setGameResults(updated);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background: 'rgba(0, 255, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                +
-                                                            </button>
+                                                    {/* 111 Restart Boxes */}
+                                                    {[0, 1].map((boxIdx) => {
+                                                        const isUsed = (game.restart1_111 || 0) > boxIdx;
+                                                        const isDisabled = (game.restart1_112 || 0) > 0;
+                                                        return (
                                                             <div
-                                                                style={{
-                                                                    width: '40px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background:
-                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                                    color: '#FFD700',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                {game.restart1_111 || 0}
-                                                            </div>
-                                                            <button
-                                                                type="button"
+                                                                key={`111-${boxIdx}`}
                                                                 onClick={() => {
+                                                                    if (isDisabled) return;
                                                                     const updated = [...gameResults];
                                                                     const current = updated[idx].restart1_111 || 0;
-                                                                    if (current > 0) {
+                                                                    if (isUsed) {
+                                                                        // Remove one
                                                                         updated[idx] = {
                                                                             ...updated[idx],
                                                                             restart1_111: current - 1
                                                                         };
-                                                                        setGameResults(updated);
+                                                                    } else if (current < 2) {
+                                                                        // Add one
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart1_111: current + 1
+                                                                        };
                                                                     }
+                                                                    setGameResults(updated);
                                                                 }}
                                                                 style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
+                                                                    position: 'relative',
+                                                                    width: '50px',
+                                                                    height: '50px',
                                                                     border: '2px solid #FFD700',
                                                                     borderRadius: '4px',
-                                                                    background: 'rgba(255, 0, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
+                                                                    background: isDisabled
+                                                                        ? 'rgba(0, 0, 0, 0.5)'
+                                                                        : isUsed
+                                                                          ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                          : 'rgba(0, 0, 0, 0.3)',
+                                                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    opacity: isDisabled ? 0.4 : isUsed ? 1 : 0.6,
+                                                                    boxShadow: isUsed
+                                                                        ? '0 0 10px rgba(255, 215, 0, 0.6)'
+                                                                        : 'none'
                                                                 }}
                                                             >
-                                                                −
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ textAlign: 'center' }}>
+                                                                <div
+                                                                    style={{
+                                                                        color: '#FFD700',
+                                                                        fontSize: '14px',
+                                                                        fontWeight: 'bold'
+                                                                    }}
+                                                                >
+                                                                    111
+                                                                </div>
+                                                                {isUsed && (
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '50%',
+                                                                            left: '50%',
+                                                                            transform: 'translate(-50%, -50%)',
+                                                                            color: '#FF0000',
+                                                                            fontSize: '40px',
+                                                                            fontWeight: 'bold',
+                                                                            lineHeight: '1',
+                                                                            textShadow: '0 0 4px #000'
+                                                                        }}
+                                                                    >
+                                                                        ✕
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {/* 112 Restart Box */}
+                                                    <div
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            const current = updated[idx].restart1_112 || 0;
+                                                            const is111Used = (updated[idx].restart1_111 || 0) > 0;
+                                                            if (is111Used) return;
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                restart1_112: current === 1 ? 0 : 1
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        style={{
+                                                            position: 'relative',
+                                                            width: '50px',
+                                                            height: '50px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background:
+                                                                (game.restart1_111 || 0) > 0
+                                                                    ? 'rgba(0, 0, 0, 0.5)'
+                                                                    : (game.restart1_112 || 0) === 1
+                                                                      ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                      : 'rgba(0, 0, 0, 0.3)',
+                                                            cursor:
+                                                                (game.restart1_111 || 0) > 0
+                                                                    ? 'not-allowed'
+                                                                    : 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            opacity:
+                                                                (game.restart1_111 || 0) > 0
+                                                                    ? 0.4
+                                                                    : (game.restart1_112 || 0) === 1
+                                                                      ? 1
+                                                                      : 0.6,
+                                                            boxShadow:
+                                                                (game.restart1_112 || 0) === 1
+                                                                    ? '0 0 10px rgba(255, 215, 0, 0.6)'
+                                                                    : 'none'
+                                                        }}
+                                                    >
                                                         <div
                                                             style={{
-                                                                fontSize: '12px',
                                                                 color: '#FFD700',
-                                                                marginBottom: '0.25rem'
+                                                                fontSize: '14px',
+                                                                fontWeight: 'bold'
                                                             }}
                                                         >
                                                             112
                                                         </div>
-                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart1_112 || 0;
-                                                                    if (
-                                                                        current < 1 &&
-                                                                        (updated[idx].restart1_111 || 0) === 0
-                                                                    ) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart1_112: current + 1
-                                                                        };
-                                                                        setGameResults(updated);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background: 'rgba(0, 255, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                +
-                                                            </button>
+                                                        {(game.restart1_112 || 0) === 1 && (
                                                             <div
                                                                 style={{
-                                                                    width: '40px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background:
-                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                                    color: '#FFD700',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontWeight: 'bold'
+                                                                    position: 'absolute',
+                                                                    top: '50%',
+                                                                    left: '50%',
+                                                                    transform: 'translate(-50%, -50%)',
+                                                                    color: '#FF0000',
+                                                                    fontSize: '40px',
+                                                                    fontWeight: 'bold',
+                                                                    lineHeight: '1',
+                                                                    textShadow: '0 0 4px #000'
                                                                 }}
                                                             >
-                                                                {game.restart1_112 || 0}
+                                                                ✕
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart1_112 || 0;
-                                                                    if (current > 0) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart1_112: current - 1
-                                                                        };
-                                                                        setGameResults(updated);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background: 'rgba(255, 0, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                −
-                                                            </button>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -789,179 +762,152 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     {pair.team2}
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                    <div style={{ textAlign: 'center' }}>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '12px',
-                                                                color: '#FFD700',
-                                                                marginBottom: '0.25rem'
-                                                            }}
-                                                        >
-                                                            111
-                                                        </div>
-                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart2_111 || 0;
-                                                                    if (
-                                                                        current < 2 &&
-                                                                        (updated[idx].restart2_112 || 0) === 0
-                                                                    ) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart2_111: current + 1
-                                                                        };
-                                                                        setGameResults(updated);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background: 'rgba(0, 255, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                +
-                                                            </button>
+                                                    {/* 111 Restart Boxes */}
+                                                    {[0, 1].map((boxIdx) => {
+                                                        const isUsed = (game.restart2_111 || 0) > boxIdx;
+                                                        const isDisabled = (game.restart2_112 || 0) > 0;
+                                                        return (
                                                             <div
-                                                                style={{
-                                                                    width: '40px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background:
-                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                                    color: '#FFD700',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                {game.restart2_111 || 0}
-                                                            </div>
-                                                            <button
-                                                                type="button"
+                                                                key={`111-${boxIdx}`}
                                                                 onClick={() => {
+                                                                    if (isDisabled) return;
                                                                     const updated = [...gameResults];
                                                                     const current = updated[idx].restart2_111 || 0;
-                                                                    if (current > 0) {
+                                                                    if (isUsed) {
+                                                                        // Remove one
                                                                         updated[idx] = {
                                                                             ...updated[idx],
                                                                             restart2_111: current - 1
                                                                         };
-                                                                        setGameResults(updated);
+                                                                    } else if (current < 2) {
+                                                                        // Add one
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            restart2_111: current + 1
+                                                                        };
                                                                     }
+                                                                    setGameResults(updated);
                                                                 }}
                                                                 style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
+                                                                    position: 'relative',
+                                                                    width: '50px',
+                                                                    height: '50px',
                                                                     border: '2px solid #FFD700',
                                                                     borderRadius: '4px',
-                                                                    background: 'rgba(255, 0, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
+                                                                    background: isDisabled
+                                                                        ? 'rgba(0, 0, 0, 0.5)'
+                                                                        : isUsed
+                                                                          ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                          : 'rgba(0, 0, 0, 0.3)',
+                                                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    opacity: isDisabled ? 0.4 : isUsed ? 1 : 0.6,
+                                                                    boxShadow: isUsed
+                                                                        ? '0 0 10px rgba(255, 215, 0, 0.6)'
+                                                                        : 'none'
                                                                 }}
                                                             >
-                                                                −
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ textAlign: 'center' }}>
+                                                                <div
+                                                                    style={{
+                                                                        color: '#FFD700',
+                                                                        fontSize: '14px',
+                                                                        fontWeight: 'bold'
+                                                                    }}
+                                                                >
+                                                                    111
+                                                                </div>
+                                                                {isUsed && (
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '50%',
+                                                                            left: '50%',
+                                                                            transform: 'translate(-50%, -50%)',
+                                                                            color: '#FF0000',
+                                                                            fontSize: '40px',
+                                                                            fontWeight: 'bold',
+                                                                            lineHeight: '1',
+                                                                            textShadow: '0 0 4px #000'
+                                                                        }}
+                                                                    >
+                                                                        ✕
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {/* 112 Restart Box */}
+                                                    <div
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            const current = updated[idx].restart2_112 || 0;
+                                                            const is111Used = (updated[idx].restart2_111 || 0) > 0;
+                                                            if (is111Used) return;
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                restart2_112: current === 1 ? 0 : 1
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        style={{
+                                                            position: 'relative',
+                                                            width: '50px',
+                                                            height: '50px',
+                                                            border: '2px solid #FFD700',
+                                                            borderRadius: '4px',
+                                                            background:
+                                                                (game.restart2_111 || 0) > 0
+                                                                    ? 'rgba(0, 0, 0, 0.5)'
+                                                                    : (game.restart2_112 || 0) === 1
+                                                                      ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                      : 'rgba(0, 0, 0, 0.3)',
+                                                            cursor:
+                                                                (game.restart2_111 || 0) > 0
+                                                                    ? 'not-allowed'
+                                                                    : 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            opacity:
+                                                                (game.restart2_111 || 0) > 0
+                                                                    ? 0.4
+                                                                    : (game.restart2_112 || 0) === 1
+                                                                      ? 1
+                                                                      : 0.6,
+                                                            boxShadow:
+                                                                (game.restart2_112 || 0) === 1
+                                                                    ? '0 0 10px rgba(255, 215, 0, 0.6)'
+                                                                    : 'none'
+                                                        }}
+                                                    >
                                                         <div
                                                             style={{
-                                                                fontSize: '12px',
                                                                 color: '#FFD700',
-                                                                marginBottom: '0.25rem'
+                                                                fontSize: '14px',
+                                                                fontWeight: 'bold'
                                                             }}
                                                         >
                                                             112
                                                         </div>
-                                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart2_112 || 0;
-                                                                    if (
-                                                                        current < 1 &&
-                                                                        (updated[idx].restart2_111 || 0) === 0
-                                                                    ) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart2_112: current + 1
-                                                                        };
-                                                                        setGameResults(updated);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background: 'rgba(0, 255, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                +
-                                                            </button>
+                                                        {(game.restart2_112 || 0) === 1 && (
                                                             <div
                                                                 style={{
-                                                                    width: '40px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background:
-                                                                        'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                                    color: '#FFD700',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontWeight: 'bold'
+                                                                    position: 'absolute',
+                                                                    top: '50%',
+                                                                    left: '50%',
+                                                                    transform: 'translate(-50%, -50%)',
+                                                                    color: '#FF0000',
+                                                                    fontSize: '40px',
+                                                                    fontWeight: 'bold',
+                                                                    lineHeight: '1',
+                                                                    textShadow: '0 0 4px #000'
                                                                 }}
                                                             >
-                                                                {game.restart2_112 || 0}
+                                                                ✕
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart2_112 || 0;
-                                                                    if (current > 0) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart2_112: current - 1
-                                                                        };
-                                                                        setGameResults(updated);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    border: '2px solid #FFD700',
-                                                                    borderRadius: '4px',
-                                                                    background: 'rgba(255, 0, 0, 0.2)',
-                                                                    color: '#FFD700',
-                                                                    fontSize: '16px',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                −
-                                                            </button>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1412,149 +1358,124 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             {pair.team1}
                                         </div>
                                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                            <div style={{ textAlign: 'center' }}>
-                                                <div
-                                                    style={{
-                                                        fontSize: '12px',
-                                                        color: '#FFD700',
-                                                        marginBottom: '0.25rem'
-                                                    }}
-                                                >
-                                                    111
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                    <button
-                                                        type="button"
+                                            {/* 111 Restart Boxes */}
+                                            {[0, 1].map((boxIdx) => {
+                                                const isUsed = restart1_111 > boxIdx;
+                                                const isDisabled = restart1_112 > 0;
+                                                return (
+                                                    <div
+                                                        key={`111-${boxIdx}`}
                                                         onClick={() => {
-                                                            if (restart1_111 < 2 && restart1_112 === 0) {
+                                                            if (isDisabled) return;
+                                                            if (isUsed) {
+                                                                setRestart1_111(restart1_111 - 1);
+                                                            } else if (restart1_111 < 2) {
                                                                 setRestart1_111(restart1_111 + 1);
                                                             }
                                                         }}
                                                         style={{
-                                                            width: '30px',
-                                                            height: '30px',
+                                                            position: 'relative',
+                                                            width: '50px',
+                                                            height: '50px',
                                                             border: '2px solid #FFD700',
                                                             borderRadius: '4px',
-                                                            background: 'rgba(0, 255, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        +
-                                                    </button>
-                                                    <div
-                                                        style={{
-                                                            width: '40px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background:
-                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                            color: '#FFD700',
+                                                            background: isDisabled
+                                                                ? 'rgba(0, 0, 0, 0.5)'
+                                                                : isUsed
+                                                                  ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                  : 'rgba(0, 0, 0, 0.3)',
+                                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            fontWeight: 'bold'
+                                                            opacity: isDisabled ? 0.4 : isUsed ? 1 : 0.6,
+                                                            boxShadow: isUsed
+                                                                ? '0 0 10px rgba(255, 215, 0, 0.6)'
+                                                                : 'none'
                                                         }}
                                                     >
-                                                        {restart1_111}
+                                                        <div
+                                                            style={{
+                                                                color: '#FFD700',
+                                                                fontSize: '14px',
+                                                                fontWeight: 'bold'
+                                                            }}
+                                                        >
+                                                            111
+                                                        </div>
+                                                        {isUsed && (
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '50%',
+                                                                    left: '50%',
+                                                                    transform: 'translate(-50%, -50%)',
+                                                                    color: '#FF0000',
+                                                                    fontSize: '40px',
+                                                                    fontWeight: 'bold',
+                                                                    lineHeight: '1',
+                                                                    textShadow: '0 0 4px #000'
+                                                                }}
+                                                            >
+                                                                ✕
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (restart1_111 > 0) {
-                                                                setRestart1_111(restart1_111 - 1);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            width: '30px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background: 'rgba(255, 0, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        −
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div style={{ textAlign: 'center' }}>
+                                                );
+                                            })}
+                                            {/* 112 Restart Box */}
+                                            <div
+                                                onClick={() => {
+                                                    if (restart1_111 > 0) return;
+                                                    setRestart1_112(restart1_112 === 1 ? 0 : 1);
+                                                }}
+                                                style={{
+                                                    position: 'relative',
+                                                    width: '50px',
+                                                    height: '50px',
+                                                    border: '2px solid #FFD700',
+                                                    borderRadius: '4px',
+                                                    background:
+                                                        restart1_111 > 0
+                                                            ? 'rgba(0, 0, 0, 0.5)'
+                                                            : restart1_112 === 1
+                                                              ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                              : 'rgba(0, 0, 0, 0.3)',
+                                                    cursor: restart1_111 > 0 ? 'not-allowed' : 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    opacity: restart1_111 > 0 ? 0.4 : restart1_112 === 1 ? 1 : 0.6,
+                                                    boxShadow:
+                                                        restart1_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none'
+                                                }}
+                                            >
                                                 <div
                                                     style={{
-                                                        fontSize: '12px',
                                                         color: '#FFD700',
-                                                        marginBottom: '0.25rem'
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold'
                                                     }}
                                                 >
                                                     112
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (restart1_112 < 1 && restart1_111 === 0) {
-                                                                setRestart1_112(restart1_112 + 1);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            width: '30px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background: 'rgba(0, 255, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        +
-                                                    </button>
+                                                {restart1_112 === 1 && (
                                                     <div
                                                         style={{
-                                                            width: '40px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background:
-                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                            color: '#FFD700',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontWeight: 'bold'
+                                                            position: 'absolute',
+                                                            top: '50%',
+                                                            left: '50%',
+                                                            transform: 'translate(-50%, -50%)',
+                                                            color: '#FF0000',
+                                                            fontSize: '40px',
+                                                            fontWeight: 'bold',
+                                                            lineHeight: '1',
+                                                            textShadow: '0 0 4px #000'
                                                         }}
                                                     >
-                                                        {restart1_112}
+                                                        ✕
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (restart1_112 > 0) {
-                                                                setRestart1_112(restart1_112 - 1);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            width: '30px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background: 'rgba(255, 0, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        −
-                                                    </button>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1563,149 +1484,124 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             {pair.team2}
                                         </div>
                                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                            <div style={{ textAlign: 'center' }}>
-                                                <div
-                                                    style={{
-                                                        fontSize: '12px',
-                                                        color: '#FFD700',
-                                                        marginBottom: '0.25rem'
-                                                    }}
-                                                >
-                                                    111
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                    <button
-                                                        type="button"
+                                            {/* 111 Restart Boxes */}
+                                            {[0, 1].map((boxIdx) => {
+                                                const isUsed = restart2_111 > boxIdx;
+                                                const isDisabled = restart2_112 > 0;
+                                                return (
+                                                    <div
+                                                        key={`111-${boxIdx}`}
                                                         onClick={() => {
-                                                            if (restart2_111 < 2 && restart2_112 === 0) {
+                                                            if (isDisabled) return;
+                                                            if (isUsed) {
+                                                                setRestart2_111(restart2_111 - 1);
+                                                            } else if (restart2_111 < 2) {
                                                                 setRestart2_111(restart2_111 + 1);
                                                             }
                                                         }}
                                                         style={{
-                                                            width: '30px',
-                                                            height: '30px',
+                                                            position: 'relative',
+                                                            width: '50px',
+                                                            height: '50px',
                                                             border: '2px solid #FFD700',
                                                             borderRadius: '4px',
-                                                            background: 'rgba(0, 255, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        +
-                                                    </button>
-                                                    <div
-                                                        style={{
-                                                            width: '40px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background:
-                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                            color: '#FFD700',
+                                                            background: isDisabled
+                                                                ? 'rgba(0, 0, 0, 0.5)'
+                                                                : isUsed
+                                                                  ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                  : 'rgba(0, 0, 0, 0.3)',
+                                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            fontWeight: 'bold'
+                                                            opacity: isDisabled ? 0.4 : isUsed ? 1 : 0.6,
+                                                            boxShadow: isUsed
+                                                                ? '0 0 10px rgba(255, 215, 0, 0.6)'
+                                                                : 'none'
                                                         }}
                                                     >
-                                                        {restart2_111}
+                                                        <div
+                                                            style={{
+                                                                color: '#FFD700',
+                                                                fontSize: '14px',
+                                                                fontWeight: 'bold'
+                                                            }}
+                                                        >
+                                                            111
+                                                        </div>
+                                                        {isUsed && (
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '50%',
+                                                                    left: '50%',
+                                                                    transform: 'translate(-50%, -50%)',
+                                                                    color: '#FF0000',
+                                                                    fontSize: '40px',
+                                                                    fontWeight: 'bold',
+                                                                    lineHeight: '1',
+                                                                    textShadow: '0 0 4px #000'
+                                                                }}
+                                                            >
+                                                                ✕
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (restart2_111 > 0) {
-                                                                setRestart2_111(restart2_111 - 1);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            width: '30px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background: 'rgba(255, 0, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        −
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div style={{ textAlign: 'center' }}>
+                                                );
+                                            })}
+                                            {/* 112 Restart Box */}
+                                            <div
+                                                onClick={() => {
+                                                    if (restart2_111 > 0) return;
+                                                    setRestart2_112(restart2_112 === 1 ? 0 : 1);
+                                                }}
+                                                style={{
+                                                    position: 'relative',
+                                                    width: '50px',
+                                                    height: '50px',
+                                                    border: '2px solid #FFD700',
+                                                    borderRadius: '4px',
+                                                    background:
+                                                        restart2_111 > 0
+                                                            ? 'rgba(0, 0, 0, 0.5)'
+                                                            : restart2_112 === 1
+                                                              ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                              : 'rgba(0, 0, 0, 0.3)',
+                                                    cursor: restart2_111 > 0 ? 'not-allowed' : 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    opacity: restart2_111 > 0 ? 0.4 : restart2_112 === 1 ? 1 : 0.6,
+                                                    boxShadow:
+                                                        restart2_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none'
+                                                }}
+                                            >
                                                 <div
                                                     style={{
-                                                        fontSize: '12px',
                                                         color: '#FFD700',
-                                                        marginBottom: '0.25rem'
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold'
                                                     }}
                                                 >
                                                     112
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (restart2_112 < 1 && restart2_111 === 0) {
-                                                                setRestart2_112(restart2_112 + 1);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            width: '30px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background: 'rgba(0, 255, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        +
-                                                    </button>
+                                                {restart2_112 === 1 && (
                                                     <div
                                                         style={{
-                                                            width: '40px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background:
-                                                                'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                                                            color: '#FFD700',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontWeight: 'bold'
+                                                            position: 'absolute',
+                                                            top: '50%',
+                                                            left: '50%',
+                                                            transform: 'translate(-50%, -50%)',
+                                                            color: '#FF0000',
+                                                            fontSize: '40px',
+                                                            fontWeight: 'bold',
+                                                            lineHeight: '1',
+                                                            textShadow: '0 0 4px #000'
                                                         }}
                                                     >
-                                                        {restart2_112}
+                                                        ✕
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (restart2_112 > 0) {
-                                                                setRestart2_112(restart2_112 - 1);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            width: '30px',
-                                                            height: '30px',
-                                                            border: '2px solid #FFD700',
-                                                            borderRadius: '4px',
-                                                            background: 'rgba(255, 0, 0, 0.2)',
-                                                            color: '#FFD700',
-                                                            fontSize: '16px',
-                                                            cursor: 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        −
-                                                    </button>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
