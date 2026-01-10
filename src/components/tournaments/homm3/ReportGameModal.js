@@ -248,7 +248,70 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     ×
                 </button>
 
-                <form onSubmit={handleSubmit} className={classes.form} style={{ position: 'relative' }}>
+                <form
+                    onSubmit={handleSubmit}
+                    className={classes.form}
+                    style={{ position: 'relative', overflow: 'hidden' }}
+                >
+                    {/* Left Side Background - Player 1 */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '100px',
+                            left: 0,
+                            width: '50%',
+                            height: 'calc(100% - 180px)',
+                            background:
+                                (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
+                                    ? 'linear-gradient(to right, rgba(139, 0, 0, 0.15), rgba(139, 0, 0, 0.05))'
+                                    : 'linear-gradient(to right, rgba(0, 0, 139, 0.15), rgba(0, 0, 139, 0.05))',
+                            backgroundImage: (pair.type === 'bo-3' ? gameResults[0]?.castle1 : castle1)
+                                ? `url(${getCastleImageUrl(pair.type === 'bo-3' ? gameResults[0]?.castle1 : castle1)})`
+                                : 'none',
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat',
+                            opacity: 0.5,
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                        }}
+                    />
+                    {/* Right Side Background - Player 2 */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '100px',
+                            right: 0,
+                            width: '50%',
+                            height: 'calc(100% - 180px)',
+                            background:
+                                (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
+                                    ? 'linear-gradient(to left, rgba(139, 0, 0, 0.15), rgba(139, 0, 0, 0.05))'
+                                    : 'linear-gradient(to left, rgba(0, 0, 139, 0.15), rgba(0, 0, 139, 0.05))',
+                            backgroundImage: (pair.type === 'bo-3' ? gameResults[0]?.castle2 : castle2)
+                                ? `url(${getCastleImageUrl(pair.type === 'bo-3' ? gameResults[0]?.castle2 : castle2)})`
+                                : 'none',
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat',
+                            opacity: 0.5,
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                        }}
+                    />
+                    {/* Center Divider */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '100px',
+                            left: '50%',
+                            width: '2px',
+                            height: 'calc(100% - 180px)',
+                            background: 'linear-gradient(to bottom, #FFD700, rgba(255, 215, 0, 0.3), #FFD700)',
+                            zIndex: 1,
+                            pointerEvents: 'none'
+                        }}
+                    />
                     <div
                         style={{
                             position: 'absolute',
@@ -287,62 +350,34 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                             <span style={{ color: '#00ffff', fontSize: '14px', fontWeight: 'bold' }}>{pair.team1}</span>
-                            <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                <div
-                                    onClick={() => {
-                                        if (pair.type === 'bo-3') {
-                                            handleGameResultChange(0, 'color1', 'red');
-                                            handleGameResultChange(0, 'color2', 'blue');
-                                        } else {
-                                            setColor1('red');
-                                            setColor2('blue');
-                                        }
-                                    }}
-                                    style={{
-                                        width: '24px',
-                                        height: '24px',
-                                        borderRadius: '4px',
-                                        background: 'linear-gradient(135deg, #8B0000, #FF0000)',
-                                        border:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
-                                                ? '2px solid #FFD700'
-                                                : '2px solid transparent',
-                                        cursor: 'pointer',
-                                        boxShadow:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
-                                                ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                                : 'none',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                />
-                                <div
-                                    onClick={() => {
-                                        if (pair.type === 'bo-3') {
-                                            handleGameResultChange(0, 'color1', 'blue');
-                                            handleGameResultChange(0, 'color2', 'red');
-                                        } else {
-                                            setColor1('blue');
-                                            setColor2('red');
-                                        }
-                                    }}
-                                    style={{
-                                        width: '24px',
-                                        height: '24px',
-                                        borderRadius: '4px',
-                                        background: 'linear-gradient(135deg, #00008B, #0000FF)',
-                                        border:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'blue'
-                                                ? '2px solid #FFD700'
-                                                : '2px solid transparent',
-                                        cursor: 'pointer',
-                                        boxShadow:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'blue'
-                                                ? '0 0 8px rgba(0, 0, 255, 0.6)'
-                                                : 'none',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                />
-                            </div>
+                            <div
+                                onClick={() => {
+                                    const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color1 : color1;
+                                    const newColor = currentColor === 'red' ? 'blue' : 'red';
+                                    const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                    if (pair.type === 'bo-3') {
+                                        handleGameResultChange(0, 'color1', newColor);
+                                        handleGameResultChange(0, 'color2', oppositeColor);
+                                    } else {
+                                        setColor1(newColor);
+                                        setColor2(oppositeColor);
+                                    }
+                                }}
+                                style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '4px',
+                                    background: (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red' 
+                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)' 
+                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                    border: '2px solid #FFD700',
+                                    cursor: 'pointer',
+                                    boxShadow: (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
+                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
+                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            />
                         </div>
 
                         <div style={{ color: '#FFD700', fontSize: '20px', fontWeight: 'bold' }}>
@@ -358,363 +393,209 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                 justifyContent: 'flex-end'
                             }}
                         >
-                            <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                <div
-                                    onClick={() => {
-                                        if (pair.type === 'bo-3') {
-                                            handleGameResultChange(0, 'color2', 'red');
-                                            handleGameResultChange(0, 'color1', 'blue');
-                                        } else {
-                                            setColor2('red');
-                                            setColor1('blue');
-                                        }
-                                    }}
-                                    style={{
-                                        width: '24px',
-                                        height: '24px',
-                                        borderRadius: '4px',
-                                        background: 'linear-gradient(135deg, #8B0000, #FF0000)',
-                                        border:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                                ? '2px solid #FFD700'
-                                                : '2px solid transparent',
-                                        cursor: 'pointer',
-                                        boxShadow:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                                ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                                : 'none',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                />
-                                <div
-                                    onClick={() => {
-                                        if (pair.type === 'bo-3') {
-                                            handleGameResultChange(0, 'color2', 'blue');
-                                            handleGameResultChange(0, 'color1', 'red');
-                                        } else {
-                                            setColor2('blue');
-                                            setColor1('red');
-                                        }
-                                    }}
-                                    style={{
-                                        width: '24px',
-                                        height: '24px',
-                                        borderRadius: '4px',
-                                        background: 'linear-gradient(135deg, #00008B, #0000FF)',
-                                        border:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'blue'
-                                                ? '2px solid #FFD700'
-                                                : '2px solid transparent',
-                                        cursor: 'pointer',
-                                        boxShadow:
-                                            (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'blue'
-                                                ? '0 0 8px rgba(0, 0, 255, 0.6)'
-                                                : 'none',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                />
-                            </div>
+                            <div
+                                onClick={() => {
+                                    const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color2 : color2;
+                                    const newColor = currentColor === 'red' ? 'blue' : 'red';
+                                    const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                    if (pair.type === 'bo-3') {
+                                        handleGameResultChange(0, 'color2', newColor);
+                                        handleGameResultChange(0, 'color1', oppositeColor);
+                                    } else {
+                                        setColor2(newColor);
+                                        setColor1(oppositeColor);
+                                    }
+                                }}
+                                style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '4px',
+                                    background: (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
+                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                    border: '2px solid #FFD700',
+                                    cursor: 'pointer',
+                                    boxShadow: (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
+                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
+                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            />
                             <span style={{ color: '#00ffff', fontSize: '14px', fontWeight: 'bold' }}>{pair.team2}</span>
                         </div>
                     </div> */}
 
                     {pair.type === 'bo-3' ? (
-                        <>
+                        <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* BO-3 Game Results */}
                             {gameResults.map((game, idx) => (
                                 <div key={idx} className={classes.gameSection}>
                                     <h3 className={classes.gameTitle}>Game {idx + 1}</h3>
 
-                                    {/* Compact Score/Winner Section */}
+                                    {/* Compact Score/Winner Section with Color Toggle */}
                                     <div className={classes.formGroup}>
                                         <div
                                             style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                justifyContent: 'center',
+                                                justifyContent: 'space-between',
                                                 gap: '1rem',
                                                 marginBottom: '1rem',
                                                 padding: '0.75rem',
                                                 background:
                                                     'linear-gradient(135deg, rgba(62, 32, 192, 0.2), rgba(45, 20, 150, 0.2))',
                                                 borderRadius: '8px',
-                                                border: '2px solid #FFD700'
+                                                border: '2px solid #FFD700',
+                                                boxShadow:
+                                                    game.color1 === 'red'
+                                                        ? '0 0 15px rgba(255, 0, 0, 0.4), inset -100px 0 50px -50px rgba(139, 0, 0, 0.3)'
+                                                        : '0 0 15px rgba(0, 0, 255, 0.4), inset -100px 0 50px -50px rgba(0, 0, 139, 0.3)'
                                             }}
                                         >
                                             <div
-                                                onClick={() => handleGameResultChange(idx, 'winner', pair.team1)}
                                                 style={{
-                                                    cursor: 'pointer',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '6px',
-                                                    border:
-                                                        game.winner === pair.team1
-                                                            ? '3px solid #FFD700'
-                                                            : '2px solid transparent',
-                                                    background:
-                                                        game.winner === pair.team1
-                                                            ? 'rgba(255, 215, 0, 0.2)'
-                                                            : 'transparent',
-                                                    color: '#00ffff',
-                                                    fontSize: '14px',
-                                                    fontWeight: 'bold',
-                                                    opacity: game.winner === pair.team1 ? 1 : 0.6,
-                                                    transition: 'all 0.2s ease'
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
+                                                    flex: 1
                                                 }}
                                             >
-                                                {pair.team1}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    fontSize: '20px',
-                                                    fontWeight: 'bold',
-                                                    color: '#FFD700'
-                                                }}
-                                            >
-                                                {score1} - {score2}
-                                            </div>
-                                            <div
-                                                onClick={() => handleGameResultChange(idx, 'winner', pair.team2)}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '6px',
-                                                    border:
-                                                        game.winner === pair.team2
-                                                            ? '3px solid #FFD700'
-                                                            : '2px solid transparent',
-                                                    background:
-                                                        game.winner === pair.team2
-                                                            ? 'rgba(255, 215, 0, 0.2)'
-                                                            : 'transparent',
-                                                    color: '#00ffff',
-                                                    fontSize: '14px',
-                                                    fontWeight: 'bold',
-                                                    opacity: game.winner === pair.team2 ? 1 : 0.6,
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                {pair.team2}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Color Selection for BO-3 */}
-                                    <div className={classes.formGroup}>
-                                        <label>Player Colors:</label>
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                gap: '2rem',
-                                                justifyContent: 'center',
-                                                marginBottom: '1rem'
-                                            }}
-                                        >
-                                            <div style={{ textAlign: 'center' }}>
                                                 <div
+                                                    onClick={() => handleGameResultChange(idx, 'winner', pair.team1)}
                                                     style={{
-                                                        marginBottom: '0.5rem',
+                                                        cursor: 'pointer',
+                                                        padding: '0.5rem 1rem',
+                                                        borderRadius: '6px',
+                                                        border:
+                                                            game.winner === pair.team1
+                                                                ? '3px solid #FFD700'
+                                                                : '2px solid transparent',
+                                                        background:
+                                                            game.winner === pair.team1
+                                                                ? 'rgba(255, 215, 0, 0.2)'
+                                                                : 'transparent',
                                                         color: '#00ffff',
-                                                        fontSize: '14px'
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        opacity: game.winner === pair.team1 ? 1 : 0.6,
+                                                        transition: 'all 0.2s ease'
                                                     }}
                                                 >
                                                     {pair.team1}
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <div
-                                                        onClick={() => {
-                                                            const updated = [...gameResults];
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                color1: 'red',
-                                                                color2: 'blue'
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                        style={{
-                                                            width: '60px',
-                                                            height: '60px',
-                                                            borderRadius: '8px',
-                                                            background:
-                                                                'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)',
-                                                            border:
-                                                                game.color1 === 'red'
-                                                                    ? '4px solid #FFD700'
-                                                                    : '3px solid #4a0000',
-                                                            cursor: 'pointer',
-                                                            boxShadow:
-                                                                game.color1 === 'red'
-                                                                    ? '0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
-                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
-                                                            transform:
-                                                                game.color1 === 'red' ? 'scale(1.1)' : 'scale(1)',
-                                                            transition: 'all 0.2s ease',
-                                                            position: 'relative',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        {game.color1 === 'red' && (
-                                                            <span
-                                                                style={{
-                                                                    color: '#FFD700',
-                                                                    fontSize: '24px',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                ✓
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div
-                                                        onClick={() => {
-                                                            const updated = [...gameResults];
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                color1: 'blue',
-                                                                color2: 'red'
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                        style={{
-                                                            width: '60px',
-                                                            height: '60px',
-                                                            borderRadius: '8px',
-                                                            background:
-                                                                'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
-                                                            border:
-                                                                game.color1 === 'blue'
-                                                                    ? '4px solid #FFD700'
-                                                                    : '3px solid #000045',
-                                                            cursor: 'pointer',
-                                                            boxShadow:
-                                                                game.color1 === 'blue'
-                                                                    ? '0 0 20px rgba(0, 0, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
-                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
-                                                            transform:
-                                                                game.color1 === 'blue' ? 'scale(1.1)' : 'scale(1)',
-                                                            transition: 'all 0.2s ease',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        {game.color1 === 'blue' && (
-                                                            <span
-                                                                style={{
-                                                                    color: '#FFD700',
-                                                                    fontSize: '24px',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                ✓
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                <div
+                                                    onClick={() => {
+                                                        const updated = [...gameResults];
+                                                        const newColor = game.color1 === 'red' ? 'blue' : 'red';
+                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                        updated[idx] = {
+                                                            ...updated[idx],
+                                                            color1: newColor,
+                                                            color2: oppositeColor
+                                                        };
+                                                        setGameResults(updated);
+                                                    }}
+                                                    style={{
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        borderRadius: '4px',
+                                                        background:
+                                                            game.color1 === 'red'
+                                                                ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                                                : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                                        border: '2px solid #FFD700',
+                                                        cursor: 'pointer',
+                                                        boxShadow:
+                                                            game.color1 === 'red'
+                                                                ? '0 0 8px rgba(255, 0, 0, 0.6)'
+                                                                : '0 0 8px rgba(0, 0, 255, 0.6)',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                />
                                             </div>
-                                            <div style={{ textAlign: 'center' }}>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                 <div
                                                     style={{
-                                                        marginBottom: '0.5rem',
+                                                        fontSize: '20px',
+                                                        fontWeight: 'bold',
+                                                        color: '#FFD700'
+                                                    }}
+                                                >
+                                                    {score1}
+                                                </div>
+                                                <div style={{ color: '#FFD700', fontSize: '20px' }}>⚔️</div>
+                                                <div
+                                                    style={{
+                                                        fontSize: '20px',
+                                                        fontWeight: 'bold',
+                                                        color: '#FFD700'
+                                                    }}
+                                                >
+                                                    {score2}
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
+                                                    flex: 1,
+                                                    justifyContent: 'flex-end'
+                                                }}
+                                            >
+                                                <div
+                                                    onClick={() => {
+                                                        const updated = [...gameResults];
+                                                        const newColor = game.color2 === 'red' ? 'blue' : 'red';
+                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                        updated[idx] = {
+                                                            ...updated[idx],
+                                                            color2: newColor,
+                                                            color1: oppositeColor
+                                                        };
+                                                        setGameResults(updated);
+                                                    }}
+                                                    style={{
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        borderRadius: '4px',
+                                                        background:
+                                                            game.color2 === 'red'
+                                                                ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                                                : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                                        border: '2px solid #FFD700',
+                                                        cursor: 'pointer',
+                                                        boxShadow:
+                                                            game.color2 === 'red'
+                                                                ? '0 0 8px rgba(255, 0, 0, 0.6)'
+                                                                : '0 0 8px rgba(0, 0, 255, 0.6)',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                />
+                                                <div
+                                                    onClick={() => handleGameResultChange(idx, 'winner', pair.team2)}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        padding: '0.5rem 1rem',
+                                                        borderRadius: '6px',
+                                                        border:
+                                                            game.winner === pair.team2
+                                                                ? '3px solid #FFD700'
+                                                                : '2px solid transparent',
+                                                        background:
+                                                            game.winner === pair.team2
+                                                                ? 'rgba(255, 215, 0, 0.2)'
+                                                                : 'transparent',
                                                         color: '#00ffff',
-                                                        fontSize: '14px'
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        opacity: game.winner === pair.team2 ? 1 : 0.6,
+                                                        transition: 'all 0.2s ease'
                                                     }}
                                                 >
                                                     {pair.team2}
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <div
-                                                        onClick={() => {
-                                                            const updated = [...gameResults];
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                color2: 'red',
-                                                                color1: 'blue'
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                        style={{
-                                                            width: '60px',
-                                                            height: '60px',
-                                                            borderRadius: '8px',
-                                                            background:
-                                                                'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)',
-                                                            border:
-                                                                game.color2 === 'red'
-                                                                    ? '4px solid #FFD700'
-                                                                    : '3px solid #4a0000',
-                                                            cursor: 'pointer',
-                                                            boxShadow:
-                                                                game.color2 === 'red'
-                                                                    ? '0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
-                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
-                                                            transform:
-                                                                game.color2 === 'red' ? 'scale(1.1)' : 'scale(1)',
-                                                            transition: 'all 0.2s ease',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        {game.color2 === 'red' && (
-                                                            <span
-                                                                style={{
-                                                                    color: '#FFD700',
-                                                                    fontSize: '24px',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                ✓
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div
-                                                        onClick={() => {
-                                                            const updated = [...gameResults];
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                color2: 'blue',
-                                                                color1: 'red'
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                        style={{
-                                                            width: '60px',
-                                                            height: '60px',
-                                                            borderRadius: '8px',
-                                                            background:
-                                                                'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
-                                                            border:
-                                                                game.color2 === 'blue'
-                                                                    ? '4px solid #FFD700'
-                                                                    : '3px solid #000045',
-                                                            cursor: 'pointer',
-                                                            boxShadow:
-                                                                game.color2 === 'blue'
-                                                                    ? '0 0 20px rgba(0, 0, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
-                                                                    : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
-                                                            transform:
-                                                                game.color2 === 'blue' ? 'scale(1.1)' : 'scale(1)',
-                                                            transition: 'all 0.2s ease',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center'
-                                                        }}
-                                                    >
-                                                        {game.color2 === 'blue' && (
-                                                            <span
-                                                                style={{
-                                                                    color: '#FFD700',
-                                                                    fontSize: '24px',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            >
-                                                                ✓
-                                                            </span>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -722,7 +603,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
                                     {/* Gold Input for BO-3 */}
                                     <div className={classes.formGroup}>
-                                        <label>Gold Advantage:</label>
                                         <div
                                             style={{
                                                 display: 'flex',
@@ -733,15 +613,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             }}
                                         >
                                             <div style={{ textAlign: 'center' }}>
-                                                {/* <div
-                                                    style={{
-                                                        marginBottom: '0.5rem',
-                                                        color: '#00ffff',
-                                                        fontSize: '14px'
-                                                    }}
-                                                >
-                                                    {pair.team1}
-                                                </div> */}
                                                 <input
                                                     type="number"
                                                     value={game.gold1 || 0}
@@ -772,9 +643,117 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     }}
                                                 />
                                             </div>
+                                            <svg
+                                                width="45"
+                                                height="35"
+                                                viewBox="0 0 60 45"
+                                                style={{
+                                                    filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
+                                                }}
+                                            >
+                                                <defs>
+                                                    <linearGradient
+                                                        id="barGradient1"
+                                                        x1="0%"
+                                                        y1="0%"
+                                                        x2="100%"
+                                                        y2="100%"
+                                                    >
+                                                        <stop offset="0%" stopColor="#FFE87C" />
+                                                        <stop offset="30%" stopColor="#FFD700" />
+                                                        <stop offset="70%" stopColor="#DAA520" />
+                                                        <stop offset="100%" stopColor="#B8860B" />
+                                                    </linearGradient>
+                                                    <linearGradient
+                                                        id="barGradient2"
+                                                        x1="0%"
+                                                        y1="0%"
+                                                        x2="100%"
+                                                        y2="100%"
+                                                    >
+                                                        <stop offset="0%" stopColor="#FFF4A3" />
+                                                        <stop offset="30%" stopColor="#FFE135" />
+                                                        <stop offset="70%" stopColor="#E6B800" />
+                                                        <stop offset="100%" stopColor="#CC9900" />
+                                                    </linearGradient>
+                                                </defs>
+                                                {/* Back gold bar */}
+                                                <path
+                                                    d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
+                                                    fill="url(#barGradient1)"
+                                                    stroke="#8B6914"
+                                                    strokeWidth="1"
+                                                />
+                                                {/* Front gold bar */}
+                                                <path
+                                                    d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
+                                                    fill="url(#barGradient2)"
+                                                    stroke="#8B6914"
+                                                    strokeWidth="1"
+                                                />
+                                                {/* Shine on front bar */}
+                                                <path
+                                                    d="M 24 18 L 30 20 L 27 27 L 24 25 Z"
+                                                    fill="rgba(255, 255, 255, 0.4)"
+                                                />
+                                            </svg>
                                             <div style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>
                                                 ⚔️
                                             </div>
+                                            <svg
+                                                width="45"
+                                                height="35"
+                                                viewBox="0 0 60 45"
+                                                style={{
+                                                    filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
+                                                }}
+                                            >
+                                                <defs>
+                                                    <linearGradient
+                                                        id="barGradient1_2"
+                                                        x1="0%"
+                                                        y1="0%"
+                                                        x2="100%"
+                                                        y2="100%"
+                                                    >
+                                                        <stop offset="0%" stopColor="#FFE87C" />
+                                                        <stop offset="30%" stopColor="#FFD700" />
+                                                        <stop offset="70%" stopColor="#DAA520" />
+                                                        <stop offset="100%" stopColor="#B8860B" />
+                                                    </linearGradient>
+                                                    <linearGradient
+                                                        id="barGradient2_2"
+                                                        x1="0%"
+                                                        y1="0%"
+                                                        x2="100%"
+                                                        y2="100%"
+                                                    >
+                                                        <stop offset="0%" stopColor="#FFF4A3" />
+                                                        <stop offset="30%" stopColor="#FFE135" />
+                                                        <stop offset="70%" stopColor="#E6B800" />
+                                                        <stop offset="100%" stopColor="#CC9900" />
+                                                    </linearGradient>
+                                                </defs>
+                                                {/* Back gold bar */}
+                                                <path
+                                                    d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
+                                                    fill="url(#barGradient1_2)"
+                                                    stroke="#8B6914"
+                                                    strokeWidth="1"
+                                                />
+                                                {/* Front gold bar */}
+                                                <path
+                                                    d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
+                                                    fill="url(#barGradient2_2)"
+                                                    stroke="#8B6914"
+                                                    strokeWidth="1"
+                                                />
+                                                {/* Shine on front bar */}
+                                                <path
+                                                    d="M 24 18 L 30 20 L 27 27 L 24 25 Z"
+                                                    fill="rgba(255, 255, 255, 0.4)"
+                                                />
+                                            </svg>
                                             <div style={{ textAlign: 'center' }}>
                                                 <div
                                                     style={{
@@ -1153,73 +1132,102 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
 
                                     <div className={classes.formGroup}>
-                                        <label>{pair.team1} Castle:</label>
-                                        <div
-                                            style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: 'repeat(6, 1fr)',
-                                                gap: '0.5rem',
-                                                maxWidth: '600px'
-                                            }}
-                                        >
-                                            {castles.map((c) => (
-                                                <img
-                                                    key={c}
-                                                    src={getCastleImageUrl(c)}
-                                                    alt={c}
-                                                    title={c}
+                                        <label>Castles:</label>
+                                        <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
                                                     style={{
-                                                        width: '90px',
-                                                        height: '60px',
-                                                        border:
-                                                            game.castle1 === c
-                                                                ? '3px solid #FFD700'
-                                                                : '2px solid #00ffff',
-                                                        borderRadius: '4px',
-                                                        objectFit: 'cover',
-                                                        cursor: 'pointer',
-                                                        opacity: game.castle1 === c ? 1 : 0.6,
-                                                        transform: game.castle1 === c ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.2s ease'
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold'
                                                     }}
-                                                    onClick={() => handleGameResultChange(idx, 'castle1', c)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className={classes.formGroup}>
-                                        <label>{pair.team2} Castle:</label>
-                                        <div
-                                            style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: 'repeat(6, 1fr)',
-                                                gap: '0.5rem',
-                                                maxWidth: '600px'
-                                            }}
-                                        >
-                                            {castles.map((c) => (
-                                                <img
-                                                    key={c}
-                                                    src={getCastleImageUrl(c)}
-                                                    alt={c}
-                                                    title={c}
+                                                >
+                                                    {pair.team1}
+                                                </div>
+                                                <div
                                                     style={{
-                                                        width: '90px',
-                                                        height: '60px',
-                                                        border:
-                                                            game.castle2 === c
-                                                                ? '3px solid #FFD700'
-                                                                : '2px solid #00ffff',
-                                                        borderRadius: '4px',
-                                                        objectFit: 'cover',
-                                                        cursor: 'pointer',
-                                                        opacity: game.castle2 === c ? 1 : 0.6,
-                                                        transform: game.castle2 === c ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.2s ease'
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'repeat(3, 1fr)',
+                                                        gap: '0.5rem',
+                                                        maxWidth: '300px'
                                                     }}
-                                                    onClick={() => handleGameResultChange(idx, 'castle2', c)}
-                                                />
-                                            ))}
+                                                >
+                                                    {castles.map((c) => (
+                                                        <img
+                                                            key={c}
+                                                            src={getCastleImageUrl(c)}
+                                                            alt={c}
+                                                            title={c}
+                                                            style={{
+                                                                width: '90px',
+                                                                height: '60px',
+                                                                border:
+                                                                    game.castle1 === c
+                                                                        ? '3px solid #FFD700'
+                                                                        : game.color1 === 'red'
+                                                                          ? '2px solid #FF0000'
+                                                                          : '2px solid #0000FF',
+                                                                borderRadius: '4px',
+                                                                objectFit: 'cover',
+                                                                cursor: 'pointer',
+                                                                opacity: game.castle1 === c ? 1 : 0.6,
+                                                                transform:
+                                                                    game.castle1 === c ? 'scale(1.05)' : 'scale(1)',
+                                                                transition: 'all 0.2s ease'
+                                                            }}
+                                                            onClick={() => handleGameResultChange(idx, 'castle1', c)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div
+                                                    style={{
+                                                        marginBottom: '0.5rem',
+                                                        color: '#00ffff',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {pair.team2}
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'repeat(3, 1fr)',
+                                                        gap: '0.5rem',
+                                                        maxWidth: '300px'
+                                                    }}
+                                                >
+                                                    {castles.map((c) => (
+                                                        <img
+                                                            key={c}
+                                                            src={getCastleImageUrl(c)}
+                                                            alt={c}
+                                                            title={c}
+                                                            style={{
+                                                                width: '90px',
+                                                                height: '60px',
+                                                                border:
+                                                                    game.castle2 === c
+                                                                        ? '3px solid #FFD700'
+                                                                        : game.color2 === 'red'
+                                                                          ? '2px solid #FF0000'
+                                                                          : '2px solid #0000FF',
+                                                                borderRadius: '4px',
+                                                                objectFit: 'cover',
+                                                                cursor: 'pointer',
+                                                                opacity: game.castle2 === c ? 1 : 0.6,
+                                                                transform:
+                                                                    game.castle2 === c ? 'scale(1.05)' : 'scale(1)',
+                                                                transition: 'all 0.2s ease'
+                                                            }}
+                                                            onClick={() => handleGameResultChange(idx, 'castle2', c)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className={classes.formGroup}>
@@ -1328,9 +1336,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
                                 </div>
                             ))}
-                        </>
+                        </div>
                     ) : (
-                        <>
+                        <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* BO-1 Game Result */}
 
                             {/* Compact Score/Winner Section for BO-1 */}
@@ -1346,7 +1354,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         background:
                                             'linear-gradient(135deg, rgba(62, 32, 192, 0.2), rgba(45, 20, 150, 0.2))',
                                         borderRadius: '8px',
-                                        border: '2px solid #FFD700'
+                                        border: '2px solid #FFD700',
+                                        boxShadow:
+                                            color1 === 'red'
+                                                ? '0 0 15px rgba(255, 0, 0, 0.4), inset -100px 0 50px -50px rgba(139, 0, 0, 0.3)'
+                                                : '0 0 15px rgba(0, 0, 255, 0.4), inset -100px 0 50px -50px rgba(0, 0, 139, 0.3)'
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
@@ -1377,58 +1389,52 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         >
                                             {pair.team1}
                                         </div>
-                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                            <div
-                                                onClick={() => {
-                                                    setColor1('red');
-                                                    setColor2('blue');
-                                                }}
-                                                style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    borderRadius: '4px',
-                                                    background: 'linear-gradient(135deg, #8B0000, #FF0000)',
-                                                    border:
-                                                        color1 === 'red'
-                                                            ? '2px solid #FFD700'
-                                                            : '2px solid transparent',
-                                                    cursor: 'pointer',
-                                                    boxShadow:
-                                                        color1 === 'red' ? '0 0 8px rgba(255, 0, 0, 0.6)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            />
-                                            <div
-                                                onClick={() => {
-                                                    setColor1('blue');
-                                                    setColor2('red');
-                                                }}
-                                                style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    borderRadius: '4px',
-                                                    background: 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                    border:
-                                                        color1 === 'blue'
-                                                            ? '2px solid #FFD700'
-                                                            : '2px solid transparent',
-                                                    cursor: 'pointer',
-                                                    boxShadow:
-                                                        color1 === 'blue' ? '0 0 8px rgba(0, 0, 255, 0.6)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            />
-                                        </div>
+                                        <div
+                                            onClick={() => {
+                                                const newColor = color1 === 'red' ? 'blue' : 'red';
+                                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                setColor1(newColor);
+                                                setColor2(oppositeColor);
+                                            }}
+                                            style={{
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '4px',
+                                                background:
+                                                    color1 === 'red'
+                                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                                border: '2px solid #FFD700',
+                                                cursor: 'pointer',
+                                                boxShadow:
+                                                    color1 === 'red'
+                                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
+                                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        />
                                     </div>
 
-                                    <div
-                                        style={{
-                                            fontSize: '20px',
-                                            fontWeight: 'bold',
-                                            color: '#FFD700'
-                                        }}
-                                    >
-                                        {score1} - {score2}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <div
+                                            style={{
+                                                fontSize: '20px',
+                                                fontWeight: 'bold',
+                                                color: '#FFD700'
+                                            }}
+                                        >
+                                            {score1}
+                                        </div>
+                                        <div style={{ color: '#FFD700', fontSize: '20px' }}>⚔️</div>
+                                        <div
+                                            style={{
+                                                fontSize: '20px',
+                                                fontWeight: 'bold',
+                                                color: '#FFD700'
+                                            }}
+                                        >
+                                            {score2}
+                                        </div>
                                     </div>
 
                                     <div
@@ -1440,48 +1446,30 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             justifyContent: 'flex-end'
                                         }}
                                     >
-                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                            <div
-                                                onClick={() => {
-                                                    setColor2('red');
-                                                    setColor1('blue');
-                                                }}
-                                                style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    borderRadius: '4px',
-                                                    background: 'linear-gradient(135deg, #8B0000, #FF0000)',
-                                                    border:
-                                                        color2 === 'red'
-                                                            ? '2px solid #FFD700'
-                                                            : '2px solid transparent',
-                                                    cursor: 'pointer',
-                                                    boxShadow:
-                                                        color2 === 'red' ? '0 0 8px rgba(255, 0, 0, 0.6)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            />
-                                            <div
-                                                onClick={() => {
-                                                    setColor2('blue');
-                                                    setColor1('red');
-                                                }}
-                                                style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    borderRadius: '4px',
-                                                    background: 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                    border:
-                                                        color2 === 'blue'
-                                                            ? '2px solid #FFD700'
-                                                            : '2px solid transparent',
-                                                    cursor: 'pointer',
-                                                    boxShadow:
-                                                        color2 === 'blue' ? '0 0 8px rgba(0, 0, 255, 0.6)' : 'none',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            />
-                                        </div>
+                                        <div
+                                            onClick={() => {
+                                                const newColor = color2 === 'red' ? 'blue' : 'red';
+                                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                setColor2(newColor);
+                                                setColor1(oppositeColor);
+                                            }}
+                                            style={{
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '4px',
+                                                background:
+                                                    color2 === 'red'
+                                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                                border: '2px solid #FFD700',
+                                                cursor: 'pointer',
+                                                boxShadow:
+                                                    color2 === 'red'
+                                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
+                                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        />
                                         <div
                                             onClick={() => {
                                                 setSelectedWinner(pair.team2);
@@ -1687,7 +1675,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
                             {/* Gold Input for BO-1 */}
                             <div className={classes.formGroup}>
-                                <label>Gold Advantage:</label>
                                 <div
                                     style={{
                                         display: 'flex',
@@ -1698,9 +1685,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     }}
                                 >
                                     <div style={{ textAlign: 'center' }}>
-                                        {/* <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
-                                            {pair.team1}
-                                        </div> */}
                                         <input
                                             type="number"
                                             value={gold1}
@@ -1725,7 +1709,85 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             }}
                                         />
                                     </div>
+                                    <svg
+                                        width="45"
+                                        height="35"
+                                        viewBox="0 0 60 45"
+                                        style={{
+                                            filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
+                                        }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="barGradientBO1_1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor="#FFE87C" />
+                                                <stop offset="30%" stopColor="#FFD700" />
+                                                <stop offset="70%" stopColor="#DAA520" />
+                                                <stop offset="100%" stopColor="#B8860B" />
+                                            </linearGradient>
+                                            <linearGradient id="barGradientBO1_2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor="#FFF4A3" />
+                                                <stop offset="30%" stopColor="#FFE135" />
+                                                <stop offset="70%" stopColor="#E6B800" />
+                                                <stop offset="100%" stopColor="#CC9900" />
+                                            </linearGradient>
+                                        </defs>
+                                        {/* Back gold bar */}
+                                        <path
+                                            d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
+                                            fill="url(#barGradientBO1_1)"
+                                            stroke="#8B6914"
+                                            strokeWidth="1"
+                                        />
+                                        {/* Front gold bar */}
+                                        <path
+                                            d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
+                                            fill="url(#barGradientBO1_2)"
+                                            stroke="#8B6914"
+                                            strokeWidth="1"
+                                        />
+                                        {/* Shine on front bar */}
+                                        <path d="M 24 18 L 30 20 L 27 27 L 24 25 Z" fill="rgba(255, 255, 255, 0.4)" />
+                                    </svg>
                                     <div style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>⚔️</div>
+                                    <svg
+                                        width="45"
+                                        height="35"
+                                        viewBox="0 0 60 45"
+                                        style={{
+                                            filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
+                                        }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="barGradientBO1_3" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor="#FFE87C" />
+                                                <stop offset="30%" stopColor="#FFD700" />
+                                                <stop offset="70%" stopColor="#DAA520" />
+                                                <stop offset="100%" stopColor="#B8860B" />
+                                            </linearGradient>
+                                            <linearGradient id="barGradientBO1_4" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor="#FFF4A3" />
+                                                <stop offset="30%" stopColor="#FFE135" />
+                                                <stop offset="70%" stopColor="#E6B800" />
+                                                <stop offset="100%" stopColor="#CC9900" />
+                                            </linearGradient>
+                                        </defs>
+                                        {/* Back gold bar */}
+                                        <path
+                                            d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
+                                            fill="url(#barGradientBO1_3)"
+                                            stroke="#8B6914"
+                                            strokeWidth="1"
+                                        />
+                                        {/* Front gold bar */}
+                                        <path
+                                            d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
+                                            fill="url(#barGradientBO1_4)"
+                                            stroke="#8B6914"
+                                            strokeWidth="1"
+                                        />
+                                        {/* Shine on front bar */}
+                                        <path d="M 24 18 L 30 20 L 27 27 L 24 25 Z" fill="rgba(255, 255, 255, 0.4)" />
+                                    </svg>
                                     <div style={{ textAlign: 'center' }}>
                                         {/* <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
                                             {pair.team2}
@@ -2024,67 +2086,100 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             </div>
 
                             <div className={classes.formGroup}>
-                                <label>{pair.team1} Castle:</label>
-                                <div
-                                    style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(6, 1fr)',
-                                        gap: '0.5rem',
-                                        maxWidth: '600px'
-                                    }}
-                                >
-                                    {castles.map((c) => (
-                                        <img
-                                            key={c}
-                                            src={getCastleImageUrl(c)}
-                                            alt={c}
-                                            title={c}
+                                <label>Castles:</label>
+                                <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        {/* <div
                                             style={{
-                                                width: '90px',
-                                                height: '60px',
-                                                border: castle1 === c ? '3px solid #FFD700' : '2px solid #00ffff',
-                                                borderRadius: '4px',
-                                                objectFit: 'cover',
-                                                cursor: 'pointer',
-                                                opacity: castle1 === c ? 1 : 0.6,
-                                                transform: castle1 === c ? 'scale(1.05)' : 'scale(1)',
-                                                transition: 'all 0.2s ease'
+                                                marginBottom: '0.5rem',
+                                                color: '#00ffff',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold'
                                             }}
-                                            onClick={() => setCastle1(c)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                            <div className={classes.formGroup}>
-                                <label>{pair.team2} Castle:</label>
-                                <div
-                                    style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(6, 1fr)',
-                                        gap: '0.5rem',
-                                        maxWidth: '600px'
-                                    }}
-                                >
-                                    {castles.map((c) => (
-                                        <img
-                                            key={c}
-                                            src={getCastleImageUrl(c)}
-                                            alt={c}
-                                            title={c}
+                                        >
+                                            {pair.team1}
+                                        </div> */}
+                                        <div
                                             style={{
-                                                width: '90px',
-                                                height: '60px',
-                                                border: castle2 === c ? '3px solid #FFD700' : '2px solid #00ffff',
-                                                borderRadius: '4px',
-                                                objectFit: 'cover',
-                                                cursor: 'pointer',
-                                                opacity: castle2 === c ? 1 : 0.6,
-                                                transform: castle2 === c ? 'scale(1.05)' : 'scale(1)',
-                                                transition: 'all 0.2s ease'
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                                gap: '0.5rem',
+                                                maxWidth: '300px'
                                             }}
-                                            onClick={() => setCastle2(c)}
-                                        />
-                                    ))}
+                                        >
+                                            {castles.map((c) => (
+                                                <img
+                                                    key={c}
+                                                    src={getCastleImageUrl(c)}
+                                                    alt={c}
+                                                    title={c}
+                                                    style={{
+                                                        width: '90px',
+                                                        height: '60px',
+                                                        border:
+                                                            castle1 === c
+                                                                ? '3px solid #FFD700'
+                                                                : color1 === 'red'
+                                                                  ? '2px solid #FF0000'
+                                                                  : '2px solid #0000FF',
+                                                        borderRadius: '4px',
+                                                        objectFit: 'cover',
+                                                        cursor: 'pointer',
+                                                        opacity: castle1 === c ? 1 : 0.6,
+                                                        transform: castle1 === c ? 'scale(1.05)' : 'scale(1)',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    onClick={() => setCastle1(c)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        {/* <div
+                                            style={{
+                                                marginBottom: '0.5rem',
+                                                color: '#00ffff',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold'
+                                            }}
+                                        >
+                                            {pair.team2}
+                                        </div> */}
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                                gap: '0.5rem',
+                                                maxWidth: '300px'
+                                            }}
+                                        >
+                                            {castles.map((c) => (
+                                                <img
+                                                    key={c}
+                                                    src={getCastleImageUrl(c)}
+                                                    alt={c}
+                                                    title={c}
+                                                    style={{
+                                                        width: '90px',
+                                                        height: '60px',
+                                                        border:
+                                                            castle2 === c
+                                                                ? '3px solid #FFD700'
+                                                                : color2 === 'red'
+                                                                  ? '2px solid #FF0000'
+                                                                  : '2px solid #0000FF',
+                                                        borderRadius: '4px',
+                                                        objectFit: 'cover',
+                                                        cursor: 'pointer',
+                                                        opacity: castle2 === c ? 1 : 0.6,
+                                                        transform: castle2 === c ? 'scale(1.05)' : 'scale(1)',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    onClick={() => setCastle2(c)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             {/* <div className={classes.formGroup}>
@@ -2207,10 +2302,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
                                 </div>
                             </div> */}
-                        </>
+                        </div>
                     )}
 
-                    <div className={classes.buttonGroup}>
+                    <div className={classes.buttonGroup} style={{ position: 'relative', zIndex: 2 }}>
                         <button type="submit" className={classes.submitButton}>
                             Submit Result
                         </button>
