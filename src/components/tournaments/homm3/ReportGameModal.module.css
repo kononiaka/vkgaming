@@ -11,6 +11,7 @@
     justify-content: center;
     backdrop-filter: blur(4px);
     animation: fadeIn 0.2s ease;
+    overflow: hidden;
 }
 
 @keyframes fadeIn {
@@ -51,27 +52,41 @@
 
 .closeButton {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: rgba(255, 215, 0, 0.2);
+    top: 0px;
+    right: 10px;
+    background: rgba(255, 215, 0, 0.9);
     border: 2px solid gold;
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     font-size: 28px;
     cursor: pointer;
-    color: gold;
+    color: rgb(62, 32, 192);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
     line-height: 1;
     padding: 0;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .closeButton:hover {
     background: gold;
-    color: rgb(62, 32, 192);
+    color: rgb(45, 20, 150);
+    transform: rotate(90deg);
+}
+
+.closeButton:focus {
+    outline: none;
+}
+
+.closeButton:active {
+    outline: none;
     transform: rotate(90deg);
 }
 
@@ -109,6 +124,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    margin-top: 2rem;
 }
 
 .gameSection {

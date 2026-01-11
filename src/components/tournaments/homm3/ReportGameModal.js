@@ -14,6 +14,9 @@ import confluxImg from '../../../image/castles/conflux.jpeg';
 import coveImg from '../../../image/castles/cove.jpeg';
 import factoryImg from '../../../image/castles/factory.jpeg';
 import kronverkImg from '../../../image/castles/kronverk.jpeg';
+import redFlagImg from '../../../image/flags/red.jpg';
+import blueFlagImg from '../../../image/flags/blue.jpg';
+import goldImg from '../../../image/gold-removebg.png';
 
 const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [selectedWinner, setSelectedWinner] = useState(pair.winner || '');
@@ -248,6 +251,28 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     ×
                 </button>
 
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '20px',
+                        background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.95), rgba(45, 20, 150, 0.95))',
+                        border: '2px solid #FFD700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(255, 215, 0, 0.5)',
+                        zIndex: 10
+                    }}
+                >
+                    <div style={{ color: '#FFD700', fontSize: '14px', fontWeight: 'bold', letterSpacing: '1px' }}>
+                        {`bo-${pair.type.toUpperCase()}`}
+                    </div>
+                </div>
+
                 <form
                     onSubmit={handleSubmit}
                     className={classes.form}
@@ -312,27 +337,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             pointerEvents: 'none'
                         }}
                     />
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: '-10px',
-                            left: '10px',
-                            width: '45px',
-                            height: '45px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.9), rgba(45, 20, 150, 0.9))',
-                            border: '2px solid #FFD700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 8px rgba(255, 215, 0, 0.4)',
-                            zIndex: 10
-                        }}
-                    >
-                        <div style={{ color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>
-                            {pair.type.toUpperCase()}
-                        </div>
-                    </div>
 
                     {/* <div
                         style={{
@@ -461,6 +465,39 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 }}
                                             >
                                                 <div
+                                                    onClick={() => {
+                                                        const updated = [...gameResults];
+                                                        const newColor = game.color1 === 'red' ? 'blue' : 'red';
+                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                        updated[idx] = {
+                                                            ...updated[idx],
+                                                            color1: newColor,
+                                                            color2: oppositeColor
+                                                        };
+                                                        setGameResults(updated);
+                                                    }}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    <img
+                                                        src={game.color1 === 'red' ? redFlagImg : blueFlagImg}
+                                                        alt={game.color1 === 'red' ? 'Red flag' : 'Blue flag'}
+                                                        style={{
+                                                            width: '42px',
+                                                            height: '42px',
+                                                            objectFit: 'contain',
+                                                            filter:
+                                                                game.color1 === 'red'
+                                                                    ? 'drop-shadow(0 0 3px rgba(255, 0, 0, 0.8))'
+                                                                    : 'drop-shadow(0 0 3px rgba(0, 0, 255, 0.8))'
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div
                                                     onClick={() => handleGameResultChange(idx, 'winner', pair.team1)}
                                                     style={{
                                                         cursor: 'pointer',
@@ -483,35 +520,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 >
                                                     {pair.team1}
                                                 </div>
-                                                <div
-                                                    onClick={() => {
-                                                        const updated = [...gameResults];
-                                                        const newColor = game.color1 === 'red' ? 'blue' : 'red';
-                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                                        updated[idx] = {
-                                                            ...updated[idx],
-                                                            color1: newColor,
-                                                            color2: oppositeColor
-                                                        };
-                                                        setGameResults(updated);
-                                                    }}
-                                                    style={{
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        borderRadius: '4px',
-                                                        background:
-                                                            game.color1 === 'red'
-                                                                ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                                                : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                        border: '2px solid #FFD700',
-                                                        cursor: 'pointer',
-                                                        boxShadow:
-                                                            game.color1 === 'red'
-                                                                ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                                                : '0 0 8px rgba(0, 0, 255, 0.6)',
-                                                        transition: 'all 0.2s ease'
-                                                    }}
-                                                />
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -546,35 +554,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 }}
                                             >
                                                 <div
-                                                    onClick={() => {
-                                                        const updated = [...gameResults];
-                                                        const newColor = game.color2 === 'red' ? 'blue' : 'red';
-                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                                        updated[idx] = {
-                                                            ...updated[idx],
-                                                            color2: newColor,
-                                                            color1: oppositeColor
-                                                        };
-                                                        setGameResults(updated);
-                                                    }}
-                                                    style={{
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        borderRadius: '4px',
-                                                        background:
-                                                            game.color2 === 'red'
-                                                                ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                                                : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                        border: '2px solid #FFD700',
-                                                        cursor: 'pointer',
-                                                        boxShadow:
-                                                            game.color2 === 'red'
-                                                                ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                                                : '0 0 8px rgba(0, 0, 255, 0.6)',
-                                                        transition: 'all 0.2s ease'
-                                                    }}
-                                                />
-                                                <div
                                                     onClick={() => handleGameResultChange(idx, 'winner', pair.team2)}
                                                     style={{
                                                         cursor: 'pointer',
@@ -596,6 +575,39 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     }}
                                                 >
                                                     {pair.team2}
+                                                </div>
+                                                <div
+                                                    onClick={() => {
+                                                        const updated = [...gameResults];
+                                                        const newColor = game.color2 === 'red' ? 'blue' : 'red';
+                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                        updated[idx] = {
+                                                            ...updated[idx],
+                                                            color2: newColor,
+                                                            color1: oppositeColor
+                                                        };
+                                                        setGameResults(updated);
+                                                    }}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    <img
+                                                        src={game.color2 === 'red' ? redFlagImg : blueFlagImg}
+                                                        alt={game.color2 === 'red' ? 'Red flag' : 'Blue flag'}
+                                                        style={{
+                                                            width: '42px',
+                                                            height: '42px',
+                                                            objectFit: 'contain',
+                                                            filter:
+                                                                game.color2 === 'red'
+                                                                    ? 'drop-shadow(0 0 3px rgba(255, 0, 0, 0.8))'
+                                                                    : 'drop-shadow(0 0 3px rgba(0, 0, 255, 0.8))'
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -643,117 +655,29 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     }}
                                                 />
                                             </div>
-                                            <svg
-                                                width="45"
-                                                height="35"
-                                                viewBox="0 0 60 45"
+                                            <img
+                                                src={goldImg}
+                                                alt="Gold"
                                                 style={{
+                                                    width: '45px',
+                                                    height: '35px',
+                                                    objectFit: 'contain',
                                                     filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
                                                 }}
-                                            >
-                                                <defs>
-                                                    <linearGradient
-                                                        id="barGradient1"
-                                                        x1="0%"
-                                                        y1="0%"
-                                                        x2="100%"
-                                                        y2="100%"
-                                                    >
-                                                        <stop offset="0%" stopColor="#FFE87C" />
-                                                        <stop offset="30%" stopColor="#FFD700" />
-                                                        <stop offset="70%" stopColor="#DAA520" />
-                                                        <stop offset="100%" stopColor="#B8860B" />
-                                                    </linearGradient>
-                                                    <linearGradient
-                                                        id="barGradient2"
-                                                        x1="0%"
-                                                        y1="0%"
-                                                        x2="100%"
-                                                        y2="100%"
-                                                    >
-                                                        <stop offset="0%" stopColor="#FFF4A3" />
-                                                        <stop offset="30%" stopColor="#FFE135" />
-                                                        <stop offset="70%" stopColor="#E6B800" />
-                                                        <stop offset="100%" stopColor="#CC9900" />
-                                                    </linearGradient>
-                                                </defs>
-                                                {/* Back gold bar */}
-                                                <path
-                                                    d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
-                                                    fill="url(#barGradient1)"
-                                                    stroke="#8B6914"
-                                                    strokeWidth="1"
-                                                />
-                                                {/* Front gold bar */}
-                                                <path
-                                                    d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
-                                                    fill="url(#barGradient2)"
-                                                    stroke="#8B6914"
-                                                    strokeWidth="1"
-                                                />
-                                                {/* Shine on front bar */}
-                                                <path
-                                                    d="M 24 18 L 30 20 L 27 27 L 24 25 Z"
-                                                    fill="rgba(255, 255, 255, 0.4)"
-                                                />
-                                            </svg>
+                                            />
                                             <div style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>
                                                 ⚔️
                                             </div>
-                                            <svg
-                                                width="45"
-                                                height="35"
-                                                viewBox="0 0 60 45"
+                                            <img
+                                                src={goldImg}
+                                                alt="Gold"
                                                 style={{
+                                                    width: '45px',
+                                                    height: '35px',
+                                                    objectFit: 'contain',
                                                     filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
                                                 }}
-                                            >
-                                                <defs>
-                                                    <linearGradient
-                                                        id="barGradient1_2"
-                                                        x1="0%"
-                                                        y1="0%"
-                                                        x2="100%"
-                                                        y2="100%"
-                                                    >
-                                                        <stop offset="0%" stopColor="#FFE87C" />
-                                                        <stop offset="30%" stopColor="#FFD700" />
-                                                        <stop offset="70%" stopColor="#DAA520" />
-                                                        <stop offset="100%" stopColor="#B8860B" />
-                                                    </linearGradient>
-                                                    <linearGradient
-                                                        id="barGradient2_2"
-                                                        x1="0%"
-                                                        y1="0%"
-                                                        x2="100%"
-                                                        y2="100%"
-                                                    >
-                                                        <stop offset="0%" stopColor="#FFF4A3" />
-                                                        <stop offset="30%" stopColor="#FFE135" />
-                                                        <stop offset="70%" stopColor="#E6B800" />
-                                                        <stop offset="100%" stopColor="#CC9900" />
-                                                    </linearGradient>
-                                                </defs>
-                                                {/* Back gold bar */}
-                                                <path
-                                                    d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
-                                                    fill="url(#barGradient1_2)"
-                                                    stroke="#8B6914"
-                                                    strokeWidth="1"
-                                                />
-                                                {/* Front gold bar */}
-                                                <path
-                                                    d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
-                                                    fill="url(#barGradient2_2)"
-                                                    stroke="#8B6914"
-                                                    strokeWidth="1"
-                                                />
-                                                {/* Shine on front bar */}
-                                                <path
-                                                    d="M 24 18 L 30 20 L 27 27 L 24 25 Z"
-                                                    fill="rgba(255, 255, 255, 0.4)"
-                                                />
-                                            </svg>
+                                            />
                                             <div style={{ textAlign: 'center' }}>
                                                 <div
                                                     style={{
@@ -1364,6 +1288,34 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                                         <div
                                             onClick={() => {
+                                                const newColor = color1 === 'red' ? 'blue' : 'red';
+                                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                setColor1(newColor);
+                                                setColor2(oppositeColor);
+                                            }}
+                                            style={{
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                        >
+                                            <img
+                                                src={color1 === 'red' ? redFlagImg : blueFlagImg}
+                                                alt={color1 === 'red' ? 'Red flag' : 'Blue flag'}
+                                                style={{
+                                                    width: '42px',
+                                                    height: '42px',
+                                                    objectFit: 'contain',
+                                                    filter:
+                                                        color1 === 'red'
+                                                            ? 'drop-shadow(0 0 3px rgba(255, 0, 0, 0.8))'
+                                                            : 'drop-shadow(0 0 3px rgba(0, 0, 255, 0.8))'
+                                                }}
+                                            />
+                                        </div>
+                                        <div
+                                            onClick={() => {
                                                 setSelectedWinner(pair.team1);
                                                 setScore1(1);
                                                 setScore2(0);
@@ -1389,30 +1341,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         >
                                             {pair.team1}
                                         </div>
-                                        <div
-                                            onClick={() => {
-                                                const newColor = color1 === 'red' ? 'blue' : 'red';
-                                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                                setColor1(newColor);
-                                                setColor2(oppositeColor);
-                                            }}
-                                            style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                borderRadius: '4px',
-                                                background:
-                                                    color1 === 'red'
-                                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                border: '2px solid #FFD700',
-                                                cursor: 'pointer',
-                                                boxShadow:
-                                                    color1 === 'red'
-                                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        />
                                     </div>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1448,30 +1376,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     >
                                         <div
                                             onClick={() => {
-                                                const newColor = color2 === 'red' ? 'blue' : 'red';
-                                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                                setColor2(newColor);
-                                                setColor1(oppositeColor);
-                                            }}
-                                            style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                borderRadius: '4px',
-                                                background:
-                                                    color2 === 'red'
-                                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                border: '2px solid #FFD700',
-                                                cursor: 'pointer',
-                                                boxShadow:
-                                                    color2 === 'red'
-                                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        />
-                                        <div
-                                            onClick={() => {
                                                 setSelectedWinner(pair.team2);
                                                 setScore1(0);
                                                 setScore2(1);
@@ -1496,6 +1400,34 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             }}
                                         >
                                             {pair.team2}
+                                        </div>
+                                        <div
+                                            onClick={() => {
+                                                const newColor = color2 === 'red' ? 'blue' : 'red';
+                                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                setColor2(newColor);
+                                                setColor1(oppositeColor);
+                                            }}
+                                            style={{
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                        >
+                                            <img
+                                                src={color2 === 'red' ? redFlagImg : blueFlagImg}
+                                                alt={color2 === 'red' ? 'Red flag' : 'Blue flag'}
+                                                style={{
+                                                    width: '42px',
+                                                    height: '42px',
+                                                    objectFit: 'contain',
+                                                    filter:
+                                                        color2 === 'red'
+                                                            ? 'drop-shadow(0 0 3px rgba(255, 0, 0, 0.8))'
+                                                            : 'drop-shadow(0 0 3px rgba(0, 0, 255, 0.8))'
+                                                }}
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -1709,85 +1641,27 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             }}
                                         />
                                     </div>
-                                    <svg
-                                        width="45"
-                                        height="35"
-                                        viewBox="0 0 60 45"
+                                    <img
+                                        src={goldImg}
+                                        alt="Gold"
                                         style={{
+                                            width: '45px',
+                                            height: '35px',
+                                            objectFit: 'contain',
                                             filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
                                         }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="barGradientBO1_1" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="#FFE87C" />
-                                                <stop offset="30%" stopColor="#FFD700" />
-                                                <stop offset="70%" stopColor="#DAA520" />
-                                                <stop offset="100%" stopColor="#B8860B" />
-                                            </linearGradient>
-                                            <linearGradient id="barGradientBO1_2" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="#FFF4A3" />
-                                                <stop offset="30%" stopColor="#FFE135" />
-                                                <stop offset="70%" stopColor="#E6B800" />
-                                                <stop offset="100%" stopColor="#CC9900" />
-                                            </linearGradient>
-                                        </defs>
-                                        {/* Back gold bar */}
-                                        <path
-                                            d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
-                                            fill="url(#barGradientBO1_1)"
-                                            stroke="#8B6914"
-                                            strokeWidth="1"
-                                        />
-                                        {/* Front gold bar */}
-                                        <path
-                                            d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
-                                            fill="url(#barGradientBO1_2)"
-                                            stroke="#8B6914"
-                                            strokeWidth="1"
-                                        />
-                                        {/* Shine on front bar */}
-                                        <path d="M 24 18 L 30 20 L 27 27 L 24 25 Z" fill="rgba(255, 255, 255, 0.4)" />
-                                    </svg>
+                                    />
                                     <div style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>⚔️</div>
-                                    <svg
-                                        width="45"
-                                        height="35"
-                                        viewBox="0 0 60 45"
+                                    <img
+                                        src={goldImg}
+                                        alt="Gold"
                                         style={{
+                                            width: '45px',
+                                            height: '35px',
+                                            objectFit: 'contain',
                                             filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
                                         }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="barGradientBO1_3" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="#FFE87C" />
-                                                <stop offset="30%" stopColor="#FFD700" />
-                                                <stop offset="70%" stopColor="#DAA520" />
-                                                <stop offset="100%" stopColor="#B8860B" />
-                                            </linearGradient>
-                                            <linearGradient id="barGradientBO1_4" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="#FFF4A3" />
-                                                <stop offset="30%" stopColor="#FFE135" />
-                                                <stop offset="70%" stopColor="#E6B800" />
-                                                <stop offset="100%" stopColor="#CC9900" />
-                                            </linearGradient>
-                                        </defs>
-                                        {/* Back gold bar */}
-                                        <path
-                                            d="M 12 18 L 28 12 L 48 18 L 45 25 L 28 31 L 15 25 Z"
-                                            fill="url(#barGradientBO1_3)"
-                                            stroke="#8B6914"
-                                            strokeWidth="1"
-                                        />
-                                        {/* Front gold bar */}
-                                        <path
-                                            d="M 8 24 L 24 18 L 44 24 L 41 31 L 24 37 L 11 31 Z"
-                                            fill="url(#barGradientBO1_4)"
-                                            stroke="#8B6914"
-                                            strokeWidth="1"
-                                        />
-                                        {/* Shine on front bar */}
-                                        <path d="M 24 18 L 30 20 L 27 27 L 24 25 Z" fill="rgba(255, 255, 255, 0.4)" />
-                                    </svg>
+                                    />
                                     <div style={{ textAlign: 'center' }}>
                                         {/* <div style={{ marginBottom: '0.5rem', color: '#00ffff', fontSize: '14px' }}>
                                             {pair.team2}
