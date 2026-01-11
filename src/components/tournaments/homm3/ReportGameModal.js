@@ -338,97 +338,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                         }}
                     />
 
-                    {/* <div
-                        style={{
-                            textAlign: 'center',
-                            marginBottom: '1rem',
-                            padding: '0.75rem',
-                            background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                            borderRadius: '8px',
-                            border: '2px solid #FFD700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '1rem'
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                            <span style={{ color: '#00ffff', fontSize: '14px', fontWeight: 'bold' }}>{pair.team1}</span>
-                            <div
-                                onClick={() => {
-                                    const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color1 : color1;
-                                    const newColor = currentColor === 'red' ? 'blue' : 'red';
-                                    const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                    if (pair.type === 'bo-3') {
-                                        handleGameResultChange(0, 'color1', newColor);
-                                        handleGameResultChange(0, 'color2', oppositeColor);
-                                    } else {
-                                        setColor1(newColor);
-                                        setColor2(oppositeColor);
-                                    }
-                                }}
-                                style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    borderRadius: '4px',
-                                    background: (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red' 
-                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)' 
-                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                    border: '2px solid #FFD700',
-                                    cursor: 'pointer',
-                                    boxShadow: (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
-                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            />
-                        </div>
-
-                        <div style={{ color: '#FFD700', fontSize: '20px', fontWeight: 'bold' }}>
-                            {score1} - {score2}
-                        </div>
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                flex: 1,
-                                justifyContent: 'flex-end'
-                            }}
-                        >
-                            <div
-                                onClick={() => {
-                                    const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color2 : color2;
-                                    const newColor = currentColor === 'red' ? 'blue' : 'red';
-                                    const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                    if (pair.type === 'bo-3') {
-                                        handleGameResultChange(0, 'color2', newColor);
-                                        handleGameResultChange(0, 'color1', oppositeColor);
-                                    } else {
-                                        setColor2(newColor);
-                                        setColor1(oppositeColor);
-                                    }
-                                }}
-                                style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    borderRadius: '4px',
-                                    background: (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                    border: '2px solid #FFD700',
-                                    cursor: 'pointer',
-                                    boxShadow: (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                        ? '0 0 8px rgba(255, 0, 0, 0.6)'
-                                        : '0 0 8px rgba(0, 0, 255, 0.6)',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            />
-                            <span style={{ color: '#00ffff', fontSize: '14px', fontWeight: 'bold' }}>{pair.team2}</span>
-                        </div>
-                    </div> */}
-
                     {pair.type === 'bo-3' ? (
                         <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* BO-3 Game Results */}
@@ -447,7 +356,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 marginBottom: '1rem',
                                                 padding: '0.75rem',
                                                 background:
-                                                    'linear-gradient(135deg, rgba(62, 32, 192, 0.2), rgba(45, 20, 150, 0.2))',
+                                                    game.color1 === 'red'
+                                                        ? 'linear-gradient(to right, rgba(255, 100, 100, 0.95) 0%, rgba(255, 200, 200, 0.7) 20%, rgba(255, 255, 255, 0.5) 50%, rgba(200, 200, 255, 0.7) 80%, rgba(100, 100, 255, 0.95) 100%)'
+                                                        : 'linear-gradient(to right, rgba(100, 100, 255, 0.95) 0%, rgba(200, 200, 255, 0.7) 20%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 200, 200, 0.7) 80%, rgba(255, 100, 100, 0.95) 100%)',
                                                 borderRadius: '8px',
                                                 border: '2px solid #FFD700',
                                                 boxShadow:
@@ -511,7 +422,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             game.winner === pair.team1
                                                                 ? 'rgba(255, 215, 0, 0.2)'
                                                                 : 'transparent',
-                                                        color: '#00ffff',
+                                                        color: '#000000',
                                                         fontSize: '14px',
                                                         fontWeight: 'bold',
                                                         opacity: game.winner === pair.team1 ? 1 : 0.6,
@@ -567,11 +478,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             game.winner === pair.team2
                                                                 ? 'rgba(255, 215, 0, 0.2)'
                                                                 : 'transparent',
-                                                        color: '#00ffff',
+                                                        color: '#000000',
                                                         fontSize: '14px',
                                                         fontWeight: 'bold',
                                                         opacity: game.winner === pair.team2 ? 1 : 0.6,
-                                                        transition: 'all 0.2s ease'
+                                                        transition: 'all 0.2s ease',
+                                                        textAlign: 'right'
                                                     }}
                                                 >
                                                     {pair.team2}
@@ -615,6 +527,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
                                     {/* Gold Input for BO-3 */}
                                     <div className={classes.formGroup}>
+                                        <label style={{ textAlign: 'center', display: 'block' }}>Gold:</label>
                                         <div
                                             style={{
                                                 display: 'flex',
@@ -642,7 +555,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         border: '3px solid #FFD700',
                                                         borderRadius: '8px',
                                                         background:
-                                                            'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                            'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))',
                                                         color:
                                                             game.gold1 > 0
                                                                 ? '#00FF00'
@@ -705,7 +618,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         border: '3px solid #FFD700',
                                                         borderRadius: '8px',
                                                         background:
-                                                            'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                            'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))',
                                                         color:
                                                             game.gold2 > 0
                                                                 ? '#00FF00'
@@ -723,7 +636,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
                                     {/* Restarts Input for BO-3 */}
                                     <div className={classes.formGroup}>
-                                        <label>Restarts:</label>
+                                        <label style={{ textAlign: 'center', display: 'block' }}>Restarts:</label>
                                         <div
                                             style={{
                                                 display: 'flex',
@@ -778,7 +691,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                     background: isDisabled
                                                                         ? 'rgba(0, 0, 0, 0.5)'
                                                                         : isUsed
-                                                                          ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                          ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                                           : 'rgba(0, 0, 0, 0.3)',
                                                                     cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                                     display: 'flex',
@@ -842,7 +755,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                 (game.restart1_111 || 0) > 0
                                                                     ? 'rgba(0, 0, 0, 0.5)'
                                                                     : (game.restart1_112 || 0) === 1
-                                                                      ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                      ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                                       : 'rgba(0, 0, 0, 0.3)',
                                                             cursor:
                                                                 (game.restart1_111 || 0) > 0
@@ -938,7 +851,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                     background: isDisabled
                                                                         ? 'rgba(0, 0, 0, 0.5)'
                                                                         : isUsed
-                                                                          ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                          ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                                           : 'rgba(0, 0, 0, 0.3)',
                                                                     cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                                     display: 'flex',
@@ -1002,7 +915,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                 (game.restart2_111 || 0) > 0
                                                                     ? 'rgba(0, 0, 0, 0.5)'
                                                                     : (game.restart2_112 || 0) === 1
-                                                                      ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                      ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                                       : 'rgba(0, 0, 0, 0.3)',
                                                             cursor:
                                                                 (game.restart2_111 || 0) > 0
@@ -1056,7 +969,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
 
                                     <div className={classes.formGroup}>
-                                        <label>Castles:</label>
+                                        <label style={{ textAlign: 'center', display: 'block' }}>Castles:</label>
                                         <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
                                             <div style={{ textAlign: 'center' }}>
                                                 <div
@@ -1276,7 +1189,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         marginBottom: '1rem',
                                         padding: '0.75rem',
                                         background:
-                                            'linear-gradient(135deg, rgba(62, 32, 192, 0.2), rgba(45, 20, 150, 0.2))',
+                                            color1 === 'red'
+                                                ? 'linear-gradient(to right, rgba(255, 100, 100, 0.95) 0%, rgba(255, 200, 200, 0.7) 20%, rgba(255, 255, 255, 0.5) 50%, rgba(200, 200, 255, 0.7) 80%, rgba(100, 100, 255, 0.95) 100%)'
+                                                : 'linear-gradient(to right, rgba(100, 100, 255, 0.95) 0%, rgba(200, 200, 255, 0.7) 20%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 200, 200, 0.7) 80%, rgba(255, 100, 100, 0.95) 100%)',
                                         borderRadius: '8px',
                                         border: '2px solid #FFD700',
                                         boxShadow:
@@ -1332,7 +1247,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     selectedWinner === pair.team1
                                                         ? 'rgba(255, 215, 0, 0.2)'
                                                         : 'transparent',
-                                                color: '#00ffff',
+                                                color: '#000000',
                                                 fontSize: '14px',
                                                 fontWeight: 'bold',
                                                 opacity: selectedWinner === pair.team1 ? 1 : 0.6,
@@ -1369,7 +1284,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '0.5rem',
+                                            gap: '0rem',
                                             flex: 1,
                                             justifyContent: 'flex-end'
                                         }}
@@ -1392,11 +1307,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     selectedWinner === pair.team2
                                                         ? 'rgba(255, 215, 0, 0.2)'
                                                         : 'transparent',
-                                                color: '#00ffff',
+                                                color: '#000000',
                                                 fontSize: '14px',
                                                 fontWeight: 'bold',
                                                 opacity: selectedWinner === pair.team2 ? 1 : 0.6,
-                                                transition: 'all 0.2s ease'
+                                                transition: 'all 0.2s ease',
+                                                textAlign: 'right'
                                             }}
                                         >
                                             {pair.team2}
@@ -1607,6 +1523,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
                             {/* Gold Input for BO-1 */}
                             <div className={classes.formGroup}>
+                                <label style={{ textAlign: 'center', display: 'block' }}>Gold:</label>
                                 <div
                                     style={{
                                         display: 'flex',
@@ -1633,7 +1550,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 border: '3px solid #FFD700',
                                                 borderRadius: '8px',
                                                 background:
-                                                    'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                    'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))',
                                                 color: gold1 > 0 ? '#00FF00' : gold1 < 0 ? '#FF0000' : '#FFD700',
                                                 fontWeight: 'bold',
                                                 boxShadow:
@@ -1682,7 +1599,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 border: '3px solid #FFD700',
                                                 borderRadius: '8px',
                                                 background:
-                                                    'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
+                                                    'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))',
                                                 color: gold2 > 0 ? '#00FF00' : gold2 < 0 ? '#FF0000' : '#FFD700',
                                                 fontWeight: 'bold',
                                                 boxShadow:
@@ -1695,7 +1612,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
                             {/* Restarts Input for BO-1 */}
                             <div className={classes.formGroup}>
-                                <label>Restarts:</label>
+                                <label style={{ textAlign: 'center', display: 'block' }}>Restarts:</label>
                                 <div
                                     style={{
                                         display: 'flex',
@@ -1733,7 +1650,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             background: isDisabled
                                                                 ? 'rgba(0, 0, 0, 0.5)'
                                                                 : isUsed
-                                                                  ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                  ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                                   : 'rgba(0, 0, 0, 0.3)',
                                                             cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                             display: 'flex',
@@ -1790,7 +1707,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         restart1_111 > 0
                                                             ? 'rgba(0, 0, 0, 0.5)'
                                                             : restart1_112 === 1
-                                                              ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                              ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                               : 'rgba(0, 0, 0, 0.3)',
                                                     cursor: restart1_111 > 0 ? 'not-allowed' : 'pointer',
                                                     display: 'flex',
@@ -1859,7 +1776,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             background: isDisabled
                                                                 ? 'rgba(0, 0, 0, 0.5)'
                                                                 : isUsed
-                                                                  ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                                  ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                                   : 'rgba(0, 0, 0, 0.3)',
                                                             cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                             display: 'flex',
@@ -1916,7 +1833,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         restart2_111 > 0
                                                             ? 'rgba(0, 0, 0, 0.5)'
                                                             : restart2_112 === 1
-                                                              ? 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))'
+                                                              ? 'linear-gradient(135deg, rgba(62, 32, 192, 1), rgba(45, 20, 150, 1))'
                                                               : 'rgba(0, 0, 0, 0.3)',
                                                     cursor: restart2_111 > 0 ? 'not-allowed' : 'pointer',
                                                     display: 'flex',
@@ -1960,7 +1877,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             </div>
 
                             <div className={classes.formGroup}>
-                                <label>Castles:</label>
+                                <label style={{ textAlign: 'center', display: 'block' }}>Castles:</label>
                                 <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
                                     <div style={{ textAlign: 'center' }}>
                                         {/* <div
