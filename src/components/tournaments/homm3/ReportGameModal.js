@@ -251,25 +251,164 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     ×
                 </button>
 
+                {/* Player Header Bar at Top */}
                 <div
                     style={{
                         position: 'absolute',
                         top: '10px',
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '20px',
                         background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.95), rgba(45, 20, 150, 0.95))',
-                        border: '2px solid #FFD700',
+                        border: '3px solid #FFD700',
+                        borderRadius: '12px',
+                        padding: '0.75rem 1.5rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(255, 215, 0, 0.5)',
-                        zIndex: 10
+                        justifyContent: 'space-between',
+                        gap: '2rem',
+                        boxShadow: '0 4px 16px rgba(255, 215, 0, 0.6)',
+                        zIndex: 10,
+                        minWidth: '500px'
                     }}
                 >
-                    <div style={{ color: '#FFD700', fontSize: '14px', fontWeight: 'bold', letterSpacing: '1px' }}>
-                        {`bo-${pair.type.toUpperCase()}`}
+                    {/* Player 1 Section */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                        <span
+                            style={{
+                                color: '#00ffff',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
+                            }}
+                        >
+                            {pair.team1}
+                        </span>
+                        <div
+                            onClick={() => {
+                                const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color1 : color1;
+                                const newColor = currentColor === 'red' ? 'blue' : 'red';
+                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                if (pair.type === 'bo-3') {
+                                    handleGameResultChange(0, 'color1', newColor);
+                                    handleGameResultChange(0, 'color2', oppositeColor);
+                                } else {
+                                    setColor1(newColor);
+                                    setColor2(oppositeColor);
+                                }
+                            }}
+                            style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '6px',
+                                background:
+                                    (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
+                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                border: '2px solid #FFD700',
+                                cursor: 'pointer',
+                                boxShadow:
+                                    (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
+                                        ? '0 0 12px rgba(255, 0, 0, 0.8)'
+                                        : '0 0 12px rgba(0, 0, 255, 0.8)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        />
+                    </div>
+
+                    {/* Center Score Section */}
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '0.25rem'
+                        }}
+                    >
+                        <div
+                            style={{
+                                color: '#FFD700',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                letterSpacing: '1px'
+                            }}
+                        >
+                            {pair.type.toUpperCase()}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div
+                                style={{
+                                    color: '#FFD700',
+                                    fontSize: '28px',
+                                    fontWeight: 'bold',
+                                    textShadow: '0 0 10px rgba(255, 215, 0, 0.8)'
+                                }}
+                            >
+                                {score1}
+                            </div>
+                            <div style={{ color: '#FFD700', fontSize: '20px', fontWeight: 'bold' }}>-</div>
+                            <div
+                                style={{
+                                    color: '#FFD700',
+                                    fontSize: '28px',
+                                    fontWeight: 'bold',
+                                    textShadow: '0 0 10px rgba(255, 215, 0, 0.8)'
+                                }}
+                            >
+                                {score2}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Player 2 Section */}
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            flex: 1,
+                            justifyContent: 'flex-end'
+                        }}
+                    >
+                        <div
+                            onClick={() => {
+                                const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color2 : color2;
+                                const newColor = currentColor === 'red' ? 'blue' : 'red';
+                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                if (pair.type === 'bo-3') {
+                                    handleGameResultChange(0, 'color2', newColor);
+                                    handleGameResultChange(0, 'color1', oppositeColor);
+                                } else {
+                                    setColor2(newColor);
+                                    setColor1(oppositeColor);
+                                }
+                            }}
+                            style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '6px',
+                                background:
+                                    (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
+                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                border: '2px solid #FFD700',
+                                cursor: 'pointer',
+                                boxShadow:
+                                    (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
+                                        ? '0 0 12px rgba(255, 0, 0, 0.8)'
+                                        : '0 0 12px rgba(0, 0, 255, 0.8)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        />
+                        <span
+                            style={{
+                                color: '#00ffff',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
+                            }}
+                        >
+                            {pair.team2}
+                        </span>
                     </div>
                 </div>
 
