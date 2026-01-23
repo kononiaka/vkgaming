@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import classes from './ReportGameModal.module.css';
+import { getAvatar, lookForUserId } from '../../../api/api';
 
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
@@ -33,6 +34,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [restart1_112, setRestart1_112] = useState(0); // 112 restarts for team1 (max 1)
     const [restart2_111, setRestart2_111] = useState(0); // 111 restarts for team2 (max 2)
     const [restart2_112, setRestart2_112] = useState(0); // 112 restarts for team2 (max 1)
+    const [avatar1, setAvatar1] = useState(null);
+    const [avatar2, setAvatar2] = useState(null);
 
     // Available castles - using database format with Russian names
     const castles = [
@@ -73,6 +76,34 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
 
     // Initialize game results for bo-3
     React.useEffect(() => {
+        // Fetch avatars for both players
+        const fetchAvatars = async () => {
+            try {
+                if (pair.team1 && pair.team1 !== 'TBD') {
+                    const uid1 = await lookForUserId(pair.team1);
+                    if (uid1) {
+                        const avatar = await getAvatar(uid1);
+                        setAvatar1(avatar);
+                    } else {
+                        console.log('No UID found for team1:', pair.team1);
+                    }
+                }
+                if (pair.team2 && pair.team2 !== 'TBD') {
+                    const uid2 = await lookForUserId(pair.team2);
+                    if (uid2) {
+                        const avatar = await getAvatar(uid2);
+                        setAvatar2(avatar);
+                    } else {
+                        console.log('No UID found for team2:', pair.team2);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching avatars:', error);
+            }
+        };
+
+        fetchAvatars();
+
         // Initialize winner and scores from pair
         setSelectedWinner(pair.winner || '');
         setScore1(pair.score1 || 0);
@@ -251,241 +282,253 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     ×
                 </button>
 
-                {/* Player Header Bar at Top */}
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.95), rgba(45, 20, 150, 0.95))',
-                        border: '3px solid #FFD700',
-                        borderRadius: '12px',
-                        padding: '0.75rem 1.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '2rem',
-                        boxShadow: '0 4px 16px rgba(255, 215, 0, 0.6)',
-                        zIndex: 10,
-                        minWidth: '500px'
-                    }}
-                >
-                    {/* Player 1 Section */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                        <span
-                            style={{
-                                color: '#00ffff',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
-                            }}
-                        >
-                            {pair.team1}
-                        </span>
-                        <div
-                            onClick={() => {
-                                const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color1 : color1;
-                                const newColor = currentColor === 'red' ? 'blue' : 'red';
-                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                if (pair.type === 'bo-3') {
-                                    handleGameResultChange(0, 'color1', newColor);
-                                    handleGameResultChange(0, 'color2', oppositeColor);
-                                } else {
-                                    setColor1(newColor);
-                                    setColor2(oppositeColor);
-                                }
-                            }}
-                            style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '6px',
-                                background:
-                                    (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
-                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                border: '2px solid #FFD700',
-                                cursor: 'pointer',
-                                boxShadow:
-                                    (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
-                                        ? '0 0 12px rgba(255, 0, 0, 0.8)'
-                                        : '0 0 12px rgba(0, 0, 255, 0.8)',
-                                transition: 'all 0.2s ease'
-                            }}
-                        />
-                    </div>
-
-                    {/* Center Score Section */}
+                {/* Player Header Bar at Top - STICKY (only for BO-3) */}
+                {pair.type === 'bo-3' && (
                     <div
                         style={{
+                            position: 'sticky',
+                            top: '0',
+                            left: '0%',
+                            transform: 'translateX(0%)',
+                            background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.98), rgba(45, 20, 150, 0.98))',
+                            border: '3px solid #FFD700',
+                            borderRadius: '0 0 12px 12px',
+                            padding: '0.75rem 1.5rem',
                             display: 'flex',
-                            flexDirection: 'column',
                             alignItems: 'center',
-                            gap: '0.25rem'
+                            justifyContent: 'space-between',
+                            gap: '2rem',
+                            boxShadow: '0 4px 20px rgba(255, 215, 0, 0.8), 0 8px 40px rgba(0, 0, 0, 0.5)',
+                            zIndex: 100,
+                            minWidth: '500px',
+                            backdropFilter: 'blur(10px)',
+                            marginBottom: '1rem'
                         }}
                     >
+                        {/* Player 1 Section */}
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div
+                                style={{
+                                    width: '58px',
+                                    height: '58px',
+                                    borderRadius: '50%',
+                                    background: avatar1 ? 'transparent' : 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '20px',
+                                    fontWeight: 'bold',
+                                    color: '#FFD700',
+                                    border: '3px solid #FFD700',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 215, 0, 0.3)',
+                                    textShadow: '0 0 8px rgba(255, 215, 0, 0.8)',
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                }}
+                            >
+                                {avatar1 ? (
+                                    <img
+                                        src={avatar1}
+                                        alt={pair.team1}
+                                        style={{
+                                            // width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            borderRadius: '50%'
+                                        }}
+                                    />
+                                ) : (
+                                    pair.team1.charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            <span
+                                style={{
+                                    color: '#00ffff',
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
+                                }}
+                            >
+                                {pair.team1}
+                            </span>
+                        </div>
+
+                        {/* Center Score Section */}
                         <div
                             style={{
-                                color: '#FFD700',
-                                fontSize: '12px',
-                                fontWeight: 'bold',
-                                letterSpacing: '1px'
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '0.25rem'
                             }}
                         >
-                            {pair.type.toUpperCase()}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div
                                 style={{
                                     color: '#FFD700',
-                                    fontSize: '28px',
+                                    fontSize: '12px',
                                     fontWeight: 'bold',
-                                    textShadow: '0 0 10px rgba(255, 215, 0, 0.8)'
+                                    letterSpacing: '1px'
                                 }}
                             >
-                                {score1}
+                                {pair.type.toUpperCase()}
                             </div>
-                            <div style={{ color: '#FFD700', fontSize: '20px', fontWeight: 'bold' }}>-</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div
+                                    style={{
+                                        color: '#FFD700',
+                                        fontSize: '28px',
+                                        fontWeight: 'bold',
+                                        textShadow: '0 0 10px rgba(255, 215, 0, 0.8)'
+                                    }}
+                                >
+                                    {score1}
+                                </div>
+                                <div style={{ color: '#FFD700', fontSize: '20px', fontWeight: 'bold' }}>-</div>
+                                <div
+                                    style={{
+                                        color: '#FFD700',
+                                        fontSize: '28px',
+                                        fontWeight: 'bold',
+                                        textShadow: '0 0 10px rgba(255, 215, 0, 0.8)'
+                                    }}
+                                >
+                                    {score2}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Player 2 Section */}
+                        <div
+                            style={{
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                justifyContent: 'flex-end'
+                            }}
+                        >
+                            <span
+                                style={{
+                                    color: '#00ffff',
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
+                                }}
+                            >
+                                {pair.team2}
+                            </span>
                             <div
                                 style={{
-                                    color: '#FFD700',
-                                    fontSize: '28px',
+                                    width: '66px',
+                                    height: '58px',
+                                    borderRadius: '50%',
+                                    background: avatar2 ? 'transparent' : 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '20px',
                                     fontWeight: 'bold',
-                                    textShadow: '0 0 10px rgba(255, 215, 0, 0.8)'
+                                    color: '#FFD700',
+                                    border: '3px solid #FFD700',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 215, 0, 0.3)',
+                                    textShadow: '0 0 8px rgba(255, 215, 0, 0.8)',
+                                    overflow: 'hidden',
+                                    position: 'relative'
                                 }}
                             >
-                                {score2}
+                                {avatar2 ? (
+                                    <img
+                                        src={avatar2}
+                                        alt={pair.team2}
+                                        style={{
+                                            // width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            borderRadius: '50%'
+                                        }}
+                                    />
+                                ) : (
+                                    pair.team2.charAt(0).toUpperCase()
+                                )}
                             </div>
                         </div>
                     </div>
+                )}
 
-                    {/* Player 2 Section */}
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            flex: 1,
-                            justifyContent: 'flex-end'
-                        }}
-                    >
-                        <div
-                            onClick={() => {
-                                const currentColor = pair.type === 'bo-3' ? gameResults[0]?.color2 : color2;
-                                const newColor = currentColor === 'red' ? 'blue' : 'red';
-                                const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                if (pair.type === 'bo-3') {
-                                    handleGameResultChange(0, 'color2', newColor);
-                                    handleGameResultChange(0, 'color1', oppositeColor);
-                                } else {
-                                    setColor2(newColor);
-                                    setColor1(oppositeColor);
-                                }
-                            }}
-                            style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '6px',
-                                background:
-                                    (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                border: '2px solid #FFD700',
-                                cursor: 'pointer',
-                                boxShadow:
-                                    (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                        ? '0 0 12px rgba(255, 0, 0, 0.8)'
-                                        : '0 0 12px rgba(0, 0, 255, 0.8)',
-                                transition: 'all 0.2s ease'
-                            }}
-                        />
-                        <span
-                            style={{
-                                color: '#00ffff',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                textShadow: '0 0 8px rgba(0, 255, 255, 0.6)'
-                            }}
-                        >
-                            {pair.team2}
-                        </span>
-                    </div>
-                </div>
-
-                <form
-                    onSubmit={handleSubmit}
-                    className={classes.form}
-                    style={{ position: 'relative', overflow: 'hidden' }}
-                >
-                    {/* Left Side Background - Player 1 */}
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: '100px',
-                            left: 0,
-                            width: '50%',
-                            height: 'calc(100% - 180px)',
-                            background:
-                                (pair.type === 'bo-3' ? gameResults[0]?.color1 : color1) === 'red'
-                                    ? 'linear-gradient(to right, rgba(139, 0, 0, 0.15), rgba(139, 0, 0, 0.05))'
-                                    : 'linear-gradient(to right, rgba(0, 0, 139, 0.15), rgba(0, 0, 139, 0.05))',
-                            backgroundImage: (pair.type === 'bo-3' ? gameResults[0]?.castle1 : castle1)
-                                ? `url(${getCastleImageUrl(pair.type === 'bo-3' ? gameResults[0]?.castle1 : castle1)})`
-                                : 'none',
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'center',
-                            backgroundRepeat: 'no-repeat',
-                            opacity: 0.5,
-                            zIndex: 0,
-                            pointerEvents: 'none'
-                        }}
-                    />
-                    {/* Right Side Background - Player 2 */}
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: '100px',
-                            right: 0,
-                            width: '50%',
-                            height: 'calc(100% - 180px)',
-                            background:
-                                (pair.type === 'bo-3' ? gameResults[0]?.color2 : color2) === 'red'
-                                    ? 'linear-gradient(to left, rgba(139, 0, 0, 0.15), rgba(139, 0, 0, 0.05))'
-                                    : 'linear-gradient(to left, rgba(0, 0, 139, 0.15), rgba(0, 0, 139, 0.05))',
-                            backgroundImage: (pair.type === 'bo-3' ? gameResults[0]?.castle2 : castle2)
-                                ? `url(${getCastleImageUrl(pair.type === 'bo-3' ? gameResults[0]?.castle2 : castle2)})`
-                                : 'none',
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'center',
-                            backgroundRepeat: 'no-repeat',
-                            opacity: 0.5,
-                            zIndex: 0,
-                            pointerEvents: 'none'
-                        }}
-                    />
-                    {/* Center Divider */}
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: '100px',
-                            left: '50%',
-                            width: '2px',
-                            height: 'calc(100% - 180px)',
-                            background: 'linear-gradient(to bottom, #FFD700, rgba(255, 215, 0, 0.3), #FFD700)',
-                            zIndex: 1,
-                            pointerEvents: 'none'
-                        }}
-                    />
-
+                <form onSubmit={handleSubmit} className={classes.form} style={{ position: 'relative' }}>
                     {pair.type === 'bo-3' ? (
                         <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* BO-3 Game Results */}
                             {gameResults.map((game, idx) => (
-                                <div key={idx} className={classes.gameSection}>
-                                    <h3 className={classes.gameTitle}>Game {idx + 1}</h3>
+                                <div
+                                    key={idx}
+                                    className={classes.gameSection}
+                                    style={{ position: 'relative', overflow: 'hidden' }}
+                                >
+                                    {/* Left Side Background - Player 1 for this game */}
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '50%',
+                                            height: '100%',
+                                            backgroundColor: 'transparent',
+                                            backgroundImage: game.castle1
+                                                ? `linear-gradient(to right, rgba(139, 0, 0, ${game.color1 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${game.color1 === 'red' ? '0.03' : '0'})), linear-gradient(to right, rgba(0, 0, 139, ${game.color1 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${game.color1 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(game.castle1)})`
+                                                : game.color1 === 'red'
+                                                  ? 'linear-gradient(to right, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
+                                                  : 'linear-gradient(to right, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
+                                            backgroundSize: game.castle1 ? 'auto, auto, contain' : 'auto',
+                                            backgroundPosition: game.castle1 ? 'left, left, center' : 'left',
+                                            backgroundRepeat: 'no-repeat',
+                                            opacity: 0.4,
+                                            zIndex: 0,
+                                            pointerEvents: 'none'
+                                        }}
+                                    />
+                                    {/* Right Side Background - Player 2 for this game */}
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            right: 0,
+                                            width: '50%',
+                                            height: '100%',
+                                            backgroundColor: 'transparent',
+                                            backgroundImage: game.castle2
+                                                ? `linear-gradient(to left, rgba(139, 0, 0, ${game.color2 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${game.color2 === 'red' ? '0.03' : '0'})), linear-gradient(to left, rgba(0, 0, 139, ${game.color2 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${game.color2 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(game.castle2)})`
+                                                : game.color2 === 'red'
+                                                  ? 'linear-gradient(to left, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
+                                                  : 'linear-gradient(to left, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
+                                            backgroundSize: game.castle2 ? 'auto, auto, contain' : 'auto',
+                                            backgroundPosition: game.castle2 ? 'right, right, center' : 'right',
+                                            backgroundRepeat: 'no-repeat',
+                                            opacity: 0.4,
+                                            zIndex: 0,
+                                            pointerEvents: 'none'
+                                        }}
+                                    />
+                                    {/* Center Divider for this game */}
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: '50%',
+                                            width: '2px',
+                                            height: '100%',
+                                            background:
+                                                'linear-gradient(to bottom, #FFD700, rgba(255, 215, 0, 0.2), #FFD700)',
+                                            zIndex: 1,
+                                            pointerEvents: 'none'
+                                        }}
+                                    />
+                                    <h3 className={classes.gameTitle} style={{ position: 'relative', zIndex: 2 }}>
+                                        Game {idx + 1}
+                                    </h3>
 
                                     {/* Compact Score/Winner Section with Color Toggle */}
-                                    <div className={classes.formGroup}>
+                                    <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                         <div
                                             style={{
                                                 display: 'flex',
@@ -665,7 +708,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
 
                                     {/* Gold Input for BO-3 */}
-                                    <div className={classes.formGroup}>
+                                    <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                         <label style={{ textAlign: 'center', display: 'block' }}>Gold:</label>
                                         <div
                                             style={{
@@ -774,7 +817,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     </div>
 
                                     {/* Restarts Input for BO-3 */}
-                                    <div className={classes.formGroup}>
+                                    <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                         <label style={{ textAlign: 'center', display: 'block' }}>Restarts:</label>
                                         <div
                                             style={{
@@ -1107,7 +1150,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         </div>
                                     </div>
 
-                                    <div className={classes.formGroup}>
+                                    <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                         <label style={{ textAlign: 'center', display: 'block' }}>Castles:</label>
                                         <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
                                             <div style={{ textAlign: 'center' }}>
@@ -1206,7 +1249,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className={classes.formGroup}>
+                                    {/* <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                         <label>Winner:</label>
                                         <div
                                             style={{
@@ -1309,16 +1352,73 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> */}
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div style={{ position: 'relative', zIndex: 2 }}>
+                        <div style={{ position: 'relative', overflow: 'hidden' }}>
+                            {/* Left Side Background - Player 1 for BO-1 */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '50%',
+                                    height: '100%',
+                                    backgroundColor: 'transparent',
+                                    backgroundImage: castle1
+                                        ? `linear-gradient(to right, rgba(139, 0, 0, ${color1 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${color1 === 'red' ? '0.03' : '0'})), linear-gradient(to right, rgba(0, 0, 139, ${color1 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${color1 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(castle1)})`
+                                        : color1 === 'red'
+                                          ? 'linear-gradient(to right, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
+                                          : 'linear-gradient(to right, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
+                                    backgroundSize: castle1 ? 'auto, auto, contain' : 'auto',
+                                    backgroundPosition: castle1 ? 'left, left, center' : 'left',
+                                    backgroundRepeat: 'no-repeat',
+                                    opacity: 0.4,
+                                    zIndex: 0,
+                                    pointerEvents: 'none'
+                                }}
+                            />
+                            {/* Right Side Background - Player 2 for BO-1 */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 0,
+                                    width: '50%',
+                                    height: '100%',
+                                    backgroundColor: 'transparent',
+                                    backgroundImage: castle2
+                                        ? `linear-gradient(to left, rgba(139, 0, 0, ${color2 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${color2 === 'red' ? '0.03' : '0'})), linear-gradient(to left, rgba(0, 0, 139, ${color2 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${color2 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(castle2)})`
+                                        : color2 === 'red'
+                                          ? 'linear-gradient(to left, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
+                                          : 'linear-gradient(to left, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
+                                    backgroundSize: castle2 ? 'auto, auto, contain' : 'auto',
+                                    backgroundPosition: castle2 ? 'right, right, center' : 'right',
+                                    backgroundRepeat: 'no-repeat',
+                                    opacity: 0.4,
+                                    zIndex: 0,
+                                    pointerEvents: 'none'
+                                }}
+                            />
+                            {/* Center Divider for BO-1 */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: '50%',
+                                    width: '2px',
+                                    height: '100%',
+                                    background: 'linear-gradient(to bottom, #FFD700, rgba(255, 215, 0, 0.2), #FFD700)',
+                                    zIndex: 1,
+                                    pointerEvents: 'none'
+                                }}
+                            />
                             {/* BO-1 Game Result */}
 
                             {/* Compact Score/Winner Section for BO-1 */}
-                            <div className={classes.formGroup}>
+                            <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                 <div
                                     style={{
                                         display: 'flex',
@@ -1661,7 +1761,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             </div> */}
 
                             {/* Gold Input for BO-1 */}
-                            <div className={classes.formGroup}>
+                            <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                 <label style={{ textAlign: 'center', display: 'block' }}>Gold:</label>
                                 <div
                                     style={{
@@ -1750,7 +1850,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                             </div>
 
                             {/* Restarts Input for BO-1 */}
-                            <div className={classes.formGroup}>
+                            <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                 <label style={{ textAlign: 'center', display: 'block' }}>Restarts:</label>
                                 <div
                                     style={{
@@ -2015,7 +2115,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                 </div>
                             </div>
 
-                            <div className={classes.formGroup}>
+                            <div className={classes.formGroup} style={{ position: 'relative', zIndex: 2 }}>
                                 <label style={{ textAlign: 'center', display: 'block' }}>Castles:</label>
                                 <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
                                     <div style={{ textAlign: 'center' }}>

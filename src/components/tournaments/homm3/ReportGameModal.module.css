@@ -27,16 +27,20 @@
     top: -50px;
     position: relative;
     background: linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%);
-    border: 2px solid gold;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    padding: 2rem;
-    min-width: 500px;
-    max-width: 700px;
+    border: 3px solid gold;
+    border-radius: 16px;
+    box-shadow:
+        0 12px 48px rgba(0, 0, 0, 0.7),
+        0 0 30px rgba(255, 215, 0, 0.3);
+    padding: 0.5rem 2rem 2rem 2rem;
+    min-width: 700px;
+    max-width: 1000px;
     max-height: 90vh;
     overflow-y: auto;
+    overflow-x: hidden;
     color: white;
     animation: slideIn 0.3s ease-out;
+    scroll-behavior: smooth;
 }
 
 @keyframes slideIn {
@@ -130,31 +134,51 @@
 .gameSection {
     background: rgba(255, 255, 255, 0.08);
     padding: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    margin-bottom: 1rem;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    margin-bottom: 1.5rem;
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.3),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.gameSection:hover {
+    border-color: rgba(255, 215, 0, 0.6);
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.4),
+        0 0 15px rgba(255, 215, 0, 0.2),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
 }
 
 .gameTitle {
     color: gold;
-    font-size: 1.2rem;
-    margin: 0 0 1rem 0;
+    font-size: 1.3rem;
+    margin: 0 0 1.25rem 0;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
+    text-shadow:
+        0 0 10px rgba(255, 215, 0, 0.6),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+    font-weight: 700;
 }
 
 .formGroup {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
 }
 
 .formGroup label {
-    color: rgba(255, 255, 255, 0.9);
-    font-weight: 600;
-    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 700;
+    font-size: 1rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
 }
 
 .formGroup select,
@@ -212,45 +236,66 @@
 }
 
 .submitButton {
-    background: gold;
+    background: linear-gradient(135deg, #ffd700, #ffa500);
     color: rgb(62, 32, 192);
     border: 2px solid gold;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
 }
 
 .submitButton:hover {
-    background: #ffd700;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    background: linear-gradient(135deg, #ffa500, #ffd700);
+    transform: translateY(-3px);
+    box-shadow:
+        0 6px 20px rgba(255, 215, 0, 0.6),
+        0 0 15px rgba(255, 215, 0, 0.4);
+}
+
+.submitButton:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
 }
 
 .cancelButton {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.05);
     color: white;
     border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .cancelButton:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: white;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.8);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+
+.cancelButton:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Scrollbar styling */
 .modal::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
 }
 
 .modal::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    margin: 8px 0;
 }
 
 .modal::-webkit-scrollbar-thumb {
-    background: rgba(255, 215, 0, 0.5);
-    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.7), rgba(255, 165, 0, 0.7));
+    border-radius: 10px;
+    border: 2px solid rgba(62, 32, 192, 0.5);
+    transition: all 0.3s ease;
 }
 
 .modal::-webkit-scrollbar-thumb:hover {
-    background: gold;
+    background: linear-gradient(180deg, #ffd700, #ffa500);
+    border-color: rgba(62, 32, 192, 0.8);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
 /* Responsive design */
