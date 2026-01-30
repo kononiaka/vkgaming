@@ -20,6 +20,7 @@ const SpinningWheel = ({ players, onStartTournament }) => {
     // Initialize remaining players and pre-bracket pairs
     useEffect(() => {
         const playerNames = Object.values(players).map((player) => player.name);
+
         setRemainingPlayers(playerNames);
         const pairs = Array.from({ length: playerNames.length / 2 }, () => ['TBD', 'TBD']);
         setPreBracketPairs(pairs);
@@ -475,6 +476,19 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                             className={classes.spinDurationInput}
                         />
                     </div>
+                    {/* Selected player display with stars */}
+                    {selectedPlayer && (
+                        <div className={classes.selectedPlayerDisplay}>
+                            <h3>Selected Player</h3>
+                            <div className={classes.selectedPlayerInfo}>
+                                <span className={classes.selectedPlayerName}>{selectedPlayer}</span>
+                                {(() => {
+                                    const playerData = Object.values(players).find((p) => p.name === selectedPlayer);
+                                    return playerData?.stars ? <StarsComponent stars={playerData.stars} /> : null;
+                                })()}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
             {/* Pre-Bracket Table */}
@@ -485,6 +499,7 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                 {preBracketPairs.map((pair, index) => {
                     const details = pairDetails[index];
                     const [player1, player2] = pair;
+
                     return (
                         <div key={index} className={classes.bracketPair}>
                             <div className={classes.pairContainer}>

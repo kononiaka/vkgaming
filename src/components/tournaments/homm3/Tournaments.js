@@ -5,6 +5,7 @@ import { addCoins } from '../../../api/coinTransactions';
 import AuthContext from '../../../store/auth-context';
 import { getTournamentData } from '../../tournaments/tournament_api';
 import Modal from '../../Modal/Modal';
+import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
@@ -19,6 +20,8 @@ const TournamentList = () => {
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
     const [statusFilter, setStatusFilter] = useState('started');
+    const [showSpinningWheel, setShowSpinningWheel] = useState(false);
+    const [tournamentPlayers, setTournamentPlayers] = useState({});
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
@@ -86,7 +89,7 @@ const TournamentList = () => {
         return registeredPlayers.some((player) => player.name === currentUser);
     };
 
-    const addUserTournament = async (tourId, nickname, tournamentPlayers, maxPlayers) => {
+    const addUserTournament = async (tourId, nickname, currentTournamentPlayers, maxPlayers) => {
         const user = await lookForUserId(nickname, 'full');
         const userId = await lookForUserId(nickname);
 
@@ -154,7 +157,7 @@ const TournamentList = () => {
             }
         }
 
-        if (response.ok && +Object.keys(tournamentPlayers).length === +maxPlayers - 1) {
+        if (response.ok && +Object.keys(currentTournamentPlayers).length === +maxPlayers - 1) {
             let tournamentStatusResponse = {};
             let tournamentStatusResponseModal = confirmWindow(
                 `Are you sure you want to update tournament's status to 'Registration Finished'?`
@@ -185,7 +188,7 @@ const TournamentList = () => {
         return response;
     };
 
-    const fillTournamentWithRandomPlayers = async (tourId, tournamentPlayers, maxPlayers) => {
+    const fillTournamentWithRandomPlayers = async (tourId, currentTournamentPlayers, maxPlayers) => {
         try {
             // Get all users from database
             const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
@@ -197,7 +200,7 @@ const TournamentList = () => {
             }
 
             // Get current tournament players
-            const currentPlayerNames = Object.values(tournamentPlayers)
+            const currentPlayerNames = Object.values(currentTournamentPlayers)
                 .filter((player) => player !== null)
                 .map((player) => player.name);
 
@@ -231,7 +234,7 @@ const TournamentList = () => {
             }
 
             // Calculate how many players we need to add
-            const spotsToFill = maxPlayers - Object.keys(tournamentPlayers).length;
+            const spotsToFill = maxPlayers - Object.keys(currentTournamentPlayers).length;
 
             if (spotsToFill <= 0) {
                 alert('Tournament is already full');
@@ -282,7 +285,7 @@ const TournamentList = () => {
             }
 
             // Check if tournament is now full and update status
-            const newPlayerCount = Object.keys(tournamentPlayers).length + playersToAdd;
+            const newPlayerCount = Object.keys(currentTournamentPlayers).length + playersToAdd;
             console.log('newPlayerCount: ' + newPlayerCount);
             console.log('maxPlayers: ' + maxPlayers);
             console.log('maxPlayers type:', typeof maxPlayers);
@@ -320,7 +323,15 @@ const TournamentList = () => {
 
     const closeModalHandler = () => {
         setShowDetails(false);
+        setShowSpinningWheel(false);
         // setSelectedTournament(null);
+    };
+
+    const handleStartTournament = async (preBracketPairs) => {
+        // This will be called when spinning wheel completes
+        // Close spinning wheel and refresh to show bracket with started status
+        setShowSpinningWheel(false);
+        window.location.reload();
     };
 
     const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
@@ -394,13 +405,27 @@ const TournamentList = () => {
     //     setShowDetails(true);
     // };
 
-    const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinnersObject, currentTournamentId) => {
+    const showDetailsHandler = async (
+        currentTournamentStatus,
+        currentTournamentWinnersObject,
+        currentTournamentId,
+        tournament = null
+    ) => {
         // console.log('currentTournamentWinner', currentTournamentWinnersObject);
 
         setClickedId(currentTournamentId);
-        setShowDetails((prevState) => !prevState);
         setTournamentStatus(currentTournamentStatus);
         setTournamentWinners(currentTournamentWinnersObject);
+
+        // Check if this is a "Registration finished!" status and tournament has randomBracket enabled
+        if (currentTournamentStatus === 'Registration finished!' && tournament && tournament.randomBracket) {
+            // Show spinning wheel directly
+            setTournamentPlayers(tournament.players || {});
+            setShowSpinningWheel(true);
+        } else {
+            // Show bracket modal
+            setShowDetails((prevState) => !prevState);
+        }
     };
 
     // Check if tournament has live games (castles selected but no winner)
@@ -425,6 +450,9 @@ const TournamentList = () => {
         }
         if (statusFilter === 'registration') {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
+        }
+        if (statusFilter === 'registrationFinished') {
+            return tournament.status === 'Registration finished!';
         }
         if (statusFilter === 'started') {
             return tournament.status === 'Started!';
@@ -543,7 +571,12 @@ const TournamentList = () => {
                                     <button
                                         className={`${classes.btn} ${classes.btnPrimary}`}
                                         onClick={() =>
-                                            showDetailsHandler(tournament.status, tournament.winners, tournament.id)
+                                            showDetailsHandler(
+                                                tournament.status,
+                                                tournament.winners,
+                                                tournament.id,
+                                                tournament
+                                            )
                                         }
                                     >
                                         🏆 View Bracket
@@ -666,7 +699,12 @@ const TournamentList = () => {
                                                 padding: '0.75rem 1.5rem'
                                             }}
                                             onClick={() =>
-                                                showDetailsHandler(tournament.status, tournament.winners, tournament.id)
+                                                showDetailsHandler(
+                                                    tournament.status,
+                                                    tournament.winners,
+                                                    tournament.id,
+                                                    tournament
+                                                )
                                             }
                                         >
                                             🎮 Start Tournament
@@ -767,6 +805,9 @@ const TournamentList = () => {
                     <option value="registration" style={{ background: '#1a1a2e', color: '#00ffff' }}>
                         📝 Registration Open
                     </option>
+                    <option value="registrationFinished" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        ✅ Registration Finished
+                    </option>
                     <option value="started" style={{ background: '#1a1a2e', color: '#00ffff' }}>
                         🎮 In Progress
                     </option>
@@ -788,6 +829,11 @@ const TournamentList = () => {
                         tournamentWinners={tournamentWinnersObject}
                         // tournamentNameParam={tournamentName}
                     ></TournamentBracket>
+                </Modal>
+            )}
+            {showSpinningWheel && (
+                <Modal onClose={closeModalHandler}>
+                    <SpinningWheel players={tournamentPlayers} onStartTournament={handleStartTournament} />
                 </Modal>
             )}
         </div>
