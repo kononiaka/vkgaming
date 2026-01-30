@@ -479,10 +479,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 : game.color1 === 'red'
                                                   ? 'linear-gradient(to right, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
                                                   : 'linear-gradient(to right, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
-                                            backgroundSize: game.castle1 ? 'auto, auto, contain' : 'auto',
-                                            backgroundPosition: game.castle1 ? 'left, left, center' : 'left',
+                                            backgroundSize: game.castle1 ? 'auto, auto, cover' : 'auto',
+                                            backgroundPosition: game.castle1 ? 'left, left, left' : 'left',
                                             backgroundRepeat: 'no-repeat',
-                                            opacity: 0.4,
+                                            opacity: 0.7,
                                             zIndex: 0,
                                             pointerEvents: 'none'
                                         }}
@@ -501,10 +501,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 : game.color2 === 'red'
                                                   ? 'linear-gradient(to left, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
                                                   : 'linear-gradient(to left, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
-                                            backgroundSize: game.castle2 ? 'auto, auto, contain' : 'auto',
-                                            backgroundPosition: game.castle2 ? 'right, right, center' : 'right',
+                                            backgroundSize: game.castle2 ? 'auto, auto, cover' : 'auto',
+                                            backgroundPosition: game.castle2 ? 'right, right, right' : 'right',
                                             backgroundRepeat: 'no-repeat',
-                                            opacity: 0.4,
+                                            opacity: 0.7,
                                             zIndex: 0,
                                             pointerEvents: 'none'
                                         }}
@@ -948,7 +948,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             justifyContent: 'center',
                                                             opacity:
                                                                 (game.restart1_111 || 0) > 0
-                                                                    ? 0.4
+                                                                    ? 0.8
                                                                     : (game.restart1_112 || 0) === 1
                                                                       ? 1
                                                                       : 0.6,
@@ -1108,7 +1108,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             justifyContent: 'center',
                                                             opacity:
                                                                 (game.restart2_111 || 0) > 0
-                                                                    ? 0.4
+                                                                    ? 0.8
                                                                     : (game.restart2_112 || 0) === 1
                                                                       ? 1
                                                                       : 0.6,
@@ -1169,7 +1169,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         display: 'grid',
                                                         gridTemplateColumns: 'repeat(3, 1fr)',
                                                         gap: '0.5rem',
-                                                        maxWidth: '300px'
+                                                        maxWidth: '400px',
+                                                        justifyItems: 'center'
                                                     }}
                                                 >
                                                     {castles.map((c) => (
@@ -1179,7 +1180,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             alt={c}
                                                             title={c}
                                                             style={{
-                                                                width: '90px',
+                                                                width: '105px',
                                                                 height: '60px',
                                                                 border:
                                                                     game.castle1 === c
@@ -1216,7 +1217,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         display: 'grid',
                                                         gridTemplateColumns: 'repeat(3, 1fr)',
                                                         gap: '0.5rem',
-                                                        maxWidth: '300px'
+                                                        maxWidth: '400px',
+                                                        justifyItems: 'center'
                                                     }}
                                                 >
                                                     {castles.map((c) => (
@@ -1226,7 +1228,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             alt={c}
                                                             title={c}
                                                             style={{
-                                                                width: '90px',
+                                                                width: '105px',
                                                                 height: '60px',
                                                                 border:
                                                                     game.castle2 === c
@@ -1372,10 +1374,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         : color1 === 'red'
                                           ? 'linear-gradient(to right, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
                                           : 'linear-gradient(to right, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
-                                    backgroundSize: castle1 ? 'auto, auto, contain' : 'auto',
-                                    backgroundPosition: castle1 ? 'left, left, center' : 'left',
+                                    backgroundSize: castle1 ? 'auto, auto, cover' : 'auto',
+                                    backgroundPosition: castle1 ? 'left, left, left' : 'left',
                                     backgroundRepeat: 'no-repeat',
-                                    opacity: 0.4,
+                                    opacity: 0.75,
                                     zIndex: 0,
                                     pointerEvents: 'none'
                                 }}
@@ -1394,10 +1396,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         : color2 === 'red'
                                           ? 'linear-gradient(to left, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
                                           : 'linear-gradient(to left, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
-                                    backgroundSize: castle2 ? 'auto, auto, contain' : 'auto',
-                                    backgroundPosition: castle2 ? 'right, right, center' : 'right',
+                                    backgroundSize: castle2 ? 'auto, auto, cover' : 'auto',
+                                    backgroundPosition: castle2 ? 'right, right, right' : 'right',
                                     backgroundRepeat: 'no-repeat',
-                                    opacity: 0.4,
+                                    opacity: 0.75,
                                     zIndex: 0,
                                     pointerEvents: 'none'
                                 }}
@@ -1440,6 +1442,42 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                        <div
+                                            style={{
+                                                width: '48px',
+                                                height: '48px',
+                                                borderRadius: '50%',
+                                                background: avatar1
+                                                    ? 'transparent'
+                                                    : 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '16px',
+                                                fontWeight: 'bold',
+                                                color: '#FFD700',
+                                                border: '2px solid #FFD700',
+                                                boxShadow:
+                                                    '0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 215, 0, 0.3)',
+                                                textShadow: '0 0 8px rgba(255, 215, 0, 0.8)',
+                                                overflow: 'hidden',
+                                                position: 'relative'
+                                            }}
+                                        >
+                                            {avatar1 ? (
+                                                <img
+                                                    src={avatar1}
+                                                    alt={pair.team1}
+                                                    style={{
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                        borderRadius: '50%'
+                                                    }}
+                                                />
+                                            ) : (
+                                                pair.team1.charAt(0).toUpperCase()
+                                            )}
+                                        </div>
                                         <div
                                             onClick={() => {
                                                 const newColor = color1 === 'red' ? 'blue' : 'red';
@@ -1523,7 +1561,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '0rem',
+                                            gap: '0.5rem',
                                             flex: 1,
                                             justifyContent: 'flex-end'
                                         }}
@@ -1583,6 +1621,42 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             : 'drop-shadow(0 0 3px rgba(0, 0, 255, 0.8))'
                                                 }}
                                             />
+                                        </div>
+                                        <div
+                                            style={{
+                                                width: '48px',
+                                                height: '48px',
+                                                borderRadius: '50%',
+                                                background: avatar2
+                                                    ? 'transparent'
+                                                    : 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '16px',
+                                                fontWeight: 'bold',
+                                                color: '#FFD700',
+                                                border: '2px solid #FFD700',
+                                                boxShadow:
+                                                    '0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 215, 0, 0.3)',
+                                                textShadow: '0 0 8px rgba(255, 215, 0, 0.8)',
+                                                overflow: 'hidden',
+                                                position: 'relative'
+                                            }}
+                                        >
+                                            {avatar2 ? (
+                                                <img
+                                                    src={avatar2}
+                                                    alt={pair.team2}
+                                                    style={{
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                        borderRadius: '50%'
+                                                    }}
+                                                />
+                                            ) : (
+                                                pair.team2.charAt(0).toUpperCase()
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -2134,7 +2208,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 display: 'grid',
                                                 gridTemplateColumns: 'repeat(3, 1fr)',
                                                 gap: '0.5rem',
-                                                maxWidth: '300px'
+                                                maxWidth: '400px',
+                                                justifyItems: 'center'
                                             }}
                                         >
                                             {castles.map((c) => (
@@ -2144,18 +2219,13 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     alt={c}
                                                     title={c}
                                                     style={{
-                                                        width: '90px',
-                                                        height: '60px',
-                                                        border:
-                                                            castle1 === c
-                                                                ? '3px solid #FFD700'
-                                                                : color1 === 'red'
-                                                                  ? '2px solid #FF0000'
-                                                                  : '2px solid #0000FF',
+                                                        width: '105px',
+                                                        height: '70px',
+
                                                         borderRadius: '4px',
                                                         objectFit: 'cover',
                                                         cursor: 'pointer',
-                                                        opacity: castle1 === c ? 1 : 0.6,
+                                                        opacity: castle1 === c ? 1 : 0.7,
                                                         transform: castle1 === c ? 'scale(1.05)' : 'scale(1)',
                                                         transition: 'all 0.2s ease'
                                                     }}
@@ -2180,7 +2250,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 display: 'grid',
                                                 gridTemplateColumns: 'repeat(3, 1fr)',
                                                 gap: '0.5rem',
-                                                maxWidth: '300px'
+                                                maxWidth: '400px',
+                                                justifyItems: 'center'
                                             }}
                                         >
                                             {castles.map((c) => (
@@ -2190,18 +2261,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     alt={c}
                                                     title={c}
                                                     style={{
-                                                        width: '90px',
-                                                        height: '60px',
-                                                        border:
-                                                            castle2 === c
-                                                                ? '3px solid #FFD700'
-                                                                : color2 === 'red'
-                                                                  ? '2px solid #FF0000'
-                                                                  : '2px solid #0000FF',
+                                                        width: '105px',
+                                                        height: '70px',
                                                         borderRadius: '4px',
                                                         objectFit: 'cover',
                                                         cursor: 'pointer',
-                                                        opacity: castle2 === c ? 1 : 0.6,
+                                                        opacity: castle2 === c ? 1 : 0.7,
                                                         transform: castle2 === c ? 'scale(1.05)' : 'scale(1)',
                                                         transition: 'all 0.2s ease'
                                                     }}
