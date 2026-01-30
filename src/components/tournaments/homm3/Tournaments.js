@@ -5,6 +5,7 @@ import { addCoins } from '../../../api/coinTransactions';
 import AuthContext from '../../../store/auth-context';
 import { getTournamentData } from '../../tournaments/tournament_api';
 import Modal from '../../Modal/Modal';
+import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
@@ -19,6 +20,8 @@ const TournamentList = () => {
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
     const [statusFilter, setStatusFilter] = useState('started');
+    const [showSpinningWheel, setShowSpinningWheel] = useState(false);
+    const [tournamentPlayers, setTournamentPlayers] = useState({});
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
@@ -86,7 +89,7 @@ const TournamentList = () => {
         return registeredPlayers.some((player) => player.name === currentUser);
     };
 
-    const addUserTournament = async (tourId, nickname, tournamentPlayers, maxPlayers) => {
+    const addUserTournament = async (tourId, nickname, currentTournamentPlayers, maxPlayers) => {
         const user = await lookForUserId(nickname, 'full');
         const userId = await lookForUserId(nickname);
 
@@ -154,7 +157,7 @@ const TournamentList = () => {
             }
         }
 
-        if (response.ok && +Object.keys(tournamentPlayers).length === +maxPlayers - 1) {
+        if (response.ok && +Object.keys(currentTournamentPlayers).length === +maxPlayers - 1) {
             let tournamentStatusResponse = {};
             let tournamentStatusResponseModal = confirmWindow(
                 `Are you sure you want to update tournament's status to 'Registration Finished'?`
@@ -185,7 +188,7 @@ const TournamentList = () => {
         return response;
     };
 
-    const fillTournamentWithRandomPlayers = async (tourId, tournamentPlayers, maxPlayers) => {
+    const fillTournamentWithRandomPlayers = async (tourId, currentTournamentPlayers, maxPlayers) => {
         try {
             // Get all users from database
             const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
@@ -197,7 +200,7 @@ const TournamentList = () => {
             }
 
             // Get current tournament players
-            const currentPlayerNames = Object.values(tournamentPlayers)
+            const currentPlayerNames = Object.values(currentTournamentPlayers)
                 .filter((player) => player !== null)
                 .map((player) => player.name);
 
@@ -231,7 +234,7 @@ const TournamentList = () => {
             }
 
             // Calculate how many players we need to add
-            const spotsToFill = maxPlayers - Object.keys(tournamentPlayers).length;
+            const spotsToFill = maxPlayers - Object.keys(currentTournamentPlayers).length;
 
             if (spotsToFill <= 0) {
                 alert('Tournament is already full');
@@ -282,7 +285,7 @@ const TournamentList = () => {
             }
 
             // Check if tournament is now full and update status
-            const newPlayerCount = Object.keys(tournamentPlayers).length + playersToAdd;
+            const newPlayerCount = Object.keys(currentTournamentPlayers).length + playersToAdd;
             console.log('newPlayerCount: ' + newPlayerCount);
             console.log('maxPlayers: ' + maxPlayers);
             console.log('maxPlayers type:', typeof maxPlayers);
@@ -320,7 +323,214 @@ const TournamentList = () => {
 
     const closeModalHandler = () => {
         setShowDetails(false);
+        setShowSpinningWheel(false);
         // setSelectedTournament(null);
+    };
+
+    const handleStartTournament = async (preBracketPairs) => {
+        // This will be called when spinning wheel completes
+
+        const isBracketComplete = preBracketPairs.every((pair) => pair[0] !== 'TBD' && pair[1] !== 'TBD');
+
+        if (!isBracketComplete) {
+            console.error('Bracket is not complete. Please fill all slots.');
+            alert('Bracket is not complete. Please fill all slots.');
+            return;
+        }
+
+        try {
+            // Get tournament data
+            const tournamentResponseGET = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${clickedId}/.json`,
+                {
+                    method: 'GET'
+                }
+            );
+
+            if (!tournamentResponseGET.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await tournamentResponseGET.json();
+            const maxPlayers = tournamentData.maxPlayers;
+            const tournamentPlayoffGames = tournamentData.tournamentPlayoffGames || 'bo-1';
+            const players = tournamentData.players;
+
+            // Calculate stage labels based on maxPlayers
+            let currentStageLabels = [];
+            if (+maxPlayers === 4) {
+                currentStageLabels = ['Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 8) {
+                currentStageLabels = ['Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 16) {
+                currentStageLabels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 32) {
+                currentStageLabels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            }
+
+            // Determine number of games based on bo-1 or bo-3
+            const numGames = tournamentPlayoffGames === 'bo-3' ? 3 : 1;
+            const gameType = tournamentPlayoffGames;
+
+            // Format bracket pairs with player data
+            const formattedBracket = preBracketPairs.map((pair) => {
+                const player1 = Object.values(players).find((p) => p.name === pair[0]);
+                const player2 = Object.values(players).find((p) => p.name === pair[1]);
+
+                // Get the latest ratings as strings
+                const ratings1 = player1?.ratings
+                    ? typeof player1.ratings === 'string' && player1.ratings.includes(',')
+                        ? player1.ratings.split(',').pop().trim()
+                        : String(player1.ratings)
+                    : '0';
+
+                const ratings2 = player2?.ratings
+                    ? typeof player2.ratings === 'string' && player2.ratings.includes(',')
+                        ? player2.ratings.split(',').pop().trim()
+                        : String(player2.ratings)
+                    : '0';
+
+                // Create games array
+                const games = Array.from({ length: numGames }, (_, index) => ({
+                    castle1: '',
+                    castle2: '',
+                    castleWinner: '',
+                    gameId: index,
+                    gameStatus: 'Not Started',
+                    gameWinner: '',
+                    color1: 'red',
+                    color2: 'blue',
+                    gold1: 0,
+                    gold2: 0,
+                    restart1_111: 0,
+                    restart1_112: 0,
+                    restart2_111: 0,
+                    restart2_112: 0
+                }));
+
+                return {
+                    gameStatus: 'Not Started',
+                    games: games,
+                    ratings1: ratings1,
+                    ratings2: ratings2,
+                    score1: 0,
+                    score2: 0,
+                    stage: currentStageLabels[0] || 'Quarter-final',
+                    stars1: player1?.stars || 0,
+                    stars2: player2?.stars || 0,
+                    team1: pair[0],
+                    team2: pair[1],
+                    type: gameType,
+                    winner: null,
+                    color1: 'red',
+                    color2: 'blue'
+                };
+            });
+
+            // Create the full bracket structure with all stages
+            const fullBracketStructure = [formattedBracket]; // Stage 0
+
+            // Add empty stages for Semi-final, Third Place, and Final
+            for (let i = 1; i < currentStageLabels.length; i++) {
+                const stageGames = [];
+                let pairsInStage;
+
+                // Determine number of pairs based on stage
+                const stageName = currentStageLabels[i];
+                if (stageName === 'Semi-final') {
+                    pairsInStage = 2;
+                } else if (stageName === 'Third Place' || stageName === 'Final') {
+                    pairsInStage = 1;
+                } else if (stageName === 'Quarter-final') {
+                    pairsInStage = 4;
+                } else if (stageName === '1/8 Final') {
+                    pairsInStage = 8;
+                } else if (stageName === '1/16 Final') {
+                    pairsInStage = 16;
+                } else {
+                    pairsInStage = 1;
+                }
+
+                for (let j = 0; j < pairsInStage; j++) {
+                    const emptyGames = Array.from({ length: numGames }, (_, index) => ({
+                        castle1: '',
+                        castle2: '',
+                        castleWinner: '',
+                        gameId: index,
+                        gameStatus: 'Not Started',
+                        gameWinner: '',
+                        color1: 'red',
+                        color2: 'blue',
+                        gold1: 0,
+                        gold2: 0,
+                        restart1_111: 0,
+                        restart1_112: 0,
+                        restart2_111: 0,
+                        restart2_112: 0
+                    }));
+
+                    stageGames.push({
+                        gameStatus: 'Not Started',
+                        games: emptyGames,
+                        ratings1: null,
+                        ratings2: null,
+                        score1: 0,
+                        score2: 0,
+                        stage: currentStageLabels[i],
+                        stars1: null,
+                        stars2: null,
+                        team1: 'TBD',
+                        team2: 'TBD',
+                        type: gameType,
+                        winner: null,
+                        color1: 'red',
+                        color2: 'blue'
+                    });
+                }
+
+                fullBracketStructure.push(stageGames);
+            }
+
+            console.log('Full bracket structure to be posted:', fullBracketStructure);
+
+            // Post the bracket structure to the database
+            const bracketResponse = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${clickedId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(fullBracketStructure),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (!bracketResponse.ok) {
+                throw new Error('Failed to update tournament bracket');
+            }
+
+            console.log('Tournament Bracket Updated successfully!');
+
+            // Update tournament status to "Started!"
+            await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${clickedId}/status.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            console.log('Tournament status updated to Started!');
+
+            // Close spinning wheel and reload to show bracket
+            setShowSpinningWheel(false);
+            window.location.reload();
+        } catch (error) {
+            console.error('Error updating tournament status:', error);
+            alert('Error starting tournament');
+        }
     };
 
     const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
@@ -394,13 +604,27 @@ const TournamentList = () => {
     //     setShowDetails(true);
     // };
 
-    const showDetailsHandler = async (currentTournamentStatus, currentTournamentWinnersObject, currentTournamentId) => {
+    const showDetailsHandler = async (
+        currentTournamentStatus,
+        currentTournamentWinnersObject,
+        currentTournamentId,
+        tournament = null
+    ) => {
         // console.log('currentTournamentWinner', currentTournamentWinnersObject);
 
         setClickedId(currentTournamentId);
-        setShowDetails((prevState) => !prevState);
         setTournamentStatus(currentTournamentStatus);
         setTournamentWinners(currentTournamentWinnersObject);
+
+        // Check if this is a "Registration finished!" status and tournament has randomBracket enabled
+        if (currentTournamentStatus === 'Registration finished!' && tournament && tournament.randomBracket) {
+            // Show spinning wheel directly
+            setTournamentPlayers(tournament.players || {});
+            setShowSpinningWheel(true);
+        } else {
+            // Show bracket modal
+            setShowDetails((prevState) => !prevState);
+        }
     };
 
     // Check if tournament has live games (castles selected but no winner)
@@ -425,6 +649,9 @@ const TournamentList = () => {
         }
         if (statusFilter === 'registration') {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
+        }
+        if (statusFilter === 'registrationFinished') {
+            return tournament.status === 'Registration finished!';
         }
         if (statusFilter === 'started') {
             return tournament.status === 'Started!';
@@ -543,7 +770,12 @@ const TournamentList = () => {
                                     <button
                                         className={`${classes.btn} ${classes.btnPrimary}`}
                                         onClick={() =>
-                                            showDetailsHandler(tournament.status, tournament.winners, tournament.id)
+                                            showDetailsHandler(
+                                                tournament.status,
+                                                tournament.winners,
+                                                tournament.id,
+                                                tournament
+                                            )
                                         }
                                     >
                                         🏆 View Bracket
@@ -666,7 +898,12 @@ const TournamentList = () => {
                                                 padding: '0.75rem 1.5rem'
                                             }}
                                             onClick={() =>
-                                                showDetailsHandler(tournament.status, tournament.winners, tournament.id)
+                                                showDetailsHandler(
+                                                    tournament.status,
+                                                    tournament.winners,
+                                                    tournament.id,
+                                                    tournament
+                                                )
                                             }
                                         >
                                             🎮 Start Tournament
@@ -767,6 +1004,9 @@ const TournamentList = () => {
                     <option value="registration" style={{ background: '#1a1a2e', color: '#00ffff' }}>
                         📝 Registration Open
                     </option>
+                    <option value="registrationFinished" style={{ background: '#1a1a2e', color: '#00ffff' }}>
+                        ✅ Registration Finished
+                    </option>
                     <option value="started" style={{ background: '#1a1a2e', color: '#00ffff' }}>
                         🎮 In Progress
                     </option>
@@ -788,6 +1028,11 @@ const TournamentList = () => {
                         tournamentWinners={tournamentWinnersObject}
                         // tournamentNameParam={tournamentName}
                     ></TournamentBracket>
+                </Modal>
+            )}
+            {showSpinningWheel && (
+                <Modal onClose={closeModalHandler}>
+                    <SpinningWheel players={tournamentPlayers} onStartTournament={handleStartTournament} />
                 </Modal>
             )}
         </div>

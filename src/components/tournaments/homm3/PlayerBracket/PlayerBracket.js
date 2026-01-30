@@ -36,9 +36,10 @@ export const PlayerBracket = (props) => {
         clickedRadioButton
     } = props;
 
-    const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;
+    const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2, color1, color2 } = pair;
 
     let teamPlayer = team === 'team1' ? team1 : team2;
+    let playerColor = team === 'team1' ? color1 : color2;
     let playerStars =
         team === 'team1'
             ? Number(typeof stars1 === 'string' && stars1.includes(',') ? stars1.split(',').at(-1) : stars1) || null
@@ -54,7 +55,21 @@ export const PlayerBracket = (props) => {
 
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
-            let extraGame = { gameId: 2, castle1: '', castle2: '', castleWinner: null, gameWinner: null };
+            let extraGame = {
+                gameId: 2,
+                castle1: '',
+                castle2: '',
+                castleWinner: null,
+                gameWinner: null,
+                color1: 'red',
+                color2: 'blue',
+                gold1: 0,
+                gold2: 0,
+                restart1_111: 0,
+                restart1_112: 0,
+                restart2_111: 0,
+                restart2_112: 0
+            };
             numberOfGames.push(extraGame);
         }
     }
@@ -147,6 +162,30 @@ export const PlayerBracket = (props) => {
                         }}
                     />
                 )}
+
+                {/* Color Indicator Badge */}
+                {playerColor && (
+                    <div
+                        style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '4px',
+                            background:
+                                playerColor === 'red'
+                                    ? 'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)'
+                                    : 'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
+                            border: '2px solid #FFD700',
+                            marginRight: '6px',
+                            boxShadow:
+                                playerColor === 'red'
+                                    ? '0 0 8px rgba(255, 0, 0, 0.6), inset 0 0 6px rgba(255, 255, 255, 0.2)'
+                                    : '0 0 8px rgba(0, 0, 255, 0.6), inset 0 0 6px rgba(255, 255, 255, 0.2)',
+                            flexShrink: 0
+                        }}
+                        title={`Playing as ${playerColor}`}
+                    />
+                )}
+
                 {userId && teamPlayer !== 'TBD' ? (
                     <NavLink
                         to={`/players/${userId}`}
@@ -350,23 +389,85 @@ export const PlayerBracket = (props) => {
                         const castleName = getCastleName(castle);
                         const castleImageUrl = getCastleImageUrl(castleName);
 
+                        // Get the color for this game
+                        const gameColor = team === 'team1' ? game.color1 : game.color2;
+                        // Get the gold for this game
+                        const gameGold = team === 'team1' ? game.gold1 : game.gold2;
+
                         return (
-                            <div key={game.gameId} className="castle-image-display">
+                            <div key={game.gameId} className="castle-image-display" style={{ position: 'relative' }}>
                                 {castleImageUrl && (
-                                    <img
-                                        src={castleImageUrl}
-                                        alt={castleName}
-                                        title={castleName}
-                                        className={checked ? classes['castle-selected'] : ''}
-                                        style={{
-                                            width: '48px',
-                                            height: '48px',
-                                            border: checked ? '3px solid #FFD700' : '2px solid rgba(62, 32, 192, 0.3)',
-                                            borderRadius: '4px',
-                                            boxShadow: checked ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
-                                            cursor: 'pointer'
-                                        }}
-                                    />
+                                    <>
+                                        <img
+                                            src={castleImageUrl}
+                                            alt={castleName}
+                                            title={castleName}
+                                            className={checked ? classes['castle-selected'] : ''}
+                                            style={{
+                                                width: '48px',
+                                                height: '48px',
+                                                border: checked
+                                                    ? '3px solid #FFD700'
+                                                    : '2px solid rgba(62, 32, 192, 0.3)',
+                                                borderRadius: '4px',
+                                                boxShadow: checked ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
+                                                cursor: 'pointer'
+                                            }}
+                                        />
+                                        {/* Color indicator badge on castle */}
+                                        {gameColor && (
+                                            <div
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '-4px',
+                                                    right: '-4px',
+                                                    width: '16px',
+                                                    height: '16px',
+                                                    borderRadius: '50%',
+                                                    background:
+                                                        gameColor === 'red'
+                                                            ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                                            : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                                    border: '2px solid #FFD700',
+                                                    boxShadow:
+                                                        gameColor === 'red'
+                                                            ? '0 0 6px rgba(255, 0, 0, 0.8)'
+                                                            : '0 0 6px rgba(0, 0, 255, 0.8)'
+                                                }}
+                                                title={`Playing as ${gameColor}`}
+                                            />
+                                        )}
+                                        {/* Gold indicator badge on castle */}
+                                        {gameGold !== 0 && gameGold !== undefined && (
+                                            <div
+                                                style={{
+                                                    position: 'absolute',
+                                                    bottom: '-4px',
+                                                    left: '50%',
+                                                    transform: 'translateX(-50%)',
+                                                    padding: '1px 4px',
+                                                    borderRadius: '8px',
+                                                    background:
+                                                        gameGold > 0
+                                                            ? 'linear-gradient(135deg, #00AA00, #00FF00)'
+                                                            : 'linear-gradient(135deg, #AA0000, #FF0000)',
+                                                    border: '1px solid #FFD700',
+                                                    fontSize: '9px',
+                                                    fontWeight: 'bold',
+                                                    color: '#FFF',
+                                                    boxShadow:
+                                                        gameGold > 0
+                                                            ? '0 0 6px rgba(0, 255, 0, 0.8)'
+                                                            : '0 0 6px rgba(255, 0, 0, 0.8)',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                                title={`Gold: ${gameGold > 0 ? '+' : ''}${gameGold}`}
+                                            >
+                                                {gameGold > 0 ? '+' : ''}
+                                                {gameGold}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         );

@@ -423,7 +423,7 @@ export const getAvatar = async (userId) => {
 
     if (response.ok) {
         const data = await response.json();
-        // console.log(JSON.stringify(data));
+        console.log(JSON.stringify(data));
         return data;
     } else {
         throw new Error('Failed to get avatar data');
