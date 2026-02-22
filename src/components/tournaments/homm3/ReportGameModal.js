@@ -110,8 +110,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
         setScore2(pair.score2 || 0);
 
         // Initialize colors from pair data if available
-        if (pair.color1) setColor1(pair.color1);
-        if (pair.color2) setColor2(pair.color2);
+        if (pair.color1) {
+            setColor1(pair.color1);
+        }
+        if (pair.color2) {
+            setColor2(pair.color2);
+        }
 
         if (pair.type === 'bo-3') {
             setGameResults(
@@ -136,14 +140,30 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             if (pair.games && pair.games[0]) {
                 setCastle1(pair.games[0].castle1 || '');
                 setCastle2(pair.games[0].castle2 || '');
-                if (pair.games[0].color1) setColor1(pair.games[0].color1);
-                if (pair.games[0].color2) setColor2(pair.games[0].color2);
-                if (pair.games[0].gold1) setGold1(pair.games[0].gold1);
-                if (pair.games[0].gold2) setGold2(pair.games[0].gold2);
-                if (pair.games[0].restart1_111) setRestart1_111(pair.games[0].restart1_111);
-                if (pair.games[0].restart1_112) setRestart1_112(pair.games[0].restart1_112);
-                if (pair.games[0].restart2_111) setRestart2_111(pair.games[0].restart2_111);
-                if (pair.games[0].restart2_112) setRestart2_112(pair.games[0].restart2_112);
+                if (pair.games[0].color1) {
+                    setColor1(pair.games[0].color1);
+                }
+                if (pair.games[0].color2) {
+                    setColor2(pair.games[0].color2);
+                }
+                if (pair.games[0].gold1) {
+                    setGold1(pair.games[0].gold1);
+                }
+                if (pair.games[0].gold2) {
+                    setGold2(pair.games[0].gold2);
+                }
+                if (pair.games[0].restart1_111) {
+                    setRestart1_111(pair.games[0].restart1_111);
+                }
+                if (pair.games[0].restart1_112) {
+                    setRestart1_112(pair.games[0].restart1_112);
+                }
+                if (pair.games[0].restart2_111) {
+                    setRestart2_111(pair.games[0].restart2_111);
+                }
+                if (pair.games[0].restart2_112) {
+                    setRestart2_112(pair.games[0].restart2_112);
+                }
             }
         }
     }, [pair]);
@@ -722,6 +742,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             <div style={{ textAlign: 'center' }}>
                                                 <input
                                                     type="number"
+                                                    step="100"
                                                     value={game.gold1 || 0}
                                                     onChange={(e) => {
                                                         const value = parseInt(e.target.value) || 0;
@@ -846,7 +867,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             <div
                                                                 key={`111-${boxIdx}`}
                                                                 onClick={() => {
-                                                                    if (isDisabled) return;
+                                                                    if (isDisabled) {
+                                                                        return;
+                                                                    }
                                                                     const updated = [...gameResults];
                                                                     const current = updated[idx].restart1_111 || 0;
                                                                     if (isUsed) {
@@ -920,7 +943,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             const updated = [...gameResults];
                                                             const current = updated[idx].restart1_112 || 0;
                                                             const is111Used = (updated[idx].restart1_111 || 0) > 0;
-                                                            if (is111Used) return;
+                                                            if (is111Used) {
+                                                                return;
+                                                            }
                                                             updated[idx] = {
                                                                 ...updated[idx],
                                                                 restart1_112: current === 1 ? 0 : 1
@@ -948,14 +973,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             justifyContent: 'center',
                                                             opacity:
                                                                 (game.restart1_111 || 0) > 0
-                                                                    ? 0.8
+                                                                    ? 0.4
                                                                     : (game.restart1_112 || 0) === 1
                                                                       ? 1
                                                                       : 0.6,
                                                             boxShadow:
                                                                 (game.restart1_112 || 0) === 1
                                                                     ? '0 0 10px rgba(255, 215, 0, 0.6)'
-                                                                    : 'none'
+                                                                    : 'none',
+                                                            pointerEvents:
+                                                                (game.restart1_111 || 0) > 0 ? 'none' : 'auto'
                                                         }}
                                                     >
                                                         <div
@@ -967,7 +994,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         >
                                                             112
                                                         </div>
-                                                        {(game.restart1_112 || 0) === 1 && (
+                                                        {((game.restart1_112 || 0) === 1 ||
+                                                            (game.restart1_111 || 0) > 0) && (
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -1006,7 +1034,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             <div
                                                                 key={`111-${boxIdx}`}
                                                                 onClick={() => {
-                                                                    if (isDisabled) return;
+                                                                    if (isDisabled) {
+                                                                        return;
+                                                                    }
                                                                     const updated = [...gameResults];
                                                                     const current = updated[idx].restart2_111 || 0;
                                                                     if (isUsed) {
@@ -1080,7 +1110,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             const updated = [...gameResults];
                                                             const current = updated[idx].restart2_112 || 0;
                                                             const is111Used = (updated[idx].restart2_111 || 0) > 0;
-                                                            if (is111Used) return;
+                                                            if (is111Used) {
+                                                                return;
+                                                            }
                                                             updated[idx] = {
                                                                 ...updated[idx],
                                                                 restart2_112: current === 1 ? 0 : 1
@@ -1108,14 +1140,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             justifyContent: 'center',
                                                             opacity:
                                                                 (game.restart2_111 || 0) > 0
-                                                                    ? 0.8
+                                                                    ? 0.4
                                                                     : (game.restart2_112 || 0) === 1
                                                                       ? 1
                                                                       : 0.6,
                                                             boxShadow:
                                                                 (game.restart2_112 || 0) === 1
                                                                     ? '0 0 10px rgba(255, 215, 0, 0.6)'
-                                                                    : 'none'
+                                                                    : 'none',
+                                                            pointerEvents:
+                                                                (game.restart2_111 || 0) > 0 ? 'none' : 'auto'
                                                         }}
                                                     >
                                                         <div
@@ -1127,7 +1161,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         >
                                                             112
                                                         </div>
-                                                        {(game.restart2_112 || 0) === 1 && (
+                                                        {((game.restart2_112 || 0) === 1 ||
+                                                            (game.restart2_111 || 0) > 0) && (
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -1194,7 +1229,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                 opacity: game.castle1 === c ? 1 : 0.6,
                                                                 transform:
                                                                     game.castle1 === c ? 'scale(1.05)' : 'scale(1)',
-                                                                transition: 'all 0.2s ease'
+                                                                transition: 'all 0.2s ease',
+                                                                boxShadow:
+                                                                    game.castle1 === c
+                                                                        ? '0 0 12px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.3)'
+                                                                        : 'none'
                                                             }}
                                                             onClick={() => handleGameResultChange(idx, 'castle1', c)}
                                                         />
@@ -1242,7 +1281,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                 opacity: game.castle2 === c ? 1 : 0.6,
                                                                 transform:
                                                                     game.castle2 === c ? 'scale(1.05)' : 'scale(1)',
-                                                                transition: 'all 0.2s ease'
+                                                                transition: 'all 0.2s ease',
+                                                                boxShadow:
+                                                                    game.castle2 === c
+                                                                        ? '0 0 12px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.3)'
+                                                                        : 'none'
                                                             }}
                                                             onClick={() => handleGameResultChange(idx, 'castle2', c)}
                                                         />
@@ -1849,6 +1892,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     <div style={{ textAlign: 'center' }}>
                                         <input
                                             type="number"
+                                            step="100"
                                             value={gold1}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -1898,6 +1942,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         </div> */}
                                         <input
                                             type="number"
+                                            step="100"
                                             value={gold2}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -1947,7 +1992,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     <div
                                                         key={`111-${boxIdx}`}
                                                         onClick={() => {
-                                                            if (isDisabled) return;
+                                                            if (isDisabled) {
+                                                                return;
+                                                            }
                                                             if (isUsed) {
                                                                 setRestart1_111(restart1_111 - 1);
                                                             } else if (restart1_111 < 2) {
@@ -1984,7 +2031,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         >
                                                             111
                                                         </div>
-                                                        {isUsed && (
+                                                        {(isUsed || isDisabled) && (
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -2007,7 +2054,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             {/* 112 Restart Box */}
                                             <div
                                                 onClick={() => {
-                                                    if (restart1_111 > 0) return;
+                                                    if (restart1_111 > 0) {
+                                                        return;
+                                                    }
                                                     setRestart1_112(restart1_112 === 1 ? 0 : 1);
                                                 }}
                                                 style={{
@@ -2028,7 +2077,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     justifyContent: 'center',
                                                     opacity: restart1_111 > 0 ? 0.4 : restart1_112 === 1 ? 1 : 0.6,
                                                     boxShadow:
-                                                        restart1_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none'
+                                                        restart1_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
+                                                    pointerEvents: restart1_111 > 0 ? 'none' : 'auto'
                                                 }}
                                             >
                                                 <div
@@ -2040,7 +2090,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 >
                                                     112
                                                 </div>
-                                                {restart1_112 === 1 && (
+                                                {(restart1_112 === 1 || restart1_111 > 0) && (
                                                     <div
                                                         style={{
                                                             position: 'absolute',
@@ -2073,7 +2123,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     <div
                                                         key={`111-${boxIdx}`}
                                                         onClick={() => {
-                                                            if (isDisabled) return;
+                                                            if (isDisabled) {
+                                                                return;
+                                                            }
                                                             if (isUsed) {
                                                                 setRestart2_111(restart2_111 - 1);
                                                             } else if (restart2_111 < 2) {
@@ -2133,7 +2185,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             {/* 112 Restart Box */}
                                             <div
                                                 onClick={() => {
-                                                    if (restart2_111 > 0) return;
+                                                    if (restart2_111 > 0) {
+                                                        return;
+                                                    }
                                                     setRestart2_112(restart2_112 === 1 ? 0 : 1);
                                                 }}
                                                 style={{
@@ -2154,7 +2208,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     justifyContent: 'center',
                                                     opacity: restart2_111 > 0 ? 0.4 : restart2_112 === 1 ? 1 : 0.6,
                                                     boxShadow:
-                                                        restart2_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none'
+                                                        restart2_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
+                                                    pointerEvents: restart2_111 > 0 ? 'none' : 'auto'
                                                 }}
                                             >
                                                 <div
@@ -2166,7 +2221,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 >
                                                     112
                                                 </div>
-                                                {restart2_112 === 1 && (
+                                                {(restart2_112 === 1 || restart2_111 > 0) && (
                                                     <div
                                                         style={{
                                                             position: 'absolute',
@@ -2221,13 +2276,18 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     style={{
                                                         width: '105px',
                                                         height: '70px',
-
+                                                        border:
+                                                            castle1 === c ? '3px solid #FFD700' : '2px solid #CCCCCC',
                                                         borderRadius: '4px',
                                                         objectFit: 'cover',
                                                         cursor: 'pointer',
                                                         opacity: castle1 === c ? 1 : 0.7,
                                                         transform: castle1 === c ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.2s ease'
+                                                        transition: 'all 0.2s ease',
+                                                        boxShadow:
+                                                            castle1 === c
+                                                                ? '0 0 12px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.3)'
+                                                                : 'none'
                                                     }}
                                                     onClick={() => setCastle1(c)}
                                                 />
@@ -2263,12 +2323,18 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     style={{
                                                         width: '105px',
                                                         height: '70px',
+                                                        border:
+                                                            castle2 === c ? '3px solid #FFD700' : '2px solid #CCCCCC',
                                                         borderRadius: '4px',
                                                         objectFit: 'cover',
                                                         cursor: 'pointer',
                                                         opacity: castle2 === c ? 1 : 0.7,
                                                         transform: castle2 === c ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.2s ease'
+                                                        transition: 'all 0.2s ease',
+                                                        boxShadow:
+                                                            castle2 === c
+                                                                ? '0 0 12px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.3)'
+                                                                : 'none'
                                                     }}
                                                     onClick={() => setCastle2(c)}
                                                 />

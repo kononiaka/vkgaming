@@ -179,6 +179,61 @@ export const TournamentBracket = ({
         // Sort by date descending and take the last 5 games
         const last5Games = games.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
+        // Calculate restart coefficients from tournament games
+        // Coefficient formula: 1.0 + (restart_111 × 0.5) + (restart_112 × 1.0), capped at 2.0
+        let restartCoeffA = 0;
+        let restartCoeffB = 0;
+        let team1GamesCount = 0;
+
+        // Collect all tournament games between these two players
+        playoffPairs.forEach((stageGames) => {
+            if (Array.isArray(stageGames)) {
+                stageGames.forEach((pair) => {
+                    if (
+                        (pair.team1 === team1 && pair.team2 === team2) ||
+                        (pair.team1 === team2 && pair.team2 === team1)
+                    ) {
+                        // Calculate restarts from pair.games array
+                        if (pair.games && Array.isArray(pair.games)) {
+                            pair.games.forEach((game) => {
+                                // Determine which team is team1 and team2 in the pair
+                                const isTeam1Side = pair.team1 === team1;
+
+                                if (isTeam1Side) {
+                                    // Team1 coefficient: 1.0 + (111 × 0.5) + (112 × 1.0)
+                                    const coeffA =
+                                        1.0 + (game.restart1_111 || 0) * 0.5 + (game.restart1_112 || 0) * 1.0;
+                                    restartCoeffA += Math.min(coeffA, 2.0); // Cap at 2.0
+
+                                    // Team2 coefficient: 1.0 + (111 × 0.5) + (112 × 1.0)
+                                    const coeffB =
+                                        1.0 + (game.restart2_111 || 0) * 0.5 + (game.restart2_112 || 0) * 1.0;
+                                    restartCoeffB += Math.min(coeffB, 2.0); // Cap at 2.0
+                                } else {
+                                    // Team1 and Team2 are swapped in the pair
+                                    const coeffA =
+                                        1.0 + (game.restart2_111 || 0) * 0.5 + (game.restart2_112 || 0) * 1.0;
+                                    restartCoeffA += Math.min(coeffA, 2.0);
+
+                                    const coeffB =
+                                        1.0 + (game.restart1_111 || 0) * 0.5 + (game.restart1_112 || 0) * 1.0;
+                                    restartCoeffB += Math.min(coeffB, 2.0);
+                                }
+
+                                team1GamesCount++;
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // Calculate averages
+        if (team1GamesCount > 0) {
+            restartCoeffA = restartCoeffA / team1GamesCount;
+            restartCoeffB = restartCoeffB / team1GamesCount;
+        }
+
         setStats({
             total,
             wins,
@@ -186,7 +241,9 @@ export const TournamentBracket = ({
             winPercent,
             playerA: team1,
             playerB: team2,
-            last5Games
+            last5Games,
+            restartCoeffA,
+            restartCoeffB
         });
         setShowStats(true);
     };
@@ -609,7 +666,9 @@ export const TournamentBracket = ({
 
     // Utility function to check if all pairs have valid teams
     function allPairsHaveTeamsFunc(tournamentPlayoffPairs) {
-        if (!Array.isArray(tournamentPlayoffPairs)) return false;
+        if (!Array.isArray(tournamentPlayoffPairs)) {
+            return false;
+        }
         return tournamentPlayoffPairs.every(
             (stage) =>
                 Array.isArray(stage) &&
@@ -1627,7 +1686,9 @@ export const TournamentBracket = ({
             const confirmPlayerIds = confirmWindow(
                 `Player IDs fetched:\n${team1}: ${opponent1Id}\n${team2}: ${opponent2Id}\n\nContinue?`
             );
-            if (!confirmPlayerIds) return false;
+            if (!confirmPlayerIds) {
+                return false;
+            }
 
             // Fetch current player data
             const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
@@ -1656,7 +1717,9 @@ export const TournamentBracket = ({
             const confirmCurrentStats = confirmWindow(
                 `Current Stats:\n\n${team1}:\nRating: ${opponent1Rating}\nTotal: ${opponent1Stats.total}, Win: ${opponent1Win}, Lose: ${opponent1Stats.lose}\n\n${team2}:\nRating: ${opponent2Rating}\nTotal: ${opponent2Stats.total}, Win: ${opponent2Win}, Lose: ${opponent2Stats.lose}\n\nContinue?`
             );
-            if (!confirmCurrentStats) return false;
+            if (!confirmCurrentStats) {
+                return false;
+            }
 
             // Determine winners
             const didWinOpponent1 = winnerId === opponent1Id;
@@ -1666,7 +1729,9 @@ export const TournamentBracket = ({
             const loserName = didWinOpponent1 ? team2 : team1;
 
             const confirmWinner = confirmWindow(`Winner determined: ${winnerName}\nLoser: ${loserName}\n\nContinue?`);
-            if (!confirmWinner) return false;
+            if (!confirmWinner) {
+                return false;
+            }
 
             // Update player game statistics (win/lose/total) - calculate before rating updates
             // Use calculated opponent1Win/opponent2Win instead of opponent1Stats.win to handle missing 'win' field
@@ -1786,6 +1851,27 @@ export const TournamentBracket = ({
             console.error('Error updating player ratings and statistics:', error);
             throw error;
         }
+    };
+
+    // Helper function to fetch the current rating for a player from tournament players data
+    const getUpdatedPlayerRating = async (playerName) => {
+        try {
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
+            );
+            if (response.ok) {
+                const playersData = await response.json();
+                const playerData = Object.values(playersData).find((p) => p && p.name === playerName);
+                if (playerData && playerData.ratings) {
+                    // Extract the latest rating from the comma-separated list
+                    const latestRating = playerData.ratings.split(',').pop().trim();
+                    return latestRating;
+                }
+            }
+        } catch (error) {
+            console.error(`Error fetching updated rating for ${playerName}:`, error);
+        }
+        return null;
     };
 
     const handleSubmitGameReport = async (reportData) => {
@@ -1976,18 +2062,41 @@ export const TournamentBracket = ({
                     winner: reportData.winner
                 };
 
+                console.log('Game data to be posted:', JSON.stringify(gameData, null, 2));
+                console.log(
+                    'Games with gold and restarts:',
+                    gameData.games.map((g) => ({
+                        gameId: g.gameId,
+                        gold1: g.gold1,
+                        gold2: g.gold2,
+                        restart1_111: g.restart1_111,
+                        restart1_112: g.restart1_112,
+                        restart2_111: g.restart2_111,
+                        restart2_112: g.restart2_112
+                    }))
+                );
+
                 const confirmGamePost = confirmWindow(
                     `Post game to database?\n\n${pair.team1} vs ${pair.team2}\nScore: ${reportData.score1}-${reportData.score2}\nWinner: ${reportData.winner}\n\nPost game?`
                 );
                 if (confirmGamePost) {
-                    await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
-                        method: 'POST',
-                        body: JSON.stringify(gameData),
-                        headers: {
-                            'Content-Type': 'application/json'
+                    const fetchResponse = await fetch(
+                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
+                        {
+                            method: 'POST',
+                            body: JSON.stringify(gameData),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         }
-                    });
-                    console.log('Game posted to database successfully');
+                    );
+
+                    if (fetchResponse.ok) {
+                        console.log('Game posted to database successfully');
+                        console.log('Gold and restart data stored for all games');
+                    } else {
+                        console.error('Error posting game to database:', fetchResponse.statusText);
+                    }
                 } else {
                     console.log('Game posting skipped by user');
                 }
@@ -2011,6 +2120,10 @@ export const TournamentBracket = ({
                     const finalStageIndex = stageLabels.indexOf('Final');
                     const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
 
+                    // Fetch updated ratings for both winner and loser
+                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+                    const loserUpdatedRating = await getUpdatedPlayerRating(loser);
+
                     // Promote winner to Final
                     if (finalStageIndex !== -1 && updatedPairs[finalStageIndex] && updatedPairs[finalStageIndex][0]) {
                         const finalPair = updatedPairs[finalStageIndex][0];
@@ -2026,17 +2139,25 @@ export const TournamentBracket = ({
                                 // First semi-final winner goes to team1 of Final
                                 if (finalPair.team1 === 'TBD' || !finalPair.team1) {
                                     finalPair.team1 = winner;
-                                    finalPair.ratings1 = pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    finalPair.ratings1 =
+                                        winnerUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     finalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(`Promoted ${winner} to Final team1`);
+                                    console.log(
+                                        `Promoted ${winner} to Final team1 with updated rating: ${finalPair.ratings1}`
+                                    );
                                 }
                             } else if (selectedPairIndex === 1) {
                                 // Second semi-final winner goes to team2 of Final
                                 if (finalPair.team2 === 'TBD' || !finalPair.team2) {
                                     finalPair.team2 = winner;
-                                    finalPair.ratings2 = pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    finalPair.ratings2 =
+                                        winnerUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     finalPair.stars2 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(`Promoted ${winner} to Final team2`);
+                                    console.log(
+                                        `Promoted ${winner} to Final team2 with updated rating: ${finalPair.ratings2}`
+                                    );
                                 }
                             }
                         } else {
@@ -2064,18 +2185,24 @@ export const TournamentBracket = ({
                                 if (thirdPlacePair.team1 === 'TBD' || !thirdPlacePair.team1) {
                                     thirdPlacePair.team1 = loser;
                                     thirdPlacePair.ratings1 =
-                                        pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1;
+                                        loserUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
                                     thirdPlacePair.stars1 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
-                                    console.log(`Promoted ${loser} to Third Place team1`);
+                                    console.log(
+                                        `Promoted ${loser} to Third Place team1 with updated rating: ${thirdPlacePair.ratings1}`
+                                    );
                                 }
                             } else if (selectedPairIndex === 1) {
                                 // Second semi-final loser goes to team2 of Third Place
                                 if (thirdPlacePair.team2 === 'TBD' || !thirdPlacePair.team2) {
                                     thirdPlacePair.team2 = loser;
                                     thirdPlacePair.ratings2 =
-                                        pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1;
+                                        loserUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
                                     thirdPlacePair.stars2 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
-                                    console.log(`Promoted ${loser} to Third Place team2`);
+                                    console.log(
+                                        `Promoted ${loser} to Third Place team2 with updated rating: ${thirdPlacePair.ratings2}`
+                                    );
                                 }
                             }
                         } else {
@@ -2084,6 +2211,9 @@ export const TournamentBracket = ({
                     }
                 } else if (currentStage === 'Quarter-final') {
                     // Winner goes to Semi-final
+                    // Fetch updated rating for winner
+                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+
                     const semiStageIndex = stageLabels.indexOf('Semi-final');
                     if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
                         const semiPairIndex = Math.floor(selectedPairIndex / 2);
@@ -2100,9 +2230,13 @@ export const TournamentBracket = ({
                             if (confirmPromoteToSemi) {
                                 if (semiPair[teamSlot] === 'TBD' || !semiPair[teamSlot]) {
                                     semiPair[teamSlot] = winner;
-                                    semiPair[ratingsSlot] = pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                    semiPair[ratingsSlot] =
+                                        winnerUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     semiPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(`Promoted ${winner} to Semi-final ${semiPairIndex} ${teamSlot}`);
+                                    console.log(
+                                        `Promoted ${winner} to Semi-final ${semiPairIndex} ${teamSlot} with updated rating: ${semiPair[ratingsSlot]}`
+                                    );
                                 }
                             } else {
                                 console.log(`Promotion to Semi-final cancelled by user`);
@@ -2111,6 +2245,9 @@ export const TournamentBracket = ({
                     }
                 } else if (currentStage === '1/8 Final') {
                     // Winner goes to Quarter-final
+                    // Fetch updated rating for winner
+                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+
                     const quarterStageIndex = stageLabels.indexOf('Quarter-final');
                     if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
                         const quarterPairIndex = Math.floor(selectedPairIndex / 2);
@@ -2128,9 +2265,12 @@ export const TournamentBracket = ({
                                 if (quarterPair[teamSlot] === 'TBD' || !quarterPair[teamSlot]) {
                                     quarterPair[teamSlot] = winner;
                                     quarterPair[ratingsSlot] =
-                                        pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                        winnerUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     quarterPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(`Promoted ${winner} to Quarter-final ${quarterPairIndex} ${teamSlot}`);
+                                    console.log(
+                                        `Promoted ${winner} to Quarter-final ${quarterPairIndex} ${teamSlot} with updated rating: ${quarterPair[ratingsSlot]}`
+                                    );
                                 }
                             } else {
                                 console.log(`Promotion to Quarter-final cancelled by user`);
@@ -2139,6 +2279,9 @@ export const TournamentBracket = ({
                     }
                 } else if (currentStage === '1/16 Final') {
                     // Winner goes to 1/8 Final
+                    // Fetch updated rating for winner
+                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+
                     const eighthStageIndex = stageLabels.indexOf('1/8 Final');
                     if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
                         const eighthPairIndex = Math.floor(selectedPairIndex / 2);
@@ -2156,9 +2299,12 @@ export const TournamentBracket = ({
                                 if (eighthPair[teamSlot] === 'TBD' || !eighthPair[teamSlot]) {
                                     eighthPair[teamSlot] = winner;
                                     eighthPair[ratingsSlot] =
-                                        pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2;
+                                        winnerUpdatedRating ||
+                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     eighthPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(`Promoted ${winner} to 1/8 Final ${eighthPairIndex} ${teamSlot}`);
+                                    console.log(
+                                        `Promoted ${winner} to 1/8 Final ${eighthPairIndex} ${teamSlot} with updated rating: ${eighthPair[ratingsSlot]}`
+                                    );
                                 }
                             } else {
                                 console.log(`Promotion to 1/8 Final cancelled by user`);

@@ -26,6 +26,20 @@ const StatsPopup = ({ stats, onClose }) => {
                         Win % for {stats.playerA}: <b>{stats.winPercent}%</b>
                     </li>
                 </ul>
+                {/* Restart Statistics Section */}
+                {(stats.restartCoeffA !== undefined || stats.restartCoeffB !== undefined) && (
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid #FFD700', paddingTop: '1rem' }}>
+                        <h4 style={{ margin: '0.5rem 0', color: '#FFD700' }}>РЕСТАРТЫ (Restarts)</h4>
+                        <ul className={classes.statsList}>
+                            <li>
+                                {stats.playerA}: <b>{stats.restartCoeffA?.toFixed(2) || '1.00'}</b>
+                            </li>
+                            <li>
+                                {stats.playerB}: <b>{stats.restartCoeffB?.toFixed(2) || '1.00'}</b>
+                            </li>
+                        </ul>
+                    </div>
+                )}
                 {stats.last5Games && stats.last5Games.length > 0 && (
                     <div className={classes.lastGames}>
                         <b>Last 5 games:</b>

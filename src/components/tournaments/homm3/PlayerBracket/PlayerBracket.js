@@ -105,13 +105,17 @@ export const PlayerBracket = (props) => {
     // Ensure only one tooltip is visible at a time (global for this component type)
     window.__playerBracketTooltipHideAll = window.__playerBracketTooltipHideAll || (() => {});
     const hideAllTooltips = () => {
-        if (window.__playerBracketTooltipHideAll) window.__playerBracketTooltipHideAll();
+        if (window.__playerBracketTooltipHideAll) {
+            window.__playerBracketTooltipHideAll();
+        }
     };
     window.__playerBracketTooltipHideAll = () => setShowTooltip(false);
 
     const handleMouseEnter = async (e) => {
         hideAllTooltips(); // Hide any other tooltip
-        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+        if (tooltipTimeout.current) {
+            clearTimeout(tooltipTimeout.current);
+        }
 
         const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
         setStreak(streakArr);
@@ -163,8 +167,8 @@ export const PlayerBracket = (props) => {
                     />
                 )}
 
-                {/* Color Indicator Badge */}
-                {playerColor && (
+                {/* Color Indicator Badge - REMOVED */}
+                {false && playerColor && (
                     <div
                         style={{
                             width: '20px',
@@ -239,11 +243,15 @@ export const PlayerBracket = (props) => {
                                         }}
                                         onMouseEnter={(e) => {
                                             const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                            if (tooltip) tooltip.style.display = 'block';
+                                            if (tooltip) {
+                                                tooltip.style.display = 'block';
+                                            }
                                         }}
                                         onMouseLeave={(e) => {
                                             const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                            if (tooltip) tooltip.style.display = 'none';
+                                            if (tooltip) {
+                                                tooltip.style.display = 'none';
+                                            }
                                         }}
                                     ></span>
                                     {/* Hidden opponent name, shown on hover */}
