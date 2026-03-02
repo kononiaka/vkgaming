@@ -1687,7 +1687,7 @@ export const TournamentBracket = ({
                 `Player IDs fetched:\n${team1}: ${opponent1Id}\n${team2}: ${opponent2Id}\n\nContinue?`
             );
             if (!confirmPlayerIds) {
-                return false;
+                return { success: false, newRatings: {} };
             }
 
             // Fetch current player data
@@ -1718,7 +1718,7 @@ export const TournamentBracket = ({
                 `Current Stats:\n\n${team1}:\nRating: ${opponent1Rating}\nTotal: ${opponent1Stats.total}, Win: ${opponent1Win}, Lose: ${opponent1Stats.lose}\n\n${team2}:\nRating: ${opponent2Rating}\nTotal: ${opponent2Stats.total}, Win: ${opponent2Win}, Lose: ${opponent2Stats.lose}\n\nContinue?`
             );
             if (!confirmCurrentStats) {
-                return false;
+                return { success: false, newRatings: {} };
             }
 
             // Determine winners
@@ -1730,7 +1730,7 @@ export const TournamentBracket = ({
 
             const confirmWinner = confirmWindow(`Winner determined: ${winnerName}\nLoser: ${loserName}\n\nContinue?`);
             if (!confirmWinner) {
-                return false;
+                return { success: false, newRatings: {} };
             }
 
             // Update player game statistics (win/lose/total) - calculate before rating updates
@@ -1776,23 +1776,36 @@ export const TournamentBracket = ({
                     `Update player ratings to database?\n\n${team1}: ${opponent1CurrentRating.toFixed(2)} → ${opponent1NewRating.toFixed(2)}\n${team2}: ${opponent2CurrentRating.toFixed(2)} → ${opponent2NewRating.toFixed(2)}\n\nUpdate ratings?`
                 );
                 if (confirmRatingsUpdate) {
-                    await addScoreToUser(
-                        opponent1Id,
-                        opponent1PrevData,
-                        opponent1NewRating,
-                        winnerId,
-                        tournamentId,
-                        team1
-                    );
-                    await addScoreToUser(
-                        opponent2Id,
-                        opponent2PrevData,
-                        opponent2NewRating,
-                        winnerId,
-                        tournamentId,
-                        team2
-                    );
-                    console.log('Player ratings updated successfully');
+                    try {
+                        console.log(
+                            `Updating ${team1} (${opponent1Id}) rating: ${opponent1CurrentRating.toFixed(2)} → ${opponent1NewRating.toFixed(2)}`
+                        );
+                        await addScoreToUser(
+                            opponent1Id,
+                            opponent1PrevData,
+                            opponent1NewRating,
+                            winnerId,
+                            tournamentId,
+                            team1
+                        );
+                        console.log(`✓ ${team1} rating updated successfully`);
+
+                        console.log(
+                            `Updating ${team2} (${opponent2Id}) rating: ${opponent2CurrentRating.toFixed(2)} → ${opponent2NewRating.toFixed(2)}`
+                        );
+                        await addScoreToUser(
+                            opponent2Id,
+                            opponent2PrevData,
+                            opponent2NewRating,
+                            winnerId,
+                            tournamentId,
+                            team2
+                        );
+                        console.log(`✓ ${team2} rating updated successfully`);
+                    } catch (error) {
+                        console.error('Error updating player ratings:', error);
+                        alert(`Error updating ratings: ${error.message}`);
+                    }
                 } else {
                     console.log('Player ratings update skipped by user');
                 }
@@ -1805,7 +1818,13 @@ export const TournamentBracket = ({
             if (!confirmStatistics) {
                 console.log('Player statistics update skipped by user');
                 alert('⚠️ Player statistics update skipped - continuing with next steps');
-                return true; // Continue to next steps
+                return {
+                    success: true,
+                    newRatings: {
+                        [team1]: opponent1NewRating.toFixed(2),
+                        [team2]: opponent2NewRating.toFixed(2)
+                    }
+                };
             }
 
             // Update opponent 1 statistics
@@ -1846,7 +1865,13 @@ export const TournamentBracket = ({
 
             console.log('Player ratings and statistics process completed');
             alert('✅ Player ratings and statistics process completed!');
-            return true; // Return success indicator
+            return {
+                success: true,
+                newRatings: {
+                    [team1]: opponent1NewRating.toFixed(2),
+                    [team2]: opponent2NewRating.toFixed(2)
+                }
+            };
         } catch (error) {
             console.error('Error updating player ratings and statistics:', error);
             throw error;
@@ -1966,73 +1991,6 @@ export const TournamentBracket = ({
                                 console.log(`${game.castle2} castle stats update skipped`);
                             }
                         }
-                    } else {
-                        // No winner selected, just increment total (game in progress)
-                        const castleResponseAll = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/.json`
-                        );
-                        const castlesData = await castleResponseAll.json();
-                        console.log('castlesData', castlesData);
-                        // Update castle1 total
-                        const castle1Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                        );
-                        if (castle1Response.ok) {
-                            const castle1Data = await castle1Response.json();
-                            console.log('castle1Data', castle1Data);
-                            const updatedCastle1Total = {
-                                win: castle1Data.win || 0,
-                                lose: castle1Data.lose || 0,
-                                total: (castle1Data.total || 0) + 1
-                            };
-
-                            const confirmCastle1Total = confirmWindow(
-                                `Update ${game.castle1} castle total (game in progress)?\n\nOld Total: ${castle1Data.total || 0}\nNew Total: ${updatedCastle1Total.total}\n\nUpdate?`
-                            );
-                            if (confirmCastle1Total) {
-                                await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                    {
-                                        method: 'PUT',
-                                        body: JSON.stringify(updatedCastle1Total),
-                                        headers: { 'Content-Type': 'application/json' }
-                                    }
-                                );
-                                console.log(`${game.castle1} castle total updated`);
-                            } else {
-                                console.log(`${game.castle1} castle total update skipped`);
-                            }
-                        }
-
-                        // Update castle2 total
-                        const castle2Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                        );
-                        if (castle2Response.ok) {
-                            const castle2Data = await castle2Response.json();
-                            const updatedCastle2Total = {
-                                win: castle2Data.win || 0,
-                                lose: castle2Data.lose || 0,
-                                total: (castle2Data.total || 0) + 1
-                            };
-
-                            const confirmCastle2Total = confirmWindow(
-                                `Update ${game.castle2} castle total (game in progress)?\n\nOld Total: ${castle2Data.total || 0}\nNew Total: ${updatedCastle2Total.total}\n\nUpdate?`
-                            );
-                            if (confirmCastle2Total) {
-                                await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                    {
-                                        method: 'PUT',
-                                        body: JSON.stringify(updatedCastle2Total),
-                                        headers: { 'Content-Type': 'application/json' }
-                                    }
-                                );
-                                console.log(`${game.castle2} castle total updated`);
-                            } else {
-                                console.log(`${game.castle2} castle total update skipped`);
-                            }
-                        }
                     }
                 }
             }
@@ -2041,12 +1999,28 @@ export const TournamentBracket = ({
             if (reportData.winner) {
                 // Update player ratings FIRST
                 const winnerId = await lookForUserId(reportData.winner);
-                const ratingsUpdated = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
+                const ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
 
-                // Log if ratings were skipped, but continue with game posting
-                if (!ratingsUpdated) {
-                    console.log('Rating update cancelled by user - continuing with game posting');
+                // Use the newly calculated ratings directly
+                let team1NewRating = null;
+                let team2NewRating = null;
+                if (ratingResult && ratingResult.newRatings) {
+                    team1NewRating = ratingResult.newRatings[pair.team1];
+                    team2NewRating = ratingResult.newRatings[pair.team2];
+
+                    if (team1NewRating) {
+                        pair.ratings1 = pair.ratings1.includes(',')
+                            ? pair.ratings1 + `, ${team1NewRating}`
+                            : pair.ratings1 + `, ${team1NewRating}`;
+                    }
+                    if (team2NewRating) {
+                        pair.ratings2 = pair.ratings2.includes(',')
+                            ? pair.ratings2 + `, ${team2NewRating}`
+                            : pair.ratings2 + `, ${team2NewRating}`;
+                    }
                 }
+                // Update state to reflect the new ratings for tooltip display
+                setPlayoffPairs(updatedPairs);
 
                 // Post game to database
                 const gameData = {
@@ -2120,9 +2094,9 @@ export const TournamentBracket = ({
                     const finalStageIndex = stageLabels.indexOf('Final');
                     const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
 
-                    // Fetch updated ratings for both winner and loser
-                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
-                    const loserUpdatedRating = await getUpdatedPlayerRating(loser);
+                    // Use the newly calculated ratings
+                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                    const loserRating = winner === pair.team1 ? team2NewRating : team1NewRating;
 
                     // Promote winner to Final
                     if (finalStageIndex !== -1 && updatedPairs[finalStageIndex] && updatedPairs[finalStageIndex][0]) {
@@ -2140,8 +2114,7 @@ export const TournamentBracket = ({
                                 if (finalPair.team1 === 'TBD' || !finalPair.team1) {
                                     finalPair.team1 = winner;
                                     finalPair.ratings1 =
-                                        winnerUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     finalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
                                     console.log(
                                         `Promoted ${winner} to Final team1 with updated rating: ${finalPair.ratings1}`
@@ -2152,8 +2125,7 @@ export const TournamentBracket = ({
                                 if (finalPair.team2 === 'TBD' || !finalPair.team2) {
                                     finalPair.team2 = winner;
                                     finalPair.ratings2 =
-                                        winnerUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     finalPair.stars2 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
                                     console.log(
                                         `Promoted ${winner} to Final team2 with updated rating: ${finalPair.ratings2}`
@@ -2185,8 +2157,7 @@ export const TournamentBracket = ({
                                 if (thirdPlacePair.team1 === 'TBD' || !thirdPlacePair.team1) {
                                     thirdPlacePair.team1 = loser;
                                     thirdPlacePair.ratings1 =
-                                        loserUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
+                                        loserRating || (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
                                     thirdPlacePair.stars1 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
                                     console.log(
                                         `Promoted ${loser} to Third Place team1 with updated rating: ${thirdPlacePair.ratings1}`
@@ -2197,8 +2168,7 @@ export const TournamentBracket = ({
                                 if (thirdPlacePair.team2 === 'TBD' || !thirdPlacePair.team2) {
                                     thirdPlacePair.team2 = loser;
                                     thirdPlacePair.ratings2 =
-                                        loserUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
+                                        loserRating || (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
                                     thirdPlacePair.stars2 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
                                     console.log(
                                         `Promoted ${loser} to Third Place team2 with updated rating: ${thirdPlacePair.ratings2}`
@@ -2211,8 +2181,8 @@ export const TournamentBracket = ({
                     }
                 } else if (currentStage === 'Quarter-final') {
                     // Winner goes to Semi-final
-                    // Fetch updated rating for winner
-                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+                    // Use the newly calculated rating for the winner
+                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
                     const semiStageIndex = stageLabels.indexOf('Semi-final');
                     if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
@@ -2231,8 +2201,7 @@ export const TournamentBracket = ({
                                 if (semiPair[teamSlot] === 'TBD' || !semiPair[teamSlot]) {
                                     semiPair[teamSlot] = winner;
                                     semiPair[ratingsSlot] =
-                                        winnerUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     semiPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
                                     console.log(
                                         `Promoted ${winner} to Semi-final ${semiPairIndex} ${teamSlot} with updated rating: ${semiPair[ratingsSlot]}`
@@ -2245,8 +2214,8 @@ export const TournamentBracket = ({
                     }
                 } else if (currentStage === '1/8 Final') {
                     // Winner goes to Quarter-final
-                    // Fetch updated rating for winner
-                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+                    // Use the newly calculated rating for the winner
+                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
                     const quarterStageIndex = stageLabels.indexOf('Quarter-final');
                     if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
@@ -2265,8 +2234,7 @@ export const TournamentBracket = ({
                                 if (quarterPair[teamSlot] === 'TBD' || !quarterPair[teamSlot]) {
                                     quarterPair[teamSlot] = winner;
                                     quarterPair[ratingsSlot] =
-                                        winnerUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     quarterPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
                                     console.log(
                                         `Promoted ${winner} to Quarter-final ${quarterPairIndex} ${teamSlot} with updated rating: ${quarterPair[ratingsSlot]}`
@@ -2279,8 +2247,8 @@ export const TournamentBracket = ({
                     }
                 } else if (currentStage === '1/16 Final') {
                     // Winner goes to 1/8 Final
-                    // Fetch updated rating for winner
-                    const winnerUpdatedRating = await getUpdatedPlayerRating(winner);
+                    // Use the newly calculated rating for the winner
+                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
                     const eighthStageIndex = stageLabels.indexOf('1/8 Final');
                     if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
@@ -2299,8 +2267,7 @@ export const TournamentBracket = ({
                                 if (eighthPair[teamSlot] === 'TBD' || !eighthPair[teamSlot]) {
                                     eighthPair[teamSlot] = winner;
                                     eighthPair[ratingsSlot] =
-                                        winnerUpdatedRating ||
-                                        (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     eighthPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
                                     console.log(
                                         `Promoted ${winner} to 1/8 Final ${eighthPairIndex} ${teamSlot} with updated rating: ${eighthPair[ratingsSlot]}`
@@ -3387,6 +3354,7 @@ export const TournamentBracket = ({
                     pair={playoffPairs[selectedStageIndex]?.[selectedPairIndex]}
                     onClose={() => setShowReportGameModal(false)}
                     onSubmit={handleSubmitGameReport}
+                    playoffPairs={playoffPairs}
                 />
             )}
         </div>
