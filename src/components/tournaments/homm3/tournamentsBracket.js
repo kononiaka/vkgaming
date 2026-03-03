@@ -2818,13 +2818,14 @@ export const TournamentBracket = ({
                             }}
                         >
                             {(() => {
-                                // Find min and max total values
-                                const totals = availableCastles.map((castle) => castle.total);
+                                // Find min and max total values (including live games)
+                                const totals = availableCastles.map((castle) => castle.total + (castle.liveGames || 0));
                                 const minTotal = Math.min(...totals);
                                 const maxTotal = Math.max(...totals);
 
                                 return availableCastles.map((castle, idx) => {
                                     const isLive = castle.liveGames > 0;
+                                    const castleTotal = castle.total + (castle.liveGames || 0);
                                     return (
                                         <li
                                             key={idx}
@@ -2837,13 +2838,13 @@ export const TournamentBracket = ({
                                                 borderLeft: isLive ? '4px solid #ff6b00' : '4px solid gold',
                                                 borderRadius: '6px',
                                                 color:
-                                                    castle.total === minTotal
+                                                    castleTotal === minTotal
                                                         ? '#4ade80'
-                                                        : castle.total === maxTotal
+                                                        : castleTotal === maxTotal
                                                           ? '#f87171'
                                                           : '#FFD700',
                                                 fontWeight:
-                                                    castle.total === minTotal || castle.total === maxTotal
+                                                    castleTotal === minTotal || castleTotal === maxTotal
                                                         ? 'bold'
                                                         : 'normal',
                                                 fontSize: '1.1rem',
@@ -3004,6 +3005,7 @@ export const TournamentBracket = ({
                                                             teamIndex={1}
                                                             getWinner={getWinner}
                                                             clickedRadioButton={clickedRadioButton}
+                                                            playersObj={playersObj}
                                                         />
                                                         <PlayerBracket
                                                             pair={pair}
@@ -3021,6 +3023,7 @@ export const TournamentBracket = ({
                                                             getWinner={getWinner}
                                                             isManualScore={isManualScore}
                                                             clickedRadioButton={clickedRadioButton}
+                                                            playersObj={playersObj}
                                                         />
                                                     </div>
                                                     <div
@@ -3090,6 +3093,7 @@ export const TournamentBracket = ({
                                                             teamIndex={1}
                                                             getWinner={getWinner}
                                                             clickedRadioButton={clickedRadioButton}
+                                                            playersObj={playersObj}
                                                         />
                                                         <PlayerBracket
                                                             pair={pair}
@@ -3107,6 +3111,7 @@ export const TournamentBracket = ({
                                                             getWinner={getWinner}
                                                             isManualScore={isManualScore}
                                                             clickedRadioButton={clickedRadioButton}
+                                                            playersObj={playersObj}
                                                         />
                                                     </div>
                                                     <div

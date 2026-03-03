@@ -131,18 +131,19 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             return '#CCCCCC'; // Default gray if castle not found
         }
 
-        const totals = availableCastles.map((c) => c.total);
+        const totals = availableCastles.map((c) => c.total + (c.liveGames || 0));
         const minTotal = Math.min(...totals);
         const maxTotal = Math.max(...totals);
 
+        const castleTotal = castle.total + (castle.liveGames || 0);
         const color =
-            castle.total === minTotal
+            castleTotal === minTotal
                 ? '#4ade80' // Green (less games played)
-                : castle.total === maxTotal
+                : castleTotal === maxTotal
                   ? '#f87171' // Red (more games played)
                   : '#FFD700'; // Yellow (equal)
 
-        console.log(`Castle: ${castleName}, Games: ${castle.total}, Color: ${color}`);
+        console.log(`Castle: ${castleName}, Games: ${castleTotal}, Color: ${color}`);
         return color;
     };
 
@@ -564,122 +565,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                 )}
 
                 <form onSubmit={handleSubmit} className={classes.form} style={{ position: 'relative' }}>
-                    {/* Available Castles Section */}
-                    {availableCastles.length > 0 && (
-                        <div
-                            style={{
-                                position: 'relative',
-                                zIndex: 3,
-                                marginBottom: '1.5rem',
-                                padding: '1rem',
-                                background: 'linear-gradient(135deg, rgba(45, 20, 150, 0.8), rgba(62, 32, 192, 0.8))',
-                                border: '2px solid #FFD700',
-                                borderRadius: '12px',
-                                backdropFilter: 'blur(10px)',
-                                boxShadow: '0 4px 20px rgba(255, 215, 0, 0.6)'
-                            }}
-                        >
-                            <h3
-                                style={{
-                                    color: '#FFD700',
-                                    fontSize: '1rem',
-                                    marginTop: 0,
-                                    marginBottom: '0.75rem',
-                                    fontWeight: 'bold',
-                                    textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)'
-                                }}
-                            >
-                                📊 Available Castles
-                            </h3>
-                            <ul
-                                style={{
-                                    listStyle: 'none',
-                                    padding: 0,
-                                    margin: 0
-                                }}
-                            >
-                                {(() => {
-                                    const totals = availableCastles.map((castle) => castle.total);
-                                    const minTotal = Math.min(...totals);
-                                    const maxTotal = Math.max(...totals);
-
-                                    return availableCastles.map((castle, idx) => {
-                                        const isLive = castle.liveGames > 0;
-                                        return (
-                                            <li
-                                                key={idx}
-                                                style={{
-                                                    padding: '0.75rem 1rem',
-                                                    margin: '0.5rem 0',
-                                                    background: isLive
-                                                        ? 'rgba(255, 165, 0, 0.3)'
-                                                        : 'rgba(45, 20, 150, 0.6)',
-                                                    borderLeft: isLive ? '4px solid #ff6b00' : '4px solid gold',
-                                                    borderRadius: '6px',
-                                                    color:
-                                                        castle.total === minTotal
-                                                            ? '#4ade80'
-                                                            : castle.total === maxTotal
-                                                              ? '#f87171'
-                                                              : '#FFD700',
-                                                    fontWeight:
-                                                        castle.total === minTotal || castle.total === maxTotal
-                                                            ? 'bold'
-                                                            : 'normal',
-                                                    fontSize: '1.1rem',
-                                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                                                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                                                    cursor: 'default'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.target.style.transform = 'translateX(5px)';
-                                                    e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.target.style.transform = 'translateX(0)';
-                                                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-                                                }}
-                                            >
-                                                <span style={{ fontWeight: 'bold' }}>
-                                                    {castle.name}
-                                                    {isLive && (
-                                                        <span
-                                                            style={{
-                                                                marginLeft: '8px',
-                                                                padding: '2px 6px',
-                                                                background: '#ff6b00',
-                                                                color: 'white',
-                                                                borderRadius: '4px',
-                                                                fontSize: '0.8rem',
-                                                                fontWeight: 'bold'
-                                                            }}
-                                                        >
-                                                            🔴 LIVE ({castle.liveGames})
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span style={{ float: 'right', color: 'white' }}>
-                                                    Games: {castle.total}
-                                                    {isLive && (
-                                                        <span
-                                                            style={{
-                                                                color: '#ff6b00',
-                                                                fontWeight: 'bold',
-                                                                marginLeft: '4px'
-                                                            }}
-                                                        >
-                                                            +{castle.liveGames}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            </li>
-                                        );
-                                    });
-                                })()}
-                            </ul>
-                        </div>
-                    )}
-
                     {/* Game Results */}
                     {pair.type === 'bo-3' ? (
                         <div style={{ position: 'relative', zIndex: 2 }}>
@@ -1443,7 +1328,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                             : `3px solid ${getCastleBorderColor(c)}`,
                                                                         borderRadius: '4px',
                                                                         objectFit: 'cover',
-                                                                        opacity: isSelected ? 1 : 0.8,
+                                                                        opacity: isSelected
+                                                                            ? 1
+                                                                            : getCastleBorderColor(c) === '#f87171'
+                                                                              ? 0.4
+                                                                              : 1,
                                                                         transform: isSelected
                                                                             ? 'scale(1.05)'
                                                                             : 'scale(1)',
@@ -1454,29 +1343,32 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                     }}
                                                                 />
                                                                 {/* Indicator Overlay */}
-                                                                <div
-                                                                    style={{
-                                                                        position: 'absolute',
-                                                                        top: '-8px',
-                                                                        right: '-8px',
-                                                                        width: '32px',
-                                                                        height: '32px',
-                                                                        borderRadius: '50%',
-                                                                        backgroundColor: isSelected
-                                                                            ? '#00CC00'
-                                                                            : '#FF3333',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        fontSize: '20px',
-                                                                        fontWeight: 'bold',
-                                                                        color: 'white',
-                                                                        boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
-                                                                        border: '2px solid white'
-                                                                    }}
-                                                                >
-                                                                    {isSelected ? '✓' : '✕'}
-                                                                </div>
+                                                                {(isSelected ||
+                                                                    getCastleBorderColor(c) === '#f87171') && (
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '-8px',
+                                                                            right: '-8px',
+                                                                            width: '32px',
+                                                                            height: '32px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: isSelected
+                                                                                ? '#00CC00'
+                                                                                : '#FF3333',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            fontSize: '20px',
+                                                                            fontWeight: 'bold',
+                                                                            color: 'white',
+                                                                            boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                            border: '2px solid white'
+                                                                        }}
+                                                                    >
+                                                                        {isSelected ? '✓' : '✕'}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     })}
@@ -1532,7 +1424,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                             : `3px solid ${getCastleBorderColor(c)}`,
                                                                         borderRadius: '4px',
                                                                         objectFit: 'cover',
-                                                                        opacity: isSelected ? 1 : 0.8,
+                                                                        opacity: isSelected
+                                                                            ? 1
+                                                                            : getCastleBorderColor(c) === '#f87171'
+                                                                              ? 0.4
+                                                                              : 1,
                                                                         transform: isSelected
                                                                             ? 'scale(1.05)'
                                                                             : 'scale(1)',
@@ -1543,29 +1439,32 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                     }}
                                                                 />
                                                                 {/* Indicator Overlay */}
-                                                                <div
-                                                                    style={{
-                                                                        position: 'absolute',
-                                                                        top: '-8px',
-                                                                        right: '-8px',
-                                                                        width: '32px',
-                                                                        height: '32px',
-                                                                        borderRadius: '50%',
-                                                                        backgroundColor: isSelected
-                                                                            ? '#00CC00'
-                                                                            : '#FF3333',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        fontSize: '20px',
-                                                                        fontWeight: 'bold',
-                                                                        color: 'white',
-                                                                        boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
-                                                                        border: '2px solid white'
-                                                                    }}
-                                                                >
-                                                                    {isSelected ? '✓' : '✕'}
-                                                                </div>
+                                                                {(isSelected ||
+                                                                    getCastleBorderColor(c) === '#f87171') && (
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '-8px',
+                                                                            right: '-8px',
+                                                                            width: '32px',
+                                                                            height: '32px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: isSelected
+                                                                                ? '#00CC00'
+                                                                                : '#FF3333',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            fontSize: '20px',
+                                                                            fontWeight: 'bold',
+                                                                            color: 'white',
+                                                                            boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                            border: '2px solid white'
+                                                                        }}
+                                                                    >
+                                                                        {isSelected ? '✓' : '✕'}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     })}
@@ -2570,40 +2469,46 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                 width: '105px',
                                                                 height: '70px',
                                                                 border: isSelected
-                                                                    ? '3px solid #FFD700'
-                                                                    : '2px solid #CCCCCC',
+                                                                    ? '4px solid #FFD700'
+                                                                    : `3px solid ${getCastleBorderColor(c)}`,
                                                                 borderRadius: '4px',
                                                                 objectFit: 'cover',
-                                                                opacity: isSelected ? 1 : 0.7,
+                                                                opacity: isSelected
+                                                                    ? 1
+                                                                    : getCastleBorderColor(c) === '#f87171'
+                                                                      ? 0.4
+                                                                      : 1,
                                                                 transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                                                                 transition: 'all 0.2s ease',
                                                                 boxShadow: isSelected
                                                                     ? '0 0 12px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.3)'
-                                                                    : 'none'
+                                                                    : `0 0 8px ${getCastleBorderColor(c)}80`
                                                             }}
                                                         />
                                                         {/* Indicator Overlay */}
-                                                        <div
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: '-8px',
-                                                                right: '-8px',
-                                                                width: '32px',
-                                                                height: '32px',
-                                                                borderRadius: '50%',
-                                                                backgroundColor: isSelected ? '#00CC00' : '#FF3333',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                fontSize: '20px',
-                                                                fontWeight: 'bold',
-                                                                color: 'white',
-                                                                boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
-                                                                border: '2px solid white'
-                                                            }}
-                                                        >
-                                                            {isSelected ? '✓' : '✕'}
-                                                        </div>
+                                                        {(isSelected || getCastleBorderColor(c) === '#f87171') && (
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '-8px',
+                                                                    right: '-8px',
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: isSelected ? '#00CC00' : '#FF3333',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '20px',
+                                                                    fontWeight: 'bold',
+                                                                    color: 'white',
+                                                                    boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                    border: '2px solid white'
+                                                                }}
+                                                            >
+                                                                {isSelected ? '✓' : '✕'}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -2653,40 +2558,46 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                 width: '105px',
                                                                 height: '70px',
                                                                 border: isSelected
-                                                                    ? '3px solid #FFD700'
-                                                                    : '2px solid #CCCCCC',
+                                                                    ? '4px solid #FFD700'
+                                                                    : `3px solid ${getCastleBorderColor(c)}`,
                                                                 borderRadius: '4px',
                                                                 objectFit: 'cover',
-                                                                opacity: isSelected ? 1 : 0.7,
+                                                                opacity: isSelected
+                                                                    ? 1
+                                                                    : getCastleBorderColor(c) === '#f87171'
+                                                                      ? 0.4
+                                                                      : 1,
                                                                 transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                                                                 transition: 'all 0.2s ease',
                                                                 boxShadow: isSelected
                                                                     ? '0 0 12px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 8px rgba(255, 215, 0, 0.3)'
-                                                                    : 'none'
+                                                                    : `0 0 8px ${getCastleBorderColor(c)}80`
                                                             }}
                                                         />
                                                         {/* Indicator Overlay */}
-                                                        <div
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: '-8px',
-                                                                right: '-8px',
-                                                                width: '32px',
-                                                                height: '32px',
-                                                                borderRadius: '50%',
-                                                                backgroundColor: isSelected ? '#00CC00' : '#FF3333',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                fontSize: '20px',
-                                                                fontWeight: 'bold',
-                                                                color: 'white',
-                                                                boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
-                                                                border: '2px solid white'
-                                                            }}
-                                                        >
-                                                            {isSelected ? '✓' : '✕'}
-                                                        </div>
+                                                        {(isSelected || getCastleBorderColor(c) === '#f87171') && (
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '-8px',
+                                                                    right: '-8px',
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: isSelected ? '#00CC00' : '#FF3333',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '20px',
+                                                                    fontWeight: 'bold',
+                                                                    color: 'white',
+                                                                    boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                    border: '2px solid white'
+                                                                }}
+                                                            >
+                                                                {isSelected ? '✓' : '✕'}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
