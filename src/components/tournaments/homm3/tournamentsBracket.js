@@ -10,7 +10,8 @@ import {
     lookForUserPrevScore,
     pullTournamentPrizes,
     fetchCastlesList,
-    calculateStarsFromRating
+    calculateStarsFromRating,
+    snapshotLeaderboardRanks
 } from '../../../api/api';
 import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
@@ -390,6 +391,21 @@ export const TournamentBracket = ({
             }
 
             setStartTournament(true);
+
+            // Automatically snapshot current leaderboard rankings before tournament starts
+            try {
+                const snapshotResult = await snapshotLeaderboardRanks();
+                if (snapshotResult.success) {
+                    console.log(
+                        `Leaderboard snapshot taken: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                    );
+                } else {
+                    console.error('Failed to snapshot leaderboard:', snapshotResult.error);
+                }
+            } catch (error) {
+                console.error('Error during leaderboard snapshot:', error);
+            }
+
             // Prepare the tournament data
             console.log('Random Brackets setting:', randomBrackets);
             console.log('Should open spinning wheel?', !randomBrackets);
@@ -642,6 +658,8 @@ export const TournamentBracket = ({
                                     }
                                     if (secondPlaceResponse.ok) {
                                         console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
+                                        // Now process 3rd place prize
+                                        await determineThirdPlaceWinner(retrievedWinners, stageLabels);
                                     }
                                 }
                             }
@@ -653,6 +671,20 @@ export const TournamentBracket = ({
                 }
             }
             // }
+
+            // Automatically snapshot current leaderboard rankings after tournament finishes and all prizes are awarded
+            try {
+                const snapshotResult = await snapshotLeaderboardRanks();
+                if (snapshotResult.success) {
+                    console.log(
+                        `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                    );
+                } else {
+                    console.error('Failed to snapshot leaderboard after tournament:', snapshotResult.error);
+                }
+            } catch (error) {
+                console.error('Error during leaderboard snapshot after tournament:', error);
+            }
 
             console.log('Pairs posted to Firebase successfully');
             let reloadResponse = confirmWindow(`Are you sure you want to reload the page?`);
@@ -2539,6 +2571,23 @@ export const TournamentBracket = ({
                                     }
                                 );
                                 console.log('Tournament status updated to Tournament Finished');
+
+                                // Automatically snapshot current leaderboard rankings after tournament finishes
+                                try {
+                                    const snapshotResult = await snapshotLeaderboardRanks();
+                                    if (snapshotResult.success) {
+                                        console.log(
+                                            `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                                        );
+                                    } else {
+                                        console.error(
+                                            'Failed to snapshot leaderboard after tournament:',
+                                            snapshotResult.error
+                                        );
+                                    }
+                                } catch (error) {
+                                    console.error('Error during leaderboard snapshot after tournament:', error);
+                                }
 
                                 // Recalculate stars for all players based on new ratings
                                 const confirmRecalculateStars = confirmWindow(

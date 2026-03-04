@@ -790,3 +790,88 @@ export async function fetchBestAndWorstOpponentForPlayer(playerName) {
 
     return { best, worst };
 }
+
+export const snapshotLeaderboardRanks = async () => {
+    try {
+        // Fetch all users and sort by rating
+        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+        if (!response.ok) {
+            throw new Error('Unable to fetch users for snapshot.');
+        }
+        const data = await response.json();
+        if (!data) {
+            throw new Error('No user data available.');
+        }
+
+        // Sort users by rating to get current ranking
+        const playerObj = Object.entries(data)
+            .map(([id, player]) => {
+                let ratings = player.ratings;
+                if (typeof ratings === 'string' && ratings.includes(',')) {
+                    ratings = parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
+                } else {
+                    ratings = ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
+                }
+                return {
+                    id,
+                    enteredNickname: player.enteredNickname,
+                    ratings
+                };
+            })
+            .sort((a, b) => b.ratings - a.ratings);
+
+        const timestamp = new Date().toISOString();
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Update each player with their current rank
+        for (let i = 0; i < playerObj.length; i++) {
+            const player = playerObj[i];
+            const currentRank = i + 1;
+
+            try {
+                const userResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                    {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            previousRank: currentRank,
+                            previousRankTimestamp: timestamp
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (userResponse.ok) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error(`Error saving rank snapshot for ${player.enteredNickname}:`, error);
+                errorCount++;
+            }
+        }
+
+        // Save the snapshot timestamp in meta
+        try {
+            await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json', {
+                method: 'PUT',
+                body: JSON.stringify(timestamp),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+        } catch (error) {
+            console.error('Error saving meta timestamp:', error);
+        }
+
+        console.log(`Leaderboard snapshot completed: ${successCount} successful, ${errorCount} errors`);
+        return { success: true, successCount, errorCount, timestamp };
+    } catch (error) {
+        console.error('Error snapshotting leaderboard ranks:', error);
+        return { success: false, error: error.message };
+    }
+};
