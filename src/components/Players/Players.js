@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Line } from 'react-chartjs-2';
+import Chart from 'chart.js/auto';
 import {
     fetchLastGamesForPlayer,
     fetchBestAndWorstCastleForPlayer,
@@ -40,6 +42,7 @@ const PlayerDetails = () => {
     const [goldStats, setGoldStats] = useState(null);
     const [restartStats, setRestartStats] = useState(null);
     const [showRestartDetails, setShowRestartDetails] = useState(false);
+    const [chartData, setChartData] = useState(null);
 
     useEffect(() => {
         // Fetch player details based on the ID from the database
@@ -282,6 +285,115 @@ const PlayerDetails = () => {
         });
     };
 
+    // Prepare rating trend chart data
+    useEffect(() => {
+        if (player && player.ratings) {
+            const ratingsString = player.ratings;
+            const ratingsArray = ratingsString
+                .split(',')
+                .map((r) => parseFloat(r.trim()))
+                .filter((r) => !isNaN(r));
+
+            if (ratingsArray.length > 0) {
+                const labels = ratingsArray.map((_, index) => `Game ${index + 1}`);
+                const minRating = Math.min(...ratingsArray);
+                const maxRating = Math.max(...ratingsArray);
+                const padding = (maxRating - minRating) * 0.1 || 0.5;
+
+                const data = {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Rating Trend',
+                            data: ratingsArray,
+                            borderColor: '#FFD700',
+                            backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#FFD700',
+                            pointBorderColor: '#FFF',
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 7,
+                            pointHoverBackgroundColor: '#FFF',
+                            pointHoverBorderColor: '#FFD700'
+                        }
+                    ]
+                };
+
+                const options = {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#00ffff',
+                                font: { size: 14, weight: 'bold' },
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#FFD700',
+                            bodyColor: '#00ffff',
+                            borderColor: '#FFD700',
+                            borderWidth: 2,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: (context) => {
+                                    const value = context.parsed.y;
+                                    const prevValue =
+                                        context.dataIndex > 0 ? ratingsArray[context.dataIndex - 1] : null;
+                                    const change = prevValue ? (value - prevValue).toFixed(2) : 'N/A';
+                                    const changeSymbol = prevValue
+                                        ? value > prevValue
+                                            ? '↑'
+                                            : value < prevValue
+                                              ? '↓'
+                                              : '→'
+                                        : '';
+                                    return `Rating: ${value.toFixed(2)} ${changeSymbol ? `(${changeSymbol} ${change})` : ''}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: Math.max(0, minRating - padding),
+                            max: maxRating + padding,
+                            ticks: {
+                                color: '#00ffff',
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 255, 0.1)',
+                                drawBorder: false
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#00ffff',
+                                font: { size: 11 },
+                                maxRotation: 45,
+                                minRotation: 0
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 255, 0.05)',
+                                drawBorder: false
+                            }
+                        }
+                    }
+                };
+
+                setChartData({ data, options });
+            }
+        }
+    }, [player]);
+
     const handleShowCastleStats = async () => {
         if (showPopup) {
             setShowPopup(false);
@@ -301,50 +413,96 @@ const PlayerDetails = () => {
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '15px',
-                            marginBottom: '20px'
+                            gap: '30px',
+                            marginBottom: '30px',
+                            padding: '20px',
+                            background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(255, 215, 0, 0.05))',
+                            border: '2px solid rgba(0, 255, 255, 0.3)',
+                            borderRadius: '8px'
                         }}
                     >
-                        {avatarUrl ? (
-                            <img
-                                src={avatarUrl}
-                                alt={`${player.enteredNickname}'s avatar`}
-                                style={{
-                                    width: '60px',
-                                    height: '60px',
-                                    borderRadius: '50%',
-                                    border: '3px solid #ffd700',
-                                    objectFit: 'cover',
-                                    boxShadow: '0 4px 8px rgba(255, 215, 0, 0.4)'
-                                }}
-                            />
-                        ) : (
+                        {/* Avatar on the left */}
+                        <div style={{ flexShrink: 0 }}>
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt={`${player.enteredNickname}'s avatar`}
+                                    style={{
+                                        width: '140px',
+                                        height: '140px',
+                                        borderRadius: '50%',
+                                        border: '4px solid #ffd700',
+                                        objectFit: 'cover',
+                                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(0, 255, 255, 0.3)'
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        width: '140px',
+                                        height: '140px',
+                                        borderRadius: '50%',
+                                        border: '4px solid #ffd700',
+                                        backgroundColor: '#1a1a2e',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontFamily: '"Press Start 2P", "Courier New", monospace',
+                                        fontSize: '48px',
+                                        fontWeight: 'bold',
+                                        color: '#00ffff',
+                                        textShadow: '2px 2px 4px rgba(0, 255, 255, 0.5)',
+                                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(0, 255, 255, 0.3)',
+                                        imageRendering: 'pixelated'
+                                    }}
+                                >
+                                    {player.enteredNickname.charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Player info on the right */}
+                        <div style={{ flex: 1 }}>
+                            <p
+                                className={classes.playerName}
+                                style={{ margin: '0 0 15px 0', textAlign: 'left', fontSize: '2.5rem' }}
+                            >
+                                {player.enteredNickname}
+                            </p>
                             <div
                                 style={{
-                                    width: '60px',
-                                    height: '60px',
-                                    borderRadius: '50%',
-                                    border: '3px solid #ffd700',
-                                    backgroundColor: '#1a1a2e',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontFamily: '"Press Start 2P", "Courier New", monospace',
-                                    fontSize: '24px',
-                                    fontWeight: 'bold',
-                                    color: '#00ffff',
-                                    textShadow: '2px 2px 4px rgba(0, 255, 255, 0.5)',
-                                    boxShadow: '0 4px 8px rgba(255, 215, 0, 0.4)',
-                                    imageRendering: 'pixelated'
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(2, 1fr)',
+                                    gap: '15px',
+                                    marginTop: '15px'
                                 }}
                             >
-                                {player.enteredNickname.charAt(0).toUpperCase()}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Wins:</span>
+                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                        {player.gamesPlayed.heroes3.total - player.gamesPlayed.heroes3.lose}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Losses:</span>
+                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                        {player.gamesPlayed.heroes3.lose}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Rating:</span>
+                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                        {parseFloat(player.ratings.split(',').pop()).toFixed(2)}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Rank:</span>
+                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                        #{leaderboardPlace !== null ? leaderboardPlace : '...'}
+                                    </span>
+                                </div>
                             </div>
-                        )}
-                        <p className={classes.playerName} style={{ margin: 0 }}>
-                            {player.enteredNickname}
-                        </p>
+                        </div>
                     </div>
 
                     <div className={classes.statsGrid}>
@@ -979,6 +1137,25 @@ const PlayerDetails = () => {
                             </div>
                         </>
                     )}
+                    {/* Rating Trend Chart Section */}
+                    <div className={classes.section}>
+                        <h3 className={classes.sectionTitle}>📈 Rating Trend</h3>
+                        <div
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(0, 255, 255, 0.05))',
+                                border: '2px solid rgba(255, 215, 0, 0.3)',
+                                borderRadius: '8px',
+                                padding: '1.5rem',
+                                boxShadow: '0 4px 12px rgba(255, 215, 0, 0.1)'
+                            }}
+                        >
+                            {chartData ? (
+                                <Line data={chartData.data} options={chartData.options} />
+                            ) : (
+                                <p style={{ color: '#999', textAlign: 'center' }}>No rating data available</p>
+                            )}
+                        </div>
+                    </div>
                 </>
             ) : (
                 <p className={classes.loading}>Loading player details...</p>

@@ -2396,6 +2396,13 @@ export const TournamentBracket = ({
                             console.error('Error awarding Third Place prize:', error);
                             alert('Error awarding Third Place prize: ' + error.message);
                         }
+
+                        // Mark pair and all games as 'Processed' for Third Place
+                        pair.gameStatus = 'Processed';
+                        reportData.games.forEach((game) => {
+                            game.gameStatus = 'Processed';
+                        });
+                        console.log('Third Place games marked as Processed');
                     } else {
                         console.log('Third Place prize award cancelled by user');
                     }
@@ -2554,6 +2561,13 @@ export const TournamentBracket = ({
                             console.error('Error awarding Final prizes:', error);
                             alert('Error awarding Final prizes: ' + error.message);
                         }
+
+                        // Mark pair and all games as 'Processed' for Final
+                        pair.gameStatus = 'Processed';
+                        reportData.games.forEach((game) => {
+                            game.gameStatus = 'Processed';
+                        });
+                        console.log('Final games marked as Processed');
 
                         // Update tournament status to "Tournament Finished"
                         const confirmStatusUpdate = confirmWindow(
