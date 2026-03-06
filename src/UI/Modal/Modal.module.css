@@ -19,7 +19,7 @@
     padding: 2rem;
     border-radius: 14px;
     border: 3px solid #00ffff;
-    box-shadow: 
+    box-shadow:
         0 8px 16px rgba(0, 0, 0, 0.5),
         0 0 30px rgba(0, 255, 255, 0.3),
         inset 0 2px 4px rgba(255, 215, 0, 0.1);
@@ -123,6 +123,8 @@
 }
 
 .modal_donate {
+    max-height: fit-content;
+    top: 2%; /* Centered vertically on screen */
     position: fixed;
     font-family: 'Noto Sans JP', sans-serif;
     font-size: 16px;
@@ -132,8 +134,8 @@
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     padding: 2rem 2rem 2rem 3rem;
     border-radius: 14px;
-    border: 3px solid #FFD700;
-    box-shadow: 
+    border: 3px solid #ffd700;
+    box-shadow:
         0 8px 16px rgba(0, 0, 0, 0.5),
         0 0 30px rgba(255, 215, 0, 0.3),
         inset 0 2px 4px rgba(0, 255, 255, 0.1);
@@ -154,7 +156,7 @@
     padding: 2rem 2rem 2rem 3rem;
     border-radius: 14px;
     border: 3px solid #4caf50;
-    box-shadow: 
+    box-shadow:
         0 8px 16px rgba(0, 0, 0, 0.6),
         0 0 30px rgba(76, 175, 80, 0.4);
     z-index: 200;
@@ -163,7 +165,7 @@
 }
 
 .modal_addGame label {
-    color: #FFD700;
+    color: #ffd700;
     font-weight: bold;
     display: block;
     margin-top: 0.5rem;
@@ -188,7 +190,7 @@
 .modal_addGame select:focus,
 .modal_addGame input:focus {
     outline: none;
-    border-color: #FFD700;
+    border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
 }
 
@@ -196,8 +198,8 @@
     position: absolute;
     bottom: 2rem;
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    border: 2px solid #FFD700;
+    background: linear-gradient(135deg, #ffd700, #ffa500);
+    border: 2px solid #ffd700;
     border-radius: 8px;
     color: #000;
     font-weight: bold;
@@ -247,7 +249,7 @@
     padding: 2rem 2rem 2rem 3rem;
     border-radius: 14px;
     border: 3px solid #e91e63;
-    box-shadow: 
+    box-shadow:
         0 8px 16px rgba(0, 0, 0, 0.6),
         0 0 30px rgba(233, 30, 99, 0.4);
     z-index: 200;
@@ -256,7 +258,7 @@
 }
 
 .modal_addTournament label {
-    color: #FFD700;
+    color: #ffd700;
     font-weight: bold;
     display: block;
     margin-top: 0.5rem;
@@ -281,7 +283,7 @@
 .modal_addTournament select:focus,
 .modal_addTournament input:focus {
     outline: none;
-    border-color: #FFD700;
+    border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
 }
 
@@ -289,8 +291,8 @@
     position: absolute;
     bottom: 2rem;
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    border: 2px solid #FFD700;
+    background: linear-gradient(135deg, #ffd700, #ffa500);
+    border: 2px solid #ffd700;
     border-radius: 8px;
     color: #000;
     font-weight: bold;

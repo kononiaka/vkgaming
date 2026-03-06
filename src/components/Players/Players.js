@@ -469,39 +469,6 @@ const PlayerDetails = () => {
                             >
                                 {player.enteredNickname}
                             </p>
-                            <div
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(2, 1fr)',
-                                    gap: '15px',
-                                    marginTop: '15px'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Wins:</span>
-                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                                        {player.gamesPlayed.heroes3.total - player.gamesPlayed.heroes3.lose}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Losses:</span>
-                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                                        {player.gamesPlayed.heroes3.lose}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Rating:</span>
-                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                                        {parseFloat(player.ratings.split(',').pop()).toFixed(2)}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ color: '#00ffff', fontSize: '0.9rem' }}>Rank:</span>
-                                    <span style={{ color: '#ffd700', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                                        #{leaderboardPlace !== null ? leaderboardPlace : '...'}
-                                    </span>
-                                </div>
-                            </div>
                         </div>
                     </div>
 

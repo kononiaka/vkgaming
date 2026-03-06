@@ -1,0 +1,115 @@
+.leaderboard {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9), rgba(22, 33, 62, 0.9));
+    border: 2px solid #ffd700;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.leaderboard h3 {
+    color: #ffd700;
+    text-align: center;
+    margin: 0 0 20px 0;
+    font-size: 1.3rem;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.loading,
+.noDonors {
+    text-align: center;
+    color: #00ffff;
+    font-style: italic;
+    padding: 20px;
+}
+
+.donorList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.donorItem {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.3s ease;
+}
+
+.donorItem:hover {
+    background: rgba(0, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.rank {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-right: 15px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.donorInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.nickname {
+    color: #00ffff;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.amount {
+    color: #ffd700;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.coins {
+    color: #4caf50;
+    font-size: 0.8rem;
+}
+
+.donationCount {
+    color: #999;
+    font-size: 0.8rem;
+    text-align: right;
+    min-width: 80px;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.footer p {
+    color: #00ffff;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .donorItem {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .rank {
+        align-self: flex-start;
+    }
+
+    .donationCount {
+        align-self: flex-end;
+        text-align: right;
+    }
+}

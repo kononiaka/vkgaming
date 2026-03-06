@@ -33,10 +33,10 @@
         0 0 30px rgba(255, 215, 0, 0.3);
     padding: 0.5rem 2rem 2rem 2rem;
     min-width: 700px;
-    max-width: 1000px;
+    max-width: 1500px;
     max-height: 90vh;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     color: white;
     animation: slideIn 0.3s ease-out;
     scroll-behavior: smooth;
