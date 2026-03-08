@@ -37,6 +37,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
+    const [castleMarkOverrides, setCastleMarkOverrides] = useState({}); // Manual castle mark overrides
 
     // Available castles - using database format with Russian names
     const castles = [
@@ -118,6 +119,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
     // Get border color for a castle based on availability
     const getCastleBorderColor = (castleName) => {
+        // Check for manual overrides first
+        if (castleMarkOverrides[castleName]) {
+            return castleMarkOverrides[castleName] === 'green' ? '#4ade80' : '#f87171';
+        }
+
+        // If any overrides exist, disable automatic coloring
+        if (Object.keys(castleMarkOverrides).length > 0) {
+            return '#CCCCCC'; // Gray when manual overrides are active
+        }
+
         if (!availableCastles || availableCastles.length === 0) {
             return '#CCCCCC'; // Default gray if no data
         }
@@ -143,7 +154,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                   ? '#f87171' // Red (more games played)
                   : '#FFD700'; // Yellow (equal)
 
-        console.log(`Castle: ${castleName}, Games: ${castleTotal}, Color: ${color}`);
+        // console.log(`Castle: ${castleName}, Games: ${castleTotal}, Color: ${color}`);
         return color;
     };
 
@@ -249,13 +260,88 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     const apiCastles = await fetchCastlesList();
                     const stats = calculateAvailableCastles(apiCastles, playoffPairs);
                     setAvailableCastles(stats);
+
+                    // Check if match is not finished (no pair winner)
+                    const isMatchFinished = pair.winner;
+
+                    // console.log('=== AUTO-MARK CHECK ===');
+                    // console.log('Match finished?', isMatchFinished);
+                    // console.log('Pair type:', pair.type);
+
+                    // For BO-3: Check if any game hasn't started
+                    let shouldAutoMark = false;
+                    if (pair.type === 'bo-3' && pair.games) {
+                        const hasUnstartedGame = pair.games.some(
+                            (g) => !g.castle1 || !g.castle2 || g.gameStatus === 'Not Started'
+                        );
+                        shouldAutoMark = hasUnstartedGame;
+                        console.log('BO-3 has unstarted game?', shouldAutoMark);
+                    }
+
+                    if (shouldAutoMark) {
+                        // Check each game and apply 11/12 logic to unstarted ones
+                        if (pair.games && pair.games.length > 0) {
+                            pair.games.forEach((game, idx) => {
+                                // Only apply 11/12 logic to games that are "Not Started!" AND have no castles selected
+                                // Skip "Processed" or any other finished games
+                                const isGameNotStarted = game.gameStatus && game.gameStatus.trim() === 'Not Started!';
+                                const noCastlesSelected = !game.castle1 || !game.castle2;
+                                const isGameProcessed = game.gameStatus && game.gameStatus.trim() === 'Processed';
+
+                                console.log(
+                                    `Game ${idx}: gameStatus='${game.gameStatus}', castle1=${game.castle1}, castle2=${game.castle2}, notStarted=${isGameNotStarted}, noCastlesSelected=${noCastlesSelected}, processed=${isGameProcessed}`
+                                );
+
+                                if (isGameNotStarted && noCastlesSelected && !isGameProcessed) {
+                                    // This game hasn't started yet - apply 11/12 logic
+                                    console.log(`✓ Game ${idx} not started - checking 11/12 condition`);
+
+                                    // Detect 11/12 degenerate state and clear marks if found
+                                    const gameCounts = stats.map((castle) => castle.total + (castle.liveGames || 0));
+                                    const maxCount = Math.max(...gameCounts);
+                                    const minCount = Math.min(...gameCounts);
+
+                                    console.log('Game counts:', gameCounts);
+                                    console.log('Max count:', maxCount, 'Min count:', minCount);
+
+                                    // Count how many castles have max count
+                                    const castlesWithMaxCount = stats.filter(
+                                        (castle) => castle.total + (castle.liveGames || 0) === maxCount
+                                    );
+
+                                    console.log('Castles with max count:', castlesWithMaxCount.length);
+                                    console.log(
+                                        'Castle names with max:',
+                                        castlesWithMaxCount.map((c) => c.name)
+                                    );
+
+                                    // If exactly 11 castles have max count and 1 has less, clear their red marks
+                                    if (castlesWithMaxCount.length === 11 && maxCount > minCount) {
+                                        console.log(
+                                            `✓ CLEARING all castle marks (11/12 detected). Max: ${maxCount}, Min: ${minCount}`
+                                        );
+                                        // Set all 11 castles to null to disable automatic coloring and show as gray
+                                        const clearMarks = {};
+                                        castlesWithMaxCount.forEach((castle) => {
+                                            clearMarks[castle.name] = null;
+                                        });
+                                        setCastleMarkOverrides(clearMarks);
+                                    } else {
+                                        console.log('✗ Not a 11/12 state, keeping marks as-is');
+                                    }
+                                } else {
+                                    console.log(`⊘ Game ${idx} (status: ${game.gameStatus}) - skipping 11/12 check`);
+                                }
+                            });
+                        }
+                    }
                 } catch (error) {
                     console.error('Error fetching castles:', error);
                 }
             };
             fetchAndCalculate();
         }
-    }, [playoffPairs]);
+    }, [playoffPairs, pair]);
 
     const handleGameResultChange = (gameIdx, field, value) => {
         const updated = [...gameResults];
@@ -292,6 +378,52 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             setSelectedWinner(pair.team1);
         } else if (team2Wins >= 2) {
             setSelectedWinner(pair.team2);
+        }
+    };
+
+    const handleCastleDoubleClick = (e, castleName) => {
+        e.stopPropagation();
+        const currentMark = castleMarkOverrides[castleName];
+        const newOverrides = { ...castleMarkOverrides };
+
+        if (!currentMark) {
+            // Check if another castle is already marked green
+            const hasGreenMark = Object.values(newOverrides).includes('green');
+
+            if (hasGreenMark) {
+                // If green is already taken, mark as red instead
+                newOverrides[castleName] = 'red';
+            } else {
+                // No mark -> Green (only one allowed)
+                // Remove any existing green marks first
+                Object.keys(newOverrides).forEach((key) => {
+                    if (newOverrides[key] === 'green') {
+                        delete newOverrides[key];
+                    }
+                });
+                newOverrides[castleName] = 'green';
+            }
+        } else if (currentMark === 'green') {
+            // Green -> Red
+            newOverrides[castleName] = 'red';
+        } else {
+            // Red -> Clear
+            delete newOverrides[castleName];
+        }
+
+        // Check if all castles except one are marked red - if so, clear all marks
+        const redCount = Object.values(newOverrides).filter((v) => v === 'red').length;
+        const totalCastles = castles.length;
+
+        // Debug: log the state
+        console.log(`Marked Castles - Red: ${redCount}, Total: ${totalCastles}, Threshold: ${totalCastles - 1}`);
+
+        if (redCount >= totalCastles - 1) {
+            // Clear all marks if all but one (or all) are marked red
+            console.log('Auto-clearing all castle marks!');
+            setCastleMarkOverrides({});
+        } else {
+            setCastleMarkOverrides(newOverrides);
         }
     };
 
@@ -1300,6 +1432,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                 >
                                                     {castles.map((c) => {
                                                         const isSelected = game.castle1 === c;
+                                                        const isGameProcessed =
+                                                            game.gameStatus && game.gameStatus.trim() === 'Processed';
                                                         return (
                                                             <div
                                                                 key={c}
@@ -1307,19 +1441,22 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                     position: 'relative',
                                                                     width: '105px',
                                                                     height: '60px',
-                                                                    cursor: 'pointer',
+                                                                    cursor: isGameProcessed ? 'not-allowed' : 'pointer',
                                                                     display: 'flex',
                                                                     alignItems: 'center',
                                                                     justifyContent: 'center'
                                                                 }}
-                                                                onClick={() =>
-                                                                    handleGameResultChange(idx, 'castle1', c)
-                                                                }
+                                                                onClick={() => {
+                                                                    if (!isGameProcessed) {
+                                                                        handleGameResultChange(idx, 'castle1', c);
+                                                                    }
+                                                                }}
                                                             >
                                                                 <img
                                                                     src={getCastleImageUrl(c)}
                                                                     alt={c}
                                                                     title={c}
+                                                                    onDoubleClick={(e) => handleCastleDoubleClick(e, c)}
                                                                     style={{
                                                                         width: '105px',
                                                                         height: '60px',
@@ -1342,33 +1479,51 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                             : `0 0 8px ${getCastleBorderColor(c)}80`
                                                                     }}
                                                                 />
-                                                                {/* Indicator Overlay */}
-                                                                {(isSelected ||
-                                                                    getCastleBorderColor(c) === '#f87171') && (
-                                                                    <div
-                                                                        style={{
-                                                                            position: 'absolute',
-                                                                            top: '-8px',
-                                                                            right: '-8px',
-                                                                            width: '32px',
-                                                                            height: '32px',
-                                                                            borderRadius: '50%',
-                                                                            backgroundColor: isSelected
-                                                                                ? '#00CC00'
-                                                                                : '#FF3333',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            fontSize: '20px',
-                                                                            fontWeight: 'bold',
-                                                                            color: 'white',
-                                                                            boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
-                                                                            border: '2px solid white'
-                                                                        }}
-                                                                    >
-                                                                        {isSelected ? '✓' : '✕'}
-                                                                    </div>
-                                                                )}
+                                                                {/* Indicator Overlay for castle1 */}
+                                                                {(() => {
+                                                                    const isProcFlag =
+                                                                        game.gameStatus &&
+                                                                        game.gameStatus.trim() === 'Processed';
+                                                                    const showSelectedWhenProcessed =
+                                                                        isProcFlag && isSelected;
+                                                                    const showXForUnselected =
+                                                                        isProcFlag && !isSelected;
+                                                                    const showNormalInd =
+                                                                        (isSelected ||
+                                                                            getCastleBorderColor(c) === '#f87171') &&
+                                                                        !isProcFlag;
+                                                                    return showSelectedWhenProcessed ||
+                                                                        showXForUnselected ||
+                                                                        showNormalInd ? (
+                                                                        <div
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                top: '-8px',
+                                                                                right: '-8px',
+                                                                                width: '32px',
+                                                                                height: '32px',
+                                                                                borderRadius: '50%',
+                                                                                backgroundColor:
+                                                                                    showSelectedWhenProcessed ||
+                                                                                    isSelected
+                                                                                        ? '#00CC00'
+                                                                                        : '#FF3333',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                fontSize: '20px',
+                                                                                fontWeight: 'bold',
+                                                                                color: 'white',
+                                                                                boxShadow: `0 3px 8px rgba(${showSelectedWhenProcessed || isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                                border: '2px solid white'
+                                                                            }}
+                                                                        >
+                                                                            {showSelectedWhenProcessed || isSelected
+                                                                                ? '✓'
+                                                                                : '✕'}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
                                                             </div>
                                                         );
                                                     })}
@@ -1396,6 +1551,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                 >
                                                     {castles.map((c) => {
                                                         const isSelected = game.castle2 === c;
+                                                        const isGameProcessed =
+                                                            game.gameStatus && game.gameStatus.trim() === 'Processed';
                                                         return (
                                                             <div
                                                                 key={c}
@@ -1403,19 +1560,22 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                     position: 'relative',
                                                                     width: '105px',
                                                                     height: '60px',
-                                                                    cursor: 'pointer',
+                                                                    cursor: isGameProcessed ? 'not-allowed' : 'pointer',
                                                                     display: 'flex',
                                                                     alignItems: 'center',
                                                                     justifyContent: 'center'
                                                                 }}
-                                                                onClick={() =>
-                                                                    handleGameResultChange(idx, 'castle2', c)
-                                                                }
+                                                                onClick={() => {
+                                                                    if (!isGameProcessed) {
+                                                                        handleGameResultChange(idx, 'castle2', c);
+                                                                    }
+                                                                }}
                                                             >
                                                                 <img
                                                                     src={getCastleImageUrl(c)}
                                                                     alt={c}
                                                                     title={c}
+                                                                    onDoubleClick={(e) => handleCastleDoubleClick(e, c)}
                                                                     style={{
                                                                         width: '105px',
                                                                         height: '60px',
@@ -1438,33 +1598,51 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                             : `0 0 8px ${getCastleBorderColor(c)}80`
                                                                     }}
                                                                 />
-                                                                {/* Indicator Overlay */}
-                                                                {(isSelected ||
-                                                                    getCastleBorderColor(c) === '#f87171') && (
-                                                                    <div
-                                                                        style={{
-                                                                            position: 'absolute',
-                                                                            top: '-8px',
-                                                                            right: '-8px',
-                                                                            width: '32px',
-                                                                            height: '32px',
-                                                                            borderRadius: '50%',
-                                                                            backgroundColor: isSelected
-                                                                                ? '#00CC00'
-                                                                                : '#FF3333',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            fontSize: '20px',
-                                                                            fontWeight: 'bold',
-                                                                            color: 'white',
-                                                                            boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
-                                                                            border: '2px solid white'
-                                                                        }}
-                                                                    >
-                                                                        {isSelected ? '✓' : '✕'}
-                                                                    </div>
-                                                                )}
+                                                                {/* Indicator Overlay for castle2 */}
+                                                                {(() => {
+                                                                    const isProcFlag =
+                                                                        game.gameStatus &&
+                                                                        game.gameStatus.trim() === 'Processed';
+                                                                    const showSelectedWhenProcessed =
+                                                                        isProcFlag && isSelected;
+                                                                    const showXForUnselected =
+                                                                        isProcFlag && !isSelected;
+                                                                    const showNormalInd =
+                                                                        (isSelected ||
+                                                                            getCastleBorderColor(c) === '#f87171') &&
+                                                                        !isProcFlag;
+                                                                    return showSelectedWhenProcessed ||
+                                                                        showXForUnselected ||
+                                                                        showNormalInd ? (
+                                                                        <div
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                top: '-8px',
+                                                                                right: '-8px',
+                                                                                width: '32px',
+                                                                                height: '32px',
+                                                                                borderRadius: '50%',
+                                                                                backgroundColor:
+                                                                                    showSelectedWhenProcessed ||
+                                                                                    isSelected
+                                                                                        ? '#00CC00'
+                                                                                        : '#FF3333',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                fontSize: '20px',
+                                                                                fontWeight: 'bold',
+                                                                                color: 'white',
+                                                                                boxShadow: `0 3px 8px rgba(${showSelectedWhenProcessed || isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                                border: '2px solid white'
+                                                                            }}
+                                                                        >
+                                                                            {showSelectedWhenProcessed || isSelected
+                                                                                ? '✓'
+                                                                                : '✕'}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
                                                             </div>
                                                         );
                                                     })}
@@ -2447,6 +2625,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                         >
                                             {castles.map((c) => {
                                                 const isSelected = castle1 === c;
+                                                const isGameFinished = pair.winner;
                                                 return (
                                                     <div
                                                         key={c}
@@ -2454,17 +2633,22 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                             position: 'relative',
                                                             width: '105px',
                                                             height: '70px',
-                                                            cursor: 'pointer',
+                                                            cursor: isGameFinished ? 'not-allowed' : 'pointer',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center'
                                                         }}
-                                                        onClick={() => setCastle1(c)}
+                                                        onClick={() => {
+                                                            if (!isGameFinished) {
+                                                                setCastle1(c);
+                                                            }
+                                                        }}
                                                     >
                                                         <img
                                                             src={getCastleImageUrl(c)}
                                                             alt={c}
                                                             title={c}
+                                                            onDoubleClick={(e) => handleCastleDoubleClick(e, c)}
                                                             style={{
                                                                 width: '105px',
                                                                 height: '70px',
@@ -2536,6 +2720,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                         >
                                             {castles.map((c) => {
                                                 const isSelected = castle2 === c;
+                                                const isGameFinished = pair.winner;
                                                 return (
                                                     <div
                                                         key={c}
@@ -2543,17 +2728,22 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                             position: 'relative',
                                                             width: '105px',
                                                             height: '70px',
-                                                            cursor: 'pointer',
+                                                            cursor: isGameFinished ? 'not-allowed' : 'pointer',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center'
                                                         }}
-                                                        onClick={() => setCastle2(c)}
+                                                        onClick={() => {
+                                                            if (!isGameFinished) {
+                                                                setCastle2(c);
+                                                            }
+                                                        }}
                                                     >
                                                         <img
                                                             src={getCastleImageUrl(c)}
                                                             alt={c}
                                                             title={c}
+                                                            onDoubleClick={(e) => handleCastleDoubleClick(e, c)}
                                                             style={{
                                                                 width: '105px',
                                                                 height: '70px',
