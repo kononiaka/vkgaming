@@ -96,10 +96,9 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 // console.log('updatedStars:', updatedStars);
                 // console.log('updateRatings:', updatedRatings);
 
-                let updatePlayerScoreResponse = confirmWindow(
-                    `Are you sure you want to update player ${userId} with a score of ${scoreToAdd}?`
-                );
-                if (updatePlayerScoreResponse) {
+                // Skip redundant confirmation - user already confirmed in updatePlayerRatings()
+                // Directly update the database for both winner and loser
+                try {
                     const userResponse = await fetch(
                         `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
                         {
@@ -108,7 +107,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                                 gamesPlayed: {
                                     heroes3: {
                                         total: games.heroes3.total + 1,
-                                        win: userId === winner ? games.heroes3.win + 1 : null,
+                                        win: userId === winner ? games.heroes3.win + 1 : games.heroes3.win,
                                         lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
                                     }
                                 },
@@ -122,8 +121,12 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                         }
                     );
                     if (userResponse.ok) {
-                        console.log('user response post is successful');
+                        console.log(`✓ ${team} rating updated successfully to ${scoreToAdd.toFixed(2)}`);
+                    } else {
+                        console.error(`✗ Failed to update ${team} rating. Status: ${userResponse.status}`);
                     }
+                } catch (error) {
+                    console.error(`✗ Error updating ${team} rating:`, error);
                 }
             } catch (e) {
                 //
@@ -423,7 +426,6 @@ export const getAvatar = async (userId) => {
 
     if (response.ok) {
         const data = await response.json();
-        console.log(JSON.stringify(data));
         return data;
     } else {
         throw new Error('Failed to get avatar data');
@@ -515,9 +517,13 @@ export const getPlayerPrizeTotal = async (userId) => {
 
 export async function fetchLastGamesForPlayer(playerName, count = 5) {
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
-    if (!response.ok) return [];
+    if (!response.ok) {
+        return [];
+    }
     const data = await response.json();
-    if (!data) return [];
+    if (!data) {
+        return [];
+    }
 
     // Flatten and filter games where the player participated
     const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
@@ -540,9 +546,13 @@ export async function fetchLastGamesForPlayer(playerName, count = 5) {
  */
 export async function fetchBestAndWorstCastleForPlayer(playerName) {
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
-    if (!response.ok) return { best: null, worst: null };
+    if (!response.ok) {
+        return { best: null, worst: null };
+    }
     const data = await response.json();
-    if (!data) return { best: null, worst: null };
+    if (!data) {
+        return { best: null, worst: null };
+    }
 
     // Collect all games where the player participated
     const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
@@ -614,8 +624,12 @@ export async function fetchBestAndWorstCastleForPlayer(playerName) {
     let best = null,
         worst = null;
     for (const [castle, stats] of Object.entries(castleStats)) {
-        if (!best || stats.wins > best.wins) best = { castle, wins: stats.wins, loses: stats.loses };
-        if (!worst || stats.loses > worst.loses) worst = { castle, wins: stats.wins, loses: stats.loses };
+        if (!best || stats.wins > best.wins) {
+            best = { castle, wins: stats.wins, loses: stats.loses };
+        }
+        if (!worst || stats.loses > worst.loses) {
+            worst = { castle, wins: stats.wins, loses: stats.loses };
+        }
     }
 
     // Log summary of wins and loses
@@ -641,9 +655,13 @@ export async function fetchBestAndWorstCastleForPlayer(playerName) {
  */
 export async function fetchFullCastleStatsForPlayer(playerName) {
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
-    if (!response.ok) return {};
+    if (!response.ok) {
+        return {};
+    }
     const data = await response.json();
-    if (!data) return {};
+    if (!data) {
+        return {};
+    }
 
     // Collect all games where the player participated
     const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
@@ -725,9 +743,13 @@ export async function fetchFullCastleStatsForPlayer(playerName) {
  */
 export async function fetchBestAndWorstOpponentForPlayer(playerName) {
     const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
-    if (!response.ok) return { best: null, worst: null };
+    if (!response.ok) {
+        return { best: null, worst: null };
+    }
     const data = await response.json();
-    if (!data) return { best: null, worst: null };
+    if (!data) {
+        return { best: null, worst: null };
+    }
 
     // Collect all games where the player participated
     const games = Object.values(data).filter((g) => g.opponent1 === playerName || g.opponent2 === playerName);
@@ -739,7 +761,9 @@ export async function fetchBestAndWorstOpponentForPlayer(playerName) {
         const opponent = g.opponent1 === playerName ? g.opponent2 : g.opponent1;
         const isWin = g.winner === playerName;
 
-        if (!opponent) return; // Skip if opponent is missing
+        if (!opponent) {
+            return;
+        } // Skip if opponent is missing
 
         if (!opponentStats[opponent]) {
             opponentStats[opponent] = { wins: 0, loses: 0 };
@@ -766,3 +790,88 @@ export async function fetchBestAndWorstOpponentForPlayer(playerName) {
 
     return { best, worst };
 }
+
+export const snapshotLeaderboardRanks = async () => {
+    try {
+        // Fetch all users and sort by rating
+        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+        if (!response.ok) {
+            throw new Error('Unable to fetch users for snapshot.');
+        }
+        const data = await response.json();
+        if (!data) {
+            throw new Error('No user data available.');
+        }
+
+        // Sort users by rating to get current ranking
+        const playerObj = Object.entries(data)
+            .map(([id, player]) => {
+                let ratings = player.ratings;
+                if (typeof ratings === 'string' && ratings.includes(',')) {
+                    ratings = parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
+                } else {
+                    ratings = ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
+                }
+                return {
+                    id,
+                    enteredNickname: player.enteredNickname,
+                    ratings
+                };
+            })
+            .sort((a, b) => b.ratings - a.ratings);
+
+        const timestamp = new Date().toISOString();
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Update each player with their current rank
+        for (let i = 0; i < playerObj.length; i++) {
+            const player = playerObj[i];
+            const currentRank = i + 1;
+
+            try {
+                const userResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                    {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            previousRank: currentRank,
+                            previousRankTimestamp: timestamp
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (userResponse.ok) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error(`Error saving rank snapshot for ${player.enteredNickname}:`, error);
+                errorCount++;
+            }
+        }
+
+        // Save the snapshot timestamp in meta
+        try {
+            await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json', {
+                method: 'PUT',
+                body: JSON.stringify(timestamp),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+        } catch (error) {
+            console.error('Error saving meta timestamp:', error);
+        }
+
+        console.log(`Leaderboard snapshot completed: ${successCount} successful, ${errorCount} errors`);
+        return { success: true, successCount, errorCount, timestamp };
+    } catch (error) {
+        console.error('Error snapshotting leaderboard ranks:', error);
+        return { success: false, error: error.message };
+    }
+};

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import StarsComponent from '../../../Stars/Stars';
-import { fetchLastGamesForPlayer, getAvatar, lookForUserId } from '../../../../api/api';
+import { fetchLastGamesForPlayer, getAvatar, lookForUserId, fetchLeaderboard } from '../../../../api/api';
 import classes from './PlayerBracket.module.css';
 
 // Import local castle images
@@ -33,7 +33,8 @@ export const PlayerBracket = (props) => {
         stage,
         teamIndex,
         getWinner,
-        clickedRadioButton
+        clickedRadioButton,
+        playersObj
     } = props;
 
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2, color1, color2 } = pair;
@@ -79,6 +80,7 @@ export const PlayerBracket = (props) => {
     const [streak, setStreak] = useState([]);
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [userId, setUserId] = useState(null);
+    const [leaderboardPosition, setLeaderboardPosition] = useState(null);
     const tooltipTimeout = useRef(null);
 
     // Fetch player avatar and userId
@@ -102,16 +104,45 @@ export const PlayerBracket = (props) => {
         fetchAvatar();
     }, [teamPlayer]);
 
+    // Fetch player's leaderboard position
+    useEffect(() => {
+        const fetchPosition = async () => {
+            if (teamPlayer && teamPlayer !== 'TBD' && userId) {
+                try {
+                    // Fetch full user data using userId to get enteredNickname
+                    const response = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+                    );
+                    if (response.ok) {
+                        const userData = await response.json();
+                        if (userData) {
+                            const position = await fetchLeaderboard(userData);
+                            setLeaderboardPosition(position);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching leaderboard position:', error);
+                    setLeaderboardPosition(null);
+                }
+            }
+        };
+        fetchPosition();
+    }, [teamPlayer, userId]);
+
     // Ensure only one tooltip is visible at a time (global for this component type)
     window.__playerBracketTooltipHideAll = window.__playerBracketTooltipHideAll || (() => {});
     const hideAllTooltips = () => {
-        if (window.__playerBracketTooltipHideAll) window.__playerBracketTooltipHideAll();
+        if (window.__playerBracketTooltipHideAll) {
+            window.__playerBracketTooltipHideAll();
+        }
     };
     window.__playerBracketTooltipHideAll = () => setShowTooltip(false);
 
     const handleMouseEnter = async (e) => {
         hideAllTooltips(); // Hide any other tooltip
-        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+        if (tooltipTimeout.current) {
+            clearTimeout(tooltipTimeout.current);
+        }
 
         const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
         setStreak(streakArr);
@@ -163,8 +194,8 @@ export const PlayerBracket = (props) => {
                     />
                 )}
 
-                {/* Color Indicator Badge */}
-                {playerColor && (
+                {/* Color Indicator Badge - REMOVED */}
+                {false && playerColor && (
                     <div
                         style={{
                             width: '20px',
@@ -198,10 +229,12 @@ export const PlayerBracket = (props) => {
                         onMouseEnter={(e) => (e.target.style.color = '#00cccc')}
                         onMouseLeave={(e) => (e.target.style.color = '#00ffff')}
                     >
-                        {teamPlayer}
+                        {teamPlayer} ({leaderboardPosition || '...'})
                     </NavLink>
                 ) : (
-                    teamPlayer
+                    <span>
+                        {teamPlayer} ({leaderboardPosition || '...'})
+                    </span>
                 )}
                 {showTooltip && teamPlayer !== 'TBD' && (
                     <div
@@ -239,11 +272,15 @@ export const PlayerBracket = (props) => {
                                         }}
                                         onMouseEnter={(e) => {
                                             const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                            if (tooltip) tooltip.style.display = 'block';
+                                            if (tooltip) {
+                                                tooltip.style.display = 'block';
+                                            }
                                         }}
                                         onMouseLeave={(e) => {
                                             const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                            if (tooltip) tooltip.style.display = 'none';
+                                            if (tooltip) {
+                                                tooltip.style.display = 'none';
+                                            }
                                         }}
                                     ></span>
                                     {/* Hidden opponent name, shown on hover */}

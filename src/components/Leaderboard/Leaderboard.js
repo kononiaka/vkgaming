@@ -8,6 +8,7 @@ const Leaderboard = () => {
     // const [playerScores, setPlayerScores] = useState([]);
     const [playerRating, setPlayerRating] = useState([]);
     const [avatars, setAvatars] = useState({});
+    const [lastRankSnapshot, setLastRankSnapshot] = useState(null);
 
     useEffect(() => {
         const fetchPlayerScores = async () => {
@@ -45,10 +46,25 @@ const Leaderboard = () => {
                             score: player.score,
                             ratings,
                             games,
-                            stars: player.stars
+                            stars: player.stars,
+                            previousRank: player.previousRank || null,
+                            previousRankTimestamp: player.previousRankTimestamp || null
                         };
                     })
                     .sort((a, b) => b.ratings - a.ratings);
+
+                // Fetch last rank snapshot timestamp
+                try {
+                    const metaResponse = await fetch(
+                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json'
+                    );
+                    if (metaResponse.ok) {
+                        const metaData = await metaResponse.json();
+                        setLastRankSnapshot(metaData);
+                    }
+                } catch (error) {
+                    console.error('Error fetching last rank snapshot:', error);
+                }
 
                 //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
@@ -180,6 +196,84 @@ const Leaderboard = () => {
         }
     };
 
+    const snapshotCurrentRanks = async () => {
+        const timestamp = new Date().toISOString();
+        const confirmSnapshot = confirm(
+            `Snapshot current leaderboard rankings?\n\nThis will save each player's current rank to compare against future rankings.\n\nProceed?`
+        );
+
+        if (!confirmSnapshot) {
+            console.log('Rank snapshot cancelled by user');
+            return;
+        }
+
+        try {
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Update each player with their current rank and timestamp
+            for (let i = 0; i < playerRating.length; i++) {
+                const player = playerRating[i];
+                const currentRank = i + 1;
+
+                try {
+                    const userResponse = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                        {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                previousRank: currentRank,
+                                previousRankTimestamp: timestamp
+                            }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    if (userResponse.ok) {
+                        console.log(`Rank snapshot saved for ${player.enteredNickname}: Rank ${currentRank}`);
+                        successCount++;
+                    } else {
+                        console.error(`Failed to save rank snapshot for ${player.enteredNickname}`);
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error(`Error saving rank snapshot for ${player.enteredNickname}:`, error);
+                    errorCount++;
+                }
+            }
+
+            // Save the snapshot timestamp in meta
+            try {
+                await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json', {
+                    method: 'PUT',
+                    body: JSON.stringify(timestamp),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } catch (error) {
+                console.error('Error saving meta timestamp:', error);
+            }
+
+            setLastRankSnapshot(timestamp);
+
+            // Update player rating with new previous rank values
+            const updatedPlayerRating = playerRating.map((player, index) => ({
+                ...player,
+                previousRank: index + 1,
+                previousRankTimestamp: timestamp
+            }));
+            setPlayerRating(updatedPlayerRating);
+
+            alert(`Rank snapshot complete!\n\nSuccessful: ${successCount}\nErrors: ${errorCount}`);
+        } catch (error) {
+            console.error('Error during rank snapshot:', error);
+            alert('Error snapshotting ranks: ' + error.message);
+        }
+    };
+
     const getRankClass = (index) => {
         if (index === 0) {
             return classes.gold;
@@ -190,6 +284,36 @@ const Leaderboard = () => {
         } else {
             return '';
         }
+    };
+
+    const getRankChangeIndicator = (currentRank, previousRank) => {
+        if (!previousRank) {
+            return '—';
+        }
+
+        const rankChange = previousRank - currentRank; // Positive means moved up (lower rank number)
+
+        if (rankChange > 0) {
+            return `🟢 ↑ ${rankChange}`;
+        } else if (rankChange < 0) {
+            return `🔴 ↓ ${Math.abs(rankChange)}`;
+        } else {
+            return '➡️';
+        }
+    };
+
+    const formatTimestamp = (timestamp) => {
+        if (!timestamp) {
+            return 'Never';
+        }
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     const getRows = () => {
@@ -206,6 +330,8 @@ const Leaderboard = () => {
             const rating = player ? player.ratings : '-';
             const stars = player ? player.stars : '-';
             const playerId = player ? player.id : '-';
+            const currentRank = i + 1;
+            const previousRank = player ? player.previousRank : null;
             // console.log('getStarImageFilename', getStarImageFilename(stars));
             rows.push(
                 <tr key={i} className={getRankClass(i)}>
@@ -237,6 +363,7 @@ const Leaderboard = () => {
                     <td>{score}</td>
                     <td>{games}</td>
                     <td>{rating}</td>
+                    <td>{getRankChangeIndicator(currentRank, previousRank)}</td>
                     {/* <td>{stars}</td> */}
                     <td>{<StarsComponent stars={stars} />}</td>
                 </tr>
@@ -248,7 +375,19 @@ const Leaderboard = () => {
     return (
         <div className={classes.leaderboard}>
             <h2>🏆 Leaderboard</h2>
-            <button onClick={recalculateStars}>⭐ Recalculate Stars</button>
+            <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}
+            >
+                <div>
+                    <button onClick={recalculateStars}>⭐ Recalculate Stars</button>
+                    <button onClick={snapshotCurrentRanks} style={{ marginLeft: '10px' }}>
+                        📸 Snapshot Current Ranks
+                    </button>
+                </div>
+                <div style={{ fontSize: '0.9em', color: '#00ffff' }}>
+                    Last rank update: <strong>{formatTimestamp(lastRankSnapshot)}</strong>
+                </div>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -257,6 +396,7 @@ const Leaderboard = () => {
                         <th>Score</th>
                         <th>Games</th>
                         <th>Rate</th>
+                        <th>Rank Change</th>
                         {/* <th>Stars</th> */}
                         <th>Stars Img</th>
                     </tr>

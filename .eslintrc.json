@@ -15,9 +15,7 @@
     "rules": {
         "no-prototype-builtins": "off",
         "no-unreachable": "off",
-        "no-autofix/no-unreachable": "warn",
         "prefer-arrow-callback": 0,
-        "no-autofix/strict": 1,
         "no-debugger": 0,
         "no-alert": 0,
         "no-await-in-loop": 0,
@@ -124,7 +122,6 @@
     },
     "plugins": [
         "html",
-        "no-autofix",
         "@babel",
         "react"
     ],

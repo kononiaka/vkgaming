@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import classes from './ReportGameModal.module.css';
-import { getAvatar, lookForUserId } from '../../../api/api';
+import { getAvatar, lookForUserId, fetchCastlesList } from '../../../api/api';
 
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
@@ -19,10 +19,12 @@ import redFlagImg from '../../../image/flags/red.jpg';
 import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
-const ReportGameModal = ({ pair, onClose, onSubmit }) => {
+const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const [selectedWinner, setSelectedWinner] = useState(pair.winner || '');
     const [castle1, setCastle1] = useState('');
     const [castle2, setCastle2] = useState('');
+    const [bannedCastlesBO1_1, setBannedCastlesBO1_1] = useState([]);
+    const [bannedCastlesBO1_2, setBannedCastlesBO1_2] = useState([]);
     const [score1, setScore1] = useState(pair.score1 || 0);
     const [score2, setScore2] = useState(pair.score2 || 0);
     const [gameResults, setGameResults] = useState([]);
@@ -36,6 +38,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
     const [restart2_112, setRestart2_112] = useState(0); // 112 restarts for team2 (max 1)
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
+    const [availableCastles, setAvailableCastles] = useState([]);
+    const [castleMarkOverrides, setCastleMarkOverrides] = useState({}); // Manual marks + 11/12 state (shared for BO-1 and BO-3)
 
     // Available castles - using database format with Russian names
     const castles = [
@@ -74,6 +78,106 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
         return castleImages[englishName] || '';
     };
 
+    // Calculate available castles statistics - using exact same logic as Get Available Castles modal
+    const calculateAvailableCastles = (apiCastles, pairsData) => {
+        // API castles already have the correct 'total' count
+        const castlesWithLiveGames = apiCastles.map((castle) => {
+            let liveGames = 0;
+
+            // Count live games across all stages
+            if (pairsData && Array.isArray(pairsData)) {
+                pairsData.forEach((stage) => {
+                    if (Array.isArray(stage)) {
+                        stage.forEach((matchPair) => {
+                            if (matchPair.games && Array.isArray(matchPair.games)) {
+                                matchPair.games.forEach((game) => {
+                                    // Game is live if:
+                                    // 1. gameStatus is 'In Progress', OR
+                                    // 2. Both castles are selected but no winner declared
+                                    const isInProgress = game.gameStatus === 'In Progress';
+                                    const hasCastlesNoWinner = game.castle1 && game.castle2 && !game.castleWinner;
+
+                                    if (
+                                        (game.castle1 === castle.name || game.castle2 === castle.name) &&
+                                        (isInProgress || hasCastlesNoWinner)
+                                    ) {
+                                        liveGames++;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            return {
+                ...castle,
+                liveGames: liveGames
+            };
+        });
+
+        return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
+    };
+
+    // Get border color for a castle based on availability
+    const getCastleBorderColor = (castleName) => {
+        // Check for manual marks first (selected or deactivated)
+        const manualMark = castleMarkOverrides[castleName];
+        if (manualMark === 'selected') {
+            return '#4ade80'; // Green for manually selected
+        }
+        if (manualMark === 'deactivated') {
+            return '#f87171'; // Red for manually deactivated
+        }
+
+        // If in 11/12 state (castleMarkOverrides has keys with null values), color by min/max
+        if (Object.keys(castleMarkOverrides).some((key) => castleMarkOverrides[key] === null)) {
+            if (availableCastles && availableCastles.length > 0) {
+                const castle = availableCastles.find((c) => c.name === castleName);
+                if (castle) {
+                    const totals = availableCastles.map((c) => c.total + (c.liveGames || 0));
+                    const minTotal = Math.min(...totals);
+                    const maxTotal = Math.max(...totals);
+                    const castleTotal = castle.total + (castle.liveGames || 0);
+                    if (castleTotal === minTotal) {
+                        return '#4ade80';
+                    } // Green for least played
+                    if (castleTotal === maxTotal) {
+                        return '#FFD700';
+                    } // Yellow for most played
+                }
+            }
+            return '#CCCCCC'; // Gray fallback
+        }
+
+        if (!availableCastles || availableCastles.length === 0) {
+            return '#CCCCCC'; // Default gray if no data
+        }
+
+        const castle = availableCastles.find((c) => c.name === castleName);
+        if (!castle) {
+            console.warn(
+                `Castle not found: ${castleName}. Available castles:`,
+                availableCastles.map((c) => c.name)
+            );
+            return '#CCCCCC'; // Default gray if castle not found
+        }
+
+        const totals = availableCastles.map((c) => c.total + (c.liveGames || 0));
+        const minTotal = Math.min(...totals);
+        const maxTotal = Math.max(...totals);
+
+        const castleTotal = castle.total + (castle.liveGames || 0);
+        const color =
+            castleTotal === minTotal
+                ? '#4ade80' // Green (less games played)
+                : castleTotal === maxTotal
+                  ? '#f87171' // Red (more games played)
+                  : '#FFD700'; // Yellow (equal)
+
+        return color;
+    };
+
     // Initialize game results for bo-3
     React.useEffect(() => {
         // Fetch avatars for both players
@@ -110,8 +214,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
         setScore2(pair.score2 || 0);
 
         // Initialize colors from pair data if available
-        if (pair.color1) setColor1(pair.color1);
-        if (pair.color2) setColor2(pair.color2);
+        if (pair.color1) {
+            setColor1(pair.color1);
+        }
+        if (pair.color2) {
+            setColor2(pair.color2);
+        }
 
         if (pair.type === 'bo-3') {
             setGameResults(
@@ -119,6 +227,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                     gameId: idx,
                     castle1: game.castle1 || '',
                     castle2: game.castle2 || '',
+                    bannedCastles1: [],
+                    bannedCastles2: [],
                     winner: game.gameWinner || '',
                     gameStatus: game.gameStatus || 'Not Started',
                     color1: game.color1 || 'red',
@@ -136,17 +246,132 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
             if (pair.games && pair.games[0]) {
                 setCastle1(pair.games[0].castle1 || '');
                 setCastle2(pair.games[0].castle2 || '');
-                if (pair.games[0].color1) setColor1(pair.games[0].color1);
-                if (pair.games[0].color2) setColor2(pair.games[0].color2);
-                if (pair.games[0].gold1) setGold1(pair.games[0].gold1);
-                if (pair.games[0].gold2) setGold2(pair.games[0].gold2);
-                if (pair.games[0].restart1_111) setRestart1_111(pair.games[0].restart1_111);
-                if (pair.games[0].restart1_112) setRestart1_112(pair.games[0].restart1_112);
-                if (pair.games[0].restart2_111) setRestart2_111(pair.games[0].restart2_111);
-                if (pair.games[0].restart2_112) setRestart2_112(pair.games[0].restart2_112);
+                if (pair.games[0].color1) {
+                    setColor1(pair.games[0].color1);
+                }
+                if (pair.games[0].color2) {
+                    setColor2(pair.games[0].color2);
+                }
+                if (pair.games[0].gold1) {
+                    setGold1(pair.games[0].gold1);
+                }
+                if (pair.games[0].gold2) {
+                    setGold2(pair.games[0].gold2);
+                }
+                if (pair.games[0].restart1_111) {
+                    setRestart1_111(pair.games[0].restart1_111);
+                }
+                if (pair.games[0].restart1_112) {
+                    setRestart1_112(pair.games[0].restart1_112);
+                }
+                if (pair.games[0].restart2_111) {
+                    setRestart2_111(pair.games[0].restart2_111);
+                }
+                if (pair.games[0].restart2_112) {
+                    setRestart2_112(pair.games[0].restart2_112);
+                }
             }
         }
     }, [pair]);
+
+    // Calculate available castles when playoffPairs changes
+    React.useEffect(() => {
+        if (playoffPairs) {
+            const fetchAndCalculate = async () => {
+                try {
+                    const apiCastles = await fetchCastlesList();
+                    const stats = calculateAvailableCastles(apiCastles, playoffPairs);
+                    setAvailableCastles(stats);
+
+                    // For BO-3: Check if any game hasn't started
+                    let shouldAutoMark = false;
+                    if (pair.type === 'bo-3' && pair.games) {
+                        const hasUnstartedGame = pair.games.some(
+                            (g) => !g.castle1 || !g.castle2 || g.gameStatus === 'Not Started'
+                        );
+                        shouldAutoMark = hasUnstartedGame;
+                        console.log('BO-3 has unstarted game?', shouldAutoMark);
+                    }
+
+                    if (shouldAutoMark) {
+                        // Check each game and apply 11/12 logic to unstarted ones
+                        if (pair.games && pair.games.length > 0) {
+                            pair.games.forEach((game, idx) => {
+                                // Only apply 11/12 logic to games that are "Not Started!" AND have no castles selected
+                                // Skip "Processed" or any other finished games
+                                const isGameNotStarted = game.gameStatus && game.gameStatus.trim() === 'Not Started!';
+                                const noCastlesSelected = !game.castle1 || !game.castle2;
+                                const isGameProcessed = game.gameStatus && game.gameStatus.trim() === 'Processed';
+
+                                console.log(
+                                    `Game ${idx}: gameStatus='${game.gameStatus}', castle1=${game.castle1}, castle2=${game.castle2}, notStarted=${isGameNotStarted}, noCastlesSelected=${noCastlesSelected}, processed=${isGameProcessed}`
+                                );
+
+                                if (isGameNotStarted && noCastlesSelected && !isGameProcessed) {
+                                    // On fresh game load, assume no manual marks and proceed with 11/12 detection
+                                    const gameCounts = {};
+                                    castles.forEach((castle) => {
+                                        const castleData = stats.find((c) => c.name === castle);
+                                        const total = castleData?.total || 0;
+                                        const liveGames = castleData?.liveGames || 0;
+                                        gameCounts[castle] = total + liveGames;
+                                    });
+
+                                    const minCount = Math.min(...Object.values(gameCounts));
+                                    const maxCount = Math.max(...Object.values(gameCounts));
+                                    const castlesWithMaxCount = Object.keys(gameCounts).filter(
+                                        (castle) => gameCounts[castle] === maxCount
+                                    );
+
+                                    console.log(
+                                        `Game ${idx} 11/12 check: castlesWithMaxCount.length=${castlesWithMaxCount.length}, minCount=${minCount}, maxCount=${maxCount}, gameCounts=`,
+                                        gameCounts
+                                    );
+
+                                    // Check for 11/12 degenerate state: 11 castles with same count, 1 with different count
+                                    // This can be either 11 with max and 1 with min, or 11 with min and 1 with max
+                                    const castlesWithMinCount = Object.keys(gameCounts).filter(
+                                        (castle) => gameCounts[castle] === minCount
+                                    );
+
+                                    const is11MaxAnd1Min =
+                                        castlesWithMaxCount.length === 11 &&
+                                        castlesWithMinCount.length === 1 &&
+                                        maxCount > minCount;
+                                    const is11MinAnd1Max =
+                                        castlesWithMinCount.length === 11 &&
+                                        castlesWithMaxCount.length === 1 &&
+                                        maxCount > minCount;
+
+                                    // If 11 castles have max count or 11 castles have min count, clear all marks (11/12 state detected)
+                                    if (is11MaxAnd1Min || is11MinAnd1Max) {
+                                        console.log(
+                                            `11/12 state detected in Game ${idx + 1}! Clearing marks. Max count: ${maxCount}, Min count: ${minCount}, is11Max=${is11MaxAnd1Min}, is11Min=${is11MinAnd1Max}`
+                                        );
+                                        const clearMarks = {};
+                                        castles.forEach((castle) => {
+                                            clearMarks[castle] = null;
+                                        });
+                                        setCastleMarkOverrides(clearMarks);
+                                    }
+                                } else {
+                                    console.log(`⊘ Game ${idx} (status: ${game.gameStatus}) - skipping 11/12 check`);
+                                }
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching castles:', error);
+                }
+            };
+            fetchAndCalculate();
+        }
+    }, [playoffPairs, pair]);
+
+    // Reset castle marks when pair changes (new game opened)
+    React.useEffect(() => {
+        setCastleMarkOverrides({});
+    }, [pair.id]);
 
     const handleGameResultChange = (gameIdx, field, value) => {
         const updated = [...gameResults];
@@ -164,6 +389,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                 gameId: 2,
                 castle1: '',
                 castle2: '',
+                bannedCastles1: [],
+                bannedCastles2: [],
                 winner: '',
                 color1: 'red',
                 color2: 'blue',
@@ -456,6 +683,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                 )}
 
                 <form onSubmit={handleSubmit} className={classes.form} style={{ position: 'relative' }}>
+                    {/* Game Results */}
                     {pair.type === 'bo-3' ? (
                         <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* BO-3 Game Results */}
@@ -463,7 +691,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                 <div
                                     key={idx}
                                     className={classes.gameSection}
-                                    style={{ position: 'relative', overflow: 'hidden' }}
+                                    style={{
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        display: idx === 2 && score1 + score2 < 2 ? 'none' : undefined
+                                    }}
                                 >
                                     {/* Left Side Background - Player 1 for this game */}
                                     <div
@@ -591,9 +823,20 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     />
                                                 </div>
                                                 <div
-                                                    onClick={() => handleGameResultChange(idx, 'winner', pair.team1)}
+                                                    onClick={() => {
+                                                        if (game.gameStatus?.trim() !== 'Processed') {
+                                                            handleGameResultChange(
+                                                                idx,
+                                                                'winner',
+                                                                game.winner === pair.team1 ? '' : pair.team1
+                                                            );
+                                                        }
+                                                    }}
                                                     style={{
-                                                        cursor: 'pointer',
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'pointer',
                                                         padding: '0.5rem 1rem',
                                                         borderRadius: '6px',
                                                         border:
@@ -647,9 +890,20 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 }}
                                             >
                                                 <div
-                                                    onClick={() => handleGameResultChange(idx, 'winner', pair.team2)}
+                                                    onClick={() => {
+                                                        if (game.gameStatus?.trim() !== 'Processed') {
+                                                            handleGameResultChange(
+                                                                idx,
+                                                                'winner',
+                                                                game.winner === pair.team2 ? '' : pair.team2
+                                                            );
+                                                        }
+                                                    }}
                                                     style={{
-                                                        cursor: 'pointer',
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'pointer',
                                                         padding: '0.5rem 1rem',
                                                         borderRadius: '6px',
                                                         border:
@@ -722,7 +976,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             <div style={{ textAlign: 'center' }}>
                                                 <input
                                                     type="number"
+                                                    step="100"
                                                     value={game.gold1 || 0}
+                                                    disabled={game.gameStatus?.trim() === 'Processed'}
                                                     onChange={(e) => {
                                                         const value = parseInt(e.target.value) || 0;
                                                         const updated = [...gameResults];
@@ -746,7 +1002,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                   : '#FFD700',
                                                         fontWeight: 'bold',
                                                         boxShadow:
-                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
+                                                        opacity: game.gameStatus?.trim() === 'Processed' ? 0.5 : 1,
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'auto'
                                                     }}
                                                 />
                                             </div>
@@ -786,6 +1047,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 <input
                                                     type="number"
                                                     value={game.gold2 || 0}
+                                                    disabled={game.gameStatus?.trim() === 'Processed'}
                                                     onChange={(e) => {
                                                         const value = parseInt(e.target.value) || 0;
                                                         const updated = [...gameResults];
@@ -809,7 +1071,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                                   : '#FFD700',
                                                         fontWeight: 'bold',
                                                         boxShadow:
-                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
+                                                        opacity: game.gameStatus?.trim() === 'Processed' ? 0.5 : 1,
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'auto'
                                                     }}
                                                 />
                                             </div>
@@ -841,12 +1108,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     {/* 111 Restart Boxes */}
                                                     {[0, 1].map((boxIdx) => {
                                                         const isUsed = (game.restart1_111 || 0) > boxIdx;
-                                                        const isDisabled = (game.restart1_112 || 0) > 0;
+                                                        const isDisabled =
+                                                            (game.restart1_112 || 0) > 0 ||
+                                                            game.gameStatus?.trim() === 'Processed';
                                                         return (
                                                             <div
                                                                 key={`111-${boxIdx}`}
                                                                 onClick={() => {
-                                                                    if (isDisabled) return;
+                                                                    if (isDisabled) {
+                                                                        return;
+                                                                    }
                                                                     const updated = [...gameResults];
                                                                     const current = updated[idx].restart1_111 || 0;
                                                                     if (isUsed) {
@@ -920,7 +1191,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             const updated = [...gameResults];
                                                             const current = updated[idx].restart1_112 || 0;
                                                             const is111Used = (updated[idx].restart1_111 || 0) > 0;
-                                                            if (is111Used) return;
+                                                            if (is111Used || game.gameStatus?.trim() === 'Processed') {
+                                                                return;
+                                                            }
                                                             updated[idx] = {
                                                                 ...updated[idx],
                                                                 restart1_112: current === 1 ? 0 : 1
@@ -948,14 +1221,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             justifyContent: 'center',
                                                             opacity:
                                                                 (game.restart1_111 || 0) > 0
-                                                                    ? 0.8
+                                                                    ? 0.4
                                                                     : (game.restart1_112 || 0) === 1
                                                                       ? 1
                                                                       : 0.6,
                                                             boxShadow:
                                                                 (game.restart1_112 || 0) === 1
                                                                     ? '0 0 10px rgba(255, 215, 0, 0.6)'
-                                                                    : 'none'
+                                                                    : 'none',
+                                                            pointerEvents:
+                                                                (game.restart1_111 || 0) > 0 ? 'none' : 'auto'
                                                         }}
                                                     >
                                                         <div
@@ -967,7 +1242,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         >
                                                             112
                                                         </div>
-                                                        {(game.restart1_112 || 0) === 1 && (
+                                                        {((game.restart1_112 || 0) === 1 ||
+                                                            (game.restart1_111 || 0) > 0) && (
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -1001,12 +1277,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     {/* 111 Restart Boxes */}
                                                     {[0, 1].map((boxIdx) => {
                                                         const isUsed = (game.restart2_111 || 0) > boxIdx;
-                                                        const isDisabled = (game.restart2_112 || 0) > 0;
+                                                        const isDisabled =
+                                                            (game.restart2_112 || 0) > 0 ||
+                                                            game.gameStatus?.trim() === 'Processed';
                                                         return (
                                                             <div
                                                                 key={`111-${boxIdx}`}
                                                                 onClick={() => {
-                                                                    if (isDisabled) return;
+                                                                    if (isDisabled) {
+                                                                        return;
+                                                                    }
                                                                     const updated = [...gameResults];
                                                                     const current = updated[idx].restart2_111 || 0;
                                                                     if (isUsed) {
@@ -1080,7 +1360,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             const updated = [...gameResults];
                                                             const current = updated[idx].restart2_112 || 0;
                                                             const is111Used = (updated[idx].restart2_111 || 0) > 0;
-                                                            if (is111Used) return;
+                                                            if (is111Used || game.gameStatus?.trim() === 'Processed') {
+                                                                return;
+                                                            }
                                                             updated[idx] = {
                                                                 ...updated[idx],
                                                                 restart2_112: current === 1 ? 0 : 1
@@ -1108,14 +1390,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                             justifyContent: 'center',
                                                             opacity:
                                                                 (game.restart2_111 || 0) > 0
-                                                                    ? 0.8
+                                                                    ? 0.4
                                                                     : (game.restart2_112 || 0) === 1
                                                                       ? 1
                                                                       : 0.6,
                                                             boxShadow:
                                                                 (game.restart2_112 || 0) === 1
                                                                     ? '0 0 10px rgba(255, 215, 0, 0.6)'
-                                                                    : 'none'
+                                                                    : 'none',
+                                                            pointerEvents:
+                                                                (game.restart2_111 || 0) > 0 ? 'none' : 'auto'
                                                         }}
                                                     >
                                                         <div
@@ -1127,7 +1411,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         >
                                                             112
                                                         </div>
-                                                        {(game.restart2_112 || 0) === 1 && (
+                                                        {((game.restart2_112 || 0) === 1 ||
+                                                            (game.restart2_111 || 0) > 0) && (
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -1173,32 +1458,100 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         justifyItems: 'center'
                                                     }}
                                                 >
-                                                    {castles.map((c) => (
-                                                        <img
-                                                            key={c}
-                                                            src={getCastleImageUrl(c)}
-                                                            alt={c}
-                                                            title={c}
-                                                            style={{
-                                                                width: '105px',
-                                                                height: '60px',
-                                                                border:
-                                                                    game.castle1 === c
-                                                                        ? '3px solid #FFD700'
-                                                                        : game.color1 === 'red'
-                                                                          ? '2px solid #FF0000'
-                                                                          : '2px solid #0000FF',
-                                                                borderRadius: '4px',
-                                                                objectFit: 'cover',
-                                                                cursor: 'pointer',
-                                                                opacity: game.castle1 === c ? 1 : 0.6,
-                                                                transform:
-                                                                    game.castle1 === c ? 'scale(1.05)' : 'scale(1)',
-                                                                transition: 'all 0.2s ease'
-                                                            }}
-                                                            onClick={() => handleGameResultChange(idx, 'castle1', c)}
-                                                        />
-                                                    ))}
+                                                    {castles.map((c) => {
+                                                        const isSelected = game.castle1 === c;
+                                                        const isGameProcessed =
+                                                            game.gameStatus && game.gameStatus.trim() === 'Processed';
+                                                        const isBanned = (game.bannedCastles1 || []).includes(c);
+                                                        const handleCastle1Toggle = () => {
+                                                            if (isGameProcessed) {
+                                                                return;
+                                                            }
+                                                            const updated = [...gameResults];
+                                                            const g = updated[idx];
+                                                            const banned = g.bannedCastles1 || [];
+                                                            if (isBanned) {
+                                                                updated[idx] = {
+                                                                    ...g,
+                                                                    bannedCastles1: banned.filter((x) => x !== c)
+                                                                };
+                                                            } else if (isSelected) {
+                                                                updated[idx] = {
+                                                                    ...g,
+                                                                    castle1: '',
+                                                                    bannedCastles1: [...banned, c]
+                                                                };
+                                                            } else {
+                                                                updated[idx] = { ...g, castle1: c };
+                                                            }
+                                                            setGameResults(updated);
+                                                        };
+                                                        return (
+                                                            <div
+                                                                key={c}
+                                                                style={{
+                                                                    position: 'relative',
+                                                                    width: '105px',
+                                                                    height: '60px',
+                                                                    cursor: isGameProcessed ? 'not-allowed' : 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center'
+                                                                }}
+                                                                onClick={handleCastle1Toggle}
+                                                            >
+                                                                <img
+                                                                    src={getCastleImageUrl(c)}
+                                                                    alt={c}
+                                                                    title={c}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCastle1Toggle();
+                                                                    }}
+                                                                    style={{
+                                                                        width: '105px',
+                                                                        height: '60px',
+                                                                        border: `3px solid ${getCastleBorderColor(c)}`,
+                                                                        borderRadius: '4px',
+                                                                        objectFit: 'cover',
+                                                                        opacity:
+                                                                            getCastleBorderColor(c) === '#f87171'
+                                                                                ? 0.4
+                                                                                : 1,
+                                                                        transform: 'scale(1)',
+                                                                        transition: 'all 0.2s ease',
+                                                                        boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
+                                                                    }}
+                                                                />
+                                                                {/* Indicator Overlay for castle1 */}
+                                                                {(isSelected || isBanned) && (
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '-8px',
+                                                                            right: '-8px',
+                                                                            width: '32px',
+                                                                            height: '32px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: isSelected
+                                                                                ? '#00CC00'
+                                                                                : '#FF3333',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            fontSize: '20px',
+                                                                            fontWeight: 'bold',
+                                                                            color: 'white',
+                                                                            boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                            border: '2px solid white'
+                                                                        }}
+                                                                    >
+                                                                        {isSelected ? '✓' : '✕'}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                             <div style={{ textAlign: 'center' }}>
@@ -1221,32 +1574,100 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         justifyItems: 'center'
                                                     }}
                                                 >
-                                                    {castles.map((c) => (
-                                                        <img
-                                                            key={c}
-                                                            src={getCastleImageUrl(c)}
-                                                            alt={c}
-                                                            title={c}
-                                                            style={{
-                                                                width: '105px',
-                                                                height: '60px',
-                                                                border:
-                                                                    game.castle2 === c
-                                                                        ? '3px solid #FFD700'
-                                                                        : game.color2 === 'red'
-                                                                          ? '2px solid #FF0000'
-                                                                          : '2px solid #0000FF',
-                                                                borderRadius: '4px',
-                                                                objectFit: 'cover',
-                                                                cursor: 'pointer',
-                                                                opacity: game.castle2 === c ? 1 : 0.6,
-                                                                transform:
-                                                                    game.castle2 === c ? 'scale(1.05)' : 'scale(1)',
-                                                                transition: 'all 0.2s ease'
-                                                            }}
-                                                            onClick={() => handleGameResultChange(idx, 'castle2', c)}
-                                                        />
-                                                    ))}
+                                                    {castles.map((c) => {
+                                                        const isSelected = game.castle2 === c;
+                                                        const isGameProcessed =
+                                                            game.gameStatus && game.gameStatus.trim() === 'Processed';
+                                                        const isBanned = (game.bannedCastles2 || []).includes(c);
+                                                        const handleCastle2Toggle = () => {
+                                                            if (isGameProcessed) {
+                                                                return;
+                                                            }
+                                                            const updated = [...gameResults];
+                                                            const g = updated[idx];
+                                                            const banned = g.bannedCastles2 || [];
+                                                            if (isBanned) {
+                                                                updated[idx] = {
+                                                                    ...g,
+                                                                    bannedCastles2: banned.filter((x) => x !== c)
+                                                                };
+                                                            } else if (isSelected) {
+                                                                updated[idx] = {
+                                                                    ...g,
+                                                                    castle2: '',
+                                                                    bannedCastles2: [...banned, c]
+                                                                };
+                                                            } else {
+                                                                updated[idx] = { ...g, castle2: c };
+                                                            }
+                                                            setGameResults(updated);
+                                                        };
+                                                        return (
+                                                            <div
+                                                                key={c}
+                                                                style={{
+                                                                    position: 'relative',
+                                                                    width: '105px',
+                                                                    height: '60px',
+                                                                    cursor: isGameProcessed ? 'not-allowed' : 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center'
+                                                                }}
+                                                                onClick={handleCastle2Toggle}
+                                                            >
+                                                                <img
+                                                                    src={getCastleImageUrl(c)}
+                                                                    alt={c}
+                                                                    title={c}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCastle2Toggle();
+                                                                    }}
+                                                                    style={{
+                                                                        width: '105px',
+                                                                        height: '60px',
+                                                                        border: `3px solid ${getCastleBorderColor(c)}`,
+                                                                        borderRadius: '4px',
+                                                                        objectFit: 'cover',
+                                                                        opacity:
+                                                                            getCastleBorderColor(c) === '#f87171'
+                                                                                ? 0.4
+                                                                                : 1,
+                                                                        transform: 'scale(1)',
+                                                                        transition: 'all 0.2s ease',
+                                                                        boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
+                                                                    }}
+                                                                />
+                                                                {/* Indicator Overlay for castle2 */}
+                                                                {(isSelected || isBanned) && (
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '-8px',
+                                                                            right: '-8px',
+                                                                            width: '32px',
+                                                                            height: '32px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: isSelected
+                                                                                ? '#00CC00'
+                                                                                : '#FF3333',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            fontSize: '20px',
+                                                                            fontWeight: 'bold',
+                                                                            color: 'white',
+                                                                            boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                            border: '2px solid white'
+                                                                        }}
+                                                                    >
+                                                                        {isSelected ? '✓' : '✕'}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </div>
@@ -1849,6 +2270,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                     <div style={{ textAlign: 'center' }}>
                                         <input
                                             type="number"
+                                            step="100"
                                             value={gold1}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -1898,6 +2320,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                         </div> */}
                                         <input
                                             type="number"
+                                            step="100"
                                             value={gold2}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -1947,7 +2370,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     <div
                                                         key={`111-${boxIdx}`}
                                                         onClick={() => {
-                                                            if (isDisabled) return;
+                                                            if (isDisabled) {
+                                                                return;
+                                                            }
                                                             if (isUsed) {
                                                                 setRestart1_111(restart1_111 - 1);
                                                             } else if (restart1_111 < 2) {
@@ -1984,7 +2409,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                         >
                                                             111
                                                         </div>
-                                                        {isUsed && (
+                                                        {(isUsed || isDisabled) && (
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -2007,7 +2432,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             {/* 112 Restart Box */}
                                             <div
                                                 onClick={() => {
-                                                    if (restart1_111 > 0) return;
+                                                    if (restart1_111 > 0) {
+                                                        return;
+                                                    }
                                                     setRestart1_112(restart1_112 === 1 ? 0 : 1);
                                                 }}
                                                 style={{
@@ -2028,7 +2455,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     justifyContent: 'center',
                                                     opacity: restart1_111 > 0 ? 0.4 : restart1_112 === 1 ? 1 : 0.6,
                                                     boxShadow:
-                                                        restart1_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none'
+                                                        restart1_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
+                                                    pointerEvents: restart1_111 > 0 ? 'none' : 'auto'
                                                 }}
                                             >
                                                 <div
@@ -2040,7 +2468,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 >
                                                     112
                                                 </div>
-                                                {restart1_112 === 1 && (
+                                                {(restart1_112 === 1 || restart1_111 > 0) && (
                                                     <div
                                                         style={{
                                                             position: 'absolute',
@@ -2073,7 +2501,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     <div
                                                         key={`111-${boxIdx}`}
                                                         onClick={() => {
-                                                            if (isDisabled) return;
+                                                            if (isDisabled) {
+                                                                return;
+                                                            }
                                                             if (isUsed) {
                                                                 setRestart2_111(restart2_111 - 1);
                                                             } else if (restart2_111 < 2) {
@@ -2133,7 +2563,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                             {/* 112 Restart Box */}
                                             <div
                                                 onClick={() => {
-                                                    if (restart2_111 > 0) return;
+                                                    if (restart2_111 > 0) {
+                                                        return;
+                                                    }
                                                     setRestart2_112(restart2_112 === 1 ? 0 : 1);
                                                 }}
                                                 style={{
@@ -2154,7 +2586,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                     justifyContent: 'center',
                                                     opacity: restart2_111 > 0 ? 0.4 : restart2_112 === 1 ? 1 : 0.6,
                                                     boxShadow:
-                                                        restart2_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none'
+                                                        restart2_112 === 1 ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
+                                                    pointerEvents: restart2_111 > 0 ? 'none' : 'auto'
                                                 }}
                                             >
                                                 <div
@@ -2166,7 +2599,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 >
                                                     112
                                                 </div>
-                                                {restart2_112 === 1 && (
+                                                {(restart2_112 === 1 || restart2_111 > 0) && (
                                                     <div
                                                         style={{
                                                             position: 'absolute',
@@ -2212,26 +2645,87 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 justifyItems: 'center'
                                             }}
                                         >
-                                            {castles.map((c) => (
-                                                <img
-                                                    key={c}
-                                                    src={getCastleImageUrl(c)}
-                                                    alt={c}
-                                                    title={c}
-                                                    style={{
-                                                        width: '105px',
-                                                        height: '70px',
-
-                                                        borderRadius: '4px',
-                                                        objectFit: 'cover',
-                                                        cursor: 'pointer',
-                                                        opacity: castle1 === c ? 1 : 0.7,
-                                                        transform: castle1 === c ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.2s ease'
-                                                    }}
-                                                    onClick={() => setCastle1(c)}
-                                                />
-                                            ))}
+                                            {castles.map((c) => {
+                                                const isGameFinished = pair.winner;
+                                                const isBanned = bannedCastlesBO1_1.includes(c);
+                                                const isSelected = castle1 === c;
+                                                const handleBO1C1Toggle = () => {
+                                                    if (isGameFinished) {
+                                                        return;
+                                                    }
+                                                    if (isBanned) {
+                                                        setBannedCastlesBO1_1(
+                                                            bannedCastlesBO1_1.filter((x) => x !== c)
+                                                        );
+                                                    } else if (isSelected) {
+                                                        setCastle1('');
+                                                        setBannedCastlesBO1_1([...bannedCastlesBO1_1, c]);
+                                                    } else {
+                                                        setCastle1(c);
+                                                    }
+                                                };
+                                                return (
+                                                    <div
+                                                        key={c}
+                                                        style={{
+                                                            position: 'relative',
+                                                            width: '105px',
+                                                            height: '70px',
+                                                            cursor: isGameFinished ? 'not-allowed' : 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                        onClick={handleBO1C1Toggle}
+                                                    >
+                                                        <img
+                                                            src={getCastleImageUrl(c)}
+                                                            alt={c}
+                                                            title={c}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleBO1C1Toggle();
+                                                            }}
+                                                            style={{
+                                                                width: '105px',
+                                                                height: '70px',
+                                                                border: `3px solid ${getCastleBorderColor(c)}`,
+                                                                borderRadius: '4px',
+                                                                objectFit: 'cover',
+                                                                opacity:
+                                                                    getCastleBorderColor(c) === '#f87171' ? 0.4 : 1,
+                                                                transform: 'scale(1)',
+                                                                transition: 'all 0.2s ease',
+                                                                boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
+                                                            }}
+                                                        />
+                                                        {/* Indicator Overlay */}
+                                                        {(isSelected || isBanned) && (
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '-8px',
+                                                                    right: '-8px',
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: isSelected ? '#00CC00' : '#FF3333',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '20px',
+                                                                    fontWeight: 'bold',
+                                                                    color: 'white',
+                                                                    boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                    border: '2px solid white'
+                                                                }}
+                                                            >
+                                                                {isSelected ? '✓' : '✕'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'center' }}>
@@ -2254,25 +2748,87 @@ const ReportGameModal = ({ pair, onClose, onSubmit }) => {
                                                 justifyItems: 'center'
                                             }}
                                         >
-                                            {castles.map((c) => (
-                                                <img
-                                                    key={c}
-                                                    src={getCastleImageUrl(c)}
-                                                    alt={c}
-                                                    title={c}
-                                                    style={{
-                                                        width: '105px',
-                                                        height: '70px',
-                                                        borderRadius: '4px',
-                                                        objectFit: 'cover',
-                                                        cursor: 'pointer',
-                                                        opacity: castle2 === c ? 1 : 0.7,
-                                                        transform: castle2 === c ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.2s ease'
-                                                    }}
-                                                    onClick={() => setCastle2(c)}
-                                                />
-                                            ))}
+                                            {castles.map((c) => {
+                                                const isGameFinished = pair.winner;
+                                                const isBanned = bannedCastlesBO1_2.includes(c);
+                                                const isSelected = castle2 === c;
+                                                const handleBO1C2Toggle = () => {
+                                                    if (isGameFinished) {
+                                                        return;
+                                                    }
+                                                    if (isBanned) {
+                                                        setBannedCastlesBO1_2(
+                                                            bannedCastlesBO1_2.filter((x) => x !== c)
+                                                        );
+                                                    } else if (isSelected) {
+                                                        setCastle2('');
+                                                        setBannedCastlesBO1_2([...bannedCastlesBO1_2, c]);
+                                                    } else {
+                                                        setCastle2(c);
+                                                    }
+                                                };
+                                                return (
+                                                    <div
+                                                        key={c}
+                                                        style={{
+                                                            position: 'relative',
+                                                            width: '105px',
+                                                            height: '70px',
+                                                            cursor: isGameFinished ? 'not-allowed' : 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                        onClick={handleBO1C2Toggle}
+                                                    >
+                                                        <img
+                                                            src={getCastleImageUrl(c)}
+                                                            alt={c}
+                                                            title={c}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleBO1C2Toggle();
+                                                            }}
+                                                            style={{
+                                                                width: '105px',
+                                                                height: '70px',
+                                                                border: `3px solid ${getCastleBorderColor(c)}`,
+                                                                borderRadius: '4px',
+                                                                objectFit: 'cover',
+                                                                opacity:
+                                                                    getCastleBorderColor(c) === '#f87171' ? 0.4 : 1,
+                                                                transform: 'scale(1)',
+                                                                transition: 'all 0.2s ease',
+                                                                boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
+                                                            }}
+                                                        />
+                                                        {/* Indicator Overlay */}
+                                                        {(isSelected || isBanned) && (
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '-8px',
+                                                                    right: '-8px',
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: isSelected ? '#00CC00' : '#FF3333',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '20px',
+                                                                    fontWeight: 'bold',
+                                                                    color: 'white',
+                                                                    boxShadow: `0 3px 8px rgba(${isSelected ? '0, 204, 0' : '255, 51, 51'}, 0.6)`,
+                                                                    border: '2px solid white'
+                                                                }}
+                                                            >
+                                                                {isSelected ? '✓' : '✕'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>

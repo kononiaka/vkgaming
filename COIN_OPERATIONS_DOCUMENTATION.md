@@ -59,6 +59,21 @@ This document lists all places in the codebase where coins are awarded, deducted
 - **Status:** These are MONEY prizes stored in `user.prizes` array and `user.totalPrize`, not coins
 - **Note:** If you want winners to also receive coins, this needs to be added
 
+### 7. **Donation Rewards** ✅ USES TRANSACTION MODULE
+- **Location:** `src/UI/modalDonate/modalDonate.js`
+- **Amount:** Variable (2-25 coins based on donation tier)
+- **When:** Player donates via the donation modal
+- **Transaction Type:** `donation_reward`
+- **Description:** "Donation reward: {tier} tier ({amount} UAH)" or "Custom donation reward: {amount} UAH"
+- **Reward Structure:**
+  - 10 UAH: +2 coins (Supporter)
+  - 25 UAH: +5 coins (Contributor)
+  - 50 UAH: +10 coins (Champion)
+  - 100 UAH: +25 coins (Legend)
+  - Custom: +1 coin per 5 UAH donated
+- **Metadata:** Includes donationAmount, tier (if applicable), rewardCoins, timestamp
+- **Status:** ✅ Using `addCoins()` from coinTransactions module
+
 ## Summary Table
 
 | Operation | Amount | Uses Transaction Module | Status |
@@ -68,6 +83,7 @@ This document lists all places in the codebase where coins are awarded, deducted
 | Avatar Upload | +1 coin | ✅ Yes | ✅ Done |
 | Tournament Creation | -5 coins | ✅ Yes | ✅ Done |
 | Tournament Registration | +2 coins | ✅ Yes | ✅ Done |
+| Donation Rewards | +2-25 coins | ✅ Yes | ✅ Done |
 | Tournament Prizes | $$ money | N/A | Optional |
 
 ## Actions Required
@@ -81,6 +97,7 @@ All coin operations now use the new coinTransactions module and properly log to 
 3. ✅ **Avatar Upload Reward** - Using `addCoins()` with type `avatar_upload`
 4. ✅ **Tournament Creation** - Using `deductCoins()` with type `tournament_creation`
 5. ✅ **Tournament Registration** - Using `addCoins()` with type `tournament_registration`
+6. ✅ **Donation Rewards** - Using `addCoins()` with type `donation_reward`
 
 ### Optional Enhancement:
 
@@ -125,10 +142,11 @@ Game Activity:
 3. First Game of the Day (+1 coin) - Similar to daily login
 4. Milestone Games (+5 coins for 10/25/50/100 games played)
 Community & Social:
-1. Profile Completion (+3 coins) - For filling out profile details
-2. Referral Bonus (+5 coins) - When a referred friend plays their first game
-3. Reporting Games (+1 coin) - Reward tournament organizers for reporting results
-4. Accurate Game Reporting (bonus +1 coin) - If both players confirm the same result
+1. ✅ **Donation Rewards** (+2-25 coins based on amount) - Players earn coins for supporting the platform
+2. Profile Completion (+3 coins) - For filling out profile details
+3. Referral Bonus (+5 coins) - When a referred friend plays their first game
+4. Reporting Games (+1 coin) - Reward tournament organizers for reporting results
+5. Accurate Game Reporting (bonus +1 coin) - If both players confirm the same result
 Skill & Achievement:
 1. Rating Milestones (+5 coins) - Reaching 1200, 1400, 1600, etc. rating
 2. Star Rating Milestones (+3 coins) - Reaching 1, 2, 3 stars
