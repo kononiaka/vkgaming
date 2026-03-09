@@ -845,9 +845,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     />
                                                 </div>
                                                 <div
-                                                    onClick={() => handleGameResultChange(idx, 'winner', pair.team1)}
+                                                    onClick={() => {
+                                                        if (game.gameStatus?.trim() !== 'Processed') {
+                                                            handleGameResultChange(idx, 'winner', pair.team1);
+                                                        }
+                                                    }}
                                                     style={{
-                                                        cursor: 'pointer',
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'pointer',
                                                         padding: '0.5rem 1rem',
                                                         borderRadius: '6px',
                                                         border:
@@ -901,9 +908,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                 }}
                                             >
                                                 <div
-                                                    onClick={() => handleGameResultChange(idx, 'winner', pair.team2)}
+                                                    onClick={() => {
+                                                        if (game.gameStatus?.trim() !== 'Processed') {
+                                                            handleGameResultChange(idx, 'winner', pair.team2);
+                                                        }
+                                                    }}
                                                     style={{
-                                                        cursor: 'pointer',
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'pointer',
                                                         padding: '0.5rem 1rem',
                                                         borderRadius: '6px',
                                                         border:
@@ -978,6 +992,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     type="number"
                                                     step="100"
                                                     value={game.gold1 || 0}
+                                                    disabled={game.gameStatus?.trim() === 'Processed'}
                                                     onChange={(e) => {
                                                         const value = parseInt(e.target.value) || 0;
                                                         const updated = [...gameResults];
@@ -1001,7 +1016,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                   : '#FFD700',
                                                         fontWeight: 'bold',
                                                         boxShadow:
-                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
+                                                        opacity: game.gameStatus?.trim() === 'Processed' ? 0.5 : 1,
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'auto'
                                                     }}
                                                 />
                                             </div>
@@ -1041,6 +1061,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                 <input
                                                     type="number"
                                                     value={game.gold2 || 0}
+                                                    disabled={game.gameStatus?.trim() === 'Processed'}
                                                     onChange={(e) => {
                                                         const value = parseInt(e.target.value) || 0;
                                                         const updated = [...gameResults];
@@ -1064,7 +1085,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                   : '#FFD700',
                                                         fontWeight: 'bold',
                                                         boxShadow:
-                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)'
+                                                            '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
+                                                        opacity: game.gameStatus?.trim() === 'Processed' ? 0.5 : 1,
+                                                        cursor:
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? 'not-allowed'
+                                                                : 'auto'
                                                     }}
                                                 />
                                             </div>
@@ -1096,7 +1122,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     {/* 111 Restart Boxes */}
                                                     {[0, 1].map((boxIdx) => {
                                                         const isUsed = (game.restart1_111 || 0) > boxIdx;
-                                                        const isDisabled = (game.restart1_112 || 0) > 0;
+                                                        const isDisabled =
+                                                            (game.restart1_112 || 0) > 0 ||
+                                                            game.gameStatus?.trim() === 'Processed';
                                                         return (
                                                             <div
                                                                 key={`111-${boxIdx}`}
@@ -1177,7 +1205,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                             const updated = [...gameResults];
                                                             const current = updated[idx].restart1_112 || 0;
                                                             const is111Used = (updated[idx].restart1_111 || 0) > 0;
-                                                            if (is111Used) {
+                                                            if (is111Used || game.gameStatus?.trim() === 'Processed') {
                                                                 return;
                                                             }
                                                             updated[idx] = {
@@ -1263,7 +1291,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     {/* 111 Restart Boxes */}
                                                     {[0, 1].map((boxIdx) => {
                                                         const isUsed = (game.restart2_111 || 0) > boxIdx;
-                                                        const isDisabled = (game.restart2_112 || 0) > 0;
+                                                        const isDisabled =
+                                                            (game.restart2_112 || 0) > 0 ||
+                                                            game.gameStatus?.trim() === 'Processed';
                                                         return (
                                                             <div
                                                                 key={`111-${boxIdx}`}
@@ -1344,7 +1374,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                             const updated = [...gameResults];
                                                             const current = updated[idx].restart2_112 || 0;
                                                             const is111Used = (updated[idx].restart2_111 || 0) > 0;
-                                                            if (is111Used) {
+                                                            if (is111Used || game.gameStatus?.trim() === 'Processed') {
                                                                 return;
                                                             }
                                                             updated[idx] = {
