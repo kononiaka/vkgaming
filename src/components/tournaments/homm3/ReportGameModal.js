@@ -373,32 +373,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         setCastleMarkOverrides({});
     }, [pair.id]);
 
-    const handleCastleClick = (castleName) => {
-        // Cycle through: none → selected → deactivated → none
-        // Only ONE castle can be marked as 'selected' (green) per bracket
-        const currentMark = castleMarkOverrides[castleName];
-        const newMark =
-            currentMark === null || currentMark === undefined
-                ? 'selected' // First click: green (selected)
-                : currentMark === 'selected'
-                  ? 'deactivated' // Second click: red (deactivated)
-                  : null; // Third click: clear/unselect
-
-        // If marking as selected, clear any other selected marks
-        const updatedOverrides = { ...castleMarkOverrides };
-        if (newMark === 'selected') {
-            // Clear all previous 'selected' marks (only green ones)
-            Object.keys(updatedOverrides).forEach((castle) => {
-                if (updatedOverrides[castle] === 'selected') {
-                    updatedOverrides[castle] = null; // Clear previous selection
-                }
-            });
-        }
-
-        updatedOverrides[castleName] = newMark;
-        setCastleMarkOverrides(updatedOverrides);
-    };
-
     const handleGameResultChange = (gameIdx, field, value) => {
         const updated = [...gameResults];
         updated[gameIdx] = { ...updated[gameIdx], [field]: value };
@@ -717,7 +691,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                 <div
                                     key={idx}
                                     className={classes.gameSection}
-                                    style={{ position: 'relative', overflow: 'hidden' }}
+                                    style={{
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        display: idx === 2 && score1 + score2 < 2 ? 'none' : undefined
+                                    }}
                                 >
                                     {/* Left Side Background - Player 1 for this game */}
                                     <div
@@ -847,7 +825,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                 <div
                                                     onClick={() => {
                                                         if (game.gameStatus?.trim() !== 'Processed') {
-                                                            handleGameResultChange(idx, 'winner', pair.team1);
+                                                            handleGameResultChange(
+                                                                idx,
+                                                                'winner',
+                                                                game.winner === pair.team1 ? '' : pair.team1
+                                                            );
                                                         }
                                                     }}
                                                     style={{
@@ -910,7 +892,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                 <div
                                                     onClick={() => {
                                                         if (game.gameStatus?.trim() !== 'Processed') {
-                                                            handleGameResultChange(idx, 'winner', pair.team2);
+                                                            handleGameResultChange(
+                                                                idx,
+                                                                'winner',
+                                                                game.winner === pair.team2 ? '' : pair.team2
+                                                            );
                                                         }
                                                     }}
                                                     style={{
