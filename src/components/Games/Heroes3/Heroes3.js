@@ -6,6 +6,7 @@ const Heroes3Games = () => {
     let [games, setGames] = useState([]);
     const [sortBy, setSortBy] = useState('date-desc');
     const [searchPlayer, setSearchPlayer] = useState('');
+    const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
         // Fetch Heroes 3 games from database
@@ -16,26 +17,29 @@ const Heroes3Games = () => {
                 );
                 const data = await response.json();
 
-                games = Object.entries(data).map(([id, game]) => ({
-                    id: id,
-                    date: game.date,
-                    gameName: game.gameName,
-                    gameType: game.gameType,
-                    tournamentName: game.tournamentName,
-                    stage: game.stage,
-                    opponent1: game.opponent1,
-                    opponent1Castle: game.opponent1Castle,
-                    opponent2: game.opponent2,
-                    opponent2Castle: game.opponent2Castle,
-                    score: game.score,
-                    winner: game.winner
-                }));
+                if (data) {
+                    games = Object.entries(data).map(([id, game]) => ({
+                        id: id,
+                        date: game.date,
+                        gameName: game.gameName,
+                        gameType: game.gameType,
+                        tournamentName: game.tournamentName,
+                        stage: game.stage,
+                        opponent1: game.opponent1,
+                        opponent1Castle: game.opponent1Castle,
+                        opponent2: game.opponent2,
+                        opponent2Castle: game.opponent2Castle,
+                        score: game.score,
+                        winner: game.winner
+                    }));
 
-                console.log('games', games);
-
-                setGames(games);
+                    console.log('games', games);
+                    setGames(games);
+                }
             } catch (error) {
                 console.error(error);
+            } finally {
+                setIsLoaded(true);
             }
         };
 
@@ -44,7 +48,9 @@ const Heroes3Games = () => {
 
     // Filter games by player name search
     const filteredGames = games.filter((game) => {
-        if (!searchPlayer) return true;
+        if (!searchPlayer) {
+            return true;
+        }
         const search = searchPlayer.toLowerCase();
         return (
             (game.opponent1 || '').toLowerCase().includes(search) ||
@@ -65,8 +71,10 @@ const Heroes3Games = () => {
     return (
         <div className={classes.gamesContainer}>
             <h2 className={classes.header}>🎮 Heroes 3 Games History</h2>
-            {games.length === 0 ? (
+            {!isLoaded ? (
                 <p className={classes.loading}>Loading games...</p>
+            ) : games.length === 0 ? (
+                <p className={classes.loading}>No games found.</p>
             ) : (
                 <>
                     <div className={classes.controls}>
