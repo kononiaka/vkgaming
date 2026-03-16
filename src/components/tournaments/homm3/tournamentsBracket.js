@@ -62,6 +62,56 @@ export const TournamentBracket = ({
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
 
+    const getCurrentRating = (ratings) => {
+        if (typeof ratings === 'string' && ratings.includes(',')) {
+            return parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
+        }
+
+        return ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
+    };
+
+    const recalculatePlayerStars = async ({ attendeeNames = null } = {}) => {
+        const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+        const usersData = await usersResponse.json();
+
+        const allPlayers = Object.entries(usersData || {})
+            .map(([id, userData]) => ({
+                id,
+                name: userData.enteredNickname || userData.name,
+                ratings: getCurrentRating(userData.ratings)
+            }))
+            .filter((player) => player.name && player.ratings > 0)
+            .sort((a, b) => b.ratings - a.ratings);
+
+        if (allPlayers.length === 0) {
+            return { updatedCount: 0 };
+        }
+
+        const highestRating = allPlayers[0].ratings;
+        const lowestRating = Math.min(...allPlayers.map((player) => player.ratings));
+        const playersToUpdate = attendeeNames
+            ? allPlayers.filter((player) => attendeeNames.includes(player.name))
+            : allPlayers;
+
+        for (const player of playersToUpdate) {
+            const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
+
+            await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ stars: newStars }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            console.log(`Updated ${player.name}: ${player.ratings} rating -> ${newStars} stars`);
+        }
+
+        return {
+            updatedCount: playersToUpdate.length,
+            highestRating,
+            lowestRating
+        };
+    };
+
     let BO3_DEFAULT;
     // let tournamentName;
 
@@ -328,60 +378,15 @@ export const TournamentBracket = ({
 
             if (confirmRecalculateStars) {
                 try {
-                    // Fetch all users to get global highest/lowest ratings
-                    const usersResponse = await fetch(
-                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json'
+                    const attendeeNames = Object.values(playersObj)
+                        .filter((player) => player && player.name)
+                        .map((player) => player.name);
+                    const result = await recalculatePlayerStars({ attendeeNames });
+
+                    console.log(
+                        `Tournament attendees stars recalculated successfully. Updated ${result.updatedCount} players.`
                     );
-                    const usersData = await usersResponse.json();
-
-                    // Get all players with ratings > 0 for global distribution
-                    const allPlayers = Object.entries(usersData)
-                        .map(([id, userData]) => ({
-                            id,
-                            name: userData.name,
-                            ratings: parseFloat(userData.ratings) || 0
-                        }))
-                        .filter((player) => player.ratings > 0)
-                        .sort((a, b) => b.ratings - a.ratings);
-
-                    if (allPlayers.length > 0) {
-                        const highestRating = allPlayers[0].ratings;
-                        const lowestRating = Math.min(...allPlayers.map((p) => p.ratings));
-
-                        console.log(
-                            `Recalculating stars for attendees - Highest: ${highestRating}, Lowest: ${lowestRating}`
-                        );
-
-                        // Get tournament attendees
-                        const attendeeNames = Object.values(playersObj)
-                            .filter((player) => player && player.name)
-                            .map((player) => player.name);
-
-                        console.log('Tournament attendees:', attendeeNames);
-
-                        // Update stars only for tournament attendees
-                        for (const player of allPlayers) {
-                            if (attendeeNames.includes(player.name)) {
-                                const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
-
-                                await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
-                                    {
-                                        method: 'PATCH',
-                                        body: JSON.stringify({ stars: newStars }),
-                                        headers: { 'Content-Type': 'application/json' }
-                                    }
-                                );
-
-                                console.log(
-                                    `Updated attendee ${player.name}: ${player.ratings} rating → ${newStars} stars`
-                                );
-                            }
-                        }
-
-                        console.log('Tournament attendees stars recalculated successfully');
-                        alert('Tournament attendees stars recalculated successfully!');
-                    }
+                    alert('Tournament attendees stars recalculated successfully!');
                 } catch (error) {
                     console.error('Error recalculating stars:', error);
                     alert('Error recalculating stars: ' + error.message);
@@ -670,6 +675,16 @@ export const TournamentBracket = ({
                     }
                 }
             }
+
+            try {
+                const starRecalculationResult = await recalculatePlayerStars();
+                console.log(
+                    `Player stars recalculated after tournament finish. Updated ${starRecalculationResult.updatedCount} players.`
+                );
+            } catch (error) {
+                console.error('Error recalculating player stars after tournament finish:', error);
+            }
+
             // }
 
             // Automatically snapshot current leaderboard rankings after tournament finishes and all prizes are awarded
@@ -1172,11 +1187,12 @@ export const TournamentBracket = ({
         );
         let responseFinishedPair;
         if (pushProcessedGame) {
+            // Use collectedPlayoffPairs (the mutated parameter) instead of the stale playoffPairs state
             responseFinishedPair = await fetch(
                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/.json`,
                 {
                     method: 'PUT',
-                    body: JSON.stringify(playoffPairs),
+                    body: JSON.stringify(collectedPlayoffPairs),
                     headers: {
                         'Content-Type': 'application/json'
                     }
@@ -2610,55 +2626,11 @@ export const TournamentBracket = ({
 
                                 if (confirmRecalculateStars) {
                                     try {
-                                        // Fetch all users
-                                        const usersResponse = await fetch(
-                                            'https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json'
+                                        const result = await recalculatePlayerStars();
+                                        console.log(
+                                            `All player stars recalculated successfully. Updated ${result.updatedCount} players.`
                                         );
-                                        const usersData = await usersResponse.json();
-
-                                        // Get all players with ratings > 0
-                                        const players = Object.entries(usersData)
-                                            .map(([id, data]) => ({
-                                                id,
-                                                name: data.name,
-                                                ratings: parseFloat(data.ratings) || 0
-                                            }))
-                                            .filter((player) => player.ratings > 0)
-                                            .sort((a, b) => b.ratings - a.ratings);
-
-                                        if (players.length > 0) {
-                                            const highestRating = players[0].ratings;
-                                            const lowestRating = Math.min(...players.map((p) => p.ratings));
-
-                                            console.log(
-                                                `Recalculating stars - Highest: ${highestRating}, Lowest: ${lowestRating}`
-                                            );
-
-                                            // Update stars for each player
-                                            for (const player of players) {
-                                                const newStars = calculateStarsFromRating(
-                                                    player.ratings,
-                                                    highestRating,
-                                                    lowestRating
-                                                );
-
-                                                await fetch(
-                                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
-                                                    {
-                                                        method: 'PATCH',
-                                                        body: JSON.stringify({ stars: newStars }),
-                                                        headers: { 'Content-Type': 'application/json' }
-                                                    }
-                                                );
-
-                                                console.log(
-                                                    `Updated ${player.name}: ${player.ratings} rating → ${newStars} stars`
-                                                );
-                                            }
-
-                                            console.log('All player stars recalculated successfully');
-                                            alert('Player stars recalculated successfully!');
-                                        }
+                                        alert('Player stars recalculated successfully!');
                                     } catch (error) {
                                         console.error('Error recalculating stars:', error);
                                         alert('Error recalculating stars: ' + error.message);
@@ -2762,13 +2734,15 @@ export const TournamentBracket = ({
                             )}
                         </div>
 
-                        <button
-                            onClick={() => handleGetAvailableCastles()}
-                            className={classes.actionButton}
-                            style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
-                        >
-                            Get Available Castles
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                            <button
+                                onClick={() => handleGetAvailableCastles()}
+                                className={classes.actionButton}
+                                style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
+                            >
+                                Get Available Castles
+                            </button>
+                        </div>
                     </div>
                 )}
                 {!startTournament && !isUpdateButtonVisible && (
@@ -2789,6 +2763,32 @@ export const TournamentBracket = ({
                                 🥉 Bronze: {tournamentWinners['3rd place']}
                             </p>
                         )}
+                        <button
+                            onClick={async () => {
+                                const confirmed = window.confirm(
+                                    "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
+                                );
+                                if (!confirmed) {
+                                    return;
+                                }
+                                try {
+                                    const result = await recalculatePlayerStars();
+                                    alert(`Stars recalculated successfully! Updated ${result.updatedCount} players.`);
+                                } catch (error) {
+                                    console.error('Error recalculating stars:', error);
+                                    alert('Error recalculating stars: ' + error.message);
+                                }
+                            }}
+                            className={classes.actionButton}
+                            style={{
+                                marginTop: '0.75rem',
+                                padding: '0.6rem 1.2rem',
+                                fontSize: '0.95rem',
+                                background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)'
+                            }}
+                        >
+                            ⭐ Recalculate Stars Now
+                        </button>
                     </div>
                 )}
             </div>
@@ -3045,12 +3045,21 @@ export const TournamentBracket = ({
                                                     {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
                                                 </div>
 
-                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                                <div
+                                                    style={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                        alignItems: 'center',
+                                                        gap: '0.75rem',
+                                                        width: '100%'
+                                                    }}
+                                                >
                                                     <div
                                                         style={{
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            gap: '0.5rem'
+                                                            gap: '0.5rem',
+                                                            minWidth: 0
                                                         }}
                                                     >
                                                         <PlayerBracket
@@ -3094,7 +3103,7 @@ export const TournamentBracket = ({
                                                             display: 'flex',
                                                             gap: '0.5rem',
                                                             alignItems: 'center',
-                                                            marginTop: '2.5rem'
+                                                            justifyContent: 'flex-end'
                                                         }}
                                                     >
                                                         {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
@@ -3133,12 +3142,21 @@ export const TournamentBracket = ({
                                         const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                         return (
                                             <div key={`thirdplace-${pairIndex}`} className={classes['game-block']}>
-                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                                <div
+                                                    style={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                        alignItems: 'center',
+                                                        gap: '0.75rem',
+                                                        width: '100%'
+                                                    }}
+                                                >
                                                     <div
                                                         style={{
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            gap: '0.5rem'
+                                                            gap: '0.5rem',
+                                                            minWidth: 0
                                                         }}
                                                     >
                                                         <PlayerBracket
@@ -3182,7 +3200,7 @@ export const TournamentBracket = ({
                                                             display: 'flex',
                                                             gap: '0.5rem',
                                                             alignItems: 'center',
-                                                            marginTop: '2.5rem'
+                                                            justifyContent: 'flex-end'
                                                         }}
                                                     >
                                                         {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (

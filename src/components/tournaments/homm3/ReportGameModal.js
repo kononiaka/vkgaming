@@ -1514,10 +1514,17 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                         border: `3px solid ${getCastleBorderColor(c)}`,
                                                                         borderRadius: '4px',
                                                                         objectFit: 'cover',
-                                                                        opacity:
-                                                                            getCastleBorderColor(c) === '#f87171'
-                                                                                ? 0.4
-                                                                                : 1,
+                                                                        opacity: game.castle1
+                                                                            ? isSelected
+                                                                                ? 1
+                                                                                : 0.3
+                                                                            : getCastleBorderColor(c) === '#f87171'
+                                                                              ? 0.4
+                                                                              : 1,
+                                                                        filter:
+                                                                            game.castle1 && !isSelected
+                                                                                ? 'grayscale(70%)'
+                                                                                : 'none',
                                                                         transform: 'scale(1)',
                                                                         transition: 'all 0.2s ease',
                                                                         boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
@@ -1630,10 +1637,17 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                         border: `3px solid ${getCastleBorderColor(c)}`,
                                                                         borderRadius: '4px',
                                                                         objectFit: 'cover',
-                                                                        opacity:
-                                                                            getCastleBorderColor(c) === '#f87171'
-                                                                                ? 0.4
-                                                                                : 1,
+                                                                        opacity: game.castle2
+                                                                            ? isSelected
+                                                                                ? 1
+                                                                                : 0.3
+                                                                            : getCastleBorderColor(c) === '#f87171'
+                                                                              ? 0.4
+                                                                              : 1,
+                                                                        filter:
+                                                                            game.castle2 && !isSelected
+                                                                                ? 'grayscale(70%)'
+                                                                                : 'none',
                                                                         transform: 'scale(1)',
                                                                         transition: 'all 0.2s ease',
                                                                         boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
@@ -2692,8 +2706,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                 border: `3px solid ${getCastleBorderColor(c)}`,
                                                                 borderRadius: '4px',
                                                                 objectFit: 'cover',
-                                                                opacity:
-                                                                    getCastleBorderColor(c) === '#f87171' ? 0.4 : 1,
+                                                                opacity: castle1
+                                                                    ? isSelected
+                                                                        ? 1
+                                                                        : 0.3
+                                                                    : getCastleBorderColor(c) === '#f87171'
+                                                                      ? 0.4
+                                                                      : 1,
+                                                                filter:
+                                                                    castle1 && !isSelected ? 'grayscale(70%)' : 'none',
                                                                 transform: 'scale(1)',
                                                                 transition: 'all 0.2s ease',
                                                                 boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`
@@ -2795,8 +2816,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                                 border: `3px solid ${getCastleBorderColor(c)}`,
                                                                 borderRadius: '4px',
                                                                 objectFit: 'cover',
-                                                                opacity:
-                                                                    getCastleBorderColor(c) === '#f87171' ? 0.4 : 1,
+                                                                opacity: castle2
+                                                                    ? isSelected
+                                                                        ? 1
+                                                                        : 0.3
+                                                                    : getCastleBorderColor(c) === '#f87171'
+                                                                      ? 0.4
+                                                                      : 1,
+                                                                filter:
+                                                                    castle2 && !isSelected ? 'grayscale(70%)' : 'none',
                                                                 transform: 'scale(1)',
                                                                 transition: 'all 0.2s ease',
                                                                 boxShadow: `0 0 8px ${getCastleBorderColor(c)}80`

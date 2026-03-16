@@ -87,6 +87,22 @@
     cursor: not-allowed;
 }
 
+.gamesStrip {
+    display: flex;
+    flex-direction: row;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.gamesStripBo3 {
+    display: flex;
+    flex-direction: row;
+    gap: 0.65rem;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+}
+
 @keyframes blink {
     50% {
         opacity: 0;
