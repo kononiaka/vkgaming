@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import AuthContext from '../../store/auth-context';
+import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
 import classes from './StartingPageContent.module.css';
 
 const StartingPageContent = () => {
@@ -252,6 +253,7 @@ const StartingPageContent = () => {
                     )}
                 </div>
             )}
+            <DonationLeaderboard />
         </section>
     );
 };
