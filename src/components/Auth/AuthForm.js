@@ -18,6 +18,7 @@ const AuthForm = () => {
 
     const [isLogin, setIsLogin] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
 
     const switchAuthModeHandler = () => {
         setIsLogin((prevState) => !prevState);
@@ -92,12 +93,10 @@ const AuthForm = () => {
         let url;
         if (isLogin) {
             //LOGIN
-            url =
-                'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
+            url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseApiKey}`;
         } else {
             //SIGNUP
-            url =
-                'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k';
+            url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseApiKey}`;
         }
         fetch(url, {
             method: 'POST',

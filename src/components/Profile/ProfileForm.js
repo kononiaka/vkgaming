@@ -17,6 +17,7 @@ const ProfileForm = () => {
     const [avatarBase64, setAvatarBase64] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [daUsername, setDaUsername] = useState('');
+    const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
 
     let { userNickName } = authCtx;
     userNickName = localStorage.getItem('userName');
@@ -184,7 +185,7 @@ const ProfileForm = () => {
         event.preventDefault();
         const newPasswordValue = newPasswordInsertedRef.current.value;
 
-        fetch('https://identitytoolkit.googleapis.com/v1/accounts:update?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k', {
+        fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
             method: 'POST',
             body: JSON.stringify({
                 idToken: authCtx.token,
