@@ -1,150 +1,70 @@
-import { useState, useContext } from 'react';
+import { useContext, useState } from 'react';
 import Modal from '../Modal/Modal';
 import AuthContext from '../../store/auth-context';
-import { addCoins } from '../../api/coinTransactions';
 
 import classes from './modalDonate.module.css';
 
+const STRIPE_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/createStripeCheckout';
+
 const ModalDonate = (props) => {
-    const [selectedAmount, setSelectedAmount] = useState(null);
-    const [customAmount, setCustomAmount] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
     const authCtx = useContext(AuthContext);
+    const [stripeLoading, setStripeLoading] = useState(null); // stores the tier amount being processed
+    const [loginPrompt, setLoginPrompt] = useState(false);
 
     const donationTiers = [
-        {
-            amount: 10,
-            coins: 2,
-            label: 'Supporter',
-            description: 'Basic support + 2 coins',
-            color: '#4CAF50'
-        },
-        {
-            amount: 25,
-            coins: 5,
-            label: 'Contributor',
-            description: 'Great support + 5 coins',
-            color: '#2196F3'
-        },
-        {
-            amount: 50,
-            coins: 10,
-            label: 'Champion',
-            description: 'Amazing support + 10 coins',
-            color: '#FF9800'
-        },
-        {
-            amount: 100,
-            coins: 25,
-            label: 'Legend',
-            description: 'Legendary support + 25 coins',
-            color: '#E91E63'
-        }
+        { amount: 1, coins: 2, label: 'Supporter', color: '#4CAF50' },
+        { amount: 3, coins: 5, label: 'Contributor', color: '#2196F3' },
+        { amount: 5, coins: 10, label: 'Champion', color: '#FF9800' },
+        { amount: 10, coins: 25, label: 'Legend', color: '#E91E63' }
     ];
 
-    const handleDonationClick = async (tier) => {
-        if (!authCtx.isLogged || !authCtx.userNickName) {
-            authCtx.setNotificationShown(true, 'Please log in to donate and receive coin rewards!', 'error', 5);
+    const handleStripe = async (amount) => {
+        if (!authCtx.isLogged) {
+            setLoginPrompt(true);
             return;
         }
-
-        setSelectedAmount(tier.amount);
-        setIsProcessing(true);
-
+        // Extract userId from the Firebase ID token (sub claim)
+        const token = localStorage.getItem('token');
+        let userId;
         try {
-            // Award coins for donation
-            const userId = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`)
-                .then((res) => res.json())
-                .then((data) => {
-                    const user = Object.values(data).find((u) => u.enteredNickname === authCtx.userNickName);
-                    return user ? Object.keys(data).find((key) => data[key] === user) : null;
-                });
-
-            if (userId) {
-                await addCoins(
+            userId = JSON.parse(atob(token.split('.')[1])).user_id;
+        } catch {
+            alert('Session error. Please log out and log in again.');
+            return;
+        }
+        if (!userId) {
+            alert('Could not identify your account. Please log out and log in again.');
+            return;
+        }
+        setStripeLoading(amount);
+        // Open blank window immediately in the click handler to avoid popup blocker
+        const stripeWindow = window.open('', '_blank');
+        try {
+            const res = await fetch(STRIPE_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount,
                     userId,
-                    tier.coins,
-                    'donation_reward',
-                    `Donation reward: ${tier.label} tier (${tier.amount} UAH)`,
-                    {
-                        donationAmount: tier.amount,
-                        tier: tier.label,
-                        rewardCoins: tier.coins,
-                        timestamp: new Date().toISOString()
-                    }
-                );
-
-                authCtx.setNotificationShown(
-                    true,
-                    `Thank you for your ${tier.amount} UAH donation! You received ${tier.coins} coins as a reward! 🎉`,
-                    'success',
-                    8
-                );
+                    nickname: authCtx.userNickName,
+                    origin: window.location.origin
+                })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.url) {
+                stripeWindow.close();
+                console.error('Stripe function error:', data);
+                alert('Payment error: ' + (data.error || 'Unknown error. Check console.'));
+                return;
             }
-        } catch (error) {
-            console.error('Error processing donation reward:', error);
-            authCtx.setNotificationShown(true, 'Donation recorded! Thank you for your support! 🙏', 'success', 5);
+            stripeWindow.location.href = data.url;
+        } catch (err) {
+            stripeWindow.close();
+            console.error('Stripe error:', err);
+            alert('Failed to open payment. Please try again.');
+        } finally {
+            setStripeLoading(null);
         }
-
-        setIsProcessing(false);
-        setSelectedAmount(null);
-    };
-
-    const handleCustomDonation = async () => {
-        const amount = parseFloat(customAmount);
-        if (!amount || amount < 1) {
-            authCtx.setNotificationShown(true, 'Please enter a valid donation amount (minimum 1 UAH)', 'error', 3);
-            return;
-        }
-
-        if (!authCtx.isLogged || !authCtx.userNickName) {
-            authCtx.setNotificationShown(true, 'Please log in to donate and receive coin rewards!', 'error', 5);
-            return;
-        }
-
-        setIsProcessing(true);
-
-        try {
-            // Calculate coins based on custom amount (1 coin per 5 UAH)
-            const coinsEarned = Math.floor(amount / 5);
-
-            if (coinsEarned > 0) {
-                const userId = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`)
-                    .then((res) => res.json())
-                    .then((data) => {
-                        const user = Object.values(data).find((u) => u.enteredNickname === authCtx.userNickName);
-                        return user ? Object.keys(data).find((key) => data[key] === user) : null;
-                    });
-
-                if (userId) {
-                    await addCoins(userId, coinsEarned, 'donation_reward', `Custom donation reward: ${amount} UAH`, {
-                        donationAmount: amount,
-                        rewardCoins: coinsEarned,
-                        timestamp: new Date().toISOString()
-                    });
-
-                    authCtx.setNotificationShown(
-                        true,
-                        `Thank you for your ${amount} UAH donation! You received ${coinsEarned} coins as a reward! 🎉`,
-                        'success',
-                        8
-                    );
-                }
-            } else {
-                authCtx.setNotificationShown(
-                    true,
-                    `Thank you for your ${amount} UAH donation! Every contribution helps! 🙏`,
-                    'success',
-                    5
-                );
-            }
-        } catch (error) {
-            console.error('Error processing custom donation:', error);
-            authCtx.setNotificationShown(true, 'Donation recorded! Thank you for your support! 🙏', 'success', 5);
-        }
-
-        setIsProcessing(false);
-        setCustomAmount('');
     };
 
     return (
@@ -153,96 +73,97 @@ const ModalDonate = (props) => {
                 <p>
                     <b>Support the Project & Earn Coins! 💎🎮</b>
                 </p>
-                <div className={classes.question}>
-                    <span className={classes.tooltip}>
-                        <p>
-                            <strong>Donation Rewards System:</strong>
-                            <br />
-                            • 80% of donations go to tournament prize pools 🏆
-                            <br />
-                            • 20% supports platform development ⚡
-                            <br />
-                            • Earn coins for every donation! 🪙
-                            <br />
-                            • Higher donations = More coins! 🚀
-                            <br />
-                            <br />
-                            <em>Your support makes competitive gaming possible!</em>
-                        </p>
-                    </span>
-                </div>
+                <p>
+                    • 80% of donations go to tournament prize pools 🏆
+                    <br />• 20% supports platform development ⚡
+                </p>
             </div>
 
-            {/* Donation Tiers */}
-            <div className={classes.donationTiers}>
-                {donationTiers.map((tier, index) => (
-                    <div
-                        key={index}
-                        className={`${classes.tierCard} ${selectedAmount === tier.amount ? classes.selected : ''}`}
-                        onClick={() => !isProcessing && handleDonationClick(tier)}
-                        style={{ borderColor: tier.color }}
-                    >
-                        <div className={classes.tierHeader} style={{ backgroundColor: tier.color }}>
-                            <h3>{tier.label}</h3>
-                            <span className={classes.tierAmount}>{tier.amount} UAH</span>
-                        </div>
-                        <div className={classes.tierBody}>
-                            <p className={classes.tierDescription}>{tier.description}</p>
-                            <div className={classes.coinReward}>
-                                <span className={classes.coinIcon}>🪙</span>
-                                <span>+{tier.coins} coins</span>
-                            </div>
-                        </div>
-                        {selectedAmount === tier.amount && isProcessing && (
-                            <div className={classes.processing}>Processing... ⏳</div>
-                        )}
-                    </div>
-                ))}
+            {/* How coins are credited */}
+            <div className={classes.nicknameInstruction}>
+                <p>
+                    🪙 <strong>Coins are credited automatically</strong> after payment via both providers.
+                </p>
+                {authCtx.isLogged && authCtx.userNickName && (
+                    <p className={classes.yourNickname}>
+                        Your account: <strong>{authCtx.userNickName}</strong>
+                    </p>
+                )}
+                {!authCtx.isLogged && (
+                    <p className={classes.loginPromptInline}>🔐 Log in first so we know which account to credit.</p>
+                )}
             </div>
 
-            {/* Custom Donation */}
-            <div className={classes.customDonation}>
-                <h4>Custom Amount 💰</h4>
-                <div className={classes.customInput}>
-                    <input
-                        type="number"
-                        placeholder="Enter amount (UAH)"
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
-                        min="1"
-                        step="0.01"
-                        disabled={isProcessing}
-                    />
-                    <button
-                        onClick={handleCustomDonation}
-                        disabled={isProcessing || !customAmount}
-                        className={classes.customButton}
-                    >
-                        {isProcessing ? 'Processing...' : 'Donate Custom'}
-                    </button>
-                </div>
-                <p className={classes.customNote}>💡 Earn 1 coin for every 5 UAH donated!</p>
-            </div>
-
-            {/* Original QR Code Section */}
-            <p className={classes.donate_title}>Or scan QR code 📱</p>
+            {/* Donation Alerts — note + button only */}
+            <p className={classes.donate_title}>🎯 via Donation Alerts</p>
+            <p className={classes.customNote}>
+                Donate any amount — coins are matched by your DA username set in your Profile.
+            </p>
             <div className={classes.donate_logo_block}>
-                <div className={classes.donate_logo}></div>
-            </div>
-            <div className={classes.donate_logo_block}>
-                <a href="https://send.monobank.ua/jar/834ApdUfdC" target="_blank" rel="noreferrer">
-                    💰 Donate via MonoBank
+                <a
+                    href="https://www.donationalerts.com/r/konoplay"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={!authCtx.isLogged ? () => setLoginPrompt(true) : undefined}
+                >
+                    🎯 Open Donation Alerts →
                 </a>
             </div>
 
-            {!authCtx.isLogged && (
-                <div className={classes.loginPrompt}>
-                    <p>
-                        🔐 <strong>Log in to earn coins for your donations!</strong>
-                    </p>
-                    <p>Registered users get coin rewards for supporting the platform.</p>
+            {/* Stripe — clickable tier cards, $5 minimum */}
+            <p className={classes.donate_title}>
+                💳 via Card (Stripe — Visa / Mastercard / Apple Pay / Google Pay / BLIK)
+            </p>
+            <div className={classes.donationTiers}>
+                {donationTiers
+                    .filter((t) => t.amount >= 5)
+                    .map((tier, index) => (
+                        <button
+                            key={index}
+                            className={classes.tierLink}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                            onClick={() => handleStripe(tier.amount)}
+                            disabled={stripeLoading !== null}
+                        >
+                            <div className={classes.tierCard} style={{ borderColor: tier.color }}>
+                                <div className={classes.tierHeader} style={{ backgroundColor: tier.color }}>
+                                    <h3>{tier.label}</h3>
+                                    <span className={classes.tierAmount}>${tier.amount}</span>
+                                </div>
+                                <div className={classes.tierBody}>
+                                    <div className={classes.coinReward}>
+                                        <span className={classes.coinIcon}>🪙</span>
+                                        <span>
+                                            {stripeLoading === tier.amount ? '⏳ Opening...' : `+${tier.coins} coins`}
+                                        </span>
+                                    </div>
+                                    <div className={classes.payNowLabel}>
+                                        {stripeLoading === tier.amount ? '' : '💳 Pay →'}
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+                    ))}
+            </div>
+
+            <p className={classes.customNote}>Minimum $5 via card. For smaller amounts use Donation Alerts.</p>
+
+            {loginPrompt && (
+                <div className={classes.loginPromptBanner}>
+                    <span>🔐 Please log in first to donate and receive coins.</span>
+                    <button className={classes.loginPromptClose} onClick={() => setLoginPrompt(false)}>
+                        ✕
+                    </button>
                 </div>
             )}
+
+            {/* MonoBank fallback */}
+            <p className={classes.donate_title}>📱 Other</p>
+            <div className={classes.donate_logo_block}>
+                <a href="https://send.monobank.ua/jar/834ApdUfdC" target="_blank" rel="noreferrer">
+                    💰 Donate via MonoBank (no coins)
+                </a>
+            </div>
         </Modal>
     );
 };

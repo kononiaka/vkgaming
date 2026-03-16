@@ -1,8 +1,10 @@
 import * as firebase from 'firebase/app';
 import 'firebase/auth';
 
+const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
+
 const app = firebase.initializeApp({
-    apiKey: 'AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k',
+    apiKey: firebaseApiKey,
     authDomain: 'test-prod-app-81915.firebaseapp.com',
     databaseURL: 'https://test-prod-app-81915-default-rtdb.firebaseio.com',
     projectId: 'test-prod-app-81915',

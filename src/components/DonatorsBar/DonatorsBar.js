@@ -7,58 +7,44 @@ const DonatorsBar = () => {
     useEffect(() => {
         const fetchDonators = async () => {
             try {
-                const response = await window.fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/donators.json'
+                const usersResponse = await window.fetch(
+                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json'
                 );
-                if (!response.ok) {
-                    // Use mock data if fetch fails
-                    const mockDonators = [
-                        { name: 'VladTheConqueror', amount: 1500 },
-                        { name: 'HeroMaster2024', amount: 1200 },
-                        { name: 'DonatorPro', amount: 1000 },
-                        { name: 'GamingLegend', amount: 800 },
-                        { name: 'SupportKing', amount: 650 },
-                        { name: 'CastleBuilder', amount: 500 },
-                        { name: 'TournamentFan', amount: 450 },
-                        { name: 'PlatformSupporter', amount: 400 }
-                    ];
-                    setDonators(mockDonators);
+                if (!usersResponse.ok) {
+                    setDonators([]);
                     return;
                 }
-                const data = await response.json();
+                const users = await usersResponse.json();
 
-                if (data) {
-                    // Convert to array and sort by amount
-                    const donatorsArray = Object.values(data).sort((a, b) => b.amount - a.amount);
-                    setDonators(donatorsArray);
-                } else {
-                    // Use mock data if no data in Firebase
-                    const mockDonators = [
-                        { name: 'VladTheConqueror', amount: 1500 },
-                        { name: 'HeroMaster2024', amount: 1200 },
-                        { name: 'DonatorPro', amount: 1000 },
-                        { name: 'GamingLegend', amount: 800 },
-                        { name: 'SupportKing', amount: 650 },
-                        { name: 'CastleBuilder', amount: 500 },
-                        { name: 'TournamentFan', amount: 450 },
-                        { name: 'PlatformSupporter', amount: 400 }
-                    ];
-                    setDonators(mockDonators);
+                if (!users) {
+                    setDonators([]);
+                    return;
                 }
+
+                const donors = Object.values(users)
+                    .map((userData) => {
+                        const transactions = Object.values(userData.coinTransactions || {}).filter(
+                            (transaction) => transaction.type === 'donation_reward'
+                        );
+
+                        const totalDonated = transactions.reduce((sum, transaction) => {
+                            const donationAmount = Number(transaction.metadata?.donationAmount) || 0;
+                            return sum + donationAmount;
+                        }, 0);
+
+                        return {
+                            name: userData.enteredNickname || userData.name || 'Anonymous',
+                            amount: totalDonated
+                        };
+                    })
+                    .filter((donor) => donor.amount > 0)
+                    .sort((a, b) => b.amount - a.amount)
+                    .slice(0, 20);
+
+                setDonators(donors);
             } catch (error) {
                 console.error('Error fetching donators:', error);
-                // Use mock data on error
-                const mockDonators = [
-                    { name: 'VladTheConqueror', amount: 1500 },
-                    { name: 'HeroMaster2024', amount: 1200 },
-                    { name: 'DonatorPro', amount: 1000 },
-                    { name: 'GamingLegend', amount: 800 },
-                    { name: 'SupportKing', amount: 650 },
-                    { name: 'CastleBuilder', amount: 500 },
-                    { name: 'TournamentFan', amount: 450 },
-                    { name: 'PlatformSupporter', amount: 400 }
-                ];
-                setDonators(mockDonators);
+                setDonators([]);
             }
         };
 

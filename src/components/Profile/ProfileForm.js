@@ -16,6 +16,8 @@ const ProfileForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [avatarBase64, setAvatarBase64] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [daUsername, setDaUsername] = useState('');
+    const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
 
     let { userNickName } = authCtx;
     userNickName = localStorage.getItem('userName');
@@ -45,6 +47,7 @@ const ProfileForm = () => {
                     const playerScore = playerFromDB[0].score;
                     authCtx.score = playerScore;
                     setPlayerObj(playerFromDB[0]);
+                    setDaUsername(playerFromDB[0].daUsername || '');
                     setIsLoading(true);
                 } else {
                     setPlayerObj(null);
@@ -165,11 +168,24 @@ const ProfileForm = () => {
         }
     };
 
+    const saveDaUsername = async () => {
+        try {
+            await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ daUsername: daUsername.trim() }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            authCtx.setNotificationShown(true, 'Donation Alerts username saved!', 'success', 3);
+        } catch (err) {
+            authCtx.setNotificationShown(true, 'Failed to save DA username.', 'error', 5);
+        }
+    };
+
     const submitHandler = (event) => {
         event.preventDefault();
         const newPasswordValue = newPasswordInsertedRef.current.value;
 
-        fetch('https://identitytoolkit.googleapis.com/v1/accounts:update?key=AIzaSyD0B7Cgft2m58MjUWhIzjykJwkvnXN1O2k', {
+        fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
             method: 'POST',
             body: JSON.stringify({
                 idToken: authCtx.token,
@@ -274,16 +290,17 @@ const ProfileForm = () => {
                         <div className={classes.statItem}>
                             <span className={classes.label}>🏆 Wins:</span>
                             <span className={classes.value}>
-                                {playerObj.gamesPlayed.heroes3.total - playerObj.gamesPlayed.heroes3.lose}
+                                {(playerObj.gamesPlayed?.heroes3?.total ?? 0) -
+                                    (playerObj.gamesPlayed?.heroes3?.lose ?? 0)}
                             </span>
                         </div>
                         <div className={classes.statItem}>
                             <span className={classes.label}>❌ Losses:</span>
-                            <span className={classes.value}>{playerObj.gamesPlayed.heroes3.lose}</span>
+                            <span className={classes.value}>{playerObj.gamesPlayed?.heroes3?.lose ?? 0}</span>
                         </div>
                         <div className={classes.statItem}>
                             <span className={classes.label}>🎮 Total Games:</span>
-                            <span className={classes.value}>{playerObj.gamesPlayed.heroes3.total}</span>
+                            <span className={classes.value}>{playerObj.gamesPlayed?.heroes3?.total ?? 0}</span>
                         </div>
                         <div className={classes.statItem}>
                             <span className={classes.label}>📈 Rating:</span>
@@ -356,6 +373,28 @@ const ProfileForm = () => {
                     </div>
                 </div>
             )}
+
+            <div className={classes.passwordForm}>
+                <h3 className={classes.formTitle}>💜 Donation Alerts Username</h3>
+                <p style={{ marginBottom: '0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
+                    Link your Donation Alerts account so coins are awarded automatically when you donate.
+                </p>
+                <div className={classes.formControl}>
+                    <label htmlFor="da-username">DA Username</label>
+                    <input
+                        type="text"
+                        id="da-username"
+                        value={daUsername}
+                        onChange={(e) => setDaUsername(e.target.value)}
+                        placeholder="e.g. CondorAwful"
+                    />
+                </div>
+                <div className={classes.formAction}>
+                    <button type="button" onClick={saveDaUsername} className={classes.submitBtn}>
+                        💾 Save DA Username
+                    </button>
+                </div>
+            </div>
 
             <form className={classes.passwordForm} onSubmit={submitHandler}>
                 <h3 className={classes.formTitle}>🔒 Change Password</h3>

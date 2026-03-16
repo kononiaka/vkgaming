@@ -1,0 +1,36 @@
+{
+    "rules": {
+        "users": {
+            ".read": true,
+            ".write": true
+        },
+        "tournaments": {
+            ".read": true,
+            ".write": true
+        },
+        "games": {
+            ".read": true,
+            ".write": true
+        },
+        "statistic": {
+            ".read": true,
+            ".write": true
+        },
+        "meta": {
+            ".read": true,
+            ".write": true
+        },
+        "daTokens": {
+            ".read": false,
+            ".write": false
+        },
+        "processedDonations": {
+            ".read": false,
+            ".write": false
+        },
+        "processedStripe": {
+            ".read": false,
+            ".write": false
+        }
+    }
+}

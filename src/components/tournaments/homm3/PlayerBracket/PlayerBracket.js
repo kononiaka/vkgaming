@@ -50,9 +50,7 @@ export const PlayerBracket = (props) => {
             ? Number(typeof score1 === 'string' && score1.includes(',') ? score1.split(',').at(-1) : score1) || null
             : Number(typeof score2 === 'string' && score2.includes(',') ? score2.split(',').at(-1) : score2) || null;
     let playerCastle = team === 'team1' ? castle1 : castle2;
-    let numberOfGames;
-
-    numberOfGames = pair.games;
+    let numberOfGames = Array.isArray(pair.games) ? [...pair.games] : pair.games ? [pair.games] : [];
 
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
@@ -157,12 +155,16 @@ export const PlayerBracket = (props) => {
         tooltipTimeout.current = setTimeout(() => setShowTooltip(true), 10);
     };
 
+    const isMultiGameLayout = Array.isArray(numberOfGames) && numberOfGames.length > 1;
+    const gamesCount = Array.isArray(numberOfGames) ? numberOfGames.length : 1;
+    const gamesStripMinWidth = isMultiGameLayout ? `${gamesCount * 44 + Math.max(gamesCount - 1, 0) * 8}px` : '52px';
+
     return (
         <div
             className={classes.player_bracket}
             style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
-            <div style={{ display: 'flex', alignItems: 'center', minWidth: '200px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', minWidth: '165px' }}>
                 <label
                     htmlFor={`score-${team}-${pairIndex}`}
                     onMouseEnter={handleMouseEnter}
@@ -312,7 +314,7 @@ export const PlayerBracket = (props) => {
             </div>
 
             {/* TODO: add the stars image when the tournament just started */}
-            <div className={classes.stars_container} style={{ minWidth: '120px' }}>
+            <div className={classes.stars_container} style={{ minWidth: '95px' }}>
                 {playerStars && playerStars !== 'TBD' && (
                     <div className={classes.stars_wrapper} style={{ cursor: 'pointer' }}>
                         <StarsComponent stars={playerStars} />
@@ -382,10 +384,13 @@ export const PlayerBracket = (props) => {
                     </div>
                 )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '0.25rem', minWidth: '52px' }}>
+            <div
+                className={`${classes.gamesStrip} ${isMultiGameLayout ? classes.gamesStripBo3 : ''}`}
+                style={{ minWidth: gamesStripMinWidth }}
+            >
                 {hasTruthyPlayers &&
-                    pair.games &&
-                    numberOfGames.map((game, gameIndex) => {
+                    numberOfGames.length > 0 &&
+                    numberOfGames.map((game) => {
                         let castle =
                             // pair.games.length > 1 &&
                             game ? (team === 'team1' ? game.castle1 : game.castle2) : playerCastle ? playerCastle : '';
@@ -441,8 +446,8 @@ export const PlayerBracket = (props) => {
                                             title={castleName}
                                             className={checked ? classes['castle-selected'] : ''}
                                             style={{
-                                                width: '48px',
-                                                height: '48px',
+                                                width: isMultiGameLayout ? '44px' : '48px',
+                                                height: isMultiGameLayout ? '44px' : '48px',
                                                 border: checked
                                                     ? '3px solid #FFD700'
                                                     : '2px solid rgba(62, 32, 192, 0.3)',
@@ -458,8 +463,8 @@ export const PlayerBracket = (props) => {
                                                     position: 'absolute',
                                                     top: '-4px',
                                                     right: '-4px',
-                                                    width: '16px',
-                                                    height: '16px',
+                                                    width: isMultiGameLayout ? '17px' : '16px',
+                                                    height: isMultiGameLayout ? '17px' : '16px',
                                                     borderRadius: '50%',
                                                     background:
                                                         gameColor === 'red'
@@ -489,7 +494,7 @@ export const PlayerBracket = (props) => {
                                                             ? 'linear-gradient(135deg, #00AA00, #00FF00)'
                                                             : 'linear-gradient(135deg, #AA0000, #FF0000)',
                                                     border: '1px solid #FFD700',
-                                                    fontSize: '9px',
+                                                    fontSize: isMultiGameLayout ? '10px' : '9px',
                                                     fontWeight: 'bold',
                                                     color: '#FFF',
                                                     boxShadow:
