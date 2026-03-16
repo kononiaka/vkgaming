@@ -1,5 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const crypto = require('crypto');
+const Stripe = require('stripe');
 
 admin.initializeApp();
 const db = admin.database();
@@ -237,11 +239,6 @@ exports.pollDonations = functions.pubsub.schedule('every 5 minutes').onRun(async
     return null;
 });
 
-// ---------------------------------------------------------------------------
-// debugDonations — temporary HTTP function to inspect raw DA API response.
-// Visit the URL in a browser to see what DA is returning.
-// DELETE this function after debugging is done.
-// ---------------------------------------------------------------------------
 exports.debugDonations = functions.https.onRequest(async (req, res) => {
     let accessToken;
     try {
@@ -276,4 +273,169 @@ exports.debugDonations = functions.https.onRequest(async (req, res) => {
         })),
         dbNicknames: nicknames
     });
+});
+
+// ---------------------------------------------------------------------------
+// LiqPay helpers
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// createStripeCheckout — called by React frontend.
+// Creates a Stripe Checkout Session and returns the session URL.
+// ---------------------------------------------------------------------------
+exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    const { amount, userId, nickname, origin } = req.body;
+    if (!amount || !userId || !nickname) {
+        return res.status(400).json({ error: 'amount, userId and nickname are required' });
+    }
+
+    const stripe = Stripe(functions.config().stripe.secret_key);
+
+    const baseUrl = origin || 'https://vkgaming.com.ua';
+
+    const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+            {
+                price_data: {
+                    currency: 'usd',
+                    product_data: {
+                        name: `VKGaming Donation — ${nickname}`,
+                        description: `Earns coins for your in-game account`
+                    },
+                    unit_amount: Math.round(Number(amount) * 100) // cents
+                },
+                quantity: 1
+            }
+        ],
+        mode: 'payment',
+        success_url: `${baseUrl}?donation=success`,
+        cancel_url: `${baseUrl}?donation=cancelled`,
+        metadata: { userId, nickname, amount: String(amount) }
+    });
+
+    return res.json({ url: session.url });
+});
+
+// ---------------------------------------------------------------------------
+// stripeWebhook — Stripe POSTs here after payment completes.
+// Verifies signature, then awards coins to the player.
+// ---------------------------------------------------------------------------
+exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = functions.config().stripe.webhook_secret;
+    const stripe = Stripe(functions.config().stripe.secret_key);
+
+    let event;
+    try {
+        // Firebase provides req.rawBody for signature verification
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+    } catch (err) {
+        console.error('Stripe webhook signature verification failed:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type !== 'checkout.session.completed') {
+        return res.status(200).send('ok');
+    }
+
+    const session = event.data.object;
+    const { userId, nickname, amount } = session.metadata;
+
+    if (!nickname) {
+        console.error('No nickname in Stripe session metadata');
+        return res.status(400).send('No nickname');
+    }
+
+    // Idempotency — skip if already processed
+    const processedRef = db.ref(`processedStripe/${session.id}`);
+    if ((await processedRef.once('value')).exists()) {
+        return res.status(200).send('already processed');
+    }
+
+    // Look up user by nickname (DB uses push keys, not Auth UIDs)
+    const usersSnap = await db.ref('users').once('value');
+    const usersData = usersSnap.val();
+    if (!usersData) {
+        console.error('No users data in DB');
+        return res.status(500).send('No users data');
+    }
+    const matchedEntry = Object.entries(usersData).find(
+        ([, user]) => user.enteredNickname && user.enteredNickname === nickname
+    );
+    if (!matchedEntry) {
+        console.error(`No user found with nickname "${nickname}"`);
+        await processedRef.set({
+            userId,
+            nickname,
+            amount: parseFloat(amount || 0),
+            awardedCoins: 0,
+            reason: 'nickname_not_found',
+            processedAt: new Date().toISOString()
+        });
+        return res.status(200).send('ok');
+    }
+    const [dbUserId] = matchedEntry;
+
+    const donationAmount = parseFloat(amount || 0);
+    const currency = (session.currency || 'usd').toUpperCase();
+    const { coins, label } = coinsForAmount(donationAmount);
+
+    if (coins <= 0) {
+        await processedRef.set({
+            userId: dbUserId,
+            amount: donationAmount,
+            awardedCoins: 0,
+            reason: 'amount_too_small',
+            processedAt: new Date().toISOString()
+        });
+        return res.status(200).send('ok');
+    }
+
+    const userSnap = await db.ref(`users/${dbUserId}/coins`).once('value');
+    const currentCoins = userSnap.val() || 0;
+    const newBalance = currentCoins + coins;
+
+    const now = new Date();
+    const transactionKey = db.ref(`users/${dbUserId}/coinTransactions`).push().key;
+    const updates = {};
+    updates[`users/${dbUserId}/coinTransactions/${transactionKey}`] = {
+        userId: dbUserId,
+        amount: coins,
+        type: 'donation_reward',
+        description: `Stripe donation: ${label} tier (${donationAmount} ${currency})`,
+        timestamp: now.toISOString(),
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString(),
+        metadata: {
+            sessionId: session.id,
+            donorNickname: nickname,
+            donationAmount,
+            currency,
+            tier: label,
+            rewardCoins: coins,
+            previousBalance: currentCoins,
+            newBalance,
+            provider: 'stripe'
+        }
+    };
+    updates[`users/${dbUserId}/coins`] = newBalance;
+    await db.ref().update(updates);
+
+    await processedRef.set({
+        userId: dbUserId,
+        nickname,
+        amount: donationAmount,
+        currency,
+        awardedCoins: coins,
+        tier: label,
+        processedAt: now.toISOString()
+    });
+
+    console.log(`Stripe: awarded ${coins} coins to user ${dbUserId} (${nickname}) for session ${session.id}`);
+    return res.status(200).send('ok');
 });

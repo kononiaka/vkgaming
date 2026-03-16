@@ -27,6 +27,10 @@
         "processedDonations": {
             ".read": false,
             ".write": false
+        },
+        "processedStripe": {
+            ".read": false,
+            ".write": false
         }
     }
 }

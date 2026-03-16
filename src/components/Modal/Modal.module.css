@@ -12,7 +12,7 @@
     position: fixed;
     top: 50%; /* Centered vertically on screen */
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, calc(-50% + 20px));
     background: rgba(15, 15, 35, 0.96); /* Darker, more opaque background */
     padding: 0.8rem; /* Slightly increased padding */
     border-radius: 6px;
