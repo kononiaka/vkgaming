@@ -8,6 +8,22 @@ const Heroes3Games = () => {
     const [searchPlayer, setSearchPlayer] = useState('');
     const [isLoaded, setIsLoaded] = useState(false);
 
+    const formatGameType = (gameType) => {
+        const normalized = String(gameType ?? '')
+            .toLowerCase()
+            .trim();
+
+        if (normalized === '1' || normalized === 'bo1' || normalized === 'bo-1') {
+            return 'bo-1';
+        }
+
+        if (normalized === '3' || normalized === 'bo3' || normalized === 'bo-3') {
+            return 'bo-3';
+        }
+
+        return gameType;
+    };
+
     useEffect(() => {
         // Fetch Heroes 3 games from database
         const fetchGamesList = async () => {
@@ -105,7 +121,9 @@ const Heroes3Games = () => {
                             <div key={game.id} className={classes.gameCard}>
                                 <div className={classes.gameHeader}>
                                     <span className={classes.gameDate}>📅 {game.date}</span>
-                                    {game.gameType && <span className={classes.gameType}>{game.gameType}</span>}
+                                    {game.gameType && (
+                                        <span className={classes.gameType}>{formatGameType(game.gameType)}</span>
+                                    )}
                                 </div>
                                 {(game.tournamentName || game.stage) && (
                                     <div className={classes.tournamentInfo}>

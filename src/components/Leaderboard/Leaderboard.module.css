@@ -3,8 +3,8 @@
     margin: 2rem auto;
     padding: 2rem;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border: 3px solid #FFD700;
-    box-shadow: 
+    border: 3px solid #ffd700;
+    box-shadow:
         0 0 15px rgba(255, 215, 0, 0.3),
         inset 0 0 20px rgba(0, 255, 255, 0.1);
     border-radius: 8px;
@@ -13,17 +13,19 @@
 .leaderboard h2 {
     text-align: center;
     font-size: 2.5rem;
-    color: #FFD700;
-    text-shadow: 
-        2px 2px 0 #8B4513,
+    color: #ffd700;
+    text-shadow:
+        2px 2px 0 #8b4513,
         4px 4px 0 rgba(0, 0, 0, 0.5),
         0 0 20px rgba(255, 215, 0, 0.5);
     letter-spacing: 2px;
     margin: 0 0 2rem 0;
     padding: 1rem;
     background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(22, 33, 62, 0.8));
-    border: 2px solid #FFD700;
-    box-shadow: 0 4px 0 0 #0a0a0a, 0 8px 16px rgba(0, 0, 0, 0.8);
+    border: 2px solid #ffd700;
+    box-shadow:
+        0 4px 0 0 #0a0a0a,
+        0 8px 16px rgba(0, 0, 0, 0.8);
     border-radius: 4px;
 }
 
@@ -47,8 +49,8 @@
 
 .leaderboard button:hover {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
-    border-color: #FFD700;
-    color: #FFD700;
+    border-color: #ffd700;
+    color: #ffd700;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
 }
@@ -100,7 +102,7 @@ td:last-child {
 }
 
 td a {
-    color: #FFD700;
+    color: #ffd700;
     text-decoration: none;
     font-weight: bold;
     transition: all 0.3s ease;
@@ -108,7 +110,7 @@ td a {
 }
 
 td a:hover {
-    color: #FFA500;
+    color: #ffa500;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
 }
 
@@ -135,12 +137,12 @@ tbody tr:hover td {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 165, 0, 0.5)) !important;
     font-weight: bold;
     font-size: 1.2rem;
-    border: 2px solid #FFD700 !important;
+    border: 2px solid #ffd700 !important;
 }
 
 .gold td {
     background: transparent !important;
-    color: #FFD700;
+    color: #ffd700;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
 }
 
@@ -154,12 +156,12 @@ tbody tr:hover td {
     background: linear-gradient(135deg, rgba(192, 192, 192, 0.4), rgba(169, 169, 169, 0.5)) !important;
     font-weight: bold;
     font-size: 1.15rem;
-    border: 2px solid #C0C0C0 !important;
+    border: 2px solid #c0c0c0 !important;
 }
 
 .silver td {
     background: transparent !important;
-    color: #E0E0E0;
+    color: #e0e0e0;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
 }
 
@@ -173,12 +175,12 @@ tbody tr:hover td {
     background: linear-gradient(135deg, rgba(205, 127, 50, 0.4), rgba(184, 115, 51, 0.5)) !important;
     font-weight: bold;
     font-size: 1.1rem;
-    border: 2px solid #CD7F32 !important;
+    border: 2px solid #cd7f32 !important;
 }
 
 .bronze td {
     background: transparent !important;
-    color: #F4A460;
+    color: #f4a460;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
 }
 
@@ -188,19 +190,104 @@ tbody tr:hover td {
     margin-right: 0.5rem;
 }
 
+.rankChange {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 3.5rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.rankUp {
+    color: #39d353;
+}
+
+.rankDown {
+    color: #ff5f5f;
+}
+
+.rankSame,
+.rankChangeNeutral {
+    color: #b7c6d6;
+}
+
+.searchWrapper {
+    margin-bottom: 1rem;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 2px solid #00ffff;
+    border-radius: 6px;
+    background: rgba(9, 18, 38, 0.8);
+    color: #fff;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.searchInput:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2);
+}
+
+.searchHint {
+    margin-top: 0.5rem;
+    color: #ffb3b3;
+    font-size: 0.9rem;
+}
+
+.searchResultCard {
+    border: 1px solid rgba(0, 255, 255, 0.35);
+    border-radius: 8px;
+    padding: 0.9rem;
+    background: rgba(0, 0, 0, 0.3);
+    margin-bottom: 1rem;
+}
+
+.searchResultTitle {
+    color: #ffd700;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.searchResultSubtitle {
+    color: #9bd4ff;
+    font-size: 0.85rem;
+    margin-bottom: 0.7rem;
+}
+
+.searchTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.searchTable th,
+.searchTable td {
+    padding: 0.55rem;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.currentPlayerRow td {
+    background: rgba(255, 215, 0, 0.18) !important;
+    font-weight: 700;
+}
+
 @media (max-width: 768px) {
     .leaderboard {
         padding: 1rem;
     }
-    
+
     table {
         font-size: 0.85rem;
     }
-    
-    th, td {
+
+    th,
+    td {
         padding: 0.5rem;
     }
-    
+
     .leaderboard h2 {
         font-size: 1.8rem;
     }
