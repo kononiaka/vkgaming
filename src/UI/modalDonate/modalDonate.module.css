@@ -10,29 +10,33 @@
     justify-content: space-between;
     gap: 1rem;
     margin-top: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
-    border: 2px solid #ffd700;
+    padding: 1rem 1.2rem;
+    background: linear-gradient(135deg, #c62828, #e53935);
+    border: 3px solid #ff0000;
     border-radius: 8px;
-    color: #ffd700;
+    color: #ffffff;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 1rem;
     animation: fadeIn 0.2s ease;
+    box-shadow:
+        0 0 20px rgba(255, 0, 0, 0.5),
+        inset 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
 .loginPromptClose {
     background: none;
     border: none;
-    color: #ffd700;
-    font-size: 1.1rem;
+    color: #ffffff;
+    font-size: 1.3rem;
     cursor: pointer;
     line-height: 1;
     padding: 0;
     flex-shrink: 0;
+    font-weight: bold;
 }
 
 .loginPromptClose:hover {
-    color: #ff4444;
+    color: #ffff00;
 }
 
 @keyframes fadeIn {
@@ -391,4 +395,68 @@
 .loginPrompt strong {
     color: #ff6b6b;
     text-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+}
+
+/* Text readability improvements */
+.nicknameInstruction {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.nicknameInstruction p {
+    color: #ffffff;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0.5rem 0;
+}
+
+.nicknameInstruction strong {
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.yourNickname {
+    color: #00ffff !important;
+    font-weight: bold;
+    margin-top: 0.5rem !important;
+}
+
+.yourNickname strong {
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.loginPromptInline {
+    color: #ff6b6b !important;
+    font-weight: bold;
+    margin-top: 0.5rem !important;
+}
+
+.donate_title {
+    color: #ffd700 !important;
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.5rem !important;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.customNote {
+    color: #cccccc !important;
+    font-size: 0.85rem !important;
+    font-style: italic;
+}
+
+.coinConversionHint {
+    color: #00ffff !important;
+    font-size: 0.9rem !important;
+    background: rgba(0, 255, 255, 0.05);
+    border-left: 3px solid #00ffff;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin: 0.5rem 0 1rem 0;
+    font-weight: 500;
 }

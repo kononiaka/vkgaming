@@ -2,7 +2,22 @@ import { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import AuthContext from '../../store/auth-context';
+import castleImg from '../../image/castles/castle.jpeg';
+import rampartImg from '../../image/castles/rampart.jpeg';
+import towerImg from '../../image/castles/tower.jpeg';
+import infernoImg from '../../image/castles/inferno.jpeg';
+import necropolisImg from '../../image/castles/necropolis.jpeg';
+import dungeonImg from '../../image/castles/dungeon.jpeg';
+import strongholdImg from '../../image/castles/stronghold.jpeg';
+import fortressImg from '../../image/castles/fortress.jpeg';
+import confluxImg from '../../image/castles/conflux.jpeg';
+import coveImg from '../../image/castles/cove.jpeg';
+import factoryImg from '../../image/castles/factory.jpeg';
+import kronverkImg from '../../image/castles/kronverk.jpeg';
+import redFlagImg from '../../image/flags/red.jpg';
+import blueFlagImg from '../../image/flags/blue.jpg';
 import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
+import StarsComponent from '../Stars/Stars';
 import classes from './StartingPageContent.module.css';
 
 const StartingPageContent = () => {
@@ -11,6 +26,94 @@ const StartingPageContent = () => {
     const [activeTournaments, setActiveTournaments] = useState([]);
     const [liveGames, setLiveGames] = useState([]);
     const [statusFilter, setStatusFilter] = useState('started');
+
+    const parseNumericValue = (value) => {
+        if (typeof value === 'string' && value.includes(',')) {
+            return Number(value.split(',').at(-1).trim()) || 0;
+        }
+        return Number(value) || 0;
+    };
+
+    const isRestartFullyUsed = (type, value) => {
+        const numericValue = Number(value) || 0;
+
+        if (type === '111') {
+            return numericValue >= 2;
+        }
+
+        if (type === '112') {
+            return numericValue >= 1;
+        }
+
+        return false;
+    };
+
+    const getCastleImage = (castleName) => {
+        const normalizedName = String(castleName || '')
+            .split('-')[0]
+            .trim()
+            .toLowerCase();
+
+        const castleImageMap = {
+            castle: castleImg,
+            rampart: rampartImg,
+            tower: towerImg,
+            inferno: infernoImg,
+            necropolis: necropolisImg,
+            dungeon: dungeonImg,
+            stronghold: strongholdImg,
+            fortress: fortressImg,
+            conflux: confluxImg,
+            cove: coveImg,
+            factory: factoryImg,
+            kronverk: kronverkImg
+        };
+
+        return castleImageMap[normalizedName] || null;
+    };
+
+    const getFlagImage = (color) => (String(color || '').toLowerCase() === 'red' ? redFlagImg : blueFlagImg);
+
+    const getHeadToHeadPrediction = (team1, team2, gamesHistory) => {
+        const getDeterministicValue = (key, min, max) => {
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+            }
+
+            const normalized = (hash % 10000) / 10000;
+            return min + normalized * (max - min);
+        };
+
+        const relevantGames = Object.values(gamesHistory || {}).filter((historyGame) => {
+            const o1 = historyGame?.opponent1;
+            const o2 = historyGame?.opponent2;
+
+            return (o1 === team1 && o2 === team2) || (o1 === team2 && o2 === team1);
+        });
+
+        if (relevantGames.length === 0) {
+            return { team1: '50.0', team2: '50.0' };
+        }
+
+        const team1Wins = relevantGames.filter((historyGame) => historyGame?.winner === team1).length;
+        let team1Prediction = (team1Wins / relevantGames.length) * 100;
+        const matchupKey = `${team1}|${team2}`;
+
+        // Avoid hard 100% displays by softening extremes into a stable realistic range.
+        if (team1Prediction >= 99.95) {
+            team1Prediction = getDeterministicValue(matchupKey, 80, 85);
+        } else if (team1Prediction <= 0.05) {
+            team1Prediction = getDeterministicValue(matchupKey, 15, 20);
+        }
+
+        const team2Prediction = 100 - team1Prediction;
+
+        return {
+            team1: team1Prediction.toFixed(1),
+            team2: team2Prediction.toFixed(1)
+        };
+    };
 
     if (userNickName === 'undefined') {
         userNickName = localStorage.getItem('userName');
@@ -22,7 +125,7 @@ const StartingPageContent = () => {
     } else if (isLogged && !notificationShown) {
         greeting = `Welcome back, ${userNickName} to konoplay!`;
     } else {
-        greeting = `Welcome to konoplay!`;
+        greeting = 'Welcome to konoplay!';
     }
 
     useEffect(() => {
@@ -32,6 +135,21 @@ const StartingPageContent = () => {
                     'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json'
                 );
                 const data = await response.json();
+
+                const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const usersData = await usersResponse.json();
+                const historyResponse = await fetch(
+                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
+                );
+                const historyData = await historyResponse.json();
+                const avatarByNickname = {};
+
+                Object.values(usersData || {}).forEach((user) => {
+                    if (user?.enteredNickname) {
+                        avatarByNickname[user.enteredNickname] = user.avatar || null;
+                    }
+                });
+
                 if (response.ok && data) {
                     const tournamentList = Object.keys(data)
                         .map((key) => {
@@ -55,12 +173,13 @@ const StartingPageContent = () => {
                             };
                             return (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
                         });
+
                     setActiveTournaments(tournamentList);
 
-                    // Extract live games from started tournaments
                     const games = [];
                     Object.keys(data).forEach((tournamentId) => {
                         const tournament = data[tournamentId];
+                        const tournamentPlayers = Object.values(tournament?.players || {}).filter(Boolean);
                         if (
                             tournament &&
                             tournament.status === 'Started!' &&
@@ -70,21 +189,61 @@ const StartingPageContent = () => {
                             tournament.bracket.playoffPairs.forEach((stage, stageIndex) => {
                                 if (Array.isArray(stage)) {
                                     stage.forEach((pair) => {
-                                        // Check if pair has games with castles selected but no winner
+                                        const team1Player = tournamentPlayers.find(
+                                            (player) => player.name === pair.team1
+                                        );
+                                        const team2Player = tournamentPlayers.find(
+                                            (player) => player.name === pair.team2
+                                        );
+
                                         if (pair.games && Array.isArray(pair.games)) {
                                             pair.games.forEach((game) => {
                                                 if (game.castle1 && game.castle2 && !game.castleWinner) {
+                                                    const prediction = getHeadToHeadPrediction(
+                                                        pair.team1,
+                                                        pair.team2,
+                                                        historyData
+                                                    );
+
                                                     games.push({
                                                         tournamentId,
                                                         tournamentName: tournament.name,
+                                                        stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
                                                         team1: pair.team1,
                                                         team2: pair.team2,
+                                                        team1Avatar: avatarByNickname[pair.team1] || null,
+                                                        team2Avatar: avatarByNickname[pair.team2] || null,
                                                         score1: pair.score1 || 0,
                                                         score2: pair.score2 || 0,
                                                         type: pair.type,
                                                         stageIndex,
                                                         castle1: game.castle1,
-                                                        castle2: game.castle2
+                                                        castle2: game.castle2,
+                                                        color1: game.color1 || pair.color1 || 'red',
+                                                        color2: game.color2 || pair.color2 || 'blue',
+                                                        gameNumber: (game.gameId || 0) + 1,
+                                                        team1Stars: parseNumericValue(
+                                                            pair.stars1 ?? team1Player?.stars
+                                                        ),
+                                                        team2Stars: parseNumericValue(
+                                                            pair.stars2 ?? team2Player?.stars
+                                                        ),
+                                                        team1Place: team1Player?.placeInLeaderboard || '-',
+                                                        team2Place: team2Player?.placeInLeaderboard || '-',
+                                                        team1Rating: parseNumericValue(
+                                                            pair.ratings1 ?? team1Player?.ratings
+                                                        ),
+                                                        team2Rating: parseNumericValue(
+                                                            pair.ratings2 ?? team2Player?.ratings
+                                                        ),
+                                                        team1Prediction: prediction.team1,
+                                                        team2Prediction: prediction.team2,
+                                                        gold1: game.gold1 || 0,
+                                                        gold2: game.gold2 || 0,
+                                                        restart1_111: game.restart1_111 || 0,
+                                                        restart1_112: game.restart1_112 || 0,
+                                                        restart2_111: game.restart2_111 || 0,
+                                                        restart2_112: game.restart2_112 || 0
                                                     });
                                                 }
                                             });
@@ -100,10 +259,10 @@ const StartingPageContent = () => {
                 console.error('Error fetching tournaments:', error);
             }
         };
+
         fetchActiveTournaments();
     }, []);
 
-    // Check if tournament has live games (castles selected but no winner)
     const hasLiveGames = (tournament) => {
         if (!tournament.bracket || !tournament.bracket.playoffPairs) {
             return false;
@@ -120,18 +279,45 @@ const StartingPageContent = () => {
     };
 
     const filteredTournaments = activeTournaments.filter((tournament) => {
-        if (statusFilter === 'all') return true;
-        if (statusFilter === 'registration')
+        if (statusFilter === 'all') {
+            return true;
+        }
+        if (statusFilter === 'registration') {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
-        if (statusFilter === 'started') return tournament.status === 'Started!';
-        if (statusFilter === 'finished') return tournament.status === 'Tournament Finished';
-        if (statusFilter === 'live') return hasLiveGames(tournament);
+        }
+        if (statusFilter === 'started') {
+            return tournament.status === 'Started!';
+        }
+        if (statusFilter === 'finished') {
+            return tournament.status === 'Tournament Finished';
+        }
+        if (statusFilter === 'live') {
+            return hasLiveGames(tournament);
+        }
         return true;
     });
+
+    const getTournamentStatusQuery = (status) => {
+        if (status === 'Registration' || status === 'Registration Started') {
+            return 'registration';
+        }
+        if (status === 'Registration finished!') {
+            return 'registrationFinished';
+        }
+        if (status === 'Started!') {
+            return 'started';
+        }
+        if (status && status.includes('Finished')) {
+            return 'finished';
+        }
+        return 'all';
+    };
 
     return (
         <section className={classes.starting}>
             <h1>{greeting}</h1>
+            {authCtx.isAdmin && <DonationLeaderboard />}
+
             {activeTournaments.length > 0 && (
                 <div className={classes.tournamentsSection}>
                     <div
@@ -157,17 +343,17 @@ const StartingPageContent = () => {
                             }}
                         >
                             <option value="all">All Tournaments</option>
-                            <option value="registration">📝 Registration Open</option>
-                            <option value="started">🎮 In Progress</option>
-                            <option value="live">🔴 Live Games</option>
-                            <option value="finished">🏆 Finished</option>
+                            <option value="registration">Registration Open</option>
+                            <option value="started">In Progress</option>
+                            <option value="live">Live Games</option>
+                            <option value="finished">Finished</option>
                         </select>
                     </div>
                     <div className={classes.tournamentsList}>
                         {filteredTournaments.map((tournament) => (
                             <Link
                                 key={tournament.id}
-                                to={`/tournaments/homm3/${tournament.id}`}
+                                to={`/tournaments/homm3?status=${getTournamentStatusQuery(tournament.status)}`}
                                 className={classes.tournamentCard}
                                 style={{
                                     opacity: tournament.status === 'Tournament Finished' ? 0.6 : 1,
@@ -177,10 +363,10 @@ const StartingPageContent = () => {
                                 <div className={classes.tournamentStatus}>
                                     {tournament.status === 'Registration' ||
                                     tournament.status === 'Registration Started'
-                                        ? '📝 Registration Open'
+                                        ? 'Registration Open'
                                         : tournament.status === 'Started!'
-                                          ? '🎮 In Progress'
-                                          : '🏆 Finished'}
+                                          ? 'In Progress'
+                                          : 'Finished'}
                                 </div>
                                 <div className={classes.tournamentName}>{tournament.name}</div>
                                 <div className={classes.tournamentDetails}>
@@ -194,28 +380,163 @@ const StartingPageContent = () => {
                     </div>
                 </div>
             )}
+
             {activeTournaments.some((t) => t.status === 'Started!') && (
                 <div className={classes.tournamentsSection}>
-                    <h2>🔴 Live Games</h2>
+                    <h2>Live Games</h2>
                     {liveGames.length > 0 ? (
                         <div className={classes.tournamentsList}>
                             {liveGames.map((game, index) => (
-                                <Link
-                                    key={index}
-                                    to={`/tournaments/homm3/${game.tournamentId}`}
-                                    className={classes.liveGameCard}
-                                >
-                                    <div className={classes.liveIndicator}>● LIVE</div>
-                                    <div className={classes.tournamentName}>{game.tournamentName}</div>
+                                <Link key={index} to="/tournaments/homm3?status=live" className={classes.liveGameCard}>
+                                    <div className={classes.liveIndicator}>LIVE</div>
+                                    <div className={classes.tournamentName}>
+                                        {game.tournamentName} ({game.stageLabel})
+                                    </div>
+                                    <div className={classes.predictionBanner}>
+                                        Win prediction: {game.team1} {game.team1Prediction}% | {game.team2}{' '}
+                                        {game.team2Prediction}%
+                                    </div>
                                     <div className={classes.matchup}>
                                         <div className={classes.player}>
-                                            <span className={classes.playerName}>{game.team1}</span>
+                                            <div className={classes.playerLine}>
+                                                <div className={classes.playerVisuals}>
+                                                    {game.team1Avatar ? (
+                                                        <img
+                                                            src={game.team1Avatar}
+                                                            alt={game.team1}
+                                                            className={classes.playerAvatar}
+                                                        />
+                                                    ) : (
+                                                        <div className={classes.playerAvatarFallback}>
+                                                            {String(game.team1 || '?')
+                                                                .charAt(0)
+                                                                .toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <img
+                                                        src={getFlagImage(game.color1)}
+                                                        alt={`${game.color1} flag`}
+                                                        className={classes.playerFlag}
+                                                    />
+                                                </div>
+                                                <span className={classes.playerName}>{game.team1}</span>
+                                                <span className={classes.playerPlaceInline}>#{game.team1Place}</span>
+                                                <div className={classes.playerStarsWrapInline}>
+                                                    <StarsComponent stars={game.team1Stars} />
+                                                </div>
+                                            </div>
                                             <span className={classes.score}>{game.score1}</span>
                                         </div>
                                         <div className={classes.vs}>VS</div>
                                         <div className={classes.player}>
                                             <span className={classes.score}>{game.score2}</span>
-                                            <span className={classes.playerName}>{game.team2}</span>
+                                            <div className={classes.playerLineRight}>
+                                                <div className={classes.playerStarsWrapInlineRight}>
+                                                    <StarsComponent stars={game.team2Stars} />
+                                                </div>
+                                                <span className={classes.playerName}>{game.team2}</span>
+                                                <span className={classes.playerPlaceInline}>#{game.team2Place}</span>
+                                                <div className={classes.playerVisuals}>
+                                                    <img
+                                                        src={getFlagImage(game.color2)}
+                                                        alt={`${game.color2} flag`}
+                                                        className={classes.playerFlag}
+                                                    />
+                                                    {game.team2Avatar ? (
+                                                        <img
+                                                            src={game.team2Avatar}
+                                                            alt={game.team2}
+                                                            className={classes.playerAvatar}
+                                                        />
+                                                    ) : (
+                                                        <div className={classes.playerAvatarFallback}>
+                                                            {String(game.team2 || '?')
+                                                                .charAt(0)
+                                                                .toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className={classes.duelDetails}>
+                                        <span>Game {game.gameNumber}</span>
+                                        <span>
+                                            Colors: {game.team1} ({game.color1}) vs {game.team2} ({game.color2})
+                                        </span>
+                                        <span className={classes.winPrediction}>
+                                            Win prediction: {game.team1} {game.team1Prediction}% | {game.team2}{' '}
+                                            {game.team2Prediction}%
+                                        </span>
+                                    </div>
+                                    <div className={classes.castlesRow}>
+                                        <div className={classes.castleCard}>
+                                            {getCastleImage(game.castle1) && (
+                                                <img
+                                                    src={getCastleImage(game.castle1)}
+                                                    alt={game.castle1}
+                                                    className={classes.castleImg}
+                                                />
+                                            )}
+                                            <div className={classes.castleName}>{game.castle1}</div>
+                                            <div className={classes.castleMeta}>Gold: {game.gold1}</div>
+                                            <div className={classes.restartsLabel}>Restarts:</div>
+                                            <div className={classes.restartsRow}>
+                                                <span
+                                                    className={`${classes.restartTag} ${
+                                                        isRestartFullyUsed('111', game.restart1_111)
+                                                            ? classes.restartUsed
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    111
+                                                </span>
+                                                <span className={classes.restartValue}>{game.restart1_111}</span>
+                                                <span
+                                                    className={`${classes.restartTag} ${
+                                                        isRestartFullyUsed('112', game.restart1_112)
+                                                            ? classes.restartUsed
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    112
+                                                </span>
+                                                <span className={classes.restartValue}>{game.restart1_112}</span>
+                                            </div>
+                                        </div>
+                                        <div className={classes.castleCard}>
+                                            {getCastleImage(game.castle2) && (
+                                                <img
+                                                    src={getCastleImage(game.castle2)}
+                                                    alt={game.castle2}
+                                                    className={classes.castleImg}
+                                                />
+                                            )}
+                                            <div className={classes.castleName}>{game.castle2}</div>
+                                            <div className={classes.castleMeta}>Gold: {game.gold2}</div>
+                                            <div className={classes.restartsLabel}>Restarts:</div>
+                                            <div className={classes.restartsRow}>
+                                                <span
+                                                    className={`${classes.restartTag} ${
+                                                        isRestartFullyUsed('111', game.restart2_111)
+                                                            ? classes.restartUsed
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    111
+                                                </span>
+                                                <span className={classes.restartValue}>{game.restart2_111}</span>
+                                                <span
+                                                    className={`${classes.restartTag} ${
+                                                        isRestartFullyUsed('112', game.restart2_112)
+                                                            ? classes.restartUsed
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    112
+                                                </span>
+                                                <span className={classes.restartValue}>{game.restart2_112}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className={classes.gameType}>
@@ -237,23 +558,12 @@ const StartingPageContent = () => {
                                 fontWeight: 'bold'
                             }}
                         >
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
-                            <div>Oops! No active games right now...</div>
-                            <div
-                                style={{
-                                    fontSize: '0.9rem',
-                                    marginTop: '0.5rem',
-                                    fontWeight: 'normal',
-                                    color: '#FFA500'
-                                }}
-                            >
-                                Time to fire one up! 🔥
-                            </div>
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>No active games</div>
+                            <div>Time to fire one up.</div>
                         </div>
                     )}
                 </div>
             )}
-            <DonationLeaderboard />
         </section>
     );
 };

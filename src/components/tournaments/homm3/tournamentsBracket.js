@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import {
     addScoreToUser,
     getNewRating,
@@ -20,6 +20,7 @@ import { findByName } from '../../../api/api.js';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
+import AuthContext from '../../../store/auth-context';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
@@ -31,6 +32,16 @@ let clickedRadioButton;
 let playersObj = {};
 let tournamentName = null;
 let allPairsHaveTeams = null;
+
+const normalizeMatchType = (rawType) => {
+    const normalized = String(rawType ?? '')
+        .toLowerCase()
+        .trim();
+    if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
+        return 'bo-3';
+    }
+    return 'bo-1';
+};
 
 export const TournamentBracket = ({
     maxPlayers,
@@ -45,6 +56,7 @@ export const TournamentBracket = ({
     // maxPlayers.length = Object.keys(maxPlayers).length;
     // console.log('tournamentWinner', tournamentWinner);
 
+    const authCtx = useContext(AuthContext);
     const [stageLabels, setStageLabels] = useState([]);
     const [gamesPerStage, setGamesPerStage] = useState({});
     const [shuffledNames, setShuffledNames] = useState([]);
@@ -1310,12 +1322,14 @@ export const TournamentBracket = ({
     // Example functions for processing winners and updating the next stage pairings in the database
     const determineNextStagePairings = (winners, currentStage, playoffsGames = 1) => {
         const nextPairings = [];
+        const normalizedType = normalizeMatchType(playoffsGames);
+        const configuredGames = normalizedType === 'bo-3' ? 3 : 1;
 
         // Iterate through the winners array and create pairings for the next stage
         for (let i = 0; i < winners.length; i += 2) {
             const games = [];
 
-            const totalGames = playoffsGames > 1 ? playoffsGames - 1 : playoffsGames;
+            const totalGames = configuredGames > 1 ? configuredGames - 1 : configuredGames;
 
             for (let j = 0; j < totalGames; j++) {
                 games.push({
@@ -1346,7 +1360,7 @@ export const TournamentBracket = ({
                 score2: 0,
                 stars2: (winners[i + 1] && winners[i + 1].stars) || null,
                 ratings2: (winners[i + 1] && winners[i + 1].ratings) || null,
-                type: games.length > 1 ? 'bo-3' : 'bo-1',
+                type: normalizedType,
                 games: games,
                 color1: 'red',
                 color2: 'blue'
@@ -1540,7 +1554,7 @@ export const TournamentBracket = ({
             );
             if (tournamentResponseGET.ok) {
                 const tournamentData = await tournamentResponseGET.json();
-                tournamentPlayoffGames = tournamentData.tournamentPlayoffGames || 'bo-1';
+                tournamentPlayoffGames = normalizeMatchType(tournamentData.tournamentPlayoffGames || 'bo-1');
             }
         } catch (error) {
             console.error('Error fetching tournament data:', error);
@@ -2745,7 +2759,7 @@ export const TournamentBracket = ({
                         </div>
                     </div>
                 )}
-                {!startTournament && !isUpdateButtonVisible && (
+                {!startTournament && !isUpdateButtonVisible && authCtx.isAdmin && (
                     <div style={{ marginBottom: '1rem' }}>
                         {tournamentName}
                         {tournamentWinners && (

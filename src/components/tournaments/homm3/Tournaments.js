@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { lookForUserId, fetchLeaderboard } from '../../../api/api';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { lookForUserId, fetchLeaderboard, snapshotLeaderboardRanks } from '../../../api/api';
 import { addCoins } from '../../../api/coinTransactions';
 import AuthContext from '../../../store/auth-context';
 import { getTournamentData } from '../../tournaments/tournament_api';
@@ -11,6 +11,7 @@ import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
 const TournamentList = () => {
     const { tournamentId } = useParams();
+    const [searchParams] = useSearchParams();
     const [tournaments, setTournaments] = useState([]);
     const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
@@ -22,6 +23,11 @@ const TournamentList = () => {
     const [statusFilter, setStatusFilter] = useState('started');
     const [showSpinningWheel, setShowSpinningWheel] = useState(false);
     const [tournamentPlayers, setTournamentPlayers] = useState({});
+    const [allPlayerNicknames, setAllPlayerNicknames] = useState([]);
+    const [nicknameQuery, setNicknameQuery] = useState('');
+    const [nicknameSuggestions, setNicknameSuggestions] = useState([]);
+    const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+    const [addingPlayerTournamentId, setAddingPlayerTournamentId] = useState(null);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged } = authCtx;
 
@@ -37,6 +43,16 @@ const TournamentList = () => {
 
     // let tournamentName = null;
     let maxTournamnetPlayers = 0;
+
+    const normalizeMatchType = (rawType) => {
+        const normalized = String(rawType ?? '')
+            .toLowerCase()
+            .trim();
+        if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
+            return 'bo-3';
+        }
+        return 'bo-1';
+    };
 
     const nicknameRef = useRef();
     // console.log('nicknameRef', nicknameRef);
@@ -67,9 +83,110 @@ const TournamentList = () => {
         }
     };
 
+    const fetchAllPlayerNicknames = async () => {
+        try {
+            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const data = await response.json();
+            if (!response.ok || !data) {
+                setAllPlayerNicknames([]);
+                return;
+            }
+
+            const nicknames = Object.values(data)
+                .map((user) => user?.enteredNickname)
+                .filter((nickname) => typeof nickname === 'string' && nickname.trim() !== '');
+
+            setAllPlayerNicknames([...new Set(nicknames)]);
+        } catch (error) {
+            console.error('Error fetching player nicknames:', error);
+            setAllPlayerNicknames([]);
+        }
+    };
+
+    const updateNicknameSuggestions = (value, tournamentPlayersObj) => {
+        const query = value.trim().toLowerCase();
+        if (!query) {
+            setNicknameSuggestions([]);
+            setActiveSuggestionIndex(-1);
+            return;
+        }
+
+        const alreadyRegistered = new Set(
+            Object.values(tournamentPlayersObj || {})
+                .filter((player) => player && player.name)
+                .map((player) => player.name.toLowerCase())
+        );
+
+        const filtered = allPlayerNicknames
+            .filter(
+                (nickname) => nickname.toLowerCase().includes(query) && !alreadyRegistered.has(nickname.toLowerCase())
+            )
+            .slice(0, 8);
+
+        setNicknameSuggestions(filtered);
+        setActiveSuggestionIndex(filtered.length > 0 ? 0 : -1);
+    };
+
+    const handleNicknameKeyDown = (event, tournament) => {
+        if (!nicknameSuggestions.length) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActiveSuggestionIndex((prev) => {
+                const next = prev < nicknameSuggestions.length - 1 ? prev + 1 : 0;
+                return next;
+            });
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActiveSuggestionIndex((prev) => {
+                const next = prev > 0 ? prev - 1 : nicknameSuggestions.length - 1;
+                return next;
+            });
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const selectedByDefault =
+                activeSuggestionIndex >= 0 ? nicknameSuggestions[activeSuggestionIndex] : nicknameSuggestions[0];
+            if (selectedByDefault) {
+                setNicknameQuery(selectedByDefault);
+                setNicknameSuggestions([]);
+                setActiveSuggestionIndex(-1);
+                addUserTournament(tournament.id, selectedByDefault, tournament.players, tournament.maxPlayers, {
+                    isAdminManagedAdd: true
+                });
+                return;
+            }
+
+            const selectedNickname = nicknameQuery.trim();
+            if (!selectedNickname) {
+                return;
+            }
+
+            addUserTournament(tournament.id, selectedNickname, tournament.players, tournament.maxPlayers, {
+                isAdminManagedAdd: true
+            });
+        }
+    };
+
     useEffect(() => {
         fetchTournaments();
+        fetchAllPlayerNicknames();
     }, []);
+
+    useEffect(() => {
+        const statusParam = searchParams.get('status');
+        const allowed = ['all', 'registration', 'registrationFinished', 'started', 'live', 'finished'];
+        if (statusParam && allowed.includes(statusParam)) {
+            setStatusFilter(statusParam);
+        }
+    }, [searchParams]);
 
     // Auto-open tournament details if tournamentId is in URL
     useEffect(() => {
@@ -89,93 +206,141 @@ const TournamentList = () => {
         return registeredPlayers.some((player) => player.name === currentUser);
     };
 
-    const addUserTournament = async (tourId, nickname, currentTournamentPlayers, maxPlayers) => {
-        const user = await lookForUserId(nickname, 'full');
-        const userId = await lookForUserId(nickname);
-
-        const userResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
-            {
-                method: 'GET'
-            }
-        );
-
-        const data = await userResponse.json();
-
-        let userStars = data.stars;
-
-        const lastRating = parseFloat(data.ratings.split(',').pop().trim()).toFixed(2);
-
-        let userRatings = lastRating;
-
-        let placeInLeaderboard = await fetchLeaderboard(data);
-
-        const userData = {
-            name: user.name,
-            stars: userStars,
-            ratings: userRatings,
-            placeInLeaderboard: placeInLeaderboard
-        };
-
-        let tournamentData = await getTournamentData(tourId);
-
-        if (tournamentData.preparedBracket) {
-            substituteTBDPlayer(user, tourId, userStars, userRatings);
-        } else {
-            console.log('Tournament does not have a prepared bracket.');
+    const addUserTournament = async (
+        tourId,
+        nickname,
+        currentTournamentPlayers,
+        maxPlayers,
+        options = { isAdminManagedAdd: false }
+    ) => {
+        if (addingPlayerTournamentId === tourId) {
+            return;
         }
 
-        const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
-            {
-                method: 'POST',
-                body: JSON.stringify(userData),
-                headers: {
-                    'Content-Type': 'application/json'
+        setAddingPlayerTournamentId(tourId);
+
+        try {
+            const normalizedNickname = (nickname || '').trim();
+            if (!normalizedNickname) {
+                authCtx.setNotificationShown(true, 'Please enter a player nickname.', 'error', 4);
+                return;
+            }
+
+            // Resolve nickname case-insensitively to avoid null lookups when casing differs.
+            const matchedNickname =
+                allPlayerNicknames.find((n) => n.toLowerCase() === normalizedNickname.toLowerCase()) ||
+                normalizedNickname;
+
+            const user = await lookForUserId(matchedNickname, 'full');
+            const userId = await lookForUserId(matchedNickname);
+
+            if (!userId || !user) {
+                authCtx.setNotificationShown(true, `Player "${normalizedNickname}" was not found.`, 'error', 5);
+                return;
+            }
+
+            const userResponse = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                {
+                    method: 'GET'
+                }
+            );
+
+            const data = await userResponse.json();
+
+            if (!data) {
+                authCtx.setNotificationShown(true, `Player "${matchedNickname}" has invalid profile data.`, 'error', 5);
+                return;
+            }
+
+            let userStars = data.stars ?? 0;
+
+            const lastRating = data.ratings
+                ? parseFloat(data.ratings.split(',').pop().trim()).toFixed(2)
+                : parseFloat(0).toFixed(2);
+
+            let userRatings = lastRating;
+
+            let placeInLeaderboard = await fetchLeaderboard(data);
+
+            const userData = {
+                name: user.name || matchedNickname,
+                stars: userStars,
+                ratings: userRatings,
+                placeInLeaderboard: placeInLeaderboard
+            };
+
+            let tournamentData = await getTournamentData(tourId);
+
+            if (tournamentData.preparedBracket) {
+                substituteTBDPlayer(user, tourId, userStars, userRatings);
+            } else {
+                console.log('Tournament does not have a prepared bracket.');
+            }
+
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify(userData),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const isSelfRegistration =
+                !!authCtx.userNickName && matchedNickname.toLowerCase() === authCtx.userNickName.toLowerCase();
+            const shouldAwardRegistrationCoins = response.ok && isSelfRegistration && !options.isAdminManagedAdd;
+
+            // Award coins only when user registers themselves, not when admin manages entries.
+            if (shouldAwardRegistrationCoins) {
+                try {
+                    await addCoins(
+                        userId,
+                        2,
+                        'tournament_registration',
+                        `Registered for tournament: ${tournamentData.name}`,
+                        { tournamentId: tourId, tournamentName: tournamentData.name }
+                    );
+                    authCtx.setNotificationShown(
+                        true,
+                        'Success! You received 2 coins for tournament registration!',
+                        'success',
+                        5
+                    );
+                } catch (error) {
+                    console.error('Error awarding registration coins:', error);
                 }
             }
-        );
 
-        // Award coins for tournament registration
-        if (response.ok) {
-            try {
-                await addCoins(
-                    userId,
-                    2,
-                    'tournament_registration',
-                    `Registered for tournament: ${tournamentData.name}`,
-                    { tournamentId: tourId, tournamentName: tournamentData.name }
+            if (response.ok && +Object.keys(currentTournamentPlayers).length === +maxPlayers - 1) {
+                let tournamentStatusResponse = {};
+                let tournamentStatusResponseModal = confirmWindow(
+                    `Are you sure you want to update tournament's status to 'Registration Finished'?`
                 );
-                authCtx.setNotificationShown(
-                    true,
-                    'Success! You received 2 coins for tournament registration!',
-                    'success',
-                    5
-                );
-            } catch (error) {
-                console.error('Error awarding registration coins:', error);
-            }
-        }
-
-        if (response.ok && +Object.keys(currentTournamentPlayers).length === +maxPlayers - 1) {
-            let tournamentStatusResponse = {};
-            let tournamentStatusResponseModal = confirmWindow(
-                `Are you sure you want to update tournament's status to 'Registration Finished'?`
-            );
-            if (tournamentStatusResponseModal) {
-                tournamentStatusResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify('Registration finished!'),
-                        headers: {
-                            'Content-Type': 'application/json'
+                if (tournamentStatusResponseModal) {
+                    tournamentStatusResponse = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
+                        {
+                            method: 'PUT',
+                            body: JSON.stringify('Registration finished!'),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         }
-                    }
-                );
+                    );
+                }
             }
+
+            // Do not hard-reload the page: it clears notification state before the toast is shown.
+            setNicknameQuery('');
+            setNicknameSuggestions([]);
+            setActiveSuggestionIndex(-1);
+            await fetchTournaments();
+        } finally {
+            setAddingPlayerTournamentId(null);
         }
-        window.location.reload();
     };
 
     const confirmWindow = (message) => {
@@ -353,7 +518,8 @@ const TournamentList = () => {
 
             const tournamentData = await tournamentResponseGET.json();
             const maxPlayers = tournamentData.maxPlayers;
-            const tournamentPlayoffGames = tournamentData.tournamentPlayoffGames || 'bo-1';
+            const tournamentPlayoffGamesRaw = tournamentData.tournamentPlayoffGames || 'bo-1';
+            const gameType = normalizeMatchType(tournamentPlayoffGamesRaw);
             const players = tournamentData.players;
 
             // Calculate stage labels based on maxPlayers
@@ -369,8 +535,7 @@ const TournamentList = () => {
             }
 
             // Determine number of games based on bo-1 or bo-3
-            const numGames = tournamentPlayoffGames === 'bo-3' ? 3 : 1;
-            const gameType = tournamentPlayoffGames;
+            const numGames = gameType === 'bo-3' ? 3 : 1;
 
             // Format bracket pairs with player data
             const formattedBracket = preBracketPairs.map((pair) => {
@@ -523,6 +688,20 @@ const TournamentList = () => {
                 }
             );
             console.log('Tournament status updated to Started!');
+
+            // Snapshot leaderboard rankings at the start of the tournament
+            try {
+                const snapshotResult = await snapshotLeaderboardRanks();
+                if (snapshotResult.success) {
+                    console.log(
+                        `Leaderboard snapshot taken at tournament start: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                    );
+                } else {
+                    console.error('Failed to snapshot leaderboard at tournament start:', snapshotResult.error);
+                }
+            } catch (error) {
+                console.error('Error during leaderboard snapshot at tournament start:', error);
+            }
 
             // Close spinning wheel and reload to show bracket
             setShowSpinningWheel(false);
@@ -830,24 +1009,104 @@ const TournamentList = () => {
                                             )}
                                     </>
                                 )}
-                                {tournament.status === 'Registration Started' &&
+                                {authCtx.isAdmin &&
+                                    tournament.status === 'Registration Started' &&
                                     +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
                                         <div className={classes.inputGroup}>
                                             <label htmlFor="nickname">Player's Nickname</label>
-                                            <input type="name" id="nickname" ref={nicknameRef} required />
+                                            <input
+                                                type="text"
+                                                id="nickname"
+                                                ref={nicknameRef}
+                                                value={nicknameQuery}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setNicknameQuery(value);
+                                                    updateNicknameSuggestions(value, tournament.players);
+                                                }}
+                                                onFocus={() =>
+                                                    updateNicknameSuggestions(nicknameQuery, tournament.players)
+                                                }
+                                                onKeyDown={(e) => handleNicknameKeyDown(e, tournament)}
+                                                onBlur={() => {
+                                                    setTimeout(() => {
+                                                        setNicknameSuggestions([]);
+                                                        setActiveSuggestionIndex(-1);
+                                                    }, 120);
+                                                }}
+                                                autoComplete="off"
+                                                required
+                                            />
+                                            {nicknameSuggestions.length > 0 && (
+                                                <div
+                                                    style={{
+                                                        marginTop: '0.4rem',
+                                                        border: '1px solid rgba(0, 255, 255, 0.3)',
+                                                        borderRadius: '8px',
+                                                        background: 'rgba(10, 20, 40, 0.95)',
+                                                        maxHeight: '180px',
+                                                        overflowY: 'auto'
+                                                    }}
+                                                >
+                                                    {nicknameSuggestions.map((nickname, index) => (
+                                                        <button
+                                                            key={nickname}
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                setNicknameQuery(nickname);
+                                                                setNicknameSuggestions([]);
+                                                                setActiveSuggestionIndex(-1);
+                                                            }}
+                                                            onMouseEnter={() => setActiveSuggestionIndex(index)}
+                                                            style={{
+                                                                display: 'block',
+                                                                width: '100%',
+                                                                textAlign: 'left',
+                                                                padding: '0.5rem 0.75rem',
+                                                                border: 'none',
+                                                                background:
+                                                                    index === activeSuggestionIndex
+                                                                        ? 'rgba(0, 255, 255, 0.18)'
+                                                                        : 'transparent',
+                                                                color: '#00ffff',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            {nickname}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                 <button
                                                     className={classes.btn}
-                                                    onClick={() =>
+                                                    disabled={addingPlayerTournamentId === tournament.id}
+                                                    onClick={() => {
+                                                        const selectedNickname =
+                                                            activeSuggestionIndex >= 0
+                                                                ? nicknameSuggestions[activeSuggestionIndex]
+                                                                : nicknameQuery.trim();
+                                                        if (!selectedNickname) {
+                                                            return;
+                                                        }
                                                         addUserTournament(
                                                             tournament.id,
-                                                            nicknameRef.current.value,
+                                                            selectedNickname,
                                                             tournament.players,
-                                                            tournament.maxPlayers
-                                                        )
-                                                    }
+                                                            tournament.maxPlayers,
+                                                            { isAdminManagedAdd: true }
+                                                        );
+                                                    }}
                                                 >
-                                                    ➕ Add Player
+                                                    {addingPlayerTournamentId === tournament.id ? (
+                                                        <span className={classes.loadingInline}>
+                                                            <span className={classes.spinner}></span>
+                                                            Adding...
+                                                        </span>
+                                                    ) : (
+                                                        '➕ Add Player'
+                                                    )}
                                                 </button>
                                                 <button
                                                     className={classes.btn}
@@ -889,25 +1148,27 @@ const TournamentList = () => {
                                         >
                                             ✅ Tournament is Full!
                                         </p>
-                                        <button
-                                            className={`${classes.btn} ${classes.btnPrimary}`}
-                                            style={{
-                                                background: 'linear-gradient(135deg, #4caf50, #45a049)',
-                                                border: '2px solid #4caf50',
-                                                fontSize: '1.1rem',
-                                                padding: '0.75rem 1.5rem'
-                                            }}
-                                            onClick={() =>
-                                                showDetailsHandler(
-                                                    tournament.status,
-                                                    tournament.winners,
-                                                    tournament.id,
-                                                    tournament
-                                                )
-                                            }
-                                        >
-                                            🎮 Start Tournament
-                                        </button>
+                                        {authCtx.isAdmin && (
+                                            <button
+                                                className={`${classes.btn} ${classes.btnPrimary}`}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #4caf50, #45a049)',
+                                                    border: '2px solid #4caf50',
+                                                    fontSize: '1.1rem',
+                                                    padding: '0.75rem 1.5rem'
+                                                }}
+                                                onClick={() =>
+                                                    showDetailsHandler(
+                                                        tournament.status,
+                                                        tournament.winners,
+                                                        tournament.id,
+                                                        tournament
+                                                    )
+                                                }
+                                            >
+                                                🎮 Start Tournament
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
@@ -918,7 +1179,9 @@ const TournamentList = () => {
                                             <div key={place} className={classes.prizeItem}>
                                                 <span className={classes.medal}>{getMedalEmoji(place)}</span>
                                                 <span className={classes.prizePlace}>{place}:</span>
-                                                <span className={classes.prizeAmount}>${prize}</span>
+                                                <span className={classes.prizeAmount}>
+                                                    {tournament.prizeType === 'coins' ? `${prize} coins` : `$${prize}`}
+                                                </span>
                                             </div>
                                         ))}
                                     </div>
@@ -929,6 +1192,7 @@ const TournamentList = () => {
                                             {Object.entries(tournament.winners).map(([place, winner]) => {
                                                 // Find prize amount by matching the place key (case-insensitive)
                                                 let prize = null;
+                                                let coinPrize = null;
                                                 if (tournament.pricePull) {
                                                     // Try exact match first
                                                     prize = tournament.pricePull[place];
@@ -940,6 +1204,17 @@ const TournamentList = () => {
                                                         prize = prizeKey ? tournament.pricePull[prizeKey] : null;
                                                     }
                                                 }
+                                                if (tournament.coinPrizePull) {
+                                                    coinPrize = tournament.coinPrizePull[place];
+                                                    if (!coinPrize) {
+                                                        const coinPrizeKey = Object.keys(tournament.coinPrizePull).find(
+                                                            (key) => key.toLowerCase() === place.toLowerCase()
+                                                        );
+                                                        coinPrize = coinPrizeKey
+                                                            ? tournament.coinPrizePull[coinPrizeKey]
+                                                            : null;
+                                                    }
+                                                }
                                                 return (
                                                     <div key={place} className={classes.winnerItem}>
                                                         <span className={classes.medalLarge}>
@@ -948,10 +1223,12 @@ const TournamentList = () => {
                                                         <span className={classes.placeLabel}>{place}</span>
                                                         <span className={classes.winnerNameLarge}>
                                                             {winner}
-                                                            {prize && (
+                                                            {(prize || coinPrize) && (
                                                                 <span className={classes.prizeInBrackets}>
                                                                     {' '}
-                                                                    (${prize})
+                                                                    {tournament.prizeType === 'coins'
+                                                                        ? `(${coinPrize || prize} coins)`
+                                                                        : `($${prize || coinPrize})`}
                                                                 </span>
                                                             )}
                                                         </span>

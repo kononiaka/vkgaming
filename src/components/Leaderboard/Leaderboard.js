@@ -9,6 +9,7 @@ const Leaderboard = () => {
     const [playerRating, setPlayerRating] = useState([]);
     const [avatars, setAvatars] = useState({});
     const [lastRankSnapshot, setLastRankSnapshot] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const fetchPlayerScores = async () => {
@@ -288,17 +289,17 @@ const Leaderboard = () => {
 
     const getRankChangeIndicator = (currentRank, previousRank) => {
         if (!previousRank) {
-            return '—';
+            return <span className={classes.rankChangeNeutral}>—</span>;
         }
 
         const rankChange = previousRank - currentRank; // Positive means moved up (lower rank number)
 
         if (rankChange > 0) {
-            return `🟢 ↑ ${rankChange}`;
+            return <span className={`${classes.rankChange} ${classes.rankUp}`}>↑ {rankChange}</span>;
         } else if (rankChange < 0) {
-            return `🔴 ↓ ${Math.abs(rankChange)}`;
+            return <span className={`${classes.rankChange} ${classes.rankDown}`}>↓ {Math.abs(rankChange)}</span>;
         } else {
-            return '➡️';
+            return <span className={`${classes.rankChange} ${classes.rankSame}`}>→</span>;
         }
     };
 
@@ -316,11 +317,22 @@ const Leaderboard = () => {
         });
     };
 
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+    const matchedPlayerIndex = normalizedSearchTerm
+        ? playerRating.findIndex((player) =>
+              (player.enteredNickname || '').toLowerCase().includes(normalizedSearchTerm)
+          )
+        : -1;
+    const hasSearchTerm = normalizedSearchTerm.length > 0;
+    const matchedPlayer = matchedPlayerIndex >= 0 ? playerRating[matchedPlayerIndex] : null;
+    const contextStartIndex = matchedPlayerIndex >= 0 ? Math.max(0, matchedPlayerIndex - 4) : 0;
+    const contextEndIndex = matchedPlayerIndex >= 0 ? Math.min(playerRating.length - 1, matchedPlayerIndex + 5) : -1;
+    const searchContextPlayers =
+        matchedPlayerIndex >= 0 ? playerRating.slice(contextStartIndex, contextEndIndex + 1) : [];
+
     const getRows = () => {
         const rows = [];
         for (let i = 0; i < 10; i++) {
-            // const player = playerScores[i];
-            // console.log('playerScores[i]', playerScores[i]);
             const player = playerRating[i];
             // console.log('player', player);
             const enteredNickname = player ? player.enteredNickname : '-';
@@ -388,6 +400,63 @@ const Leaderboard = () => {
                     Last rank update: <strong>{formatTimestamp(lastRankSnapshot)}</strong>
                 </div>
             </div>
+
+            <div className={classes.searchWrapper}>
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search player by nickname..."
+                    className={classes.searchInput}
+                />
+                {hasSearchTerm && !matchedPlayer && (
+                    <div className={classes.searchHint}>No player found for "{searchTerm.trim()}"</div>
+                )}
+            </div>
+
+            {hasSearchTerm && matchedPlayer && (
+                <div className={classes.searchResultCard}>
+                    <div className={classes.searchResultTitle}>
+                        Found: {matchedPlayer.enteredNickname} (Rank #{matchedPlayerIndex + 1})
+                    </div>
+                    <div className={classes.searchResultSubtitle}>4 above and 5 below by rating</div>
+
+                    <table className={classes.searchTable}>
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Rate</th>
+                                <th>Games</th>
+                                <th>Rank Change</th>
+                                <th>Stars Img</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {searchContextPlayers.map((player, index) => {
+                                const globalIndex = contextStartIndex + index;
+                                const isCurrentPlayer = globalIndex === matchedPlayerIndex;
+
+                                return (
+                                    <tr key={player.id} className={isCurrentPlayer ? classes.currentPlayerRow : ''}>
+                                        <td>{globalIndex + 1}</td>
+                                        <td>
+                                            <NavLink to={`/players/${player.id}`}>{player.enteredNickname}</NavLink>
+                                        </td>
+                                        <td>{player.ratings}</td>
+                                        <td>{player.games}</td>
+                                        <td>{getRankChangeIndicator(globalIndex + 1, player.previousRank)}</td>
+                                        <td>
+                                            <StarsComponent stars={player.stars} />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
             <table>
                 <thead>
                     <tr>

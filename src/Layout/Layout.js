@@ -27,6 +27,11 @@ const Layout = (props) => {
     useEffect(() => {
         const checkUserCoins = async () => {
             if (!authCtx.userNickName) return;
+            if (authCtx.isAdmin) {
+                setUserCoins(null);
+                setIsAddTournamentDisabled(false);
+                return;
+            }
             try {
                 const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
                 const data = await response.json();
@@ -39,7 +44,7 @@ const Layout = (props) => {
             }
         };
         checkUserCoins();
-    }, [authCtx.userNickName]);
+    }, [authCtx.userNickName, authCtx.isAdmin]);
 
     const helpHandler = () => {
         setShowHelp(true);
@@ -67,6 +72,11 @@ const Layout = (props) => {
 
     const handleAddTournament = async () => {
         if (!authCtx.userNickName) return;
+        if (authCtx.isAdmin) {
+            setIsAddTournamentDisabled(false);
+            showSetAddTournament(true);
+            return;
+        }
         try {
             const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
             const data = await response.json();
@@ -98,6 +108,11 @@ const Layout = (props) => {
 
     const handleAddTournamentHover = async () => {
         if (!authCtx.userNickName) return;
+        if (authCtx.isAdmin) {
+            setUserCoins(null);
+            setIsAddTournamentDisabled(false);
+            return;
+        }
         try {
             const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
             const data = await response.json();
@@ -119,7 +134,11 @@ const Layout = (props) => {
             <GrafBanner handleGrafClick={handleGrafClick} onClose={helpCloseHandler}></GrafBanner>
             {showGraf && <GrafHelp onClose={helpCloseHandler} graf />}
 
-            <div className={classes['add-game']} onClick={handleAddGame}>
+            <div
+                className={classes['add-game']}
+                onClick={handleAddGame}
+                style={{ display: authCtx.isAdmin ? 'flex' : 'none' }}
+            >
                 <div className={classes['add-game-icon']}></div>
                 <span className={classes['tooltip']}>Add Game</span>
             </div>
@@ -127,10 +146,15 @@ const Layout = (props) => {
                 className={`${classes['add-tournament']} ${isAddTournamentDisabled ? classes['disabled'] : ''}`}
                 onClick={!isAddTournamentDisabled ? handleAddTournament : undefined}
                 onMouseEnter={handleAddTournamentHover}
+                style={{ display: authCtx.isLogged ? 'flex' : 'none' }}
             >
                 <div className={classes['add-tournament-icon']}></div>
                 <span className={classes['tooltip']}>
-                    {isAddTournamentDisabled ? `Need ${5 - (userCoins ?? 0)} more coins` : 'Add Tournament'}
+                    {authCtx.isAdmin
+                        ? 'Add Tournament (Admin)'
+                        : isAddTournamentDisabled
+                          ? `Need ${5 - (userCoins ?? 0)} more coins`
+                          : 'Add Tournament'}
                 </span>
             </div>
             <div className={classes['help-ico']} onClick={helpHandler}>

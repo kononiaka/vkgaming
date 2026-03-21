@@ -101,20 +101,43 @@ const Heroes3Stats = () => {
 
     const getRows = () => {
         const rows = [];
+        const totalGames = castles
+            .map((castle) => castle.total)
+            .filter((total) => typeof total === 'number' && !Number.isNaN(total));
+        const maxTotalGames = totalGames.length ? Math.max(...totalGames) : 0;
+        const minTotalGames = totalGames.length ? Math.min(...totalGames) : 0;
+
+        const getCastleLoadClass = (total) => {
+            if (maxTotalGames === minTotalGames) {
+                return classes.castleLoadMedium;
+            }
+
+            if (total === maxTotalGames) {
+                return classes.castleLoadHigh;
+            }
+
+            if (total === minTotalGames) {
+                return classes.castleLoadLow;
+            }
+
+            return classes.castleLoadMedium;
+        };
+
         for (let i = 0; i < castles.length; i++) {
             const castleRows = castles[i];
             const castleName = castleRows ? castleRows.name : '-';
             const castleTotal = castleRows ? castleRows.total : '-';
             const castleWin = castleRows ? castleRows.win : '-';
             const castleLose = castleRows ? castleRows.lose : '-';
-            const castleRate = castleTotal ? `${(castleWin / castleTotal) * 100} %` : '-';
+            const castleRate = castleTotal ? `${((castleWin / castleTotal) * 100).toFixed(2)}%` : '-';
+            const castleLoadClass = getCastleLoadClass(castleRows?.total);
 
             const hasInProgressGame = inProgressCastles.has(castleName);
             rows.push(
                 <tr key={i}>
                     <td>{i + 1}</td>
                     <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div className={`${classes.castleCell} ${castleLoadClass}`}>
                             {castleName}
                             {hasInProgressGame && (
                                 <span

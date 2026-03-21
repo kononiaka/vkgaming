@@ -143,6 +143,24 @@
     box-shadow: none;
 }
 
+.navLink-nickname {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    margin-right: 0.3rem;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
+    border: 2px solid #00ffff;
+    border-radius: 6px;
+    list-style: none;
+}
+
+.nicknameText {
+    color: #00ffff;
+    font-weight: bold;
+    font-size: 0.95rem;
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+}
+
 .logo img {
     display: block;
     height: 40px;

@@ -99,6 +99,9 @@ const ModalDonate = (props) => {
             <p className={classes.customNote}>
                 Donate any amount — coins are matched by your DA username set in your Profile.
             </p>
+            <p className={classes.coinConversionHint}>
+                💡 Coin conversion: $1 = 2 coins (Supporter) • $3 = 5 coins • $5 = 10 coins • $10 = 25 coins
+            </p>
             <div className={classes.donate_logo_block}>
                 <a
                     href="https://www.donationalerts.com/r/konoplay"

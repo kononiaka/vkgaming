@@ -1060,7 +1060,8 @@ const PlayerDetails = () => {
 
                                             const stats = statsEntry ? statsEntry[1] : { wins: 0, loses: 0 };
                                             const total = stats.wins + stats.loses;
-                                            const winRate = total > 0 ? Math.round((stats.wins / total) * 100) : 0;
+                                            const winRate =
+                                                total > 0 ? ((stats.wins / total) * 100).toFixed(2) : '0.00';
 
                                             return {
                                                 name,

@@ -1,88 +1,90 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import CartButton from '../UI/LoginBtn/CartButton';
-// import { useContext } from 'react';
 import { Link } from 'react-router-dom';
+import AuthContext from '../store/auth-context';
 
 import logo from '../image/konoplay-logo-new-invert.png';
-// import AuthContext from '../store/auth-context';
 
 import classes from './MainHeader.module.css';
 
-const MainHeader = (props) => (
-    // const authCtx = useContext(AuthContext);
-    // const isLogged = authCtx.isLogged;
+const MainHeader = (props) => {
+    const authCtx = useContext(AuthContext);
 
-    // const logoutHandler = () => {
-    //   authCtx.logout();
-    // };
-    <header className={classes.header}>
-        <div>
-            <Link to="/">
-                <div className={classes.logo}>
-                    <img src={logo} alt="Logo" />
-                </div>
-            </Link>
-            <div className={classes['logo-credo']}>Play with us!</div>
-        </div>
-        <ul className={classes.navLink}>
-            <li className={classes['navLink-item']}>
-                <Link to="/games/homm3" className={classes['navLink-link']}>
-                    Games
-                </Link>
-                <div className={classes['navLink-dropdown']}>
-                    <Link to="/games/homm3" className={classes['navLink-dropdown-item']}>
-                        Heroes of Might & Magic III
-                    </Link>
-                    <div className={classes['navLink-dropdown-statistic']}>
-                        <Link to="/games/homm3/statistics" className={classes['navLink-dropdown-statistic-item']}>
-                            Statistics
-                        </Link>
+    return (
+        <header className={classes.header}>
+            <div>
+                <Link to="/">
+                    <div className={classes.logo}>
+                        <img src={logo} alt="Logo" />
                     </div>
-                    {/* <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link> */}
-                    {/* <Link to="/games/civ_vi" className={classes['navLink-dropdown-item']}>
+                </Link>
+                <div className={classes['logo-credo']}>Play with us!</div>
+            </div>
+            <ul className={classes.navLink}>
+                <li className={classes['navLink-item']}>
+                    <Link to="/games/homm3" className={classes['navLink-link']}>
+                        Games
+                    </Link>
+                    <div className={classes['navLink-dropdown']}>
+                        <Link to="/games/homm3" className={classes['navLink-dropdown-item']}>
+                            Heroes of Might & Magic III
+                        </Link>
+                        <div className={classes['navLink-dropdown-statistic']}>
+                            <Link to="/games/homm3/statistics" className={classes['navLink-dropdown-statistic-item']}>
+                                Statistics
+                            </Link>
+                        </div>
+                        {/* <Link to='/games/swos' className={classes['navLink-dropdown-item']}>Sensible World of Soccer</Link> */}
+                        {/* <Link to="/games/civ_vi" className={classes['navLink-dropdown-item']}>
                         Civilization VI
                     </Link> */}
-                </div>
-            </li>
-            <li className={classes['navLink-item']}>
-                <Link to="/videos" className={classes['navLink-link']}>
-                    Videos
-                </Link>
-            </li>
-            {/* <li className={classes['navLink-item']}>
+                    </div>
+                </li>
+                <li className={classes['navLink-item']}>
+                    <Link to="/videos" className={classes['navLink-link']}>
+                        Videos
+                    </Link>
+                </li>
+                {/* <li className={classes['navLink-item']}>
                 <Link to="/players" className={classes['navLink-link']}>
                     Players
                 </Link>
             </li> */}
-            {/* <Link to='/players' className={classes['navLink-link']}>Players</Link> */}
-            <li className={classes['navLink-item']}>
-                <Link to="leaderboard" className={classes['navLink-link']}>
-                    Leaderboard
-                </Link>
-            </li>
-            <li className={classes['navLink-item']}>
-                <Link to="/tournaments/homm3" className={classes['navLink-link']}>
-                    Tournaments
-                </Link>
-                <div className={classes['navLink-dropdown']}>
-                    <Link to="/tournaments/homm3" className={classes['navLink-dropdown-item']}>
-                        Heroes of Might & Magic III
+                {/* <Link to='/players' className={classes['navLink-link']}>Players</Link> */}
+                <li className={classes['navLink-item']}>
+                    <Link to="leaderboard" className={classes['navLink-link']}>
+                        Leaderboard
                     </Link>
-                    {/* <Link to="/tournaments/civ_vi" className={classes['navLink-dropdown-item']}>
+                </li>
+                <li className={classes['navLink-item']}>
+                    <Link to="/tournaments/homm3" className={classes['navLink-link']}>
+                        Tournaments
+                    </Link>
+                    <div className={classes['navLink-dropdown']}>
+                        <Link to="/tournaments/homm3" className={classes['navLink-dropdown-item']}>
+                            Heroes of Might & Magic III
+                        </Link>
+                        {/* <Link to="/tournaments/civ_vi" className={classes['navLink-dropdown-item']}>
                         Civilization VI
                     </Link> */}
-                    {/* <Link to="/tournaments/cs_go" className={classes['navLink-dropdown-item']}>
+                        {/* <Link to="/tournaments/cs_go" className={classes['navLink-dropdown-item']}>
                         Counter-Strike
                     </Link> */}
-                </div>
-            </li>
-            <ul className={classes['navLink-item-btn']}>
-                <li className={classes['navLink-link']}>
-                    <CartButton />
+                    </div>
                 </li>
+                <ul className={classes['navLink-item-btn']}>
+                    {authCtx.isLogged && authCtx.userNickName && (
+                        <li className={classes['navLink-nickname']}>
+                            <span className={classes.nicknameText}>{authCtx.userNickName}</span>
+                        </li>
+                    )}
+                    <li className={classes['navLink-link']}>
+                        <CartButton />
+                    </li>
+                </ul>
             </ul>
-        </ul>
-    </header>
-);
+        </header>
+    );
+};
 
 export default MainHeader;

@@ -17,14 +17,15 @@
 }
 
 .tableWrapper {
-    overflow-x: auto;
+    overflow-x: hidden;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
-    padding: 1rem;
+    padding: 0.85rem;
 }
 
 .statsTable {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     background: transparent;
 }
@@ -35,11 +36,12 @@
 }
 
 .statsTable th {
-    padding: 1rem 0.75rem;
-    text-align: left;
+    padding: 0.8rem 0.45rem;
+    text-align: center;
+    vertical-align: middle;
     color: gold;
     font-weight: bold;
-    font-size: 1rem;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -58,9 +60,11 @@
 }
 
 .statsTable td {
-    padding: 0.875rem 0.75rem;
+    padding: 0.75rem 0.45rem;
     color: white;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    text-align: center;
+    vertical-align: middle;
 }
 
 .statsTable td:first-child {
@@ -71,6 +75,49 @@
 .statsTable td:nth-child(2) {
     font-weight: 600;
     color: #ffd700;
+}
+
+.statsTable th:nth-child(2),
+.statsTable td:nth-child(2) {
+    text-align: left;
+    width: 46%;
+}
+
+.statsTable th:nth-child(1),
+.statsTable td:nth-child(1) {
+    width: 8%;
+}
+
+.statsTable th:nth-child(3),
+.statsTable td:nth-child(3),
+.statsTable th:nth-child(4),
+.statsTable td:nth-child(4),
+.statsTable th:nth-child(5),
+.statsTable td:nth-child(5),
+.statsTable th:nth-child(6),
+.statsTable td:nth-child(6) {
+    width: 11.5%;
+}
+
+.castleCell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.castleLoadHigh {
+    color: #ff6b6b;
+}
+
+.castleLoadMedium {
+    color: #ffd166;
+}
+
+.castleLoadLow {
+    color: #8be28b;
 }
 
 .statsTable td:last-child {
