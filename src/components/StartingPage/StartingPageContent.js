@@ -22,7 +22,7 @@ const StartingPageContent = () => {
     } else if (isLogged && !notificationShown) {
         greeting = `Welcome back, ${userNickName} to konoplay!`;
     } else {
-        greeting = `Welcome to konoplay!`;
+        greeting = 'Welcome to konoplay!';
     }
 
     useEffect(() => {
@@ -32,6 +32,7 @@ const StartingPageContent = () => {
                     'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json'
                 );
                 const data = await response.json();
+
                 if (response.ok && data) {
                     const tournamentList = Object.keys(data)
                         .map((key) => {
@@ -55,9 +56,9 @@ const StartingPageContent = () => {
                             };
                             return (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
                         });
+
                     setActiveTournaments(tournamentList);
 
-                    // Extract live games from started tournaments
                     const games = [];
                     Object.keys(data).forEach((tournamentId) => {
                         const tournament = data[tournamentId];
@@ -70,7 +71,6 @@ const StartingPageContent = () => {
                             tournament.bracket.playoffPairs.forEach((stage, stageIndex) => {
                                 if (Array.isArray(stage)) {
                                     stage.forEach((pair) => {
-                                        // Check if pair has games with castles selected but no winner
                                         if (pair.games && Array.isArray(pair.games)) {
                                             pair.games.forEach((game) => {
                                                 if (game.castle1 && game.castle2 && !game.castleWinner) {
@@ -100,10 +100,10 @@ const StartingPageContent = () => {
                 console.error('Error fetching tournaments:', error);
             }
         };
+
         fetchActiveTournaments();
     }, []);
 
-    // Check if tournament has live games (castles selected but no winner)
     const hasLiveGames = (tournament) => {
         if (!tournament.bracket || !tournament.bracket.playoffPairs) {
             return false;
@@ -120,18 +120,45 @@ const StartingPageContent = () => {
     };
 
     const filteredTournaments = activeTournaments.filter((tournament) => {
-        if (statusFilter === 'all') return true;
-        if (statusFilter === 'registration')
+        if (statusFilter === 'all') {
+            return true;
+        }
+        if (statusFilter === 'registration') {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
-        if (statusFilter === 'started') return tournament.status === 'Started!';
-        if (statusFilter === 'finished') return tournament.status === 'Tournament Finished';
-        if (statusFilter === 'live') return hasLiveGames(tournament);
+        }
+        if (statusFilter === 'started') {
+            return tournament.status === 'Started!';
+        }
+        if (statusFilter === 'finished') {
+            return tournament.status === 'Tournament Finished';
+        }
+        if (statusFilter === 'live') {
+            return hasLiveGames(tournament);
+        }
         return true;
     });
+
+    const getTournamentStatusQuery = (status) => {
+        if (status === 'Registration' || status === 'Registration Started') {
+            return 'registration';
+        }
+        if (status === 'Registration finished!') {
+            return 'registrationFinished';
+        }
+        if (status === 'Started!') {
+            return 'started';
+        }
+        if (status && status.includes('Finished')) {
+            return 'finished';
+        }
+        return 'all';
+    };
 
     return (
         <section className={classes.starting}>
             <h1>{greeting}</h1>
+            {authCtx.isAdmin && <DonationLeaderboard />}
+
             {activeTournaments.length > 0 && (
                 <div className={classes.tournamentsSection}>
                     <div
@@ -157,17 +184,17 @@ const StartingPageContent = () => {
                             }}
                         >
                             <option value="all">All Tournaments</option>
-                            <option value="registration">📝 Registration Open</option>
-                            <option value="started">🎮 In Progress</option>
-                            <option value="live">🔴 Live Games</option>
-                            <option value="finished">🏆 Finished</option>
+                            <option value="registration">Registration Open</option>
+                            <option value="started">In Progress</option>
+                            <option value="live">Live Games</option>
+                            <option value="finished">Finished</option>
                         </select>
                     </div>
                     <div className={classes.tournamentsList}>
                         {filteredTournaments.map((tournament) => (
                             <Link
                                 key={tournament.id}
-                                to={`/tournaments/homm3/${tournament.id}`}
+                                to={`/tournaments/homm3?status=${getTournamentStatusQuery(tournament.status)}`}
                                 className={classes.tournamentCard}
                                 style={{
                                     opacity: tournament.status === 'Tournament Finished' ? 0.6 : 1,
@@ -177,10 +204,10 @@ const StartingPageContent = () => {
                                 <div className={classes.tournamentStatus}>
                                     {tournament.status === 'Registration' ||
                                     tournament.status === 'Registration Started'
-                                        ? '📝 Registration Open'
+                                        ? 'Registration Open'
                                         : tournament.status === 'Started!'
-                                          ? '🎮 In Progress'
-                                          : '🏆 Finished'}
+                                          ? 'In Progress'
+                                          : 'Finished'}
                                 </div>
                                 <div className={classes.tournamentName}>{tournament.name}</div>
                                 <div className={classes.tournamentDetails}>
@@ -194,18 +221,15 @@ const StartingPageContent = () => {
                     </div>
                 </div>
             )}
+
             {activeTournaments.some((t) => t.status === 'Started!') && (
                 <div className={classes.tournamentsSection}>
-                    <h2>🔴 Live Games</h2>
+                    <h2>Live Games</h2>
                     {liveGames.length > 0 ? (
                         <div className={classes.tournamentsList}>
                             {liveGames.map((game, index) => (
-                                <Link
-                                    key={index}
-                                    to={`/tournaments/homm3/${game.tournamentId}`}
-                                    className={classes.liveGameCard}
-                                >
-                                    <div className={classes.liveIndicator}>● LIVE</div>
+                                <Link key={index} to="/tournaments/homm3?status=live" className={classes.liveGameCard}>
+                                    <div className={classes.liveIndicator}>LIVE</div>
                                     <div className={classes.tournamentName}>{game.tournamentName}</div>
                                     <div className={classes.matchup}>
                                         <div className={classes.player}>
@@ -237,23 +261,12 @@ const StartingPageContent = () => {
                                 fontWeight: 'bold'
                             }}
                         >
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
-                            <div>Oops! No active games right now...</div>
-                            <div
-                                style={{
-                                    fontSize: '0.9rem',
-                                    marginTop: '0.5rem',
-                                    fontWeight: 'normal',
-                                    color: '#FFA500'
-                                }}
-                            >
-                                Time to fire one up! 🔥
-                            </div>
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>No active games</div>
+                            <div>Time to fire one up.</div>
                         </div>
                     )}
                 </div>
             )}
-            <DonationLeaderboard />
         </section>
     );
 };

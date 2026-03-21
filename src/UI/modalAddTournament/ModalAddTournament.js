@@ -9,6 +9,7 @@ import AuthContext from '../../store/auth-context';
 const Bracket = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [date, setDate] = useState('');
+    const [prizeType, setPrizeType] = useState('money');
     const authCtx = useContext(AuthContext);
 
     useEffect(() => {
@@ -25,7 +26,8 @@ const Bracket = (props) => {
 
     const tournamentNameRef = useRef(null);
     const tournamentPlayerRef = useRef(null);
-    const tournamentPricePoolRef = useRef(null);
+    const tournamentPricePoolUsdRef = useRef(null);
+    const tournamentPricePoolCoinsRef = useRef(null);
     const tournamentPlayoffGames = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentDateRef = useRef(null);
@@ -34,7 +36,9 @@ const Bracket = (props) => {
     const isFormValid = () => {
         const nameValid = tournamentNameRef.current?.value?.trim() !== '';
         const playersValid = tournamentPlayerRef.current?.value?.trim() !== '';
-        const priceValid = tournamentPricePoolRef.current?.value?.trim() !== '';
+        const usdPrizeValid = tournamentPricePoolUsdRef.current?.value?.trim() !== '';
+        const coinPrizeValid = tournamentPricePoolCoinsRef.current?.value?.trim() !== '';
+        const selectedPrizeValid = prizeType === 'money' ? usdPrizeValid : coinPrizeValid;
         const dateValid = date.trim() !== '';
         const playoffGamesValid = tournamentPlayoffGames.current?.value?.trim() !== '';
         const playoffFinalValid = tournamentPlayoffGamesFinal.current?.value?.trim() !== '';
@@ -42,19 +46,20 @@ const Bracket = (props) => {
         console.log('Form validation:', {
             nameValid,
             playersValid,
-            priceValid,
+            selectedPrizeValid,
             dateValid,
             playoffGamesValid,
             playoffFinalValid,
             name: tournamentNameRef.current?.value,
             players: tournamentPlayerRef.current?.value,
-            price: tournamentPricePoolRef.current?.value,
+            usdPrize: tournamentPricePoolUsdRef.current?.value,
+            coinPrize: tournamentPricePoolCoinsRef.current?.value,
             date: date,
             playoffGames: tournamentPlayoffGames.current?.value,
             playoffFinal: tournamentPlayoffGamesFinal.current?.value
         });
 
-        return nameValid && playersValid && priceValid && dateValid && playoffGamesValid && playoffFinalValid;
+        return nameValid && playersValid && selectedPrizeValid && dateValid && playoffGamesValid && playoffFinalValid;
     };
 
     const handleSave = async () => {
@@ -62,11 +67,19 @@ const Bracket = (props) => {
         //     return;
         // }
 
+        const usdPrizePool = Number(tournamentPricePoolUsdRef.current?.value) || 0;
+        const coinPrizePool = Number(tournamentPricePoolCoinsRef.current?.value) || 0;
+        const selectedPrizePool = prizeType === 'money' ? usdPrizePool : coinPrizePool;
+
         // Build tournament object from current values
         const objTournament = {
             name: tournamentNameRef.current.value,
             maxPlayers: tournamentPlayerRef.current.value,
-            pricePull: determineTournamentPrizes(tournamentPricePoolRef.current.value),
+            pricePull: determineTournamentPrizes(selectedPrizePool),
+            coinPrizePull: prizeType === 'coins' ? determineTournamentPrizes(coinPrizePool) : null,
+            prizeType,
+            totalPrizeUsd: usdPrizePool,
+            totalPrizeCoins: coinPrizePool,
             date: date,
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
             tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
@@ -110,7 +123,7 @@ const Bracket = (props) => {
         const result = await response.json();
 
         // Deduct 5 coins from user's account after successful tournament creation
-        if (response.ok && authCtx.userNickName) {
+        if (response.ok && authCtx.userNickName && !authCtx.isAdmin) {
             try {
                 const userId = await lookForUserId(authCtx.userNickName);
 
@@ -124,7 +137,9 @@ const Bracket = (props) => {
                         tournamentName: objTournament.name,
                         tournamentId: result.name, // Firebase returns the new ID in .name
                         maxPlayers: objTournament.maxPlayers,
-                        prizePool: objTournament.pricePull
+                        prizeType: objTournament.prizeType,
+                        prizePoolUsd: objTournament.pricePull,
+                        prizePoolCoins: objTournament.coinPrizePull
                     }
                 );
 
@@ -157,6 +172,37 @@ const Bracket = (props) => {
                         <input type="checkbox" id="randomBracket" label="Spinning Wheel" ref={randomBracketRef} />
                     </div>
                     <div>
+                        <label>Prize Type:</label>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <label
+                                htmlFor="prizeTypeMoney"
+                                style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+                            >
+                                <input
+                                    type="radio"
+                                    id="prizeTypeMoney"
+                                    name="prizeType"
+                                    checked={prizeType === 'money'}
+                                    onChange={() => setPrizeType('money')}
+                                />
+                                Money ($)
+                            </label>
+                            <label
+                                htmlFor="prizeTypeCoins"
+                                style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+                            >
+                                <input
+                                    type="radio"
+                                    id="prizeTypeCoins"
+                                    name="prizeType"
+                                    checked={prizeType === 'coins'}
+                                    onChange={() => setPrizeType('coins')}
+                                />
+                                Coins
+                            </label>
+                        </div>
+                    </div>
+                    <div>
                         <label htmlFor="tournamentDate">Tournament Date:</label>
                         <input
                             type="datetime-local"
@@ -175,10 +221,22 @@ const Bracket = (props) => {
                         <label htmlFor="tournamentPlayers">Tournament Players:</label>
                         <input id="tournamentPlayers" type="number" ref={tournamentPlayerRef} />
                     </div>
-                    <div>
-                        <label htmlFor="tournamentPricePool">Tournament Price Pool:</label>
-                        <input id="tournamentPricePool" type="number" ref={tournamentPricePoolRef} />
-                    </div>
+                    {prizeType === 'money' ? (
+                        <div>
+                            <label htmlFor="tournamentPricePoolUsd">Tournament Prize Pool ($):</label>
+                            <input id="tournamentPricePoolUsd" type="number" min="0" ref={tournamentPricePoolUsdRef} />
+                        </div>
+                    ) : (
+                        <div>
+                            <label htmlFor="tournamentPricePoolCoins">Tournament Prize Pool (Coins):</label>
+                            <input
+                                id="tournamentPricePoolCoins"
+                                type="number"
+                                min="0"
+                                ref={tournamentPricePoolCoinsRef}
+                            />
+                        </div>
+                    )}
                     <div>
                         <label htmlFor="tournamentPlayoffGames">PlayOff Games:</label>
                         <input id="tournamentPlayoffGames" type="number" ref={tournamentPlayoffGames} />

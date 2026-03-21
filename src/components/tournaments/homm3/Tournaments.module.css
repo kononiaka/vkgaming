@@ -7,17 +7,19 @@
 .tournamentHeader {
     text-align: center;
     font-size: 2rem;
-    color: #FFD700;
-    text-shadow: 
-        2px 2px 0 #8B4513,
+    color: #ffd700;
+    text-shadow:
+        2px 2px 0 #8b4513,
         4px 4px 0 rgba(0, 0, 0, 0.5),
         0 0 20px rgba(255, 215, 0, 0.5);
     letter-spacing: 2px;
     margin-bottom: 2rem;
     padding: 1rem;
     background: linear-gradient(135deg, #1a1a2e, #16213e);
-    border: 3px solid #FFD700;
-    box-shadow: 0 4px 0 0 #0a0a0a, 0 8px 16px rgba(0, 0, 0, 0.8);
+    border: 3px solid #ffd700;
+    box-shadow:
+        0 4px 0 0 #0a0a0a,
+        0 8px 16px rgba(0, 0, 0, 0.8);
 }
 
 .tournamentList {
@@ -44,22 +46,22 @@
     border: 3px solid #00ffff;
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 
+    box-shadow:
         2px 2px 0 rgba(0, 0, 0, 0.5),
         0 0 15px rgba(0, 255, 255, 0.3);
     transition: all 0.3s ease;
 }
 
 .bracket:hover {
-    border-color: #FFD700;
-    box-shadow: 
+    border-color: #ffd700;
+    box-shadow:
         2px 2px 0 rgba(0, 0, 0, 0.5),
         0 0 20px rgba(255, 215, 0, 0.5);
     transform: translateY(-2px);
 }
 
 .tournamentTitle {
-    color: #FFD700 !important;
+    color: #ffd700 !important;
     font-size: 1.5rem !important;
     margin: 0 0 1rem 0 !important;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
@@ -83,20 +85,20 @@
 
 .statusBadge.registration {
     background: linear-gradient(135deg, rgba(50, 205, 50, 0.2), rgba(34, 139, 34, 0.3));
-    border-color: #32CD32;
-    color: #32CD32;
+    border-color: #32cd32;
+    color: #32cd32;
 }
 
 .statusBadge.started {
     background: linear-gradient(135deg, rgba(255, 165, 0, 0.2), rgba(255, 140, 0, 0.3));
-    border-color: #FFA500;
-    color: #FFA500;
+    border-color: #ffa500;
+    color: #ffa500;
 }
 
 .statusBadge.finished {
     background: linear-gradient(135deg, rgba(220, 20, 60, 0.2), rgba(178, 34, 34, 0.3));
-    border-color: #DC143C;
-    color: #DC143C;
+    border-color: #dc143c;
+    color: #dc143c;
 }
 
 .infoGrid {
@@ -120,7 +122,7 @@
 }
 
 .infoItem strong {
-    color: #FFD700;
+    color: #ffd700;
     font-size: 1.1rem;
 }
 
@@ -177,16 +179,46 @@
 
 .btn:hover {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
-    border-color: #FFD700;
-    color: #FFD700;
+    border-color: #ffd700;
+    color: #ffd700;
     transform: translateX(4px);
     box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
 }
 
+.btn:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.loadingInline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(0, 255, 255, 0.35);
+    border-top-color: #00ffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .btnPrimary {
-    border-color: #FFD700;
+    border-color: #ffd700;
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
-    color: #FFD700;
+    color: #ffd700;
 }
 
 .btnPrimary:hover {
@@ -203,9 +235,9 @@
     display: inline-block;
     padding: 0.5rem 1rem;
     background: linear-gradient(135deg, rgba(50, 205, 50, 0.3), rgba(34, 139, 34, 0.4));
-    border: 2px solid #32CD32;
+    border: 2px solid #32cd32;
     border-radius: 4px;
-    color: #32CD32;
+    color: #32cd32;
     font-weight: bold;
     margin: 0.5rem 0;
 }
@@ -214,12 +246,12 @@
     margin: 1.5rem 0;
     padding: 1rem;
     background: rgba(255, 215, 0, 0.1);
-    border: 2px solid #FFD700;
+    border: 2px solid #ffd700;
     border-radius: 8px;
 }
 
 .prizePool h4 {
-    color: #FFD700;
+    color: #ffd700;
     margin: 0 0 1rem 0;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
     font-size: 1.2rem;
@@ -229,12 +261,12 @@
     margin: 1.5rem 0;
     padding: 1rem;
     background: rgba(255, 215, 0, 0.15);
-    border: 2px solid #FFD700;
+    border: 2px solid #ffd700;
     border-radius: 8px;
 }
 
 .winnersSection h4 {
-    color: #FFD700;
+    color: #ffd700;
     margin: 0 0 1rem 0;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
     font-size: 1.2rem;
@@ -268,7 +300,7 @@
 
 .inputGroup input:focus {
     outline: none;
-    border-color: #FFD700;
+    border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
 }
 
@@ -291,7 +323,7 @@
     gap: 0.75rem;
     padding: 1rem;
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.2));
-    border: 2px solid #FFD700;
+    border: 2px solid #ffd700;
     border-radius: 8px;
     margin-top: 0.5rem;
 }
@@ -303,7 +335,7 @@
     padding: 0.75rem;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
-    border-left: 3px solid #FFD700;
+    border-left: 3px solid #ffd700;
 }
 
 .winnerPreviewItem .medal {
@@ -312,7 +344,7 @@
 }
 
 .winnerPreviewItem .winnerName {
-    color: #FFD700;
+    color: #ffd700;
     font-weight: bold;
     font-size: 1.1rem;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
@@ -325,7 +357,7 @@
     padding: 1rem;
     margin: 0.75rem 0;
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.3));
-    border: 2px solid #FFD700;
+    border: 2px solid #ffd700;
     border-radius: 8px;
 }
 
@@ -337,7 +369,7 @@
 }
 
 .winnerNameLarge {
-    color: #FFD700;
+    color: #ffd700;
     font-weight: bold;
     font-size: 1.2rem;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
@@ -345,7 +377,7 @@
 }
 
 .prizeInBrackets {
-    color: #32CD32;
+    color: #32cd32;
     font-size: 1rem;
     font-weight: bold;
     margin-left: 0.5rem;
@@ -358,7 +390,7 @@
     padding: 0.75rem;
     margin: 0.5rem 0;
     background: rgba(0, 0, 0, 0.3);
-    border-left: 3px solid #FFD700;
+    border-left: 3px solid #ffd700;
     color: rgba(255, 255, 255, 0.9);
     font-size: 1rem;
 }
@@ -369,13 +401,13 @@
 }
 
 .prizeAmount {
-    color: #32CD32;
+    color: #32cd32;
     font-weight: bold;
     font-size: 1.1rem;
 }
 
 .prizeWinner {
-    color: #FFD700;
+    color: #ffd700;
     font-weight: bold;
     margin-left: 0.5rem;
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);

@@ -1,0 +1,184 @@
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(255, 215, 0, 0.03));
+    border: 2px solid #00ffff;
+    border-radius: 12px;
+}
+
+.container h1 {
+    color: #00ffff;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.subtitle {
+    color: #ffd700;
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+}
+
+.filterButtons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.filterBtn {
+    padding: 0.7rem 1.5rem;
+    border: 2px solid #00ffff;
+    background: rgba(0, 255, 255, 0.1);
+    color: #00ffff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+}
+
+.filterBtn:hover {
+    background: rgba(0, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.filterBtn.active {
+    background: #00ffff;
+    color: #1a1a2e;
+    font-weight: bold;
+}
+
+.usersTable {
+    overflow-x: auto;
+}
+
+.usersTable table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.usersTable thead {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 215, 0, 0.1));
+}
+
+.usersTable th {
+    padding: 1rem;
+    text-align: left;
+    color: #00ffff;
+    font-weight: bold;
+    border-bottom: 2px solid #00ffff;
+}
+
+.usersTable td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+    color: #fff;
+}
+
+.adminRow {
+    background: rgba(255, 215, 0, 0.05);
+}
+
+.adminRow:hover {
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.nickname {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.adminBadge {
+    font-size: 1rem;
+}
+
+.statusBadge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.adminStatus {
+    background: linear-gradient(135deg, #ffd700, #ffa500);
+    color: #1a1a2e;
+}
+
+.userStatus {
+    background: rgba(100, 200, 255, 0.3);
+    color: #00ffff;
+    border: 1px solid #00ffff;
+}
+
+.actionBtn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.grantBtn {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+}
+
+.grantBtn:hover {
+    background: linear-gradient(135deg, #45a049, #3a8140);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+}
+
+.revokeBtn {
+    background: linear-gradient(135deg, #f44336, #da190b);
+    color: white;
+}
+
+.revokeBtn:hover {
+    background: linear-gradient(135deg, #da190b, #b41404);
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.4);
+}
+
+.noUsers {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #ffa500;
+    font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+        margin: 1rem;
+    }
+
+    .usersTable table {
+        font-size: 0.9rem;
+    }
+
+    .usersTable th,
+    .usersTable td {
+        padding: 0.7rem;
+    }
+
+    .actionBtn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    .filterButtons {
+        flex-direction: column;
+    }
+
+    .filterBtn {
+        width: 100%;
+    }
+}
