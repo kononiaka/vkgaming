@@ -1,24 +1,20 @@
 .container {
+    position: relative;
     max-width: 1400px;
-    min-height: calc(100vh - 126px);
+    min-height: auto;
     margin: 0 auto;
-    margin-top: 126px;
+    margin-top: calc(6rem + 30px);
     overflow: visible;
-    box-shadow:
-        0 40px 160px rgba(177, 170, 170, 0.2),
-        0 16px 32px rgba(226, 219, 219, 0.2),
-        0 32px 64px rgba(231, 217, 217, 0.2),
-        0 64px 128px rgba(167, 154, 154, 0.2),
-        0 128px 256px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
 }
 
 .container:before {
     content: '';
     position: absolute;
-    top: -10px;
-    left: -10px;
-    right: -10px;
-    bottom: -10px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: linear-gradient(45deg, #160624, #2b0849);
     z-index: -1;
 }
