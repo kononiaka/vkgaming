@@ -334,23 +334,24 @@ export const getRating = async (opponentId) => {
     return rating;
 };
 
-export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 4) => {
-    // Calculate the expected score
-    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 100));
+export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 2) => {
+    // ELO expected score.
+    // Divisor is tuned for this game's rating scale (~3–20 range).
+    // A 5-point difference gives ~75% expected win for the higher-rated player.
+    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 10));
 
-    // Determine the actual score based on the match result
-    const actualScore = didWin ? 0.7 : 0.3;
+    // Standard ELO actual scores: 1 for a win, 0 for a loss.
+    // Previously 0.7/0.3 which incorrectly gave rating gains even after a loss.
+    const actualScore = didWin ? 1 : 0;
 
-    // Calculate the rating change
+    // Rating change: positive when you outperform expectation, negative when you underperform.
+    // Beating a much stronger player → big gain. Losing to a much weaker player → big loss.
     let ratingChange = kFactor * (actualScore - expectedScore);
 
-    // Cap the rating change to be within the range of -1 to 1.5
-    ratingChange = Math.max(-1, Math.min(ratingChange, 1.5));
+    // Symmetric cap to prevent extreme swings (e.g. on first game with rating 0).
+    ratingChange = Math.max(-2.5, Math.min(ratingChange, 2.5));
 
-    // Calculate the new rating
-    const newRating = playerRating + ratingChange;
-
-    return newRating;
+    return playerRating + ratingChange;
 };
 
 export const calculateStarsFromRating = (rating, highestRating, lowestRating, minStars = 0.5) => {

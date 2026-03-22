@@ -315,15 +315,17 @@ const Videos = () => {
                                 </div>
                             </div>
                         </a>
-                        <div className={classes.cardActions}>
-                            <button
-                                type="button"
-                                className={classes.hideButton}
-                                onClick={() => hideVideo(video.videoId)}
-                            >
-                                Hide
-                            </button>
-                        </div>
+                        {authCtx.isAdmin && (
+                            <div className={classes.cardActions}>
+                                <button
+                                    type="button"
+                                    className={classes.hideButton}
+                                    onClick={() => hideVideo(video.videoId)}
+                                >
+                                    Hide
+                                </button>
+                            </div>
+                        )}
                     </article>
                 ))}
             </div>
