@@ -1,7 +1,6 @@
 .main {
-    background-image: url('./image/background_01.png');
-    background-size: cover;
-    background-attachment: fixed;
+    background: transparent;
     width: 100%;
-    min-height: 100vh;
+    min-height: calc(100vh - 6rem - 30px);
+    padding-top: calc(6rem + 30px);
 }

@@ -1,0 +1,251 @@
+.wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    color: #f6f7fb;
+}
+
+.title {
+    margin: 0 0 1rem 0;
+    font-size: 1.9rem;
+    color: #ffd34d;
+    text-align: center;
+}
+
+.viewControls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.viewButton {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    color: #eef2ff;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.viewButton:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.activeView {
+    background: #ffcc00;
+    border-color: #ffcc00;
+    color: #1f213f;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.list {
+    grid-template-columns: 1fr;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(35, 39, 80, 0.95), rgba(20, 23, 56, 0.95));
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.cardLink {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    flex: 1;
+}
+
+.listCard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.listCard .cardLink {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    align-items: stretch;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+}
+
+.thumbnail {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+}
+
+.listCard .thumbnail {
+    height: 100%;
+    min-height: 160px;
+    aspect-ratio: auto;
+}
+
+.cardBody {
+    padding: 0.8rem 0.9rem 1rem;
+}
+
+.listCard .cardBody {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.cardActions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0.9rem 0.9rem;
+}
+
+.listCard .cardActions {
+    padding: 0.9rem;
+    align-items: center;
+}
+
+.hideButton {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 95, 95, 0.16);
+    color: #ffdede;
+    border-radius: 8px;
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.hideButton:hover {
+    background: rgba(255, 95, 95, 0.28);
+}
+
+.videoTitle {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.3;
+    color: #fff;
+}
+
+.date {
+    margin: 0.55rem 0 0;
+    font-size: 0.82rem;
+    color: #bec5f3;
+}
+
+.statsRow {
+    margin-top: 0.55rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.statItem {
+    font-size: 0.82rem;
+    color: #dbe2ff;
+}
+
+.statWithIcon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.statIcon {
+    width: 0.9rem;
+    height: 0.9rem;
+    color: #ffd4d4;
+    flex-shrink: 0;
+}
+
+.actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.2rem;
+}
+
+.loadMoreButton {
+    border: none;
+    background: #ffcc00;
+    color: #1f213f;
+    font-weight: 700;
+    padding: 0.65rem 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.loadMoreButton:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.status,
+.statusError {
+    max-width: 900px;
+    margin: 1.2rem auto;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 10px;
+}
+
+.status {
+    background: rgba(56, 66, 145, 0.35);
+}
+
+.statusError {
+    background: rgba(145, 56, 56, 0.35);
+    border: 1px solid rgba(255, 102, 102, 0.6);
+}
+
+.helpText {
+    margin-top: 0.6rem;
+    color: #f9dfdf;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .wrapper {
+        padding: 1rem 0.75rem;
+    }
+
+    .title {
+        font-size: 1.5rem;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .listCard {
+        grid-template-columns: 1fr;
+    }
+
+    .listCard .cardLink {
+        grid-template-columns: 1fr;
+    }
+
+    .listCard .thumbnail {
+        min-height: 0;
+        aspect-ratio: 16 / 9;
+    }
+
+    .listCard .cardActions {
+        padding-top: 0;
+        justify-content: flex-end;
+    }
+}
