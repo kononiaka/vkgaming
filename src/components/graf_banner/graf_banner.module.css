@@ -1,3 +1,12 @@
+.footer-href {
+    position: fixed;
+    right: -60px;
+    top: 400px;
+    display: block;
+    line-height: 0;
+    z-index: 120;
+}
+
 .footer-href:hover {
     cursor: pointer;
 }
@@ -9,11 +18,8 @@
     border-right: 12px solid transparent;
     border-top: 52px solid transparent;
     transform: rotate(270deg);
-    position: fixed;
     line-height: 23px;
     font-size: 9px;
-    right: -60px;
-    top: 400px;
 }
 
 .footer-logo-text {

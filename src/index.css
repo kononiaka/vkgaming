@@ -10,6 +10,12 @@ body {
     overflow-x: hidden;
 }
 
+html,
+body,
+#root {
+    min-height: 100%;
+}
+
 html {
     font-family: 'Press Start 2P';
     font-size: 12px;
@@ -17,7 +23,12 @@ html {
 
 body {
     margin: 0;
-    background-color: #3f3f3f;
+    background-color: #060b1a;
+    background-image: url('./image/background_01.png');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 link {

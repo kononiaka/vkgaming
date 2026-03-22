@@ -1,7 +1,8 @@
 /* global process */
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import classes from './Videos.module.css';
+import AuthContext from '../../store/auth-context';
 
 const YOUTUBE_API_KEY = process.env.REACT_APP_YOUTUBE_API_KEY;
 const YOUTUBE_CHANNEL_ID = process.env.REACT_APP_YOUTUBE_CHANNEL_ID;
@@ -44,6 +45,7 @@ const getStoredHiddenVideoIds = () => {
 };
 
 const Videos = () => {
+    const authCtx = useContext(AuthContext);
     const [videos, setVideos] = useState([]);
     const [nextPageToken, setNextPageToken] = useState('');
     const [loading, setLoading] = useState(true);
@@ -246,14 +248,16 @@ const Videos = () => {
                 >
                     List
                 </button>
-                <button
-                    type="button"
-                    className={classes.viewButton}
-                    onClick={resetHiddenVideos}
-                    disabled={!hiddenVideoIds.length}
-                >
-                    Show Hidden {hiddenVideoIds.length ? `(${hiddenVideoIds.length})` : ''}
-                </button>
+                {authCtx.isAdmin && (
+                    <button
+                        type="button"
+                        className={classes.viewButton}
+                        onClick={resetHiddenVideos}
+                        disabled={!hiddenVideoIds.length}
+                    >
+                        Show Hidden {hiddenVideoIds.length ? `(${hiddenVideoIds.length})` : ''}
+                    </button>
+                )}
             </div>
 
             {!visibleVideos.length && <p className={classes.status}>No videos found on this channel.</p>}
