@@ -418,6 +418,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
         // Validate based on what's being reported
         if (pair.type === 'bo-3') {
+            const hasAnyCompleteGame = gameResults.some((game) => game.castle1 && game.castle2);
+            if (!hasAnyCompleteGame) {
+                alert('BO-3: At least one game must have both castles selected before submitting.');
+                return;
+            }
+
             // For bo-3, validate each game that has any data filled in
             for (let i = 0; i < gameResults.length; i++) {
                 const game = gameResults[i];

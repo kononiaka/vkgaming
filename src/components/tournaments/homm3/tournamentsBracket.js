@@ -321,16 +321,20 @@ export const TournamentBracket = ({
             if (+score1 > +score2) {
                 if (+score2 === 0 && pair.games) {
                     pair.games.forEach((game, index) => {
-                        pair.games[index].gameWinner = pair.team1;
-                        pair.games[index].castleWinner = game.castle1;
+                        if (!pair.games[index].gameWinner && game.castle1 && game.castle2) {
+                            pair.games[index].gameWinner = pair.team1;
+                            pair.games[index].castleWinner = game.castle1;
+                        }
                     });
                 }
                 pair.winner = pair.team1;
             } else if (+score1 < +score2) {
                 if (+score1 === 0 && pair.games) {
                     pair.games.forEach((game, index) => {
-                        pair.games[index].gameWinner = pair.team2;
-                        pair.games[index].castleWinner = game.castle2;
+                        if (!pair.games[index].gameWinner && game.castle1 && game.castle2) {
+                            pair.games[index].gameWinner = pair.team2;
+                            pair.games[index].castleWinner = game.castle2;
+                        }
                     });
                 }
                 pair.winner = pair.team2;
@@ -343,7 +347,7 @@ export const TournamentBracket = ({
                 pair.gameWinner = pair.castle1;
             } else if (+score1 < +score2) {
                 pair.winner = pair.team2;
-                pair.gameWinner = pair.castle1;
+                pair.gameWinner = pair.castle2;
             } else {
                 return 'Tie';
             }
@@ -402,6 +406,7 @@ export const TournamentBracket = ({
                 } catch (error) {
                     console.error('Error recalculating stars:', error);
                     alert('Error recalculating stars: ' + error.message);
+                    return;
                 }
             } else {
                 console.log('Star recalculation cancelled by user');
@@ -1003,153 +1008,122 @@ export const TournamentBracket = ({
             return;
         }
 
-        let { castle1, castle2, score1, score2, team1, team2, winner, type } = finishedPairs[0];
-        const opponent1Id = await lookForUserId(team1);
-        const opponent2Id = await lookForUserId(team2);
+        const tournamentInfo = await lookForTournamentName(tournamentId);
+        const currentTournamentName = tournamentInfo?.name || tournamentName || 'Unknown Tournament';
 
-        let games;
-        //TODO: could this be ommit?
-        if (finishedPairs[0].type === 'bo-3') {
-            games = {
-                opponent1: team1,
-                opponent2: team2,
-                date: new Date(),
-                games: finishedPairs[0].games,
-                // gameName: gameName,
-                tournamentName: tournamentName,
-                gameType: type,
-                opponent1Castle: castle1,
-                opponent2Castle: castle2,
-                score: `${score1}-${score2}`,
-                winner: winner
-            };
-        } else {
-            games = {
-                opponent1: team1,
-                opponent2: team2,
-                date: new Date(),
-                // gameName: gameName,
-                tournamentName: tournamentName, //TODO: tournamentName is null here
-                gameType: type,
-                opponent1Castle: finishedPairs[0].games.castle1,
-                opponent2Castle: finishedPairs[0].games.castle2,
-                score: `${score1}-${score2}`,
-                winner: winner
-            };
-        }
-        let gameResponse = {};
+        for (const finishedPair of finishedPairs) {
+            let { castle1, castle2, score1, score2, team1, team2, winner, type } = finishedPair;
+            if (!winner || winner === 'Tie') {
+                continue;
+            }
 
-        let winnerId;
-        let winnerCastle;
-        let lostCastle;
-        let needUpdate = false;
-        if (finishedPairs[0].type === 'bo-3') {
-            // console.log('finishedPairs[0].games', finishedPairs[0].games);
-            finishedPairs[0].games.forEach((game) => {
-                if (game.gameWinner) {
-                    if (team1 === game.gameWinner) {
-                        winnerId = opponent1Id;
-                        winnerCastle = game.castle1;
-                        lostCastle = game.castle2;
-                    } else if (team2 === game.gameWinner) {
-                        winnerId = opponent2Id;
-                        winnerCastle = game.castle2;
-                        lostCastle = game.castle1;
-                    }
+            const opponent1Id = await lookForUserId(team1);
+            const opponent2Id = await lookForUserId(team2);
 
-                    needUpdate = true;
+            let games;
+            if (finishedPair.type === 'bo-3') {
+                games = {
+                    opponent1: team1,
+                    opponent2: team2,
+                    date: new Date(),
+                    games: finishedPair.games,
+                    tournamentName: currentTournamentName,
+                    gameType: type,
+                    opponent1Castle: castle1,
+                    opponent2Castle: castle2,
+                    score: `${score1}-${score2}`,
+                    winner: winner
+                };
+            } else {
+                games = {
+                    opponent1: team1,
+                    opponent2: team2,
+                    date: new Date(),
+                    tournamentName: currentTournamentName,
+                    gameType: type,
+                    opponent1Castle: finishedPair.games[0]?.castle1,
+                    opponent2Castle: finishedPair.games[0]?.castle2,
+                    score: `${score1}-${score2}`,
+                    winner: winner
+                };
+            }
+
+            let winnerId;
+            let winnerCastle;
+            let lostCastle;
+
+            if (finishedPair.type === 'bo-3') {
+                // Determine overall match winner from the match-level winner field (not per-game)
+                // This avoids a 2-1 scenario where the last game processed belongs to the losing player
+                if (winner === team1) {
+                    winnerId = opponent1Id;
+                } else if (winner === team2) {
+                    winnerId = opponent2Id;
                 }
 
-                if (game.gameStatus && game.gameStatus === 'Finished') {
-                    let firstCastleResponse;
-                    let secondCastleResponse;
-                    let firstCastleResponseModal = confirmWindow(
-                        `Process Games: Are you sure you want to process winner castle of ${winnerCastle}`
-                    );
-                    console.log('Process Games firstCastleResponseModal:', firstCastleResponseModal);
-                    if (firstCastleResponseModal) {
-                        firstCastleResponse = lookForCastleStats(winnerCastle, 'win');
-                    }
-
-                    let secondCastleResponseModal = confirmWindow(
-                        `Process Games: Are you sure you want to process lost castle of ${lostCastle}`
-                    );
-                    console.log('Process Games firstPlaceResponseModal:', secondCastleResponseModal);
-                    if (secondCastleResponseModal) {
-                        secondCastleResponse = lookForCastleStats(lostCastle, 'lost');
-                    }
-                    if (firstCastleResponse && secondCastleResponse) {
-                        game.gameStatus = 'Processed';
-                    }
-                }
-            });
-        } else {
-            if (team1 === winner) {
-                winnerId = opponent1Id;
-                winnerCastle = finishedPairs[0].games[0].castle1;
-                lostCastle = finishedPairs[0].games[0].castle2;
-            } else if (team2 === winner) {
-                winnerId = opponent2Id;
-                winnerCastle = finishedPairs[0].games[0].castle2;
-                lostCastle = finishedPairs[0].games[0].castle1;
-            }
-            //TODO: check if gamesStatus is finished.
-            let castleWinResponseModal =
-                winner &&
-                confirmWindow(
-                    `Process Castles: Are you sure you want to process WIN castle? ${JSON.stringify(winnerCastle)}`
-                );
-
-            if (castleWinResponseModal) {
-                lookForCastleStats(winnerCastle, 'win');
-            }
-            let castleLoseResponseModal =
-                winner &&
-                confirmWindow(
-                    `Process Castles: Are you sure you want to process LOSE castle? ${JSON.stringify(lostCastle)}`
-                );
-
-            if (castleLoseResponseModal) {
-                lookForCastleStats(lostCastle, 'lost');
-            }
-        }
-
-        if (winner) {
-            let gameResponseModal = confirmWindow(
-                `Process Games: Are you sure you want to POST those games? ${JSON.stringify(games)}`
-            );
-            console.log('Process Games firstPlaceResponseModal:', gameResponseModal);
-            if (SHOULD_POSTING && gameResponseModal && winner) {
-                gameResponse = await fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
-                    {
-                        method: 'POST',
-                        body: JSON.stringify(games),
-                        headers: {
-                            'Content-Type': 'application/json'
+                // Per-game castle stats (each game has its own winner)
+                finishedPair.games.forEach((game) => {
+                    if (game.gameWinner) {
+                        const gameWinnerCastle = team1 === game.gameWinner ? game.castle1 : game.castle2;
+                        const gameLoserCastle = team1 === game.gameWinner ? game.castle2 : game.castle1;
+                        if (game.gameStatus && game.gameStatus === 'Finished' && gameWinnerCastle && gameLoserCastle) {
+                            lookForCastleStats(gameWinnerCastle, 'win');
+                            lookForCastleStats(gameLoserCastle, 'lost');
+                            game.gameStatus = 'Processed';
                         }
                     }
-                );
-                await gameResponse.json();
+                });
+            } else {
+                if (team1 === winner) {
+                    winnerId = opponent1Id;
+                    winnerCastle = finishedPair.games[0]?.castle1;
+                    lostCastle = finishedPair.games[0]?.castle2;
+                } else if (team2 === winner) {
+                    winnerId = opponent2Id;
+                    winnerCastle = finishedPair.games[0]?.castle2;
+                    lostCastle = finishedPair.games[0]?.castle1;
+                }
+
+                if (winnerCastle && lostCastle) {
+                    lookForCastleStats(winnerCastle, 'win');
+                    lookForCastleStats(lostCastle, 'lost');
+                }
             }
 
-            //TODO: finishedPairs need to be injected into collectedPlayoffPairs and then PUT
+            if (SHOULD_POSTING) {
+                const existingGamesResponse = await fetch(
+                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
+                );
+                const existingGamesData = await existingGamesResponse.json();
 
-            // if (SHOULD_POSTING && needUpdate) {
-            //     let response = await fetch(
-            //         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
-            //         {
-            //             method: 'PUT',
-            //             body: JSON.stringify(finishedPairs),
-            //             headers: {
-            //                 'Content-Type': 'application/json'
-            //             }
-            //         }
-            //     );
-            //     await response.json();
-            // }
+                const gameDateKey = new Date(games.date).toDateString();
+                const isDuplicate =
+                    existingGamesData &&
+                    Object.values(existingGamesData).some(
+                        (g) =>
+                            g &&
+                            g.opponent1 === games.opponent1 &&
+                            g.opponent2 === games.opponent2 &&
+                            g.tournamentName === games.tournamentName &&
+                            new Date(g.date).toDateString() === gameDateKey &&
+                            g.score === games.score
+                    );
 
-            //TODO: check if all of the games has gameStatus of finished => then process player's rate
+                if (!isDuplicate) {
+                    const gameResponse = await fetch(
+                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
+                        {
+                            method: 'POST',
+                            body: JSON.stringify(games),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+                    await gameResponse.json();
+                }
+            }
+
             const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
             const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
 
@@ -1166,37 +1140,23 @@ export const TournamentBracket = ({
                 parseFloat(opponent1PrevData.ratings.split(',').pop().trim()),
                 didWinOpponent2
             );
-            if (SHOULD_POSTING) {
-                let opponent1IdScoreModal = confirmWindow(
-                    `Process Games: Are you sure you want to process the first player ${opponent1Id}`
-                );
-                console.log(
-                    'Process Games opponent1IdScoreModal:',
-                    opponent1IdScoreModal + ' opponent1Score:' + opponent1Score
-                );
-                if (opponent1IdScoreModal) {
-                    await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId, tournamentId, team1);
-                }
-                let opponent2IdScoreModal = confirmWindow(
-                    `Process Games: Are you sure you want to process the second player ${opponent2Id}`
-                );
-                console.log('Process Games opponent2IdScoreModal:', opponent2IdScoreModal);
-                if (opponent2IdScoreModal) {
-                    await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId, tournamentId, team2);
-                }
-            }
-            //TODO: if player's score was updated => set gameStatus to processed
-            //TODO: check if all games in 'Processed' status => update whole gameStatus to 'Processed' status
-            finishedPairs[0].gameStatus = 'Processed';
-            finishedPairs[0].games.forEach((game) => {
-                game.gameStatus = 'Processed';
-            });
-        }
-        setPlayoffPairs(finishedPairs);
 
-        let pushProcessedGame = confirmWindow(
-            `Process Games: Are you sure you want to push finished game ${JSON.stringify(finishedPairs)}`
-        );
+            if (SHOULD_POSTING) {
+                await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId, tournamentId, team1);
+                await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId, tournamentId, team2);
+            }
+
+            finishedPair.gameStatus = 'Processed';
+            if (Array.isArray(finishedPair.games)) {
+                finishedPair.games.forEach((game) => {
+                    game.gameStatus = 'Processed';
+                });
+            }
+        }
+
+        setPlayoffPairs(collectedPlayoffPairs);
+
+        let pushProcessedGame = true;
         let responseFinishedPair;
         if (pushProcessedGame) {
             // Use collectedPlayoffPairs (the mutated parameter) instead of the stale playoffPairs state
@@ -1223,6 +1183,12 @@ export const TournamentBracket = ({
     };
 
     const confirmWindow = (message) => {
+        // Keep noisy per-step confirmations disabled for production flow.
+        const confirmEachStep = false;
+        if (!confirmEachStep) {
+            return true;
+        }
+
         const response = window.confirm(message);
         if (response) {
             console.log('YES');
@@ -1239,6 +1205,11 @@ export const TournamentBracket = ({
         const prizeAmount = prizes[place];
 
         const thirdPlaceIndex = stages.indexOf('Third Place');
+        if (thirdPlaceIndex === -1 || !playOffPairs?.[thirdPlaceIndex] || !playOffPairs[thirdPlaceIndex][0]) {
+            console.warn('Third place stage or match is missing. Skipping 3rd place processing.');
+            return;
+        }
+
         const thirdPlace = playOffPairs[thirdPlaceIndex];
         if (thirdPlace[0].winner) {
             let winner = thirdPlace[0].winner;
@@ -1352,10 +1323,10 @@ export const TournamentBracket = ({
 
             const pair = {
                 gameStatus: 'Not Started',
-                team1: winners[i].winner || 'TBD',
+                team1: (winners[i] && winners[i].winner) || 'TBD',
                 score1: 0,
-                stars1: winners[i].stars,
-                ratings1: winners[i].ratings,
+                stars1: (winners[i] && winners[i].stars) || null,
+                ratings1: (winners[i] && winners[i].ratings) || null,
                 team2: (winners[i + 1] && winners[i + 1].winner) || 'TBD',
                 score2: 0,
                 stars2: (winners[i + 1] && winners[i + 1].stars) || null,
@@ -2116,22 +2087,44 @@ export const TournamentBracket = ({
                     `Post game to database?\n\n${pair.team1} vs ${pair.team2}\nScore: ${reportData.score1}-${reportData.score2}\nWinner: ${reportData.winner}\n\nPost game?`
                 );
                 if (confirmGamePost) {
-                    const fetchResponse = await fetch(
-                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
-                        {
-                            method: 'POST',
-                            body: JSON.stringify(gameData),
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        }
+                    const existingGamesResponse = await fetch(
+                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
                     );
+                    const existingGamesData = await existingGamesResponse.json();
+                    const matchDateKey = new Date(gameData.date).toDateString();
 
-                    if (fetchResponse.ok) {
-                        console.log('Game posted to database successfully');
-                        console.log('Gold and restart data stored for all games');
+                    const isDuplicate =
+                        existingGamesData &&
+                        Object.values(existingGamesData).some(
+                            (g) =>
+                                g &&
+                                g.opponent1 === gameData.opponent1 &&
+                                g.opponent2 === gameData.opponent2 &&
+                                g.tournamentName === gameData.tournamentName &&
+                                g.score === gameData.score &&
+                                new Date(g.date).toDateString() === matchDateKey
+                        );
+
+                    if (isDuplicate) {
+                        console.log('Skipping duplicate game record:', gameData);
                     } else {
-                        console.error('Error posting game to database:', fetchResponse.statusText);
+                        const fetchResponse = await fetch(
+                            'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
+                            {
+                                method: 'POST',
+                                body: JSON.stringify(gameData),
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            }
+                        );
+
+                        if (fetchResponse.ok) {
+                            console.log('Game posted to database successfully');
+                            console.log('Gold and restart data stored for all games');
+                        } else {
+                            console.error('Error posting game to database:', fetchResponse.statusText);
+                        }
                     }
                 } else {
                     console.log('Game posting skipped by user');

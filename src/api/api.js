@@ -334,7 +334,7 @@ export const getRating = async (opponentId) => {
     return rating;
 };
 
-export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 2) => {
+export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 1) => {
     // ELO expected score.
     // Divisor is tuned for this game's rating scale (~3–20 range).
     // A 5-point difference gives ~75% expected win for the higher-rated player.

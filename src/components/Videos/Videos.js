@@ -1,5 +1,3 @@
-/* global process */
-
 import { useContext, useEffect, useState } from 'react';
 import classes from './Videos.module.css';
 import AuthContext from '../../store/auth-context';
