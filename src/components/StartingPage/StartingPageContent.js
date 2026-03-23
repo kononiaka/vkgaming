@@ -559,7 +559,7 @@ const StartingPageContent = () => {
                             }}
                         >
                             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>No active games</div>
-                            <div>Time to fire one up.</div>
+                            <div>Time to fire one up. 🔥</div>
                         </div>
                     )}
                 </div>

@@ -1,6 +1,50 @@
 .player_bracket {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
+}
+
+.playerMiddleRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    min-width: max-content;
+}
+
+.playerInfoColumn {
+    display: flex;
+    align-items: center;
+    flex: 0 0 250px;
+    min-width: 250px;
+    max-width: 250px;
+    overflow: hidden;
+}
+
+.playerName {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.leaderboardPlace {
+    flex: 0 0 auto;
+    color: #9ff6ff;
+}
+
+.starsContainer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 0 0 128px;
+    min-width: 128px;
+    max-width: 128px;
+    overflow: hidden;
 }
 
 .green-indicator,
@@ -92,6 +136,8 @@
     flex-direction: row;
     gap: 0.3rem;
     align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
 }
 
 .gamesStripBo3 {
@@ -101,6 +147,7 @@
     align-items: center;
     justify-content: flex-start;
     flex-wrap: nowrap;
+    flex-shrink: 0;
 }
 
 @keyframes blink {

@@ -43,6 +43,35 @@ const normalizeMatchType = (rawType) => {
     return 'bo-1';
 };
 
+const buildMatchKey = (gameData, tournamentId) => {
+    const normalize = (value) =>
+        String(value ?? '')
+            .trim()
+            .toLowerCase();
+
+    const gamesDigest = Array.isArray(gameData.games)
+        ? gameData.games
+              .map(
+                  (g) =>
+                      `${g.gameId ?? ''}:${normalize(g.gameWinner)}:${normalize(g.castle1)}:${normalize(g.castle2)}:${g.gold1 ?? 0}:${g.gold2 ?? 0}`
+              )
+              .join(';')
+        : '';
+
+    const rawKey = [
+        normalize(tournamentId),
+        normalize(gameData.tournamentName),
+        normalize(gameData.gameType),
+        normalize(gameData.opponent1),
+        normalize(gameData.opponent2),
+        normalize(gameData.score),
+        normalize(gameData.winner),
+        gamesDigest
+    ].join('|');
+
+    return encodeURIComponent(rawKey);
+};
+
 export const TournamentBracket = ({
     maxPlayers,
     tournamentId,
@@ -73,6 +102,27 @@ export const TournamentBracket = ({
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
+
+    const normalizeName = (value) =>
+        String(value || '')
+            .trim()
+            .toLowerCase();
+    const canReportGameForPair = (pair) => {
+        if (!pair) {
+            return false;
+        }
+
+        if (authCtx.isAdmin) {
+            return true;
+        }
+
+        const currentUser = normalizeName(authCtx.userNickName);
+        if (!currentUser) {
+            return false;
+        }
+
+        return currentUser === normalizeName(pair.team1) || currentUser === normalizeName(pair.team2);
+    };
 
     const getCurrentRating = (ratings) => {
         if (typeof ratings === 'string' && ratings.includes(',')) {
@@ -1087,29 +1137,19 @@ export const TournamentBracket = ({
             }
 
             if (SHOULD_POSTING) {
-                const existingGamesResponse = await fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
+                const matchKey = buildMatchKey(games, tournamentId);
+                games.matchKey = matchKey;
+
+                const existingGameResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`
                 );
-                const existingGamesData = await existingGamesResponse.json();
+                const existingGameData = await existingGameResponse.json();
 
-                const gameDateKey = new Date(games.date).toDateString();
-                const isDuplicate =
-                    existingGamesData &&
-                    Object.values(existingGamesData).some(
-                        (g) =>
-                            g &&
-                            g.opponent1 === games.opponent1 &&
-                            g.opponent2 === games.opponent2 &&
-                            g.tournamentName === games.tournamentName &&
-                            new Date(g.date).toDateString() === gameDateKey &&
-                            g.score === games.score
-                    );
-
-                if (!isDuplicate) {
+                if (!existingGameData) {
                     const gameResponse = await fetch(
-                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`,
                         {
-                            method: 'POST',
+                            method: 'PUT',
                             body: JSON.stringify(games),
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1182,12 +1222,6 @@ export const TournamentBracket = ({
     };
 
     const confirmWindow = (message) => {
-        // Set REACT_APP_BYPASS_CONFIRMATIONS=true only for trusted automated flows.
-        const bypassConfirmations = process.env.REACT_APP_BYPASS_CONFIRMATIONS === 'true';
-        if (bypassConfirmations) {
-            return true;
-        }
-
         const response = window.confirm(message);
         if (response) {
             console.log('YES');
@@ -1715,6 +1749,10 @@ export const TournamentBracket = ({
             alert('Cannot report game until both players are assigned.');
             return;
         }
+        if (!canReportGameForPair(pair)) {
+            alert('Only match players or admin can report this game.');
+            return;
+        }
         setSelectedStageIndex(stageIdx);
         setSelectedPairIndex(pairIdx);
         setShowReportGameModal(true);
@@ -1949,6 +1987,11 @@ export const TournamentBracket = ({
             const updatedPairs = [...playoffPairs];
             const pair = updatedPairs[selectedStageIndex][selectedPairIndex];
 
+            if (!canReportGameForPair(pair)) {
+                alert('Only match players or admin can submit this game report.');
+                return;
+            }
+
             pair.score1 = reportData.score1;
             pair.score2 = reportData.score2;
             pair.winner = reportData.winner;
@@ -2106,31 +2149,21 @@ export const TournamentBracket = ({
                     `Post game to database?\n\n${pair.team1} vs ${pair.team2}\nScore: ${reportData.score1}-${reportData.score2}\nWinner: ${reportData.winner}\n\nPost game?`
                 );
                 if (confirmGamePost) {
-                    const existingGamesResponse = await fetch(
-                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
+                    const matchKey = buildMatchKey(gameData, tournamentId);
+                    gameData.matchKey = matchKey;
+
+                    const existingGameResponse = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`
                     );
-                    const existingGamesData = await existingGamesResponse.json();
-                    const matchDateKey = new Date(gameData.date).toDateString();
+                    const existingGameData = await existingGameResponse.json();
 
-                    const isDuplicate =
-                        existingGamesData &&
-                        Object.values(existingGamesData).some(
-                            (g) =>
-                                g &&
-                                g.opponent1 === gameData.opponent1 &&
-                                g.opponent2 === gameData.opponent2 &&
-                                g.tournamentName === gameData.tournamentName &&
-                                g.score === gameData.score &&
-                                new Date(g.date).toDateString() === matchDateKey
-                        );
-
-                    if (isDuplicate) {
+                    if (existingGameData) {
                         console.log('Skipping duplicate game record:', gameData);
                     } else {
                         const fetchResponse = await fetch(
-                            'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json',
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`,
                             {
-                                method: 'POST',
+                                method: 'PUT',
                                 body: JSON.stringify(gameData),
                                 headers: {
                                     'Content-Type': 'application/json'
@@ -3132,7 +3165,9 @@ export const TournamentBracket = ({
                                                             justifyContent: 'flex-end'
                                                         }}
                                                     >
-                                                        {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
+                                                        {pair.team1 !== 'TBD' &&
+                                                        pair.team2 !== 'TBD' &&
+                                                        canReportGameForPair(pair) ? (
                                                             <button
                                                                 onClick={() =>
                                                                     handleOpenReportGame(pair, stageIndex, pairIndex)
@@ -3156,7 +3191,7 @@ export const TournamentBracket = ({
                                                             >
                                                                 Report Game
                                                             </button>
-                                                        )}
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             </div>
@@ -3229,7 +3264,9 @@ export const TournamentBracket = ({
                                                             justifyContent: 'flex-end'
                                                         }}
                                                     >
-                                                        {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
+                                                        {pair.team1 !== 'TBD' &&
+                                                        pair.team2 !== 'TBD' &&
+                                                        canReportGameForPair(pair) ? (
                                                             <button
                                                                 onClick={() =>
                                                                     handleOpenReportGame(
@@ -3257,7 +3294,7 @@ export const TournamentBracket = ({
                                                             >
                                                                 Report Game
                                                             </button>
-                                                        )}
+                                                        ) : null}
                                                     </div>
                                                     <div
                                                         style={{
@@ -3421,7 +3458,9 @@ export const TournamentBracket = ({
                                                         marginTop: '2.5rem'
                                                     }}
                                                 >
-                                                    {pair.team1 !== 'TBD' && pair.team2 !== 'TBD' && (
+                                                    {pair.team1 !== 'TBD' &&
+                                                    pair.team2 !== 'TBD' &&
+                                                    canReportGameForPair(pair) ? (
                                                         <button
                                                             onClick={() =>
                                                                 handleOpenReportGame(pair, stageIndex, pairIndex)
@@ -3445,7 +3484,7 @@ export const TournamentBracket = ({
                                                         >
                                                             Report Game
                                                         </button>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </div>
