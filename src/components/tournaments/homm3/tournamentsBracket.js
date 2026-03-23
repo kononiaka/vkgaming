@@ -318,28 +318,12 @@ export const TournamentBracket = ({
         const score2 = pair.type === 'bo-3' ? parseInt(pair.score2) : parseInt(pair.score2) || 0;
 
         if (pair.type === 'bo-3') {
-            if (+score1 > +score2) {
-                if (+score2 === 0 && pair.games) {
-                    pair.games.forEach((game, index) => {
-                        if (!pair.games[index].gameWinner && game.castle1 && game.castle2) {
-                            pair.games[index].gameWinner = pair.team1;
-                            pair.games[index].castleWinner = game.castle1;
-                        }
-                    });
-                }
+            if (+score1 === 2 && +score2 < 2) {
                 pair.winner = pair.team1;
-            } else if (+score1 < +score2) {
-                if (+score1 === 0 && pair.games) {
-                    pair.games.forEach((game, index) => {
-                        if (!pair.games[index].gameWinner && game.castle1 && game.castle2) {
-                            pair.games[index].gameWinner = pair.team2;
-                            pair.games[index].castleWinner = game.castle2;
-                        }
-                    });
-                }
+            } else if (+score2 === 2 && +score1 < 2) {
                 pair.winner = pair.team2;
             } else {
-                pair.winner = 'Tie';
+                pair.winner = '';
             }
         } else if (pair.type === 'bo-1') {
             if (+score1 > +score2) {
@@ -973,18 +957,30 @@ export const TournamentBracket = ({
                     if (pairDetails.type === 'bo-3') {
                         let results = ['2-0', '2-1', '1-2', '0-2'];
 
-                        if (results.includes(fullResult)) {
+                        if (results.includes(fullResult) && pairDetails.winner && pairDetails.winner !== 'Tie') {
                             pairDetails.gameStatus = 'Finished';
                             finishedPairs.push(pairDetails);
                         } else {
                             results = ['1-0', '1-1', '0-1'];
                             if (results.includes(fullResult)) {
                                 pairDetails.gameStatus = 'In Progress';
-                                finishedPairs.push(pairDetails);
+                            } else if (fullResult === '0-0' && Array.isArray(pairDetails.games)) {
+                                const hasActivity = pairDetails.games.some((game) =>
+                                    Boolean(
+                                        game && (game.castle1 || game.castle2 || game.gameWinner || game.castleWinner)
+                                    )
+                                );
+                                if (hasActivity) {
+                                    pairDetails.gameStatus = 'In Progress';
+                                }
                             }
                         }
                     } else {
-                        if (+pairDetails.score1 + +pairDetails.score2 === 1) {
+                        if (
+                            +pairDetails.score1 + +pairDetails.score2 === 1 &&
+                            pairDetails.winner &&
+                            pairDetails.winner !== 'Tie'
+                        ) {
                             pairDetails.gameStatus = 'Finished';
                             finishedPairs.push(pairDetails);
                         } else {
@@ -993,7 +989,7 @@ export const TournamentBracket = ({
                                 pairDetails.games[0].castle2 &&
                                 !pairDetails.games[0].gameWinner
                             ) {
-                                finishedPairs.push(pairDetails);
+                                pairDetails.gameStatus = 'In Progress';
                             }
                         }
                     }
@@ -1025,7 +1021,7 @@ export const TournamentBracket = ({
                 games = {
                     opponent1: team1,
                     opponent2: team2,
-                    date: new Date(),
+                    date: new Date().toISOString(),
                     games: finishedPair.games,
                     tournamentName: currentTournamentName,
                     gameType: type,
@@ -1038,7 +1034,7 @@ export const TournamentBracket = ({
                 games = {
                     opponent1: team1,
                     opponent2: team2,
-                    date: new Date(),
+                    date: new Date().toISOString(),
                     tournamentName: currentTournamentName,
                     gameType: type,
                     opponent1Castle: finishedPair.games[0]?.castle1,
@@ -1154,8 +1150,6 @@ export const TournamentBracket = ({
             }
         }
 
-        setPlayoffPairs(collectedPlayoffPairs);
-
         let pushProcessedGame = true;
         let responseFinishedPair;
         if (pushProcessedGame) {
@@ -1172,7 +1166,12 @@ export const TournamentBracket = ({
             );
             if (responseFinishedPair.ok) {
                 console.log('Finished pairs PUT successfully');
+                setPlayoffPairs(collectedPlayoffPairs);
+            } else {
+                console.error('Failed to persist processed pairs. Local state was not updated.');
             }
+        } else {
+            setPlayoffPairs(collectedPlayoffPairs);
         }
 
         // console.log('finishedPairs LENGTH', finishedPairs.length);
@@ -1183,9 +1182,9 @@ export const TournamentBracket = ({
     };
 
     const confirmWindow = (message) => {
-        // Keep noisy per-step confirmations disabled for production flow.
-        const confirmEachStep = false;
-        if (!confirmEachStep) {
+        // Set REACT_APP_BYPASS_CONFIRMATIONS=true only for trusted automated flows.
+        const bypassConfirmations = process.env.REACT_APP_BYPASS_CONFIRMATIONS === 'true';
+        if (bypassConfirmations) {
             return true;
         }
 
@@ -1202,6 +1201,10 @@ export const TournamentBracket = ({
         //TODO tournamentName to add
         let place = '3rd Place';
         let prizes = await pullTournamentPrizes(tournamentId);
+        if (!prizes || typeof prizes !== 'object' || prizes[place] === undefined || prizes[place] === null) {
+            console.warn(`Prize data missing for ${place}. Skipping 3rd place prize processing.`);
+            return;
+        }
         const prizeAmount = prizes[place];
 
         const thirdPlaceIndex = stages.indexOf('Third Place');
@@ -1216,6 +1219,10 @@ export const TournamentBracket = ({
             if (winner) {
                 let userId = await lookForUserId(winner);
                 let userRecord = await loadUserById(userId);
+                if (!userRecord || typeof userRecord !== 'object') {
+                    console.error('FAILED TO LOAD USER RECORD FOR THE THIRD PLACE:', userId);
+                    return;
+                }
 
                 let thirdPriceTotal = await getPlayerPrizeTotal(userId);
 
@@ -1704,6 +1711,10 @@ export const TournamentBracket = ({
     };
 
     const handleOpenReportGame = (pair, stageIdx, pairIdx) => {
+        if (pair.team1 === 'TBD' || pair.team2 === 'TBD' || !pair.team1 || !pair.team2) {
+            alert('Cannot report game until both players are assigned.');
+            return;
+        }
         setSelectedStageIndex(stageIdx);
         setSelectedPairIndex(pairIdx);
         setShowReportGameModal(true);
@@ -2041,15 +2052,23 @@ export const TournamentBracket = ({
                     team1NewRating = ratingResult.newRatings[pair.team1];
                     team2NewRating = ratingResult.newRatings[pair.team2];
 
-                    if (team1NewRating) {
-                        pair.ratings1 = pair.ratings1.includes(',')
-                            ? pair.ratings1 + `, ${team1NewRating}`
-                            : pair.ratings1 + `, ${team1NewRating}`;
+                    if (team1NewRating !== null && team1NewRating !== undefined) {
+                        const currentRatings1 =
+                            typeof pair.ratings1 === 'string'
+                                ? pair.ratings1
+                                : pair.ratings1 !== null && pair.ratings1 !== undefined
+                                  ? String(pair.ratings1)
+                                  : '';
+                        pair.ratings1 = currentRatings1 ? `${currentRatings1}, ${team1NewRating}` : `${team1NewRating}`;
                     }
-                    if (team2NewRating) {
-                        pair.ratings2 = pair.ratings2.includes(',')
-                            ? pair.ratings2 + `, ${team2NewRating}`
-                            : pair.ratings2 + `, ${team2NewRating}`;
+                    if (team2NewRating !== null && team2NewRating !== undefined) {
+                        const currentRatings2 =
+                            typeof pair.ratings2 === 'string'
+                                ? pair.ratings2
+                                : pair.ratings2 !== null && pair.ratings2 !== undefined
+                                  ? String(pair.ratings2)
+                                  : '';
+                        pair.ratings2 = currentRatings2 ? `${currentRatings2}, ${team2NewRating}` : `${team2NewRating}`;
                     }
                 }
                 // Update state to reflect the new ratings for tooltip display
