@@ -276,6 +276,22 @@
     font-weight: 700;
 }
 
+.restartsFinishedBadge {
+    margin-top: 0.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(114, 247, 145, 0.9);
+    background: rgba(10, 72, 34, 0.5);
+    color: #9effb3;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
 .castlesRow {
     display: grid;
     grid-template-columns: 1fr 1fr;

@@ -34,20 +34,6 @@ const StartingPageContent = () => {
         return Number(value) || 0;
     };
 
-    const isRestartFullyUsed = (type, value) => {
-        const numericValue = Number(value) || 0;
-
-        if (type === '111') {
-            return numericValue >= 2;
-        }
-
-        if (type === '112') {
-            return numericValue >= 1;
-        }
-
-        return false;
-    };
-
     const getCastleImage = (castleName) => {
         const normalizedName = String(castleName || '')
             .split('-')[0]
@@ -74,7 +60,8 @@ const StartingPageContent = () => {
 
     const getFlagImage = (color) => (String(color || '').toLowerCase() === 'red' ? redFlagImg : blueFlagImg);
 
-    const getHeadToHeadPrediction = (team1, team2, gamesHistory) => {
+    const getHeadToHeadPrediction = (team1, team2, gamesHistory, playerContext = {}) => {
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
         const getDeterministicValue = (key, min, max) => {
             let hash = 0;
             for (let i = 0; i < key.length; i++) {
@@ -85,6 +72,19 @@ const StartingPageContent = () => {
             return min + normalized * (max - min);
         };
 
+        const team1Rating = parseNumericValue(playerContext.team1Rating);
+        const team2Rating = parseNumericValue(playerContext.team2Rating);
+        const team1Stars = parseNumericValue(playerContext.team1Stars);
+        const team2Stars = parseNumericValue(playerContext.team2Stars);
+
+        const parsePlace = (value) => {
+            const num = Number(value);
+            return Number.isFinite(num) && num > 0 ? num : null;
+        };
+
+        const team1Place = parsePlace(playerContext.team1Place);
+        const team2Place = parsePlace(playerContext.team2Place);
+
         const relevantGames = Object.values(gamesHistory || {}).filter((historyGame) => {
             const o1 = historyGame?.opponent1;
             const o2 = historyGame?.opponent2;
@@ -92,12 +92,27 @@ const StartingPageContent = () => {
             return (o1 === team1 && o2 === team2) || (o1 === team2 && o2 === team1);
         });
 
+        // Leaderboard component: place/rating/stars create a bounded bias around 50%.
+        const placeAdvantage = team1Place && team2Place ? clamp((team2Place - team1Place) * 1.8, -12, 12) : 0;
+        const ratingAdvantage = clamp((team1Rating - team2Rating) * 0.04, -12, 12);
+        // Stars provide only a gentle nudge compared to place/rating.
+        const starsAdvantage = clamp((team1Stars - team2Stars) * 0.8, -4, 4);
+        const leaderboardPrediction = clamp(50 + placeAdvantage + ratingAdvantage + starsAdvantage, 15, 85);
+
         if (relevantGames.length === 0) {
-            return { team1: '50.0', team2: '50.0' };
+            // Add a tiny deterministic spread so evenly ranked players are not always exactly 50/50.
+            const matchupKey = `${team1}|${team2}`;
+            const tinyAdjustment = getDeterministicValue(matchupKey, -1.25, 1.25);
+            const team1Prediction = clamp(leaderboardPrediction + tinyAdjustment, 15, 85);
+            return { team1: team1Prediction.toFixed(1), team2: (100 - team1Prediction).toFixed(1) };
         }
 
         const team1Wins = relevantGames.filter((historyGame) => historyGame?.winner === team1).length;
-        let team1Prediction = (team1Wins / relevantGames.length) * 100;
+        let headToHeadPrediction = (team1Wins / relevantGames.length) * 100;
+
+        // Blend H2H with leaderboard context, weighting H2H more as sample size grows.
+        const h2hWeight = clamp(0.35 + relevantGames.length * 0.08, 0.35, 0.8);
+        let team1Prediction = headToHeadPrediction * h2hWeight + leaderboardPrediction * (1 - h2hWeight);
         const matchupKey = `${team1}|${team2}`;
 
         // Avoid hard 100% displays by softening extremes into a stable realistic range.
@@ -202,7 +217,15 @@ const StartingPageContent = () => {
                                                     const prediction = getHeadToHeadPrediction(
                                                         pair.team1,
                                                         pair.team2,
-                                                        historyData
+                                                        historyData,
+                                                        {
+                                                            team1Place: team1Player?.placeInLeaderboard,
+                                                            team2Place: team2Player?.placeInLeaderboard,
+                                                            team1Rating: pair.ratings1 ?? team1Player?.ratings,
+                                                            team2Rating: pair.ratings2 ?? team2Player?.ratings,
+                                                            team1Stars: pair.stars1 ?? team1Player?.stars,
+                                                            team2Stars: pair.stars2 ?? team2Player?.stars
+                                                        }
                                                     );
 
                                                     games.push({
@@ -243,7 +266,8 @@ const StartingPageContent = () => {
                                                         restart1_111: game.restart1_111 || 0,
                                                         restart1_112: game.restart1_112 || 0,
                                                         restart2_111: game.restart2_111 || 0,
-                                                        restart2_112: game.restart2_112 || 0
+                                                        restart2_112: game.restart2_112 || 0,
+                                                        restartsFinished: Boolean(game.restartsFinished)
                                                     });
                                                 }
                                             });
@@ -311,6 +335,27 @@ const StartingPageContent = () => {
             return 'finished';
         }
         return 'all';
+    };
+
+    const renderRestartTokens = (restart111Value, restart112Value) => {
+        const used111 = Math.max(0, Math.min(2, Number(restart111Value) || 0));
+        const used112 = (Number(restart112Value) || 0) >= 1;
+        // If any 111 restart was used, 112 is automatically marked as used
+        const show112AsUsed = used112 || used111 >= 1;
+
+        return (
+            <div className={classes.restartsRow}>
+                {[0, 1].map((idx) => (
+                    <span
+                        key={`111-${idx}`}
+                        className={`${classes.restartTag} ${idx < used111 ? classes.restartUsed : ''}`}
+                    >
+                        111
+                    </span>
+                ))}
+                <span className={`${classes.restartTag} ${show112AsUsed ? classes.restartUsed : ''}`}>112</span>
+            </div>
+        );
     };
 
     return (
@@ -468,6 +513,11 @@ const StartingPageContent = () => {
                                             Win prediction: {game.team1} {game.team1Prediction}% | {game.team2}{' '}
                                             {game.team2Prediction}%
                                         </span>
+                                        {game.restartsFinished && (
+                                            <span className={classes.restartsFinishedBadge}>
+                                                Restarts finished / main game started
+                                            </span>
+                                        )}
                                     </div>
                                     <div className={classes.castlesRow}>
                                         <div className={classes.castleCard}>
@@ -481,28 +531,7 @@ const StartingPageContent = () => {
                                             <div className={classes.castleName}>{game.castle1}</div>
                                             <div className={classes.castleMeta}>Gold: {game.gold1}</div>
                                             <div className={classes.restartsLabel}>Restarts:</div>
-                                            <div className={classes.restartsRow}>
-                                                <span
-                                                    className={`${classes.restartTag} ${
-                                                        isRestartFullyUsed('111', game.restart1_111)
-                                                            ? classes.restartUsed
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    111
-                                                </span>
-                                                <span className={classes.restartValue}>{game.restart1_111}</span>
-                                                <span
-                                                    className={`${classes.restartTag} ${
-                                                        isRestartFullyUsed('112', game.restart1_112)
-                                                            ? classes.restartUsed
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    112
-                                                </span>
-                                                <span className={classes.restartValue}>{game.restart1_112}</span>
-                                            </div>
+                                            {renderRestartTokens(game.restart1_111, game.restart1_112)}
                                         </div>
                                         <div className={classes.castleCard}>
                                             {getCastleImage(game.castle2) && (
@@ -515,28 +544,7 @@ const StartingPageContent = () => {
                                             <div className={classes.castleName}>{game.castle2}</div>
                                             <div className={classes.castleMeta}>Gold: {game.gold2}</div>
                                             <div className={classes.restartsLabel}>Restarts:</div>
-                                            <div className={classes.restartsRow}>
-                                                <span
-                                                    className={`${classes.restartTag} ${
-                                                        isRestartFullyUsed('111', game.restart2_111)
-                                                            ? classes.restartUsed
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    111
-                                                </span>
-                                                <span className={classes.restartValue}>{game.restart2_111}</span>
-                                                <span
-                                                    className={`${classes.restartTag} ${
-                                                        isRestartFullyUsed('112', game.restart2_112)
-                                                            ? classes.restartUsed
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    112
-                                                </span>
-                                                <span className={classes.restartValue}>{game.restart2_112}</span>
-                                            </div>
+                                            {renderRestartTokens(game.restart2_111, game.restart2_112)}
                                         </div>
                                     </div>
                                     <div className={classes.gameType}>
