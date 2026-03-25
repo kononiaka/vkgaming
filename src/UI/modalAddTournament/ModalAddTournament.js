@@ -10,7 +10,15 @@ const Bracket = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [date, setDate] = useState('');
     const [prizeType, setPrizeType] = useState('money');
+    const [tournamentType, setTournamentType] = useState('kick-off');
     const authCtx = useContext(AuthContext);
+
+    const tournamentTypeOptions = [{ value: 'kick-off', label: 'Kick-off' }];
+    const playoffGameCountOptions = [
+        { value: '1', label: 'BO-1 (1 game)' },
+        { value: '3', label: 'BO-3 (3 games)' },
+        { value: '5', label: 'BO-5 (5 games)' }
+    ];
 
     useEffect(() => {
         const now = new Date();
@@ -74,6 +82,7 @@ const Bracket = (props) => {
         // Build tournament object from current values
         const objTournament = {
             name: tournamentNameRef.current.value,
+            tournamentType,
             maxPlayers: tournamentPlayerRef.current.value,
             pricePull: determineTournamentPrizes(selectedPrizePool),
             coinPrizePull: prizeType === 'coins' ? determineTournamentPrizes(coinPrizePool) : null,
@@ -168,8 +177,28 @@ const Bracket = (props) => {
             ) : (
                 <>
                     <div>
+                        <label htmlFor="tournamentType">Tournament Type:</label>
+                        <select
+                            id="tournamentType"
+                            value={tournamentType}
+                            onChange={(e) => setTournamentType(e.target.value)}
+                        >
+                            {tournamentTypeOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
                         <label htmlFor="prepareRandomRef">Spinning Wheel:</label>
-                        <input type="checkbox" id="randomBracket" label="Spinning Wheel" ref={randomBracketRef} />
+                        <input
+                            type="checkbox"
+                            id="randomBracket"
+                            label="Spinning Wheel"
+                            ref={randomBracketRef}
+                            defaultChecked
+                        />
                     </div>
                     <div>
                         <label>Prize Type:</label>
@@ -221,29 +250,33 @@ const Bracket = (props) => {
                         <label htmlFor="tournamentPlayers">Tournament Players:</label>
                         <input id="tournamentPlayers" type="number" ref={tournamentPlayerRef} />
                     </div>
-                    {prizeType === 'money' ? (
-                        <div>
-                            <label htmlFor="tournamentPricePoolUsd">Tournament Prize Pool ($):</label>
-                            <input id="tournamentPricePoolUsd" type="number" min="0" ref={tournamentPricePoolUsdRef} />
-                        </div>
-                    ) : (
-                        <div>
-                            <label htmlFor="tournamentPricePoolCoins">Tournament Prize Pool (Coins):</label>
-                            <input
-                                id="tournamentPricePoolCoins"
-                                type="number"
-                                min="0"
-                                ref={tournamentPricePoolCoinsRef}
-                            />
-                        </div>
-                    )}
+                    <div style={{ display: prizeType === 'money' ? 'block' : 'none' }}>
+                        <label htmlFor="tournamentPricePoolUsd">Tournament Prize Pool ($):</label>
+                        <input id="tournamentPricePoolUsd" type="number" min="0" ref={tournamentPricePoolUsdRef} />
+                    </div>
+                    <div style={{ display: prizeType === 'coins' ? 'block' : 'none' }}>
+                        <label htmlFor="tournamentPricePoolCoins">Tournament Prize Pool (Coins):</label>
+                        <input id="tournamentPricePoolCoins" type="number" min="0" ref={tournamentPricePoolCoinsRef} />
+                    </div>
                     <div>
                         <label htmlFor="tournamentPlayoffGames">PlayOff Games:</label>
-                        <input id="tournamentPlayoffGames" type="number" ref={tournamentPlayoffGames} />
+                        <select id="tournamentPlayoffGames" defaultValue="1" ref={tournamentPlayoffGames}>
+                            {playoffGameCountOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label htmlFor="tournamentPlayoffGamesFinal">PlayOff Final Games:</label>
-                        <input id="tournamentPlayoffGamesFinal" type="number" ref={tournamentPlayoffGamesFinal} />
+                        <select id="tournamentPlayoffGamesFinal" defaultValue="1" ref={tournamentPlayoffGamesFinal}>
+                            {playoffGameCountOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </>
             )}

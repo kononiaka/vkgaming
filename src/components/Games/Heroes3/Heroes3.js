@@ -13,6 +13,10 @@ const Heroes3Games = () => {
             .toLowerCase()
             .trim();
 
+        if (normalized === '5' || normalized === 'bo5' || normalized === 'bo-5') {
+            return 'bo-5';
+        }
+
         if (normalized === '1' || normalized === 'bo1' || normalized === 'bo-1') {
             return 'bo-1';
         }

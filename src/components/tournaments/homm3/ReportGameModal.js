@@ -40,7 +40,24 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
-    const [castleMarkOverrides, setCastleMarkOverrides] = useState({}); // Manual marks + 11/12 state (shared for BO-1 and BO-3)
+    const [castleMarkOverrides, setCastleMarkOverrides] = useState({}); // Manual marks + 11/12 state (shared for BO-1 and series matches)
+
+    const getBestOfValue = (type) => {
+        const normalized = String(type || '')
+            .toLowerCase()
+            .trim();
+        if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
+            return 5;
+        }
+        if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
+            return 3;
+        }
+        return 1;
+    };
+
+    const bestOf = getBestOfValue(pair.type);
+    const requiredWins = Math.floor(bestOf / 2) + 1;
+    const isSeriesMatch = bestOf > 1;
 
     // Available castles - using database format with Russian names
     const castles = [
@@ -223,7 +240,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             setColor2(pair.color2);
         }
 
-        if (pair.type === 'bo-3') {
+        if (isSeriesMatch) {
             const hasRestartFinishedFlag = (pair.games || []).some((game) => game?.restartsFinished);
             setRestartsFinished(Boolean(hasRestartFinishedFlag));
             setGameResults(
@@ -288,14 +305,14 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     const stats = calculateAvailableCastles(apiCastles, playoffPairs);
                     setAvailableCastles(stats);
 
-                    // For BO-3: Check if any game hasn't started
+                    // For series matches: check if any game hasn't started
                     let shouldAutoMark = false;
-                    if (pair.type === 'bo-3' && pair.games) {
+                    if (isSeriesMatch && pair.games) {
                         const hasUnstartedGame = pair.games.some(
                             (g) => !g.castle1 || !g.castle2 || g.gameStatus === 'Not Started'
                         );
                         shouldAutoMark = hasUnstartedGame;
-                        console.log('BO-3 has unstarted game?', shouldAutoMark);
+                        console.log('Series match has unstarted game?', shouldAutoMark);
                     }
 
                     if (shouldAutoMark) {
@@ -388,10 +405,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         setScore1(team1Wins);
         setScore2(team2Wins);
 
-        // Auto-add Game 3 if score is 1-1 and only 2 games exist
-        if (team1Wins === 1 && team2Wins === 1 && updated.length === 2) {
+        // Auto-add deciding game for incremental series setup (e.g. BO-3 starts with 2, BO-5 with 4).
+        const shouldAddDeciderGame =
+            isSeriesMatch &&
+            updated.length < bestOf &&
+            team1Wins === team2Wins &&
+            team1Wins + team2Wins === updated.length;
+
+        if (shouldAddDeciderGame) {
             updated.push({
-                gameId: 2,
+                gameId: updated.length,
                 castle1: '',
                 castle2: '',
                 bannedCastles1: [],
@@ -410,10 +433,10 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
         setGameResults(updated);
 
-        // Auto-select winner if reached 2 wins
-        if (team1Wins >= 2) {
+        // Auto-select winner if required wins are reached.
+        if (team1Wins >= requiredWins) {
             setSelectedWinner(pair.team1);
-        } else if (team2Wins >= 2) {
+        } else if (team2Wins >= requiredWins) {
             setSelectedWinner(pair.team2);
         }
     };
@@ -421,16 +444,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const hasUsedRestarts =
-            pair.type === 'bo-3'
-                ? gameResults.some(
-                      (game) =>
-                          (Number(game.restart1_111) || 0) > 0 ||
-                          (Number(game.restart1_112) || 0) > 0 ||
-                          (Number(game.restart2_111) || 0) > 0 ||
-                          (Number(game.restart2_112) || 0) > 0
-                  )
-                : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
+        const hasUsedRestarts = isSeriesMatch
+            ? gameResults.some(
+                  (game) =>
+                      (Number(game.restart1_111) || 0) > 0 ||
+                      (Number(game.restart1_112) || 0) > 0 ||
+                      (Number(game.restart2_111) || 0) > 0 ||
+                      (Number(game.restart2_112) || 0) > 0
+              )
+            : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
 
         if (hasUsedRestarts && !restartsFinished) {
             alert('Please confirm that restarts are finished and the main game has started.');
@@ -438,14 +460,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         }
 
         // Validate based on what's being reported
-        if (pair.type === 'bo-3') {
+        if (isSeriesMatch) {
             const hasAnyCompleteGame = gameResults.some((game) => game.castle1 && game.castle2);
             if (!hasAnyCompleteGame) {
-                alert('BO-3: At least one game must have both castles selected before submitting.');
+                alert(
+                    `${pair.type.toUpperCase()}: At least one game must have both castles selected before submitting.`
+                );
                 return;
             }
 
-            // For bo-3, validate each game that has any data filled in
+            // For series matches, validate each game that has any data filled in.
             for (let i = 0; i < gameResults.length; i++) {
                 const game = gameResults[i];
                 // If game has a winner, it must have castles
@@ -462,8 +486,13 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
             // If overall winner is selected, validate the series is properly concluded
             if (selectedWinner) {
-                if ((score1 !== 2 && score2 !== 2) || (score1 === 2 && score2 === 2)) {
-                    alert('Invalid score for BO-3. One player must have exactly 2 wins to determine a match winner.');
+                const hasValidSeriesWinner =
+                    (score1 === requiredWins && score2 < requiredWins) ||
+                    (score2 === requiredWins && score1 < requiredWins);
+                if (!hasValidSeriesWinner) {
+                    alert(
+                        `Invalid score for ${pair.type.toUpperCase()}. One player must have exactly ${requiredWins} wins to determine a match winner.`
+                    );
                     return;
                 }
             }
@@ -487,45 +516,43 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             score2: score2,
             color1: color1,
             color2: color2,
-            games:
-                pair.type === 'bo-3'
-                    ? gameResults.map((g) => ({
-                          castle1: g.castle1 || '',
-                          castle2: g.castle2 || '',
-                          castleWinner: g.winner ? (g.winner === pair.team1 ? g.castle1 : g.castle2) : '',
-                          gameWinner: g.winner || '',
-                          gameStatus:
-                              g.gameStatus === 'Processed' ? 'Processed' : g.winner ? 'Finished' : 'In Progress',
-                          gameId: g.gameId,
-                          color1: g.color1 || color1,
-                          color2: g.color2 || color2,
-                          gold1: g.gold1 || 0,
-                          gold2: g.gold2 || 0,
-                          restart1_111: g.restart1_111 || 0,
-                          restart1_112: g.restart1_112 || 0,
-                          restart2_111: g.restart2_111 || 0,
-                          restart2_112: g.restart2_112 || 0,
+            games: isSeriesMatch
+                ? gameResults.map((g) => ({
+                      castle1: g.castle1 || '',
+                      castle2: g.castle2 || '',
+                      castleWinner: g.winner ? (g.winner === pair.team1 ? g.castle1 : g.castle2) : '',
+                      gameWinner: g.winner || '',
+                      gameStatus: g.gameStatus === 'Processed' ? 'Processed' : g.winner ? 'Finished' : 'In Progress',
+                      gameId: g.gameId,
+                      color1: g.color1 || color1,
+                      color2: g.color2 || color2,
+                      gold1: g.gold1 || 0,
+                      gold2: g.gold2 || 0,
+                      restart1_111: g.restart1_111 || 0,
+                      restart1_112: g.restart1_112 || 0,
+                      restart2_111: g.restart2_111 || 0,
+                      restart2_112: g.restart2_112 || 0,
+                      restartsFinished: restartsFinished
+                  }))
+                : [
+                      {
+                          castle1: castle1 || '',
+                          castle2: castle2 || '',
+                          castleWinner: selectedWinner ? (selectedWinner === pair.team1 ? castle1 : castle2) : '',
+                          gameWinner: selectedWinner || '',
+                          gameStatus: selectedWinner ? 'Finished' : 'In Progress',
+                          gameId: 0,
+                          color1: color1,
+                          color2: color2,
+                          gold1: gold1,
+                          gold2: gold2,
+                          restart1_111: restart1_111,
+                          restart1_112: restart1_112,
+                          restart2_111: restart2_111,
+                          restart2_112: restart2_112,
                           restartsFinished: restartsFinished
-                      }))
-                    : [
-                          {
-                              castle1: castle1 || '',
-                              castle2: castle2 || '',
-                              castleWinner: selectedWinner ? (selectedWinner === pair.team1 ? castle1 : castle2) : '',
-                              gameWinner: selectedWinner || '',
-                              gameStatus: selectedWinner ? 'Finished' : 'In Progress',
-                              gameId: 0,
-                              color1: color1,
-                              color2: color2,
-                              gold1: gold1,
-                              gold2: gold2,
-                              restart1_111: restart1_111,
-                              restart1_112: restart1_112,
-                              restart2_111: restart2_111,
-                              restart2_112: restart2_112,
-                              restartsFinished: restartsFinished
-                          }
-                      ]
+                      }
+                  ]
         };
 
         onSubmit(reportData);
@@ -538,8 +565,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     ×
                 </button>
 
-                {/* Player Header Bar at Top - STICKY (only for BO-3) */}
-                {pair.type === 'bo-3' && (
+                {/* Player Header Bar at Top - STICKY (only for series matches) */}
+                {isSeriesMatch && (
                     <div
                         style={{
                             position: 'sticky',
@@ -713,9 +740,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
                 <form onSubmit={handleSubmit} className={classes.form} style={{ position: 'relative' }}>
                     {/* Game Results */}
-                    {pair.type === 'bo-3' ? (
+                    {isSeriesMatch ? (
                         <div style={{ position: 'relative', zIndex: 2 }}>
-                            {/* BO-3 Game Results */}
+                            {/* Series match game results */}
                             {gameResults.map((game, idx) => (
                                 <div
                                     key={idx}
@@ -723,7 +750,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                     style={{
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        display: idx === 2 && score1 + score2 < 2 ? 'none' : undefined
+                                        display:
+                                            idx === gameResults.length - 1 &&
+                                            gameResults.length === bestOf &&
+                                            score1 + score2 < gameResults.length - 1
+                                                ? 'none'
+                                                : undefined
                                     }}
                                 >
                                     {/* Left Side Background - Player 1 for this game */}

@@ -37,10 +37,18 @@ const normalizeMatchType = (rawType) => {
     const normalized = String(rawType ?? '')
         .toLowerCase()
         .trim();
+    if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
+        return 'bo-5';
+    }
     if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
         return 'bo-3';
     }
     return 'bo-1';
+};
+
+const getBestOfValue = (matchType) => {
+    const normalized = normalizeMatchType(matchType);
+    return Number(normalized.split('-')[1]) || 1;
 };
 
 const buildMatchKey = (gameData, tournamentId) => {
@@ -1348,7 +1356,7 @@ export const TournamentBracket = ({
     const determineNextStagePairings = (winners, currentStage, playoffsGames = 1) => {
         const nextPairings = [];
         const normalizedType = normalizeMatchType(playoffsGames);
-        const configuredGames = normalizedType === 'bo-3' ? 3 : 1;
+        const configuredGames = getBestOfValue(normalizedType);
 
         // Iterate through the winners array and create pairings for the next stage
         for (let i = 0; i < winners.length; i += 2) {
@@ -1586,7 +1594,7 @@ export const TournamentBracket = ({
         }
 
         // Determine number of games based on bo-1 or bo-3
-        const numGames = tournamentPlayoffGames === 'bo-3' ? 3 : 1;
+        const numGames = getBestOfValue(tournamentPlayoffGames);
         const gameType = tournamentPlayoffGames;
 
         // Format bracket pairs with player data following the exact structure
