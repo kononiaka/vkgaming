@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import classes from './ReportGameModal.module.css';
 import { getAvatar, lookForUserId, fetchCastlesList } from '../../../api/api';
 
@@ -20,27 +20,125 @@ import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
 const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
-    const [selectedWinner, setSelectedWinner] = useState(pair.winner || '');
-    const [castle1, setCastle1] = useState('');
-    const [castle2, setCastle2] = useState('');
-    const [bannedCastlesBO1_1, setBannedCastlesBO1_1] = useState([]);
-    const [bannedCastlesBO1_2, setBannedCastlesBO1_2] = useState([]);
-    const [score1, setScore1] = useState(pair.score1 || 0);
-    const [score2, setScore2] = useState(pair.score2 || 0);
-    const [gameResults, setGameResults] = useState([]);
-    const [color1, setColor1] = useState('red'); // Default color for team1
-    const [color2, setColor2] = useState('blue'); // Default color for team2
-    const [gold1, setGold1] = useState(0); // Gold for team1
-    const [gold2, setGold2] = useState(0); // Gold for team2
-    const [restart1_111, setRestart1_111] = useState(0); // 111 restarts for team1 (max 2)
-    const [restart1_112, setRestart1_112] = useState(0); // 112 restarts for team1 (max 1)
-    const [restart2_111, setRestart2_111] = useState(0); // 111 restarts for team2 (max 2)
-    const [restart2_112, setRestart2_112] = useState(0); // 112 restarts for team2 (max 1)
-    const [restartsFinished, setRestartsFinished] = useState(false);
+    // Unique key for localStorage based on match ID (use pair id or fallback to team names)
+    const storageKey = `reportGameModal-progress-${pair?.id || `${pair.team1}-${pair.team2}`}`;
+    // Try to load saved progress from localStorage
+    const getInitialState = () => {
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) return JSON.parse(saved);
+        } catch (e) {
+            // Ignore localStorage errors
+        }
+        return {};
+    };
+
+    const initial = getInitialState();
+    // Track the latest processed stage (e.g., 'castles', 'ratings', 'finished')
+    const [latestProcessedStage, setLatestProcessedStage] = useState(initial.latestProcessedStage || '');
+
+    const [selectedWinner, setSelectedWinner] = useState(initial.selectedWinner ?? pair.winner ?? '');
+    const [castle1, setCastle1] = useState(initial.castle1 ?? '');
+    const [castle2, setCastle2] = useState(initial.castle2 ?? '');
+    const [bannedCastlesBO1_1, setBannedCastlesBO1_1] = useState(initial.bannedCastlesBO1_1 ?? []);
+    const [bannedCastlesBO1_2, setBannedCastlesBO1_2] = useState(initial.bannedCastlesBO1_2 ?? []);
+    const [score1, setScore1] = useState(initial.score1 ?? pair.score1 ?? 0);
+    const [score2, setScore2] = useState(initial.score2 ?? pair.score2 ?? 0);
+    const [gameResults, setGameResults] = useState(initial.gameResults ?? []);
+    const [color1, setColor1] = useState(initial.color1 ?? 'red');
+    const [color2, setColor2] = useState(initial.color2 ?? 'blue');
+    const [gold1, setGold1] = useState(initial.gold1 ?? 0);
+    const [gold2, setGold2] = useState(initial.gold2 ?? 0);
+    const [restart1_111, setRestart1_111] = useState(initial.restart1_111 ?? 0);
+    const [restart1_112, setRestart1_112] = useState(initial.restart1_112 ?? 0);
+    const [restart2_111, setRestart2_111] = useState(initial.restart2_111 ?? 0);
+    const [restart2_112, setRestart2_112] = useState(initial.restart2_112 ?? 0);
+    const [restartsFinished, setRestartsFinished] = useState(initial.restartsFinished ?? false);
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
-    const [castleMarkOverrides, setCastleMarkOverrides] = useState({}); // Manual marks + 11/12 state (shared for BO-1 and series matches)
+    const [castleMarkOverrides, setCastleMarkOverrides] = useState(initial.castleMarkOverrides ?? {});
+
+    // Save progress to localStorage on every relevant change
+    useEffect(() => {
+        const progress = {
+            selectedWinner,
+            castle1,
+            castle2,
+            bannedCastlesBO1_1,
+            bannedCastlesBO1_2,
+            score1,
+            score2,
+            gameResults,
+            color1,
+            color2,
+            gold1,
+            gold2,
+            restart1_111,
+            restart1_112,
+            restart2_111,
+            restart2_112,
+            restartsFinished,
+            castleMarkOverrides,
+            latestProcessedStage
+        };
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(progress));
+        } catch (e) {
+            // Ignore localStorage errors
+        }
+    }, [
+        selectedWinner,
+        castle1,
+        castle2,
+        bannedCastlesBO1_1,
+        bannedCastlesBO1_2,
+        score1,
+        score2,
+        gameResults,
+        color1,
+        color2,
+        gold1,
+        gold2,
+        restart1_111,
+        restart1_112,
+        restart2_111,
+        restart2_112,
+        restartsFinished,
+        castleMarkOverrides,
+        latestProcessedStage
+    ]);
+
+    // Example API call wrappers that update latestProcessedStage after success
+    // Replace these with your actual API calls
+    const submitCastles = async (...args) => {
+        // await your real API call here
+        // const result = await api.submitCastles(...args);
+        const result = { success: true }; // mock
+        if (result.success) setLatestProcessedStage('castles');
+        return result;
+    };
+
+    const submitRatings = async (...args) => {
+        // await your real API call here
+        // const result = await api.submitRatings(...args);
+        const result = { success: true }; // mock
+        if (result.success) setLatestProcessedStage('ratings');
+        return result;
+    };
+
+    // Use these wrappers in your submit/report logic:
+    // await submitCastles(...);
+    // await submitRatings(...);
+
+    // Clear progress on submit or cancel
+    const clearProgress = () => {
+        try {
+            localStorage.removeItem(storageKey);
+        } catch (e) {
+            // Ignore localStorage errors
+        }
+    };
 
     const getBestOfValue = (type) => {
         const normalized = String(type || '')
@@ -101,7 +199,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         // API castles already have the correct 'total' count
         const castlesWithLiveGames = apiCastles.map((castle) => {
             let liveGames = 0;
-
             // Count live games across all stages
             if (pairsData && Array.isArray(pairsData)) {
                 pairsData.forEach((stage) => {
@@ -114,7 +211,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                     // 2. Both castles are selected but no winner declared
                                     const isInProgress = game.gameStatus === 'In Progress';
                                     const hasCastlesNoWinner = game.castle1 && game.castle2 && !game.castleWinner;
-
                                     if (
                                         (game.castle1 === castle.name || game.castle2 === castle.name) &&
                                         (isInProgress || hasCastlesNoWinner)
@@ -127,14 +223,17 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     }
                 });
             }
-
-            return {
-                ...castle,
-                liveGames: liveGames
-            };
+            return { ...castle, liveGames };
         });
-
         return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
+    };
+    // On modal close/interruption, set status to PartiallyProcessed if not already Processed
+    const handleClose = () => {
+        clearProgress();
+        if (typeof pair.setGameStatus === 'function' && pair.gameStatus !== 'Processed') {
+            pair.setGameStatus('PartiallyProcessed');
+        }
+        onClose();
     };
 
     // Get border color for a castle based on availability
@@ -555,13 +654,32 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                   ]
         };
 
+        // Example: after backend processes ratings, update latestProcessedStage
+        setLatestProcessedStage('ratings');
+        // If you have more granular backend steps, update accordingly, e.g.:
+        // setLatestProcessedStage('castles');
+        // setLatestProcessedStage('ratings');
+        // setLatestProcessedStage('finished');
+        clearProgress();
         onSubmit(reportData);
     };
 
     return (
-        <div className={classes.backdrop} onClick={onClose}>
+        <div
+            className={classes.backdrop}
+            onClick={() => {
+                clearProgress();
+                onClose();
+            }}
+        >
             <div className={classes.modal} onClick={(e) => e.stopPropagation()}>
-                <button className={classes.closeButton} onClick={onClose}>
+                <button
+                    className={classes.closeButton}
+                    onClick={() => {
+                        clearProgress();
+                        onClose();
+                    }}
+                >
                     ×
                 </button>
 

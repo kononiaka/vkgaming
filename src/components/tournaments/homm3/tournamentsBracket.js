@@ -87,11 +87,35 @@ export const TournamentBracket = ({
     tournamentWinners
     // tournamentNameParam
 }) => {
-    // console.log('tournamentNameParam', tournamentNameParam);
-    // console.log('maxPlayers', maxPlayers);
-    // maxPlayers.length = 8;
-    // maxPlayers.length = Object.keys(maxPlayers).length;
-    // console.log('tournamentWinner', tournamentWinner);
+    // Helper to persist latest processed stage in localStorage
+    const setLatestProcessedStage = (stage) => {
+        // Old logic preserved
+        const pair = playoffPairs[selectedStageIndex]?.[selectedPairIndex];
+        const storageKey = `reportGameModal-progress-${pair?.id || `${pair?.team1}-${pair?.team2}`}`;
+        let progress = {};
+        try {
+            progress = JSON.parse(localStorage.getItem(storageKey)) || {};
+        } catch {
+            // Ignore JSON parse errors, treat as empty progress
+        }
+        progress.latestProcessedStage = stage;
+        localStorage.setItem(storageKey, JSON.stringify(progress));
+    };
+
+    // New: Detailed progress tracking for each reporting stage
+    const setDetailedProgressStage = (stage, extra = {}) => {
+        const pair = playoffPairs[selectedStageIndex]?.[selectedPairIndex];
+        const storageKey = `reportGameModal-progress-${pair?.id || `${pair?.team1}-${pair?.team2}`}`;
+        let progress = {};
+        try {
+            progress = JSON.parse(localStorage.getItem(storageKey)) || {};
+        } catch {
+            // Ignore JSON parse errors, treat as empty progress
+        }
+        progress.detailedStage = stage;
+        Object.assign(progress, extra);
+        localStorage.setItem(storageKey, JSON.stringify(progress));
+    };
 
     const authCtx = useContext(AuthContext);
     const [stageLabels, setStageLabels] = useState([]);
@@ -2007,10 +2031,13 @@ export const TournamentBracket = ({
     };
 
     const handleSubmitGameReport = async (reportData) => {
+        // Begin detailed progress tracking
+        setDetailedProgressStage('Started');
         try {
             // Update the specific pair in playoffPairs
             const updatedPairs = [...playoffPairs];
             const pair = updatedPairs[selectedStageIndex][selectedPairIndex];
+            setDetailedProgressStage('Pair selected');
 
             if (pair.gameStatus === 'Processed' && !authCtx.isAdmin) {
                 alert('This game is already processed. Only admin can re-report it.');
@@ -2028,22 +2055,40 @@ export const TournamentBracket = ({
             pair.games = reportData.games;
             // Set game status based on whether winner is selected
             pair.gameStatus = reportData.winner ? 'Finished' : 'In Progress';
+            setDetailedProgressStage('Scores and winner set');
 
             // Update local state
+
             setPlayoffPairs(updatedPairs);
+            setDetailedProgressStage('Pair state updated');
+
+            // Persist progress to localStorage after updating the pair
+            setLatestProcessedStage(pair.gameStatus);
 
             // Update castle statistics for each game (runs regardless of overall winner)
+            let castleIdx = 1;
             for (const game of reportData.games) {
                 // Skip games that have already been processed
                 if (game.gameStatus === 'Processed') {
+                    setDetailedProgressStage(`Game ${castleIdx} already processed`);
                     console.log(`Game ${game.gameId + 1} already processed, skipping castle stats update`);
+                    castleIdx++;
                     continue;
                 }
 
                 if (game.castle1 && game.castle2) {
+                    console.log('game', game);
                     // If winner is selected, update win/lose stats
                     if (game.gameWinner) {
+                        // Track if each castle update is skipped
+                        let castle1Skipped = false;
+                        let castle2Skipped = false;
+
                         // Update castle1 stats
+                        setDetailedProgressStage(`First castle processed`, {
+                            castle: game.castle1,
+                            gameId: game.gameId
+                        });
                         const castle1Response = await fetch(
                             `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
                         );
@@ -2070,11 +2115,16 @@ export const TournamentBracket = ({
                                 );
                                 console.log(`${game.castle1} castle stats updated`);
                             } else {
+                                castle1Skipped = true;
                                 console.log(`${game.castle1} castle stats update skipped`);
                             }
                         }
 
                         // Update castle2 stats
+                        setDetailedProgressStage(`Second castle processed`, {
+                            castle: game.castle2,
+                            gameId: game.gameId
+                        });
                         const castle2Response = await fetch(
                             `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
                         );
@@ -2103,10 +2153,23 @@ export const TournamentBracket = ({
 
                                 // Mark game as processed after both castle stats are updated
                                 game.gameStatus = 'Processed';
+                                setDetailedProgressStage(`Game ${castleIdx} marked as Processed`, {
+                                    gameId: game.gameId
+                                });
                                 console.log(`Game ${game.gameId + 1} marked as Processed`);
                             } else {
+                                castle2Skipped = true;
                                 console.log(`${game.castle2} castle stats update skipped`);
                             }
+                        }
+
+                        // If both castle updates were skipped, still mark as processed
+                        if (castle1Skipped && castle2Skipped) {
+                            game.gameStatus = 'Processed';
+                            setDetailedProgressStage(`Game ${castleIdx} marked as Processed (skipped)`, {
+                                gameId: game.gameId
+                            });
+                            console.log(`Game ${game.gameId + 1} marked as Processed (skipped)`);
                         }
                     }
                 }
@@ -2117,6 +2180,8 @@ export const TournamentBracket = ({
                 // Update player ratings FIRST
                 const winnerId = await lookForUserId(reportData.winner);
                 const ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
+                setDetailedProgressStage('First player stats updated', { player: pair.team1 });
+                setDetailedProgressStage('Second player stats updated', { player: pair.team2 });
 
                 // Use the newly calculated ratings directly
                 let team1NewRating = null;
@@ -2147,6 +2212,7 @@ export const TournamentBracket = ({
                 // Update state to reflect the new ratings for tooltip display
                 setPlayoffPairs(updatedPairs);
 
+                setDetailedProgressStage('Game posted to database');
                 // Post game to database
                 const gameData = {
                     opponent1: pair.team1,
@@ -2214,10 +2280,12 @@ export const TournamentBracket = ({
 
                 // Mark pair and all games as 'Processed' (regardless of what was skipped)
                 pair.gameStatus = 'Processed';
+                setDetailedProgressStage('Ratings updated');
                 reportData.games.forEach((game) => {
                     game.gameStatus = 'Processed';
                 });
 
+                setDetailedProgressStage('Prizes awarded');
                 // Promote winner and loser to next stage
                 const currentStage = stageLabels[selectedStageIndex];
                 const winner = reportData.winner;
@@ -2337,6 +2405,8 @@ export const TournamentBracket = ({
                             if (confirmPromoteToSemi) {
                                 if (semiPair[teamSlot] === 'TBD' || !semiPair[teamSlot]) {
                                     semiPair[teamSlot] = winner;
+                                    // Persist progress to localStorage for each finished pair
+                                    setLatestProcessedStage('Finished');
                                     semiPair[ratingsSlot] =
                                         winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
                                     semiPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
@@ -2360,6 +2430,7 @@ export const TournamentBracket = ({
                         const quarterPair = updatedPairs[quarterStageIndex][quarterPairIndex];
                         if (quarterPair) {
                             const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            setLatestProcessedStage('Finished');
                             const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
                             const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
 
@@ -2367,6 +2438,7 @@ export const TournamentBracket = ({
                                 `Promote winner to Quarter-final?\n\n${winner} → Quarter-final ${quarterPairIndex + 1} ${teamSlot}\n\nPromote?`
                             );
 
+                            setLatestProcessedStage('In Progress');
                             if (confirmPromoteToQuarter) {
                                 if (quarterPair[teamSlot] === 'TBD' || !quarterPair[teamSlot]) {
                                     quarterPair[teamSlot] = winner;
@@ -2741,6 +2813,7 @@ export const TournamentBracket = ({
 
                 // Update the local state with promoted players
                 setPlayoffPairs(updatedPairs);
+                setDetailedProgressStage('Finished');
             }
 
             // Post to Firebase
@@ -2771,6 +2844,7 @@ export const TournamentBracket = ({
                 setShowReportGameModal(false);
             }
         } catch (error) {
+            setDetailedProgressStage('Error', { error: error.message });
             console.error('Error reporting game result:', error);
             alert('Error reporting game result');
         }
