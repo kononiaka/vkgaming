@@ -32,10 +32,21 @@ export const confirmWindow = (message) => {
     return response;
 };
 
+const MIN_PLAYER_RATING = 0.5;
+
+const enforceMinPlayerRating = (ratingValue) => {
+    const numericRating = Number(ratingValue);
+    if (!Number.isFinite(numericRating)) {
+        return MIN_PLAYER_RATING;
+    }
+    return Math.max(MIN_PLAYER_RATING, numericRating);
+};
+
 export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamentId, team) => {
     const { score, games, ratings, stars } = data;
+    const safeScoreToAdd = enforceMinPlayerRating(scoreToAdd);
 
-    let updatedRatings = ratings + `, ${scoreToAdd}`;
+    let updatedRatings = ratings + `, ${safeScoreToAdd.toFixed(2)}`;
 
     console.log('updatedRatings', updatedRatings);
 
@@ -48,7 +59,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
 
         console.log('tournamentData', tournamentData);
 
-        const result = findByName(tournamentData, team, scoreToAdd);
+        const result = findByName(tournamentData, team, safeScoreToAdd);
 
         if (tournamentData.hasOwnProperty(result.id)) {
             let existingStars = tournamentData[result.id].stars;
@@ -85,11 +96,11 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                         })
                 );
 
-                let newStars = calculateStarsFromRating(scoreToAdd, highestRating, lowestRating);
+                let newStars = calculateStarsFromRating(safeScoreToAdd, highestRating, lowestRating);
                 // console.log('tournamentData before', tournamentData);
 
                 tournamentData[result.id].stars += `, ${newStars}`;
-                tournamentData[result.id].ratings += `, ${scoreToAdd.toFixed(2)}`;
+                tournamentData[result.id].ratings += `, ${safeScoreToAdd.toFixed(2)}`;
                 // console.log('tournamentData after', tournamentData);
                 // let updatedStars = typeof stars === 'number' ? [stars, newStars] : [newStars];
 
@@ -121,7 +132,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                         }
                     );
                     if (userResponse.ok) {
-                        console.log(`✓ ${team} rating updated successfully to ${scoreToAdd.toFixed(2)}`);
+                        console.log(`✓ ${team} rating updated successfully to ${safeScoreToAdd.toFixed(2)}`);
                     } else {
                         console.error(`✗ Failed to update ${team} rating. Status: ${userResponse.status}`);
                     }
@@ -351,7 +362,7 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 1) 
     // Symmetric cap to prevent extreme swings (e.g. on first game with rating 0).
     ratingChange = Math.max(-2.5, Math.min(ratingChange, 2.5));
 
-    return playerRating + ratingChange;
+    return enforceMinPlayerRating(playerRating + ratingChange);
 };
 
 export const calculateStarsFromRating = (rating, highestRating, lowestRating, minStars = 0.5) => {

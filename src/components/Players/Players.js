@@ -143,7 +143,7 @@ const PlayerDetails = () => {
         }
 
         // Create a listener that updates stats whenever games data changes
-        const unsubscribe = fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json')
+        fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json')
             .then((response) => response.json())
             .then((allGames) => {
                 updateGoldAndRestartStats(allGames, player.enteredNickname);
@@ -1075,7 +1075,7 @@ const PlayerDetails = () => {
                                         // Sort by total games (most played first)
                                         mergedData.sort((a, b) => b.total - a.total);
 
-                                        return mergedData.map(({ name, image, stats, total, winRate }) => (
+                                        return mergedData.map(({ name, image, total, winRate }) => (
                                             <div key={name} className={classes.castleStatsCard}>
                                                 <div className={classes.castleImageWrapper}>
                                                     {image && (
