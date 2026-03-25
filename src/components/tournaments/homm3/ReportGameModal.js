@@ -36,6 +36,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const [restart1_112, setRestart1_112] = useState(0); // 112 restarts for team1 (max 1)
     const [restart2_111, setRestart2_111] = useState(0); // 111 restarts for team2 (max 2)
     const [restart2_112, setRestart2_112] = useState(0); // 112 restarts for team2 (max 1)
+    const [restartsFinished, setRestartsFinished] = useState(false);
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
@@ -212,6 +213,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         setSelectedWinner(pair.winner || '');
         setScore1(pair.score1 || 0);
         setScore2(pair.score2 || 0);
+        setRestartsFinished(false);
 
         // Initialize colors from pair data if available
         if (pair.color1) {
@@ -222,6 +224,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         }
 
         if (pair.type === 'bo-3') {
+            const hasRestartFinishedFlag = (pair.games || []).some((game) => game?.restartsFinished);
+            setRestartsFinished(Boolean(hasRestartFinishedFlag));
             setGameResults(
                 pair.games.map((game, idx) => ({
                     gameId: idx,
@@ -244,6 +248,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         } else {
             // Initialize bo-1 with existing castle data if available
             if (pair.games && pair.games[0]) {
+                setRestartsFinished(Boolean(pair.games[0].restartsFinished));
                 setCastle1(pair.games[0].castle1 || '');
                 setCastle2(pair.games[0].castle2 || '');
                 if (pair.games[0].color1) {
@@ -416,8 +421,30 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        const hasUsedRestarts =
+            pair.type === 'bo-3'
+                ? gameResults.some(
+                      (game) =>
+                          (Number(game.restart1_111) || 0) > 0 ||
+                          (Number(game.restart1_112) || 0) > 0 ||
+                          (Number(game.restart2_111) || 0) > 0 ||
+                          (Number(game.restart2_112) || 0) > 0
+                  )
+                : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
+
+        if (hasUsedRestarts && !restartsFinished) {
+            alert('Please confirm that restarts are finished and the main game has started.');
+            return;
+        }
+
         // Validate based on what's being reported
         if (pair.type === 'bo-3') {
+            const hasAnyCompleteGame = gameResults.some((game) => game.castle1 && game.castle2);
+            if (!hasAnyCompleteGame) {
+                alert('BO-3: At least one game must have both castles selected before submitting.');
+                return;
+            }
+
             // For bo-3, validate each game that has any data filled in
             for (let i = 0; i < gameResults.length; i++) {
                 const game = gameResults[i];
@@ -477,7 +504,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                           restart1_111: g.restart1_111 || 0,
                           restart1_112: g.restart1_112 || 0,
                           restart2_111: g.restart2_111 || 0,
-                          restart2_112: g.restart2_112 || 0
+                          restart2_112: g.restart2_112 || 0,
+                          restartsFinished: restartsFinished
                       }))
                     : [
                           {
@@ -494,7 +522,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                               restart1_111: restart1_111,
                               restart1_112: restart1_112,
                               restart2_111: restart2_111,
-                              restart2_112: restart2_112
+                              restart2_112: restart2_112,
+                              restartsFinished: restartsFinished
                           }
                       ]
         };
@@ -2983,6 +3012,17 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                             </div> */}
                         </div>
                     )}
+
+                    <div className={classes.restartConfirmationRow}>
+                        <label className={classes.restartConfirmationLabel}>
+                            <input
+                                type="checkbox"
+                                checked={restartsFinished}
+                                onChange={(e) => setRestartsFinished(e.target.checked)}
+                            />
+                            Restarts finished / main game started
+                        </label>
+                    </div>
 
                     <div className={classes.buttonGroup} style={{ position: 'relative', zIndex: 2 }}>
                         <button type="submit" className={classes.submitButton}>

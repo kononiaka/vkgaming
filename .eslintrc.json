@@ -7,9 +7,11 @@
         }
     },
     "env": {
+        "browser": true,
         "es6": true,
         "amd": true,
-        "jest": true
+        "jest": true,
+        "node": true
     },
     // "requireConfigFile": false,
     "rules": {
@@ -116,6 +118,7 @@
         "no-trailing-spaces": "off",
         "no-var": 1,
         "react/react-in-jsx-scope": "off",
+        "react/jsx-uses-vars": "error",
         "prettier/prettier": ["warn", { "tabWidth": 4, "endOfLine": "auto" }],
         "indent": "off",
         "no-multiple-empty-lines": ["error", { "max": 5, "maxEOF": 1 }]

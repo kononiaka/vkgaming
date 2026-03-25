@@ -1,5 +1,3 @@
-/* global process */
-
 import { useContext, useEffect, useState } from 'react';
 import classes from './Videos.module.css';
 import AuthContext from '../../store/auth-context';
@@ -315,15 +313,17 @@ const Videos = () => {
                                 </div>
                             </div>
                         </a>
-                        <div className={classes.cardActions}>
-                            <button
-                                type="button"
-                                className={classes.hideButton}
-                                onClick={() => hideVideo(video.videoId)}
-                            >
-                                Hide
-                            </button>
-                        </div>
+                        {authCtx.isAdmin && (
+                            <div className={classes.cardActions}>
+                                <button
+                                    type="button"
+                                    className={classes.hideButton}
+                                    onClick={() => hideVideo(video.videoId)}
+                                >
+                                    Hide
+                                </button>
+                            </div>
+                        )}
                     </article>
                 ))}
             </div>
