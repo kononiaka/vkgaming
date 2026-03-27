@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import classes from './ReportGameModal.module.css';
-import { getAvatar, lookForUserId, fetchCastlesList } from '../../../api/api';
-
+import { getAvatar, lookForUserId, fetchCastlesList, getGameProgress, setGameProgress } from '../../../api/api';
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -20,126 +19,95 @@ import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
 const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
-    // Unique key for localStorage based on match ID (use pair id or fallback to team names)
-    const storageKey = `reportGameModal-progress-${pair?.id || `${pair.team1}-${pair.team2}`}`;
-    // Try to load saved progress from localStorage
-    const getInitialState = () => {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) return JSON.parse(saved);
-        } catch (e) {
-            // Ignore localStorage errors
+    // Use backend progress instead of localStorage
+    const gameId = pair?.id;
+    const [initial, setInitial] = useState({});
+    const [progressLoaded, setProgressLoaded] = useState(false);
+
+    // On mount, fetch progress from backend
+    useEffect(() => {
+        let mounted = true;
+        async function fetchProgress() {
+            if (!gameId) {
+                return;
+            }
+            const progress = await getGameProgress(gameId);
+            if (mounted) {
+                setInitial(progress || {});
+                setProgressLoaded(true);
+            }
         }
-        return {};
-    };
+        fetchProgress();
+        return () => {
+            mounted = false;
+        };
+    }, [gameId]);
 
-    const initial = getInitialState();
-    // Track the latest processed stage (e.g., 'castles', 'ratings', 'finished')
-    const [latestProcessedStage, setLatestProcessedStage] = useState(initial.latestProcessedStage || '');
-
-    const [selectedWinner, setSelectedWinner] = useState(initial.selectedWinner ?? pair.winner ?? '');
-    const [castle1, setCastle1] = useState(initial.castle1 ?? '');
-    const [castle2, setCastle2] = useState(initial.castle2 ?? '');
-    const [bannedCastlesBO1_1, setBannedCastlesBO1_1] = useState(initial.bannedCastlesBO1_1 ?? []);
-    const [bannedCastlesBO1_2, setBannedCastlesBO1_2] = useState(initial.bannedCastlesBO1_2 ?? []);
-    const [score1, setScore1] = useState(initial.score1 ?? pair.score1 ?? 0);
-    const [score2, setScore2] = useState(initial.score2 ?? pair.score2 ?? 0);
-    const [gameResults, setGameResults] = useState(initial.gameResults ?? []);
-    const [color1, setColor1] = useState(initial.color1 ?? 'red');
-    const [color2, setColor2] = useState(initial.color2 ?? 'blue');
-    const [gold1, setGold1] = useState(initial.gold1 ?? 0);
-    const [gold2, setGold2] = useState(initial.gold2 ?? 0);
-    const [restart1_111, setRestart1_111] = useState(initial.restart1_111 ?? 0);
-    const [restart1_112, setRestart1_112] = useState(initial.restart1_112 ?? 0);
-    const [restart2_111, setRestart2_111] = useState(initial.restart2_111 ?? 0);
-    const [restart2_112, setRestart2_112] = useState(initial.restart2_112 ?? 0);
-    const [restartsFinished, setRestartsFinished] = useState(initial.restartsFinished ?? false);
+    // All state is initialized only after progress is loaded
+    const [latestProcessedStage, setLatestProcessedStage] = useState('');
+    const [selectedWinner, setSelectedWinner] = useState('');
+    const [castle1, setCastle1] = useState('');
+    const [castle2, setCastle2] = useState('');
+    const [bannedCastlesBO1_1, setBannedCastlesBO1_1] = useState([]);
+    const [bannedCastlesBO1_2, setBannedCastlesBO1_2] = useState([]);
+    const [score1, setScore1] = useState(0);
+    const [score2, setScore2] = useState(0);
+    const [gameResults, setGameResults] = useState([]);
+    const [color1, setColor1] = useState('red');
+    const [color2, setColor2] = useState('blue');
+    const [gold1, setGold1] = useState(0);
+    const [gold2, setGold2] = useState(0);
+    const [restart1_111, setRestart1_111] = useState(0);
+    const [restart1_112, setRestart1_112] = useState(0);
+    const [restart2_111, setRestart2_111] = useState(0);
+    const [restart2_112, setRestart2_112] = useState(0);
+    const [restartsFinished, setRestartsFinished] = useState(false);
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
-    const [castleMarkOverrides, setCastleMarkOverrides] = useState(initial.castleMarkOverrides ?? {});
+    const [castleMarkOverrides, setCastleMarkOverrides] = useState({});
 
-    // Save progress to localStorage on every relevant change
+    // When progress is loaded, initialize state
     useEffect(() => {
-        const progress = {
-            selectedWinner,
-            castle1,
-            castle2,
-            bannedCastlesBO1_1,
-            bannedCastlesBO1_2,
-            score1,
-            score2,
-            gameResults,
-            color1,
-            color2,
-            gold1,
-            gold2,
-            restart1_111,
-            restart1_112,
-            restart2_111,
-            restart2_112,
-            restartsFinished,
-            castleMarkOverrides,
-            latestProcessedStage
-        };
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(progress));
-        } catch (e) {
-            // Ignore localStorage errors
+        if (!progressLoaded) {
+            return;
         }
-    }, [
-        selectedWinner,
-        castle1,
-        castle2,
-        bannedCastlesBO1_1,
-        bannedCastlesBO1_2,
-        score1,
-        score2,
-        gameResults,
-        color1,
-        color2,
-        gold1,
-        gold2,
-        restart1_111,
-        restart1_112,
-        restart2_111,
-        restart2_112,
-        restartsFinished,
-        castleMarkOverrides,
-        latestProcessedStage
-    ]);
+        setLatestProcessedStage(initial.latestProcessedStage || '');
+        setSelectedWinner(initial.selectedWinner ?? pair.winner ?? '');
+        setCastle1(initial.castle1 ?? '');
+        setCastle2(initial.castle2 ?? '');
+        setBannedCastlesBO1_1(initial.bannedCastlesBO1_1 ?? []);
+        setBannedCastlesBO1_2(initial.bannedCastlesBO1_2 ?? []);
+        setScore1(initial.score1 ?? pair.score1 ?? 0);
+        setScore2(initial.score2 ?? pair.score2 ?? 0);
+        setGameResults(initial.gameResults ?? []);
+        setColor1(initial.color1 ?? 'red');
+        setColor2(initial.color2 ?? 'blue');
+        setGold1(initial.gold1 ?? 0);
+        setGold2(initial.gold2 ?? 0);
+        setRestart1_111(initial.restart1_111 ?? 0);
+        setRestart1_112(initial.restart1_112 ?? 0);
+        setRestart2_111(initial.restart2_111 ?? 0);
+        setRestart2_112(initial.restart2_112 ?? 0);
+        setRestartsFinished(initial.restartsFinished ?? false);
+        setCastleMarkOverrides(initial.castleMarkOverrides ?? {});
+    }, [progressLoaded]);
 
-    // Example API call wrappers that update latestProcessedStage after success
-    // Replace these with your actual API calls
-    const submitCastles = async (...args) => {
-        // await your real API call here
-        // const result = await api.submitCastles(...args);
-        const result = { success: true }; // mock
-        if (result.success) setLatestProcessedStage('castles');
-        return result;
-    };
+    // Track skipped stages for notification
+    const [skippedStages, setSkippedStages] = useState([]);
 
-    const submitRatings = async (...args) => {
-        // await your real API call here
-        // const result = await api.submitRatings(...args);
-        const result = { success: true }; // mock
-        if (result.success) setLatestProcessedStage('ratings');
-        return result;
-    };
+    // List of all reporting stages in order
+    const reportingStages = ['castles', 'ratings', 'finished', 'Pair state updated'];
 
-    // Use these wrappers in your submit/report logic:
-    // await submitCastles(...);
-    // await submitRatings(...);
-
-    // Clear progress on submit or cancel
-    const clearProgress = () => {
-        try {
-            localStorage.removeItem(storageKey);
-        } catch (e) {
-            // Ignore localStorage errors
+    // On mount, determine if any stages were skipped
+    useEffect(() => {
+        if (latestProcessedStage) {
+            const idx = reportingStages.indexOf(latestProcessedStage);
+            if (idx > 0) {
+                setSkippedStages(reportingStages.slice(0, idx));
+            }
         }
-    };
-
+    }, [latestProcessedStage]);
     const getBestOfValue = (type) => {
         const normalized = String(type || '')
             .toLowerCase()
@@ -226,14 +194,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             return { ...castle, liveGames };
         });
         return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
-    };
-    // On modal close/interruption, set status to PartiallyProcessed if not already Processed
-    const handleClose = () => {
-        clearProgress();
-        if (typeof pair.setGameStatus === 'function' && pair.gameStatus !== 'Processed') {
-            pair.setGameStatus('PartiallyProcessed');
-        }
-        onClose();
     };
 
     // Get border color for a castle based on availability
@@ -654,13 +614,15 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                   ]
         };
 
-        // Example: after backend processes ratings, update latestProcessedStage
+        // Persist final progress to backend
+        setGameProgress(gameId, {
+            ...reportData,
+            latestProcessedStage: 'ratings', // or the correct stage
+            bannedCastlesBO1_1,
+            bannedCastlesBO1_2,
+            castleMarkOverrides
+        });
         setLatestProcessedStage('ratings');
-        // If you have more granular backend steps, update accordingly, e.g.:
-        // setLatestProcessedStage('castles');
-        // setLatestProcessedStage('ratings');
-        // setLatestProcessedStage('finished');
-        clearProgress();
         onSubmit(reportData);
     };
 
@@ -668,15 +630,31 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         <div
             className={classes.backdrop}
             onClick={() => {
-                clearProgress();
                 onClose();
             }}
         >
             <div className={classes.modal} onClick={(e) => e.stopPropagation()}>
+                {/* Notification for skipped stages */}
+                {skippedStages.length > 0 && (
+                    <div
+                        style={{
+                            background: '#fffbe6',
+                            color: '#ad6800',
+                            border: '1px solid #ffe58f',
+                            borderRadius: '6px',
+                            padding: '12px 16px',
+                            marginBottom: '18px',
+                            fontWeight: 'bold',
+                            fontSize: '15px',
+                            boxShadow: '0 2px 8px rgba(255, 215, 0, 0.08)'
+                        }}
+                    >
+                        The following stages were skipped and already completed: {skippedStages.join(', ')}
+                    </div>
+                )}
                 <button
                     className={classes.closeButton}
                     onClick={() => {
-                        clearProgress();
                         onClose();
                     }}
                 >
@@ -1916,7 +1894,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     {pair.team1.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div
-                                                    style={{ color: '#00ffff', fontSize: '12px', textAlign: 'center' }}
+                                                    style={{
+                                                        color: '#00ffff',
+                                                        fontSize: '12px',
+                                                        textAlign: 'center'
+                                                    }}
                                                 >
                                                     {pair.team1}
                                                 </div>
@@ -1962,7 +1944,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     {pair.team2.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div
-                                                    style={{ color: '#00ffff', fontSize: '12px', textAlign: 'center' }}
+                                                    style={{
+                                                        color: '#00ffff',
+                                                        fontSize: '12px',
+                                                        textAlign: 'center'
+                                                    }}
                                                 >
                                                     {pair.team2}
                                                 </div>
@@ -2513,7 +2499,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                         </div> */}
                                         <input
                                             type="number"
-                                            step="100"
                                             value={gold2}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -3187,5 +3172,4 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         </div>
     );
 };
-
 export default ReportGameModal;

@@ -1,3 +1,33 @@
+// Progress tracking for tournament games
+export async function getGameProgress(gameId) {
+    try {
+        const response = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${gameId}/progress.json`
+        );
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) {
+        console.error('Error fetching game progress:', e);
+        return null;
+    }
+}
+
+export async function setGameProgress(gameId, progress) {
+    try {
+        const response = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${gameId}/progress.json`,
+            {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(progress)
+            }
+        );
+        return response.ok;
+    } catch (e) {
+        console.error('Error setting game progress:', e);
+        return false;
+    }
+}
 export const fetchLeaderboard = async (player) => {
     try {
         const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`);
