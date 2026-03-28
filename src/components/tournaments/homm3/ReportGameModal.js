@@ -503,20 +503,20 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const hasUsedRestarts = isSeriesMatch
-            ? gameResults.some(
-                  (game) =>
-                      (Number(game.restart1_111) || 0) > 0 ||
-                      (Number(game.restart1_112) || 0) > 0 ||
-                      (Number(game.restart2_111) || 0) > 0 ||
-                      (Number(game.restart2_112) || 0) > 0
-              )
-            : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
+        // const hasUsedRestarts = isSeriesMatch
+        //     ? gameResults.some(
+        //           (game) =>
+        //               (Number(game.restart1_111) || 0) > 0 ||
+        //               (Number(game.restart1_112) || 0) > 0 ||
+        //               (Number(game.restart2_111) || 0) > 0 ||
+        //               (Number(game.restart2_112) || 0) > 0
+        //       )
+        //     : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
 
-        if (hasUsedRestarts && !restartsFinished) {
-            alert('Please confirm that restarts are finished and the main game has started.');
-            return;
-        }
+        // if (hasUsedRestarts && !restartsFinished) {
+        //     alert('Please confirm that restarts are finished and the main game has started.');
+        //     return;
+        // }
 
         // Validate based on what's being reported
         if (isSeriesMatch) {
@@ -616,11 +616,13 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
         // Persist final progress to backend
         setGameProgress(gameId, {
-            ...reportData,
-            latestProcessedStage: 'ratings', // or the correct stage
-            bannedCastlesBO1_1,
-            bannedCastlesBO1_2,
-            castleMarkOverrides
+            progress: {
+                ...reportData,
+                latestProcessedStage: 'ratings', // or the correct stage
+                bannedCastlesBO1_1,
+                bannedCastlesBO1_2,
+                castleMarkOverrides
+            }
         });
         setLatestProcessedStage('ratings');
         onSubmit(reportData);

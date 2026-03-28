@@ -1,4 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
+import { stripUiFields, moveProgressFieldsToNested } from './progress/gameProgressApi';
 import {
     addScoreToUser,
     getNewRating,
@@ -2028,8 +2029,9 @@ export const TournamentBracket = ({
     };
 
     const handleSubmitGameReport = async (reportData) => {
+        // No need to save progress fields to a separate DB path; they are nested in each game object now.
         // --- Resume/skip logic based on latestProcessedStage (now per game) ---
-        const currentPair = playoffPairs[selectedStageIndex]?.[selectedPairIndex];
+        // const currentPair = playoffPairs[selectedStageIndex]?.[selectedPairIndex];
         // Begin detailed progress tracking
         await setDetailedProgressStage('Started');
         try {
@@ -2256,7 +2258,7 @@ export const TournamentBracket = ({
                     opponent1: pair.team1,
                     opponent2: pair.team2,
                     date: new Date().toISOString(),
-                    games: reportData.games,
+                    games: reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g))),
                     tournamentName: tournamentName,
                     gameType: pair.type,
                     opponent1Castle: reportData.games[0]?.castle1 || '',
