@@ -1,5 +1,6 @@
 import { useEffect, useState, useContext } from 'react';
 import { stripUiFields, moveProgressFieldsToNested } from './progress/gameProgressApi';
+import { updateGameStatusForPartialProgress } from './progress/gameStatusUtils';
 import {
     addScoreToUser,
     getNewRating,
@@ -117,18 +118,17 @@ export const TournamentBracket = ({
     };
     const authCtx = useContext(AuthContext);
     const [stageLabels, setStageLabels] = useState([]);
-    const [gamesPerStage, setGamesPerStage] = useState({});
-    const [shuffledNames, setShuffledNames] = useState([]);
+    // Removed unused state variables: gamesPerStage, shuffledNames, setShuffledNames
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
-    const [startButton, setStartButton] = useState(false);
+    // Removed unused state variable: startButton
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
-    const [isTournamentBracketOpen, setIsTournamentBracketOpen] = useState(true); // State for tournament bracket visibility
+    // Removed unused state variable: isTournamentBracketOpen
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
@@ -218,6 +218,7 @@ export const TournamentBracket = ({
     };
 
     let BO3_DEFAULT;
+    // Removed unused variable: BO3_DEFAULT
     // let tournamentName;
 
     // Determine the stage label based on the number of max players
@@ -257,16 +258,6 @@ export const TournamentBracket = ({
             setUpdateButtonVisible(false);
         }
 
-        setGamesPerStage({
-            '1/32 Final': 32,
-            '1/16 Final': 16,
-            '1/8 Final': 8,
-            'Quarter-final': 4,
-            'Semi-final': 2,
-            'Third Place': 1,
-            Final: 1
-        });
-
         const fetchPlayoffPairs = async () => {
             try {
                 const tournamentResponse = await fetch(
@@ -293,14 +284,33 @@ export const TournamentBracket = ({
                     if (data) {
                         // Parse the object
                         const valuesArray = Object.values(data);
-                        // console.log('valuesArray', valuesArray);
 
                         let playoffPairsDetermined = data?.playoffPairs;
                         if (!playoffPairsDetermined) {
                             playoffPairsDetermined = valuesArray[0].playoffPairs;
                         }
+                        // Restore progress fields for each game in each pair
+                        if (playoffPairsDetermined) {
+                            for (const round of playoffPairsDetermined) {
+                                for (const pair of round) {
+                                    if (pair.games && Array.isArray(pair.games)) {
+                                        pair.games = pair.games.map((g) => {
+                                            if (g && g.progress) {
+                                                // Import here to avoid circular dependency
+                                                const {
+                                                    restoreProgressFieldsFromNested
+                                                } = require('./progress/gameProgressApi');
+
+                                                const restored = restoreProgressFieldsFromNested(g);
+                                                return updateGameStatusForPartialProgress(restored);
+                                            }
+                                            return g;
+                                        });
+                                    }
+                                }
+                            }
+                        }
                         setPlayoffPairs(playoffPairsDetermined);
-                        // console.log('playoffPairsDetermined', playoffPairsDetermined);
                     }
                 } else {
                     console.log('Failed to fetch playoff pairs');
@@ -321,7 +331,7 @@ export const TournamentBracket = ({
         // Filter games where both players played and include game IDs
         const games = Object.entries(data.heroes3 || {})
             .filter(
-                ([id, game]) =>
+                ([, game]) =>
                     (game.opponent1 === team1 && game.opponent2 === team2) ||
                     (game.opponent1 === team2 && game.opponent2 === team1)
             )
@@ -864,6 +874,7 @@ export const TournamentBracket = ({
             document.body.appendChild(div);
 
             const result = new Promise((resolve) => {
+                // Removed unused variable: result
                 const buttonClicked = document.createElement('button');
                 buttonClicked.textContent = 'Got it!';
                 buttonClicked.addEventListener('click', () => {
@@ -2009,6 +2020,7 @@ export const TournamentBracket = ({
 
     // Helper function to fetch the current rating for a player from tournament players data
     const getUpdatedPlayerRating = async (playerName) => {
+        // Removed unused function: getUpdatedPlayerRating
         try {
             const response = await fetch(
                 `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
@@ -2053,7 +2065,8 @@ export const TournamentBracket = ({
             pair.score1 = reportData.score1;
             pair.score2 = reportData.score2;
             pair.winner = reportData.winner;
-            pair.games = reportData.games;
+            // Ensure all progress fields are nested under 'progress' in each game
+            pair.games = reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g)));
             // Set game status based on whether winner is selected
             pair.gameStatus = reportData.winner ? 'Finished' : 'In Progress';
             await setDetailedProgressStage('Scores and winner set');
@@ -2149,6 +2162,8 @@ export const TournamentBracket = ({
                                     }
                                 );
                                 console.log(`${game.castle1} castle stats updated`);
+                                // Set to PartiallyProcessed after any DB-changing step
+                                updateGameStatusForPartialProgress(game);
                             } else {
                                 castle1Skipped = true;
                                 console.log(`${game.castle1} castle stats update skipped`);
@@ -2185,14 +2200,8 @@ export const TournamentBracket = ({
                                     }
                                 );
                                 console.log(`${game.castle2} castle stats updated`);
-
-                                // Mark game as processed after both castle stats are updated
-                                game.gameStatus = 'Processed';
-                                setDetailedProgressStage(`Game ${castleIdx} marked as Processed`, {
-                                    gameId: game.gameId
-                                });
-                                setLatestProcessedStage(`Game ${castleIdx} castle stats updated`, game.gameId);
-                                console.log(`Game ${game.gameId + 1} marked as Processed`);
+                                // Set to PartiallyProcessed after any DB-changing step
+                                updateGameStatusForPartialProgress(game);
                             } else {
                                 castle2Skipped = true;
                                 console.log(`${game.castle2} castle stats update skipped`);
@@ -2891,7 +2900,6 @@ export const TournamentBracket = ({
             alert('Error reporting game result');
         }
     };
-
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
@@ -3784,7 +3792,7 @@ function handleCastleChange(stageIndex, pairIndex, teamIndex, castleName, setPla
     });
 }
 
-function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex, pairIndex, getWinner, checked, type) {
+function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex, pairIndex, getWinner) {
     setPlayoffPairs((prevPairs) => {
         const updatedPairs = [...prevPairs];
         const pair = updatedPairs[stageIndex][pairIndex];

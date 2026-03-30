@@ -3162,12 +3162,42 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     </div>
 
                     <div className={classes.buttonGroup} style={{ position: 'relative', zIndex: 2 }}>
-                        <button type="submit" className={classes.submitButton}>
-                            Submit Result
+                        <button
+                            type="submit"
+                            className={classes.submitButton}
+                            onClick={(e) => {
+                                if (pair.games && pair.games.some((g) => g.gameStatus === 'PartiallyProcessed')) {
+                                    e.preventDefault();
+                                    // Find the first partially processed game
+                                    const partialGame = pair.games.find((g) => g.gameStatus === 'PartiallyProcessed');
+                                    // Use its latestProcessedStage to determine skipped stages
+                                    const latestStage = partialGame?.progress?.latestProcessedStage || '';
+                                    const idx = reportingStages.indexOf(latestStage);
+                                    let skipped = [];
+                                    if (idx > 0) {
+                                        skipped = reportingStages.slice(0, idx);
+                                    }
+                                    setSkippedStages(skipped);
+                                } else {
+                                    // Normal submit
+                                    if (typeof onSubmit === 'function') {
+                                        onSubmit();
+                                    }
+                                }
+                            }}
+                        >
+                            {pair.games && pair.games.some((g) => g.gameStatus === 'PartiallyProcessed')
+                                ? 'Restore Game Progress'
+                                : 'Submit Result'}
                         </button>
                         <button type="button" onClick={onClose} className={classes.cancelButton}>
                             Cancel
                         </button>
+                        {skippedStages.length > 0 && (
+                            <div style={{ color: '#FFD700', marginTop: '1rem', fontWeight: 'bold' }}>
+                                Skipped stages: {skippedStages.join(', ')}
+                            </div>
+                        )}
                     </div>
                 </form>
             </div>
