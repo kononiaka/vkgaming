@@ -14,8 +14,6 @@ import {
     fetchCastlesList,
     calculateStarsFromRating,
     snapshotLeaderboardRanks
-    // getGameProgress,
-    // setGameProgress
 } from '../../../api/api';
 import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
@@ -84,13 +82,7 @@ const buildMatchKey = (gameData, tournamentId) => {
     return encodeURIComponent(rawKey);
 };
 
-export const TournamentBracket = ({
-    maxPlayers,
-    tournamentId,
-    tournamentStatus,
-    tournamentWinners
-    // tournamentNameParam
-}) => {
+export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinners }) => {
     // Helper to persist latest processed stage in backend
     // Store progress fields directly in the pair object
     // Set latestProcessedStage for a specific game in the current pair
@@ -118,17 +110,14 @@ export const TournamentBracket = ({
     };
     const authCtx = useContext(AuthContext);
     const [stageLabels, setStageLabels] = useState([]);
-    // Removed unused state variables: gamesPerStage, shuffledNames, setShuffledNames
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
-    // Removed unused state variable: startButton
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
-    // Removed unused state variable: isTournamentBracketOpen
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
@@ -217,30 +206,17 @@ export const TournamentBracket = ({
         };
     };
 
-    let BO3_DEFAULT;
-    // Removed unused variable: BO3_DEFAULT
-    // let tournamentName;
-
     // Determine the stage label based on the number of max players
-
     //TODO when there is a winner move him to the prior stage
     useEffect(() => {
         let labels = [];
-        // let gamesPerStageData = {};
-        // console.log('maximum' + tournamentId, maxPlayers);
         const fetchData = async () => {
             const tournamentResponseName = await lookForTournamentName(tournamentId);
-            // console.log('tournamentResponseName', JSON.stringify(tournamentResponseName));
 
             tournamentName = tournamentResponseName.name;
-            // console.log('tournamentName: ' + tournamentName);
         };
 
         fetchData();
-
-        // console.log('tournamentId', tournamentId);
-        // console.log('Object.keys(maxPlayers)' + tournamentName, Object.keys(maxPlayers));
-        // console.log('Object.keys(maxPlayers).length' + tournamentName, Object.keys(maxPlayers).length);
 
         if (+maxPlayers === 4) {
             labels = ['Semi-final', 'Third Place', 'Final'];
@@ -260,24 +236,9 @@ export const TournamentBracket = ({
 
         const fetchPlayoffPairs = async () => {
             try {
-                const tournamentResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`
-                );
-
-                if (tournamentResponse.ok) {
-                    const data = await tournamentResponse.json();
-                    const registeredPlayer = Object.values(data.players).length.toString();
-                    const tournamentPlayers = data.maxPlayers;
-
-                    if (registeredPlayer === tournamentPlayers && data.status === 'Registration finished!') {
-                        setStartButton(true);
-                    }
-                }
                 const bracketResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
-
-                // console.log('bracketResponse', bracketResponse);
 
                 if (bracketResponse.ok) {
                     const data = await bracketResponse.json();
@@ -551,18 +512,10 @@ export const TournamentBracket = ({
     };
 
     const updateTournament = async () => {
-        const tournamentData = {
-            playoffPairs: playoffPairs
-        };
-
         const tournamentResponse = await lookForTournamentName(tournamentId);
         tournamentName = tournamentResponse.name;
 
         allPairsHaveTeams = allPairsHaveTeamsFunc(playoffPairs);
-
-        // let updateDataResponseModal = confirmWindow(
-        //     `Are you sure you want to update winners with this JSON ${JSON.stringify(tournamentData)}?`
-        // );
 
         try {
             //TODO: check if the playoffPairs is equal to the DB object => do nothing
@@ -585,8 +538,6 @@ export const TournamentBracket = ({
             await processFinishedGames(playoffPairs);
 
             //TODO: Could this be ommit?
-            // console.log('playoffPairs', JSON.stringify(playoffPairs, null, 2));
-
             const retrievedWinners = await retrieveWinnersFromDatabase();
 
             //TODO: check if the quantity of winners are the same => doing nothing
@@ -595,7 +546,7 @@ export const TournamentBracket = ({
             };
 
             //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
-            const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
+            // const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
 
             //TODO: why do we need to PUT it the second time - to determine the next stage pairings?
             let winnerBracket = {};
@@ -825,83 +776,6 @@ export const TournamentBracket = ({
                 Array.isArray(stage) &&
                 stage.every((pair) => pair.team1 && pair.team1 !== 'TBD' && pair.team2 && pair.team2 !== 'TBD')
         );
-    }
-
-    function confirmWindowNew(message) {
-        return new Promise((resolve) => {
-            const confirmButton = document.createElement('button');
-            confirmButton.textContent = 'Yes';
-            confirmButton.addEventListener('click', () => {
-                resolve(true);
-            });
-
-            const cancelButton = document.createElement('button');
-            cancelButton.textContent = 'No';
-            cancelButton.addEventListener('click', () => {
-                resolve(false);
-            });
-
-            const div = document.createElement('div');
-            div.appendChild(confirmButton);
-            div.appendChild(cancelButton);
-            div.style.position = 'absolute';
-            div.style.top = '0';
-            div.style.left = '0';
-            div.style.width = '100%';
-            div.style.height = '100%';
-            div.style.backgroundColor = 'rgba(0,0,0,0,0.5)';
-            div.style.padding = '10px';
-            div.style.display = 'flex';
-            div.style.justifyContent = 'center';
-            div.style.alignItems = 'center';
-            div.style.gap = '10px';
-
-            const messageDiv = document.createElement('div');
-            messageDiv.textContent = message;
-            messageDiv.style.position = 'absolute';
-            messageDiv.style.top = '50%';
-            messageDiv.style.left = '50%';
-            messageDiv.style.width = '100%';
-            messageDiv.style.height = '50%';
-            messageDiv.style.backgroundColor = 'rgba(0,0,0,0,0.5)';
-            messageDiv.style.padding = '10px';
-            messageDiv.style.display = 'flex';
-            messageDiv.style.justifyContent = 'center';
-            messageDiv.style.alignItems = 'center';
-            messageDiv.style.gap = '10px';
-
-            document.body.appendChild(messageDiv);
-            document.body.appendChild(div);
-
-            const result = new Promise((resolve) => {
-                // Removed unused variable: result
-                const buttonClicked = document.createElement('button');
-                buttonClicked.textContent = 'Got it!';
-                buttonClicked.addEventListener('click', () => {
-                    resolve(true);
-                });
-
-                const cancelButtonNew = document.createElement('button');
-                cancelButtonNew.textContent = 'Cancel';
-                cancelButtonNew.addEventListener('click', () => {
-                    resolve(false);
-                });
-
-                div.appendChild(buttonClicked);
-                div.appendChild(cancelButtonNew);
-
-                div.style.display = 'flex';
-                div.style.justifyContent = 'center';
-                div.style.alignItems = 'center';
-                div.style.gap = '10px';
-
-                div.style.position = 'absolute';
-                div.style.top = '50%';
-                div.style.left = '50%';
-                div.style.width = '100%';
-                div.style.height = '50%';
-            });
-        });
     }
 
     const retrieveWinnersFromDatabase = async () => {
@@ -2018,28 +1892,6 @@ export const TournamentBracket = ({
         }
     };
 
-    // Helper function to fetch the current rating for a player from tournament players data
-    const getUpdatedPlayerRating = async (playerName) => {
-        // Removed unused function: getUpdatedPlayerRating
-        try {
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
-            );
-            if (response.ok) {
-                const playersData = await response.json();
-                const playerData = Object.values(playersData).find((p) => p && p.name === playerName);
-                if (playerData && playerData.ratings) {
-                    // Extract the latest rating from the comma-separated list
-                    const latestRating = playerData.ratings.split(',').pop().trim();
-                    return latestRating;
-                }
-            }
-        } catch (error) {
-            console.error(`Error fetching updated rating for ${playerName}:`, error);
-        }
-        return null;
-    };
-
     const handleSubmitGameReport = async (reportData) => {
         // No need to save progress fields to a separate DB path; they are nested in each game object now.
         // --- Resume/skip logic based on latestProcessedStage (now per game) ---
@@ -2832,7 +2684,7 @@ export const TournamentBracket = ({
 
                                 // Recalculate stars for all players based on new ratings
                                 const confirmRecalculateStars = confirmWindow(
-                                    `Recalculate stars for all players based on updated ratings?\n\nThis will update player stars according to their new ratings.\n\nRecalculate stars?`
+                                    `Recalculate stars for all players based on updated ratings?\n\nThis will update every player's star count.`
                                 );
 
                                 if (confirmRecalculateStars) {
@@ -3067,7 +2919,7 @@ export const TournamentBracket = ({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                                transition: 'transform 0.2s ease'
+                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                             }}
                             onMouseEnter={(e) => (e.target.style.transform = 'rotate(90deg)')}
                             onMouseLeave={(e) => (e.target.style.transform = 'rotate(0deg)')}
@@ -3235,10 +3087,8 @@ export const TournamentBracket = ({
                                 >
                                     <h3 style={{ color: 'red' }}>Final</h3>
                                     {finalPairs.map((pair, pairIndex) => {
-                                        const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
+                                        const { team1, team2 } = pair;
                                         const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
-
-                                        // ...BO3_DEFAULT logic if needed...
 
                                         return (
                                             <div
@@ -3246,18 +3096,6 @@ export const TournamentBracket = ({
                                                 className={classes['game-block']}
                                                 style={{ position: 'relative' }}
                                             >
-                                                {/* Stats button positioned bottom right */}
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        bottom: '0.5rem',
-                                                        right: '0.5rem',
-                                                        zIndex: 1
-                                                    }}
-                                                >
-                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
-                                                </div>
-
                                                 <div
                                                     style={{
                                                         display: 'grid',
@@ -3363,13 +3201,23 @@ export const TournamentBracket = ({
                                                             </button>
                                                         ) : null}
                                                     </div>
+                                                    <div
+                                                        style={{
+                                                            position: 'absolute',
+                                                            bottom: '0.5rem',
+                                                            right: '0.5rem',
+                                                            zIndex: 2
+                                                        }}
+                                                    >
+                                                        {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
                                     })}
                                     <h3 style={{ color: 'orange', marginTop: '20rem' }}>Third Place</h3>
                                     {thirdPlacePairs.map((pair, pairIndex) => {
-                                        const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
+                                        const { team1, team2 } = pair;
                                         const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                         return (
                                             <div key={`thirdplace-${pairIndex}`} className={classes['game-block']}>
@@ -3513,40 +3361,10 @@ export const TournamentBracket = ({
                             >
                                 <h3 style={{ color: 'red' }}>{stage}</h3>
                                 {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
-                                    // console.log('pair-map', pair);
-                                    const { team1, team2, score1, score2, winner, castle1, castle2, type } = pair;
+                                    const { team1, team2 } = pair;
 
                                     const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
 
-                                    if (type === 'bo-3' && pair.games) {
-                                        BO3_DEFAULT = [
-                                            {
-                                                gameId: 1,
-                                                castle1: pair.games[0].castle1 ? pair.games[0].castle1 : null,
-                                                castle2: pair.games[0].castle2 ? pair.games[0].castle2 : null,
-                                                gameWinner: pair.games[0].gameWinner ? pair.games[0].gameWinner : null,
-                                                castleWinner: pair.games[0].castleWinner
-                                                    ? pair.games[0].castleWinner
-                                                    : null
-                                            },
-                                            {
-                                                gameId: 2,
-                                                castle1: pair.games[1].castle1 ? pair.games[1].castle1 : null,
-                                                castle2: pair.games[1].castle2 ? pair.games[1].castle2 : null,
-                                                gameWinner: pair.games[1].gameWinner ? pair.games[1].gameWinner : null,
-                                                castleWinner: pair.games[1].castleWinner
-                                                    ? pair.games[1].castleWinner
-                                                    : null
-                                            }
-                                        ];
-                                    } else {
-                                        BO3_DEFAULT = {
-                                            gameId: 1,
-                                            castle1: castle1,
-                                            castle2: castle2,
-                                            gameWinner: null
-                                        };
-                                    }
                                     return (
                                         <div
                                             key={pairIndex}
