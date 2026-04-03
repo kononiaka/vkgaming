@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import classes from './ReportGameModal.module.css';
-import { getAvatar, lookForUserId, fetchCastlesList, getGameProgress, setGameProgress } from '../../../api/api';
+import { getAvatar, lookForUserId, fetchCastlesList, getPairProgress, savePairProgress } from '../../../api/api';
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -18,9 +18,8 @@ import redFlagImg from '../../../image/flags/red.jpg';
 import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
-const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
+const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs }) => {
     // Use backend progress instead of localStorage
-    const gameId = pair?.id;
     const [initial, setInitial] = useState({});
     const [progressLoaded, setProgressLoaded] = useState(false);
 
@@ -28,10 +27,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     useEffect(() => {
         let mounted = true;
         async function fetchProgress() {
-            if (!gameId) {
+            if (!pairId || !tournamentId) {
+                setProgressLoaded(true);
                 return;
             }
-            const progress = await getGameProgress(gameId);
+            const progress = await getPairProgress(tournamentId, pairId);
             if (mounted) {
                 setInitial(progress || {});
                 setProgressLoaded(true);
@@ -41,7 +41,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         return () => {
             mounted = false;
         };
-    }, [gameId]);
+    }, [pairId, tournamentId]);
 
     // All state is initialized only after progress is loaded
     const [latestProcessedStage, setLatestProcessedStage] = useState('');
@@ -67,47 +67,59 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
     const [availableCastles, setAvailableCastles] = useState([]);
     const [castleMarkOverrides, setCastleMarkOverrides] = useState({});
 
-    // When progress is loaded, initialize state
+    // When progress is loaded, restore only fields the pair useEffect doesn't already cover
     useEffect(() => {
         if (!progressLoaded) {
             return;
         }
-        setLatestProcessedStage(initial.latestProcessedStage || '');
-        setSelectedWinner(initial.selectedWinner ?? pair.winner ?? '');
-        setCastle1(initial.castle1 ?? '');
-        setCastle2(initial.castle2 ?? '');
-        setBannedCastlesBO1_1(initial.bannedCastlesBO1_1 ?? []);
-        setBannedCastlesBO1_2(initial.bannedCastlesBO1_2 ?? []);
-        setScore1(initial.score1 ?? pair.score1 ?? 0);
-        setScore2(initial.score2 ?? pair.score2 ?? 0);
-        setGameResults(initial.gameResults ?? []);
-        setColor1(initial.color1 ?? 'red');
-        setColor2(initial.color2 ?? 'blue');
-        setGold1(initial.gold1 ?? 0);
-        setGold2(initial.gold2 ?? 0);
-        setRestart1_111(initial.restart1_111 ?? 0);
-        setRestart1_112(initial.restart1_112 ?? 0);
-        setRestart2_111(initial.restart2_111 ?? 0);
-        setRestart2_112(initial.restart2_112 ?? 0);
-        setRestartsFinished(initial.restartsFinished ?? false);
-        setCastleMarkOverrides(initial.castleMarkOverrides ?? {});
+        // latestStage, bannedCastles and castleMarkOverrides are NOT in pair data — restore from progress
+        setLatestProcessedStage(initial.latestStage || '');
+        if (initial.bannedCastlesBO1_1) setBannedCastlesBO1_1(initial.bannedCastlesBO1_1);
+        if (initial.bannedCastlesBO1_2) setBannedCastlesBO1_2(initial.bannedCastlesBO1_2);
+        if (initial.castleMarkOverrides) setCastleMarkOverrides(initial.castleMarkOverrides);
+        // Restore form fields only if saved progress has them (don't overwrite pair useEffect values with empty)
+        if (initial.winner !== undefined) setSelectedWinner(initial.winner);
+        if (initial.score1 !== undefined) setScore1(initial.score1);
+        if (initial.score2 !== undefined) setScore2(initial.score2);
+        if (initial.color1) setColor1(initial.color1);
+        if (initial.color2) setColor2(initial.color2);
+        // For BO-1: castle and game fields are nested in initial.games[0]
+        const g0 = initial.games?.[0];
+        if (g0) {
+            if (g0.castle1) setCastle1(g0.castle1);
+            if (g0.castle2) setCastle2(g0.castle2);
+            if (g0.gold1 !== undefined) setGold1(g0.gold1);
+            if (g0.gold2 !== undefined) setGold2(g0.gold2);
+            if (g0.restart1_111 !== undefined) setRestart1_111(g0.restart1_111);
+            if (g0.restart1_112 !== undefined) setRestart1_112(g0.restart1_112);
+            if (g0.restart2_111 !== undefined) setRestart2_111(g0.restart2_111);
+            if (g0.restart2_112 !== undefined) setRestart2_112(g0.restart2_112);
+            if (g0.restartsFinished !== undefined) setRestartsFinished(g0.restartsFinished);
+        }
+        // For series: restore gameResults from initial.games if present
+        if (initial.games && initial.games.length > 1) {
+            setGameResults(
+                initial.games.map((g, idx) => ({
+                    gameId: idx,
+                    castle1: g.castle1 || '',
+                    castle2: g.castle2 || '',
+                    winner: g.gameWinner || '',
+                    gameStatus: g.gameStatus || 'Not Started',
+                    color1: g.color1 || 'red',
+                    color2: g.color2 || 'blue',
+                    gold1: g.gold1 || 0,
+                    gold2: g.gold2 || 0,
+                    restart1_111: g.restart1_111 || 0,
+                    restart1_112: g.restart1_112 || 0,
+                    restart2_111: g.restart2_111 || 0,
+                    restart2_112: g.restart2_112 || 0
+                }))
+            );
+        }
     }, [progressLoaded]);
 
-    // Track skipped stages for notification
-    const [skippedStages, setSkippedStages] = useState([]);
-
     // List of all reporting stages in order
-    const reportingStages = ['castles', 'ratings', 'finished', 'Pair state updated'];
-
-    // On mount, determine if any stages were skipped
-    useEffect(() => {
-        if (latestProcessedStage) {
-            const idx = reportingStages.indexOf(latestProcessedStage);
-            if (idx > 0) {
-                setSkippedStages(reportingStages.slice(0, idx));
-            }
-        }
-    }, [latestProcessedStage]);
+    const reportingStages = ['castle_stats', 'ratings', 'game_posted', 'prizes', 'finished'];
     const getBestOfValue = (type) => {
         const normalized = String(type || '')
             .toLowerCase()
@@ -615,16 +627,13 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         };
 
         // Persist final progress to backend
-        setGameProgress(gameId, {
-            progress: {
-                ...reportData,
-                latestProcessedStage: 'ratings', // or the correct stage
-                bannedCastlesBO1_1,
-                bannedCastlesBO1_2,
-                castleMarkOverrides
-            }
+        savePairProgress(tournamentId, pairId, {
+            ...reportData,
+            latestStage: 'submitted',
+            bannedCastlesBO1_1,
+            bannedCastlesBO1_2,
+            castleMarkOverrides
         });
-        setLatestProcessedStage('ratings');
         onSubmit(reportData);
     };
 
@@ -636,24 +645,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             }}
         >
             <div className={classes.modal} onClick={(e) => e.stopPropagation()}>
-                {/* Notification for skipped stages */}
-                {skippedStages.length > 0 && (
-                    <div
-                        style={{
-                            background: '#fffbe6',
-                            color: '#ad6800',
-                            border: '1px solid #ffe58f',
-                            borderRadius: '6px',
-                            padding: '12px 16px',
-                            marginBottom: '18px',
-                            fontWeight: 'bold',
-                            fontSize: '15px',
-                            boxShadow: '0 2px 8px rgba(255, 215, 0, 0.08)'
-                        }}
-                    >
-                        The following stages were skipped and already completed: {skippedStages.join(', ')}
-                    </div>
-                )}
                 <button
                     className={classes.closeButton}
                     onClick={() => {
@@ -3162,42 +3153,12 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     </div>
 
                     <div className={classes.buttonGroup} style={{ position: 'relative', zIndex: 2 }}>
-                        <button
-                            type="submit"
-                            className={classes.submitButton}
-                            onClick={(e) => {
-                                if (pair.games && pair.games.some((g) => g.gameStatus === 'PartiallyProcessed')) {
-                                    e.preventDefault();
-                                    // Find the first partially processed game
-                                    const partialGame = pair.games.find((g) => g.gameStatus === 'PartiallyProcessed');
-                                    // Use its latestProcessedStage to determine skipped stages
-                                    const latestStage = partialGame?.progress?.latestProcessedStage || '';
-                                    const idx = reportingStages.indexOf(latestStage);
-                                    let skipped = [];
-                                    if (idx > 0) {
-                                        skipped = reportingStages.slice(0, idx);
-                                    }
-                                    setSkippedStages(skipped);
-                                } else {
-                                    // Normal submit
-                                    if (typeof onSubmit === 'function') {
-                                        onSubmit();
-                                    }
-                                }
-                            }}
-                        >
-                            {pair.games && pair.games.some((g) => g.gameStatus === 'PartiallyProcessed')
-                                ? 'Restore Game Progress'
-                                : 'Submit Result'}
+                        <button type="submit" className={classes.submitButton}>
+                            Submit Result
                         </button>
                         <button type="button" onClick={onClose} className={classes.cancelButton}>
                             Cancel
                         </button>
-                        {skippedStages.length > 0 && (
-                            <div style={{ color: '#FFD700', marginTop: '1rem', fontWeight: 'bold' }}>
-                                Skipped stages: {skippedStages.join(', ')}
-                            </div>
-                        )}
                     </div>
                 </form>
             </div>

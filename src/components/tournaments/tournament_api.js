@@ -1,4 +1,11 @@
-export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, playersObj, maxPlayers) => {
+export const shuffleArray = (
+    _,
+    playoffsGames,
+    tournamentPlayoffGamesFinal,
+    tournamentPlayoffGamesThirdPlace,
+    playersObj,
+    maxPlayers
+) => {
     //if preparedBracket is true - players won't be set as of now
     let tournamentPlayers = playersObj ? Object.values(playersObj).map((player) => player) : null;
 
@@ -27,6 +34,7 @@ export const shuffleArray = (_, playoffsGames, tournamentPlayoffGamesFinal, play
     let playoffPairsDetermined = createPlayoffPairs(
         playoffsGames,
         tournamentPlayoffGamesFinal,
+        tournamentPlayoffGamesThirdPlace,
         shuffledNames,
         playersObj
     );
@@ -68,7 +76,13 @@ export async function getTournamentData(tournamentId) {
     }
 }
 
-const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, playersRatings) => {
+const createPlayoffPairs = (
+    playoffsGames,
+    tournamentPlayoffGamesFinal,
+    tournamentPlayoffGamesThirdPlace,
+    shuffledNames,
+    playersRatings
+) => {
     const updatedPairs = [];
 
     // Get the player's rating using the nickname
@@ -126,6 +140,20 @@ const createPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffled
                 if (index === stageLabels.length - 1) {
                     for (let j = 0; j < tournamentPlayoffGamesFinal - 1; j++) {
                         typeOfGame = tournamentPlayoffGamesFinal;
+
+                        // Add your game properties here
+                        games.push({
+                            castle1: '',
+                            castle2: '',
+                            castleWinner: '',
+                            gameId: j,
+                            gameWinner: '',
+                            gameStatus: 'Not Started'
+                        });
+                    }
+                } else if (stage === 'Third Place') {
+                    for (let j = 0; j < tournamentPlayoffGamesThirdPlace - 1; j++) {
+                        typeOfGame = tournamentPlayoffGamesThirdPlace;
 
                         // Add your game properties here
                         games.push({

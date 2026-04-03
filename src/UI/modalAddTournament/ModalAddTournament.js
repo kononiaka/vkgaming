@@ -38,6 +38,7 @@ const Bracket = (props) => {
     const tournamentPricePoolCoinsRef = useRef(null);
     const tournamentPlayoffGames = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
+    const tournamentPlayoffGamesThirdPlace = useRef(null);
     const tournamentDateRef = useRef(null);
     const randomBracketRef = useRef(null);
 
@@ -50,6 +51,7 @@ const Bracket = (props) => {
         const dateValid = date.trim() !== '';
         const playoffGamesValid = tournamentPlayoffGames.current?.value?.trim() !== '';
         const playoffFinalValid = tournamentPlayoffGamesFinal.current?.value?.trim() !== '';
+        const playoffThirdPlaceValid = tournamentPlayoffGamesThirdPlace.current?.value?.trim() !== '';
 
         console.log('Form validation:', {
             nameValid,
@@ -58,16 +60,26 @@ const Bracket = (props) => {
             dateValid,
             playoffGamesValid,
             playoffFinalValid,
+            playoffThirdPlaceValid,
             name: tournamentNameRef.current?.value,
             players: tournamentPlayerRef.current?.value,
             usdPrize: tournamentPricePoolUsdRef.current?.value,
             coinPrize: tournamentPricePoolCoinsRef.current?.value,
             date: date,
             playoffGames: tournamentPlayoffGames.current?.value,
-            playoffFinal: tournamentPlayoffGamesFinal.current?.value
+            playoffFinal: tournamentPlayoffGamesFinal.current?.value,
+            playoffThirdPlace: tournamentPlayoffGamesThirdPlace.current?.value
         });
 
-        return nameValid && playersValid && selectedPrizeValid && dateValid && playoffGamesValid && playoffFinalValid;
+        return (
+            nameValid &&
+            playersValid &&
+            selectedPrizeValid &&
+            dateValid &&
+            playoffGamesValid &&
+            playoffFinalValid &&
+            playoffThirdPlaceValid
+        );
     };
 
     const handleSave = async () => {
@@ -92,6 +104,7 @@ const Bracket = (props) => {
             date: date,
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
             tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
+            tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
             randomBracket: randomBracketRef.current.checked,
             status: 'Registration Started',
             players: 0,
@@ -111,6 +124,7 @@ const Bracket = (props) => {
                 null,
                 objTournament.tournamentPlayoffGames,
                 objTournament.tournamentPlayoffGamesFinal,
+                objTournament.tournamentPlayoffGamesThirdPlace,
                 null,
                 objTournament.maxPlayers
             );
@@ -261,6 +275,20 @@ const Bracket = (props) => {
                     <div>
                         <label htmlFor="tournamentPlayoffGames">PlayOff Games:</label>
                         <select id="tournamentPlayoffGames" defaultValue="1" ref={tournamentPlayoffGames}>
+                            {playoffGameCountOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="tournamentPlayoffGamesThirdPlace">Third Place Games:</label>
+                        <select
+                            id="tournamentPlayoffGamesThirdPlace"
+                            defaultValue="1"
+                            ref={tournamentPlayoffGamesThirdPlace}
+                        >
                             {playoffGameCountOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}

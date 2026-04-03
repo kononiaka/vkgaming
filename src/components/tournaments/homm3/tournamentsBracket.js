@@ -13,7 +13,10 @@ import {
     pullTournamentPrizes,
     fetchCastlesList,
     calculateStarsFromRating,
-    snapshotLeaderboardRanks
+    snapshotLeaderboardRanks,
+    getPairProgress,
+    savePairProgress,
+    updatePairProgressStage
 } from '../../../api/api';
 import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
@@ -83,20 +86,6 @@ const buildMatchKey = (gameData, tournamentId) => {
 };
 
 export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinners }) => {
-    // Helper to persist latest processed stage in backend
-    // Store progress fields directly in the pair object
-    // Set latestProcessedStage for a specific game in the current pair
-    const setLatestProcessedStage = (stage, gameIdx) => {
-        setPlayoffPairs((prevPairs) => {
-            const updatedPairs = [...prevPairs];
-            const pair = updatedPairs[selectedStageIndex]?.[selectedPairIndex];
-            if (pair && Array.isArray(pair.games) && pair.games[gameIdx]) {
-                pair.games[gameIdx].latestProcessedStage = stage;
-            }
-            return updatedPairs;
-        });
-    };
-
     const setDetailedProgressStage = (stage, extra = {}) => {
         setPlayoffPairs((prevPairs) => {
             const updatedPairs = [...prevPairs];
@@ -121,6 +110,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
+    const [selectedPairId, setSelectedPairId] = useState(null);
 
     const normalizeName = (value) =>
         String(value || '')
@@ -1685,6 +1675,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             alert('Only match players or admin can report this game.');
             return;
         }
+        const pairId = `${tournamentId}_s${stageIdx}_p${pairIdx}`;
+        setSelectedPairId(pairId);
+        // If the game is not PartiallyProcessed, wipe any stale progress record so
+        // a fresh submission never inherits skip flags from a previous abandoned run
+        if (pair.gameStatus !== 'PartiallyProcessed') {
+            savePairProgress(tournamentId, pairId, null);
+        }
         setSelectedStageIndex(stageIdx);
         setSelectedPairIndex(pairIdx);
         setShowReportGameModal(true);
@@ -1893,16 +1890,31 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const handleSubmitGameReport = async (reportData) => {
-        // No need to save progress fields to a separate DB path; they are nested in each game object now.
-        // --- Resume/skip logic based on latestProcessedStage (now per game) ---
-        // const currentPair = playoffPairs[selectedStageIndex]?.[selectedPairIndex];
-        // Begin detailed progress tracking
+        // Ordered processing stages — used for skip logic on session restore
+        const STAGES = ['castle_stats', 'ratings', 'game_posted', 'prizes', 'finished'];
+        const stageAtLeast = (latest, target) => STAGES.indexOf(latest) >= STAGES.indexOf(target);
+
         await setDetailedProgressStage('Started');
         try {
             // Update the specific pair in playoffPairs
             const updatedPairs = [...playoffPairs];
             const pair = updatedPairs[selectedStageIndex][selectedPairIndex];
-            await setDetailedProgressStage('Pair selected');
+
+            // Always check Firebase for saved progress — latestStage existence is the restore trigger,
+            // not pair.gameStatus (which only reaches Firebase at the very end of the process)
+            let skipCastleStats = false;
+            let skipRatings = false;
+            let skipGamePost = false;
+            let skipPrizes = false;
+            const savedProgress = await getPairProgress(tournamentId, selectedPairId);
+            const latestStage = savedProgress?.latestStage || '';
+            if (latestStage && latestStage !== 'submitted') {
+                // 'submitted' means form was saved but processing hadn't started yet — no stages to skip
+                skipCastleStats = stageAtLeast(latestStage, 'castle_stats');
+                skipRatings = stageAtLeast(latestStage, 'ratings');
+                skipGamePost = stageAtLeast(latestStage, 'game_posted');
+                skipPrizes = stageAtLeast(latestStage, 'prizes');
+            }
 
             if (pair.gameStatus === 'Processed' && !authCtx.isAdmin) {
                 alert('This game is already processed. Only admin can re-report it.');
@@ -1921,49 +1933,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             pair.games = reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g)));
             // Set game status based on whether winner is selected
             pair.gameStatus = reportData.winner ? 'Finished' : 'In Progress';
-            await setDetailedProgressStage('Scores and winner set');
-
-            // Update local state
 
             setPlayoffPairs(updatedPairs);
-
             await setDetailedProgressStage('Pair state updated');
-
-            // Persist progress to backend after updating the pair
-            await setLatestProcessedStage('Pair state updated');
 
             // Update castle statistics for each game (runs regardless of overall winner)
             let castleIdx = 1;
+            let anyCastleWritten = false; // tracks if any castle stat was actually saved to DB
             for (const game of reportData.games) {
-                // Per-game progress logic
-                const latestStage = game.latestProcessedStage || '';
-                // Helper flags for skipping
-                let skipCastleProcessing = false;
-                let skipRatings = false;
-                let skipGamePost = false;
-                let skipPrizes = false;
-
-                // Map stage to skip flags for this game
-                if (latestStage === 'Pair state updated') {
-                    skipCastleProcessing = true;
-                } else if (
-                    latestStage === 'First player stats updated' ||
-                    latestStage === 'Second player stats updated'
-                ) {
-                    skipCastleProcessing = true;
-                    skipRatings = true;
-                } else if (latestStage === 'Game posted to database') {
-                    skipCastleProcessing = true;
-                    skipRatings = true;
-                    skipGamePost = true;
-                } else if (latestStage === 'Prizes awarded' || latestStage === 'Finished') {
-                    skipCastleProcessing = true;
-                    skipRatings = true;
-                    skipGamePost = true;
-                    skipPrizes = true;
-                }
-                // Store skip flags for use in the rest of the function (if needed)
-                game._skipCastleProcessing = skipCastleProcessing;
+                // Per-game skip: if this game was already fully processed, skip it
+                game._skipCastleProcessing = skipCastleStats;
                 game._skipRatings = skipRatings;
                 game._skipGamePost = skipGamePost;
                 game._skipPrizes = skipPrizes;
@@ -2016,6 +1995,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 console.log(`${game.castle1} castle stats updated`);
                                 // Set to PartiallyProcessed after any DB-changing step
                                 updateGameStatusForPartialProgress(game);
+                                anyCastleWritten = true;
                             } else {
                                 castle1Skipped = true;
                                 console.log(`${game.castle1} castle stats update skipped`);
@@ -2054,6 +2034,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 console.log(`${game.castle2} castle stats updated`);
                                 // Set to PartiallyProcessed after any DB-changing step
                                 updateGameStatusForPartialProgress(game);
+                                anyCastleWritten = true;
                             } else {
                                 castle2Skipped = true;
                                 console.log(`${game.castle2} castle stats update skipped`);
@@ -2066,7 +2047,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             setDetailedProgressStage(`Game ${castleIdx} marked as Processed (skipped)`, {
                                 gameId: game.gameId
                             });
-                            setLatestProcessedStage(`Game ${castleIdx} castle stats skipped`, game.gameId);
                             console.log(`Game ${game.gameId + 1} marked as Processed (skipped)`);
                         }
                     }
@@ -2074,14 +2054,25 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 castleIdx++;
             }
 
+            // Save castle_stats checkpoint only if at least one castle was actually written to DB
+            if (anyCastleWritten) {
+                await updatePairProgressStage(tournamentId, selectedPairId, 'castle_stats');
+                pair.gameStatus = 'PartiallyProcessed';
+                setPlayoffPairs(updatedPairs);
+            }
+
             // If overall winner is selected, handle ratings, game posting, and promotions
             if (reportData.winner) {
-                // Update player ratings FIRST
-                const winnerId = await lookForUserId(reportData.winner);
-                const ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
-                setDetailedProgressStage('First player stats updated', { player: pair.team1 });
-                setDetailedProgressStage('Second player stats updated', { player: pair.team2 });
-                await setLatestProcessedStage('Player ratings updated');
+                // Update player ratings FIRST (skip if already done)
+                let ratingResult = null;
+                if (!skipRatings) {
+                    const winnerId = await lookForUserId(reportData.winner);
+                    ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
+                    setDetailedProgressStage('Ratings updated');
+                    await updatePairProgressStage(tournamentId, selectedPairId, 'ratings');
+                } else {
+                    console.log('Ratings step skipped (already done in previous session)');
+                }
 
                 // Use the newly calculated ratings directly
                 let team1NewRating = null;
@@ -2112,612 +2103,612 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 // Update state to reflect the new ratings for tooltip display
                 setPlayoffPairs(updatedPairs);
 
-                setDetailedProgressStage('Game posted to database');
-                await setLatestProcessedStage('Game posted to database');
-                // Post game to database
-                const gameData = {
-                    opponent1: pair.team1,
-                    opponent2: pair.team2,
-                    date: new Date().toISOString(),
-                    games: reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g))),
-                    tournamentName: tournamentName,
-                    gameType: pair.type,
-                    opponent1Castle: reportData.games[0]?.castle1 || '',
-                    opponent2Castle: reportData.games[0]?.castle2 || '',
-                    score: `${reportData.score1}-${reportData.score2}`,
-                    winner: reportData.winner
-                };
+                if (!skipGamePost) {
+                    // Post game to database
+                    const gameData = {
+                        opponent1: pair.team1,
+                        opponent2: pair.team2,
+                        date: new Date().toISOString(),
+                        games: reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g))),
+                        tournamentName: tournamentName,
+                        gameType: pair.type,
+                        opponent1Castle: reportData.games[0]?.castle1 || '',
+                        opponent2Castle: reportData.games[0]?.castle2 || '',
+                        score: `${reportData.score1}-${reportData.score2}`,
+                        winner: reportData.winner
+                    };
 
-                console.log('Game data to be posted:', JSON.stringify(gameData, null, 2));
-                console.log(
-                    'Games with gold and restarts:',
-                    gameData.games.map((g) => ({
-                        gameId: g.gameId,
-                        gold1: g.gold1,
-                        gold2: g.gold2,
-                        restart1_111: g.restart1_111,
-                        restart1_112: g.restart1_112,
-                        restart2_111: g.restart2_111,
-                        restart2_112: g.restart2_112
-                    }))
-                );
-
-                const confirmGamePost = confirmWindow(
-                    `Post game to database?\n\n${pair.team1} vs ${pair.team2}\nScore: ${reportData.score1}-${reportData.score2}\nWinner: ${reportData.winner}\n\nPost game?`
-                );
-                if (confirmGamePost) {
-                    const matchKey = buildMatchKey(gameData, tournamentId);
-                    gameData.matchKey = matchKey;
-
-                    const existingGameResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`
+                    console.log('Game data to be posted:', JSON.stringify(gameData, null, 2));
+                    console.log(
+                        'Games with gold and restarts:',
+                        gameData.games.map((g) => ({
+                            gameId: g.gameId,
+                            gold1: g.gold1,
+                            gold2: g.gold2,
+                            restart1_111: g.restart1_111,
+                            restart1_112: g.restart1_112,
+                            restart2_111: g.restart2_111,
+                            restart2_112: g.restart2_112
+                        }))
                     );
-                    const existingGameData = await existingGameResponse.json();
 
-                    if (existingGameData) {
-                        console.log('Skipping duplicate game record:', gameData);
-                    } else {
-                        const fetchResponse = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`,
-                            {
-                                method: 'PUT',
-                                body: JSON.stringify(gameData),
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                }
-                            }
+                    const confirmGamePost = confirmWindow(
+                        `Post game to database?\n\n${pair.team1} vs ${pair.team2}\nScore: ${reportData.score1}-${reportData.score2}\nWinner: ${reportData.winner}\n\nPost game?`
+                    );
+                    if (confirmGamePost) {
+                        const matchKey = buildMatchKey(gameData, tournamentId);
+                        gameData.matchKey = matchKey;
+
+                        const existingGameResponse = await fetch(
+                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`
                         );
+                        const existingGameData = await existingGameResponse.json();
 
-                        if (fetchResponse.ok) {
-                            console.log('Game posted to database successfully');
-                            console.log('Gold and restart data stored for all games');
+                        if (existingGameData) {
+                            console.log('Skipping duplicate game record:', gameData);
                         } else {
-                            console.error('Error posting game to database:', fetchResponse.statusText);
+                            const fetchResponse = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`,
+                                {
+                                    method: 'PUT',
+                                    body: JSON.stringify(gameData),
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    }
+                                }
+                            );
+
+                            if (fetchResponse.ok) {
+                                console.log('Game posted to database successfully');
+                                console.log('Gold and restart data stored for all games');
+                            } else {
+                                console.error('Error posting game to database:', fetchResponse.statusText);
+                            }
                         }
+                    } else {
+                        console.log('Game posting skipped by user');
                     }
+                    await updatePairProgressStage(tournamentId, selectedPairId, 'game_posted');
                 } else {
-                    console.log('Game posting skipped by user');
+                    console.log('Game post step skipped (already done in previous session)');
                 }
 
-                // Mark pair and all games as 'Processed' (regardless of what was skipped)
-                pair.gameStatus = 'Processed';
-                setDetailedProgressStage('Ratings updated');
-                reportData.games.forEach((game) => {
-                    game.gameStatus = 'Processed';
-                });
+                if (!skipPrizes) {
+                    setDetailedProgressStage('Prizes processing');
+                    await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
+                    // Promote winner and loser to next stage
+                    const currentStage = stageLabels[selectedStageIndex];
+                    const winner = reportData.winner;
+                    const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
-                setDetailedProgressStage('Prizes awarded');
-                await setLatestProcessedStage('Prizes awarded');
-                // Promote winner and loser to next stage
-                const currentStage = stageLabels[selectedStageIndex];
-                const winner = reportData.winner;
-                const loser = pair.team1 === winner ? pair.team2 : pair.team1;
+                    console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
 
-                console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
+                    // Promote based on current stage
+                    if (currentStage === 'Semi-final') {
+                        // Winner goes to Final, Loser goes to Third Place
+                        const finalStageIndex = stageLabels.indexOf('Final');
+                        const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
 
-                // Promote based on current stage
-                if (currentStage === 'Semi-final') {
-                    // Winner goes to Final, Loser goes to Third Place
-                    const finalStageIndex = stageLabels.indexOf('Final');
-                    const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
+                        // Use the newly calculated ratings
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const loserRating = winner === pair.team1 ? team2NewRating : team1NewRating;
 
-                    // Use the newly calculated ratings
-                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
-                    const loserRating = winner === pair.team1 ? team2NewRating : team1NewRating;
+                        // Promote winner to Final
+                        if (
+                            finalStageIndex !== -1 &&
+                            updatedPairs[finalStageIndex] &&
+                            updatedPairs[finalStageIndex][0]
+                        ) {
+                            const finalPair = updatedPairs[finalStageIndex][0];
+                            const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
 
-                    // Promote winner to Final
-                    if (finalStageIndex !== -1 && updatedPairs[finalStageIndex] && updatedPairs[finalStageIndex][0]) {
-                        const finalPair = updatedPairs[finalStageIndex][0];
-                        const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
-
-                        const confirmPromoteToFinal = confirmWindow(
-                            `Promote winner to Final?\n\n${winner} → Final ${teamSlot}\n\nPromote?`
-                        );
-
-                        if (confirmPromoteToFinal) {
-                            // Determine which slot to fill based on which semi-final this is
-                            if (selectedPairIndex === 0) {
-                                // First semi-final winner goes to team1 of Final
-                                if (finalPair.team1 === 'TBD' || !finalPair.team1) {
-                                    finalPair.team1 = winner;
-                                    finalPair.ratings1 =
-                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
-                                    finalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(
-                                        `Promoted ${winner} to Final team1 with updated rating: ${finalPair.ratings1}`
-                                    );
-                                }
-                            } else if (selectedPairIndex === 1) {
-                                // Second semi-final winner goes to team2 of Final
-                                if (finalPair.team2 === 'TBD' || !finalPair.team2) {
-                                    finalPair.team2 = winner;
-                                    finalPair.ratings2 =
-                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
-                                    finalPair.stars2 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(
-                                        `Promoted ${winner} to Final team2 with updated rating: ${finalPair.ratings2}`
-                                    );
-                                }
-                            }
-                        } else {
-                            console.log(`Promotion to Final cancelled by user`);
-                        }
-                    }
-
-                    // Promote loser to Third Place
-                    if (
-                        thirdPlaceStageIndex !== -1 &&
-                        updatedPairs[thirdPlaceStageIndex] &&
-                        updatedPairs[thirdPlaceStageIndex][0]
-                    ) {
-                        const thirdPlacePair = updatedPairs[thirdPlaceStageIndex][0];
-                        const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
-
-                        const confirmPromoteToThirdPlace = confirmWindow(
-                            `Promote loser to Third Place?\n\n${loser} → Third Place ${teamSlot}\n\nPromote?`
-                        );
-
-                        if (confirmPromoteToThirdPlace) {
-                            // Determine which slot to fill based on which semi-final this is
-                            if (selectedPairIndex === 0) {
-                                // First semi-final loser goes to team1 of Third Place
-                                if (thirdPlacePair.team1 === 'TBD' || !thirdPlacePair.team1) {
-                                    thirdPlacePair.team1 = loser;
-                                    thirdPlacePair.ratings1 =
-                                        loserRating || (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
-                                    thirdPlacePair.stars1 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
-                                    console.log(
-                                        `Promoted ${loser} to Third Place team1 with updated rating: ${thirdPlacePair.ratings1}`
-                                    );
-                                }
-                            } else if (selectedPairIndex === 1) {
-                                // Second semi-final loser goes to team2 of Third Place
-                                if (thirdPlacePair.team2 === 'TBD' || !thirdPlacePair.team2) {
-                                    thirdPlacePair.team2 = loser;
-                                    thirdPlacePair.ratings2 =
-                                        loserRating || (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
-                                    thirdPlacePair.stars2 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
-                                    console.log(
-                                        `Promoted ${loser} to Third Place team2 with updated rating: ${thirdPlacePair.ratings2}`
-                                    );
-                                }
-                            }
-                        } else {
-                            console.log(`Promotion to Third Place cancelled by user`);
-                        }
-                    }
-                } else if (currentStage === 'Quarter-final') {
-                    // Winner goes to Semi-final
-                    // Use the newly calculated rating for the winner
-                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
-
-                    const semiStageIndex = stageLabels.indexOf('Semi-final');
-                    if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
-                        const semiPairIndex = Math.floor(selectedPairIndex / 2);
-                        const semiPair = updatedPairs[semiStageIndex][semiPairIndex];
-                        if (semiPair) {
-                            const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
-                            const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
-                            const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
-
-                            const confirmPromoteToSemi = confirmWindow(
-                                `Promote winner to Semi-final?\n\n${winner} → Semi-final ${semiPairIndex + 1} ${teamSlot}\n\nPromote?`
+                            const confirmPromoteToFinal = confirmWindow(
+                                `Promote winner to Final?\n\n${winner} → Final ${teamSlot}\n\nPromote?`
                             );
 
-                            if (confirmPromoteToSemi) {
-                                if (semiPair[teamSlot] === 'TBD' || !semiPair[teamSlot]) {
-                                    semiPair[teamSlot] = winner;
-                                    // Persist progress to backend for each finished pair
-                                    await setLatestProcessedStage('Finished');
-                                    semiPair[ratingsSlot] =
-                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
-                                    semiPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(
-                                        `Promoted ${winner} to Semi-final ${semiPairIndex} ${teamSlot} with updated rating: ${semiPair[ratingsSlot]}`
-                                    );
+                            if (confirmPromoteToFinal) {
+                                // Determine which slot to fill based on which semi-final this is
+                                if (selectedPairIndex === 0) {
+                                    // First semi-final winner goes to team1 of Final
+                                    if (finalPair.team1 === 'TBD' || !finalPair.team1) {
+                                        finalPair.team1 = winner;
+                                        finalPair.ratings1 =
+                                            winnerRating ||
+                                            (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        finalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                        console.log(
+                                            `Promoted ${winner} to Final team1 with updated rating: ${finalPair.ratings1}`
+                                        );
+                                    }
+                                } else if (selectedPairIndex === 1) {
+                                    // Second semi-final winner goes to team2 of Final
+                                    if (finalPair.team2 === 'TBD' || !finalPair.team2) {
+                                        finalPair.team2 = winner;
+                                        finalPair.ratings2 =
+                                            winnerRating ||
+                                            (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        finalPair.stars2 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                        console.log(
+                                            `Promoted ${winner} to Final team2 with updated rating: ${finalPair.ratings2}`
+                                        );
+                                    }
                                 }
                             } else {
-                                console.log(`Promotion to Semi-final cancelled by user`);
+                                console.log(`Promotion to Final cancelled by user`);
                             }
                         }
-                    }
-                } else if (currentStage === '1/8 Final') {
-                    // Winner goes to Quarter-final
-                    // Use the newly calculated rating for the winner
-                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                    const quarterStageIndex = stageLabels.indexOf('Quarter-final');
-                    if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
-                        const quarterPairIndex = Math.floor(selectedPairIndex / 2);
-                        const quarterPair = updatedPairs[quarterStageIndex][quarterPairIndex];
-                        if (quarterPair) {
-                            const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
-                            await setLatestProcessedStage('Finished');
-                            const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
-                            const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
+                        // Promote loser to Third Place
+                        if (
+                            thirdPlaceStageIndex !== -1 &&
+                            updatedPairs[thirdPlaceStageIndex] &&
+                            updatedPairs[thirdPlaceStageIndex][0]
+                        ) {
+                            const thirdPlacePair = updatedPairs[thirdPlaceStageIndex][0];
+                            const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
 
-                            const confirmPromoteToQuarter = confirmWindow(
-                                `Promote winner to Quarter-final?\n\n${winner} → Quarter-final ${quarterPairIndex + 1} ${teamSlot}\n\nPromote?`
+                            const confirmPromoteToThirdPlace = confirmWindow(
+                                `Promote loser to Third Place?\n\n${loser} → Third Place ${teamSlot}\n\nPromote?`
                             );
 
-                            await setLatestProcessedStage('In Progress');
-                            if (confirmPromoteToQuarter) {
-                                if (quarterPair[teamSlot] === 'TBD' || !quarterPair[teamSlot]) {
-                                    quarterPair[teamSlot] = winner;
-                                    quarterPair[ratingsSlot] =
-                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
-                                    quarterPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(
-                                        `Promoted ${winner} to Quarter-final ${quarterPairIndex} ${teamSlot} with updated rating: ${quarterPair[ratingsSlot]}`
-                                    );
+                            if (confirmPromoteToThirdPlace) {
+                                // Determine which slot to fill based on which semi-final this is
+                                if (selectedPairIndex === 0) {
+                                    // First semi-final loser goes to team1 of Third Place
+                                    if (thirdPlacePair.team1 === 'TBD' || !thirdPlacePair.team1) {
+                                        thirdPlacePair.team1 = loser;
+                                        thirdPlacePair.ratings1 =
+                                            loserRating || (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
+                                        thirdPlacePair.stars1 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
+                                        console.log(
+                                            `Promoted ${loser} to Third Place team1 with updated rating: ${thirdPlacePair.ratings1}`
+                                        );
+                                    }
+                                } else if (selectedPairIndex === 1) {
+                                    // Second semi-final loser goes to team2 of Third Place
+                                    if (thirdPlacePair.team2 === 'TBD' || !thirdPlacePair.team2) {
+                                        thirdPlacePair.team2 = loser;
+                                        thirdPlacePair.ratings2 =
+                                            loserRating || (pair.winner === pair.team1 ? pair.ratings2 : pair.ratings1);
+                                        thirdPlacePair.stars2 = pair.winner === pair.team1 ? pair.stars2 : pair.stars1;
+                                        console.log(
+                                            `Promoted ${loser} to Third Place team2 with updated rating: ${thirdPlacePair.ratings2}`
+                                        );
+                                    }
                                 }
                             } else {
-                                console.log(`Promotion to Quarter-final cancelled by user`);
+                                console.log(`Promotion to Third Place cancelled by user`);
                             }
                         }
-                    }
-                } else if (currentStage === '1/16 Final') {
-                    // Winner goes to 1/8 Final
-                    // Use the newly calculated rating for the winner
-                    const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                    } else if (currentStage === 'Quarter-final') {
+                        // Winner goes to Semi-final
+                        // Use the newly calculated rating for the winner
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                    const eighthStageIndex = stageLabels.indexOf('1/8 Final');
-                    if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
-                        const eighthPairIndex = Math.floor(selectedPairIndex / 2);
-                        const eighthPair = updatedPairs[eighthStageIndex][eighthPairIndex];
-                        if (eighthPair) {
-                            const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
-                            const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
-                            const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
+                        const semiStageIndex = stageLabels.indexOf('Semi-final');
+                        if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
+                            const semiPairIndex = Math.floor(selectedPairIndex / 2);
+                            const semiPair = updatedPairs[semiStageIndex][semiPairIndex];
+                            if (semiPair) {
+                                const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                                const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
+                                const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
 
-                            const confirmPromoteToEighth = confirmWindow(
-                                `Promote winner to 1/8 Final?\n\n${winner} → 1/8 Final ${eighthPairIndex + 1} ${teamSlot}\n\nPromote?`
-                            );
+                                const confirmPromoteToSemi = confirmWindow(
+                                    `Promote winner to Semi-final?\n\n${winner} → Semi-final ${semiPairIndex + 1} ${teamSlot}\n\nPromote?`
+                                );
 
-                            if (confirmPromoteToEighth) {
-                                if (eighthPair[teamSlot] === 'TBD' || !eighthPair[teamSlot]) {
-                                    eighthPair[teamSlot] = winner;
-                                    eighthPair[ratingsSlot] =
-                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
-                                    eighthPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
-                                    console.log(
-                                        `Promoted ${winner} to 1/8 Final ${eighthPairIndex} ${teamSlot} with updated rating: ${eighthPair[ratingsSlot]}`
-                                    );
-                                }
-                            } else {
-                                console.log(`Promotion to 1/8 Final cancelled by user`);
-                            }
-                        }
-                    }
-                } else if (currentStage === 'Third Place') {
-                    // Award Third Place prize to the winner
-                    console.log(`Third Place game completed. Winner: ${winner}`);
-
-                    const confirmThirdPlacePrize = confirmWindow(
-                        `Award Third Place prize to ${winner}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
-                    );
-
-                    if (confirmThirdPlacePrize) {
-                        try {
-                            // Get tournament prizes
-                            const prizes = await pullTournamentPrizes(tournamentId);
-                            const prizeAmount = prizes['3rd Place'];
-
-                            console.log('Third Place Prize:', prizeAmount);
-
-                            // Find and update player record
-                            const playerId = await lookForUserId(winner);
-                            if (playerId) {
-                                const playerData = await loadUserById(playerId);
-
-                                if (playerData) {
-                                    // Initialize prizes array if it doesn't exist
-                                    if (!playerData.prizes) {
-                                        playerData.prizes = [];
-                                    }
-
-                                    // Add new prize
-                                    playerData.prizes.push({
-                                        tournamentName: tournamentName,
-                                        place: '3rd Place',
-                                        prizeAmount: prizeAmount
-                                    });
-
-                                    // Calculate new total prize
-                                    const currentTotal = await getPlayerPrizeTotal(playerId);
-                                    const newTotal = parseFloat(currentTotal || 0) + parseFloat(prizeAmount);
-                                    playerData.totalPrize = newTotal;
-
-                                    console.log('Updated player data:', playerData);
-
-                                    // Update tournament winners
-                                    const confirmUpdateWinner = confirmWindow(
-                                        `Update tournament 3rd place winner?\n\nWinner: ${winner}\nPrize: ${prizeAmount}\n\nUpdate?`
-                                    );
-
-                                    if (confirmUpdateWinner) {
-                                        await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
-                                            {
-                                                method: 'PUT',
-                                                body: JSON.stringify(winner),
-                                                headers: { 'Content-Type': 'application/json' }
-                                            }
+                                if (confirmPromoteToSemi) {
+                                    if (semiPair[teamSlot] === 'TBD' || !semiPair[teamSlot]) {
+                                        semiPair[teamSlot] = winner;
+                                        semiPair[ratingsSlot] =
+                                            winnerRating ||
+                                            (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        semiPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                        console.log(
+                                            `Promoted ${winner} to Semi-final ${semiPairIndex} ${teamSlot} with updated rating: ${semiPair[ratingsSlot]}`
                                         );
-                                        console.log('Tournament 3rd place winner updated');
-                                    }
-
-                                    // Update player record
-                                    const confirmUpdatePlayer = confirmWindow(
-                                        `Update player record with prize?\n\nPlayer: ${winner}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
-                                    );
-
-                                    if (confirmUpdatePlayer) {
-                                        await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${playerId}.json`,
-                                            {
-                                                method: 'PUT',
-                                                body: JSON.stringify(playerData),
-                                                headers: { 'Content-Type': 'application/json' }
-                                            }
-                                        );
-                                        console.log('Player record updated with 3rd place prize');
                                     }
                                 } else {
-                                    console.log('Player data not found');
-                                    alert('Could not load player data for prize award');
+                                    console.log(`Promotion to Semi-final cancelled by user`);
                                 }
-                            } else {
-                                console.log('Player ID not found');
-                                alert('Could not find player ID for prize award');
                             }
-                        } catch (error) {
-                            console.error('Error awarding Third Place prize:', error);
-                            alert('Error awarding Third Place prize: ' + error.message);
                         }
+                    } else if (currentStage === '1/8 Final') {
+                        // Winner goes to Quarter-final
+                        // Use the newly calculated rating for the winner
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        // Mark pair and all games as 'Processed' for Third Place
-                        pair.gameStatus = 'Processed';
-                        reportData.games.forEach((game) => {
-                            game.gameStatus = 'Processed';
-                        });
-                        console.log('Third Place games marked as Processed');
-                    } else {
-                        console.log('Third Place prize award cancelled by user');
-                    }
-                } else if (currentStage === 'Final') {
-                    // Award Final prizes to winner (1st place) and loser (2nd place)
-                    console.log(`Final game completed. Winner: ${winner}, Runner-up: ${loser}`);
+                        const quarterStageIndex = stageLabels.indexOf('Quarter-final');
+                        if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
+                            const quarterPairIndex = Math.floor(selectedPairIndex / 2);
+                            const quarterPair = updatedPairs[quarterStageIndex][quarterPairIndex];
+                            if (quarterPair) {
+                                const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                                const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
+                                const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
 
-                    const confirmFinalPrizes = confirmWindow(
-                        `Award Final prizes?\n\n1st Place: ${winner}\n2nd Place: ${loser}\n\nThis will update tournament winners and player prize records.\n\nAward prizes?`
-                    );
+                                const confirmPromoteToQuarter = confirmWindow(
+                                    `Promote winner to Quarter-final?\n\n${winner} → Quarter-final ${quarterPairIndex + 1} ${teamSlot}\n\nPromote?`
+                                );
 
-                    if (confirmFinalPrizes) {
-                        try {
-                            // Get tournament prizes
-                            const prizes = await pullTournamentPrizes(tournamentId);
-                            const firstPlacePrize = prizes['1st Place'];
-                            const secondPlacePrize = prizes['2nd Place'];
-
-                            console.log('1st Place Prize:', firstPlacePrize);
-                            console.log('2nd Place Prize:', secondPlacePrize);
-
-                            // Award 1st place prize
-                            const firstPlacePlayerId = await lookForUserId(winner);
-                            if (firstPlacePlayerId) {
-                                const winnerData = await loadUserById(firstPlacePlayerId);
-                                if (winnerData) {
-                                    // Initialize prizes array if it doesn't exist
-                                    if (!winnerData.prizes) {
-                                        winnerData.prizes = [];
-                                    }
-
-                                    // Add new prize
-                                    winnerData.prizes.push({
-                                        tournamentName: tournamentName,
-                                        place: '1st Place',
-                                        prizeAmount: firstPlacePrize
-                                    });
-
-                                    // Calculate new total prize
-                                    const winnerCurrentTotal = await getPlayerPrizeTotal(firstPlacePlayerId);
-                                    const winnerNewTotal =
-                                        parseFloat(winnerCurrentTotal || 0) + parseFloat(firstPlacePrize);
-                                    winnerData.totalPrize = winnerNewTotal;
-
-                                    console.log('Updated winner data:', winnerData);
-
-                                    // Update tournament 1st place winner
-                                    const confirmUpdateWinner = confirmWindow(
-                                        `Update tournament 1st place winner?\n\nWinner: ${winner}\nPrize: ${firstPlacePrize}\n\nUpdate?`
-                                    );
-
-                                    if (confirmUpdateWinner) {
-                                        await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/1st place.json`,
-                                            {
-                                                method: 'PUT',
-                                                body: JSON.stringify(winner),
-                                                headers: { 'Content-Type': 'application/json' }
-                                            }
+                                if (confirmPromoteToQuarter) {
+                                    if (quarterPair[teamSlot] === 'TBD' || !quarterPair[teamSlot]) {
+                                        quarterPair[teamSlot] = winner;
+                                        quarterPair[ratingsSlot] =
+                                            winnerRating ||
+                                            (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        quarterPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                        console.log(
+                                            `Promoted ${winner} to Quarter-final ${quarterPairIndex} ${teamSlot} with updated rating: ${quarterPair[ratingsSlot]}`
                                         );
-                                        console.log('Tournament 1st place winner updated');
-                                    }
-
-                                    // Update winner record
-                                    const confirmUpdateWinnerPlayer = confirmWindow(
-                                        `Update winner record with prize?\n\nPlayer: ${winner}\nOld Total: ${winnerCurrentTotal}\nNew Total: ${winnerNewTotal}\n\nUpdate?`
-                                    );
-
-                                    if (confirmUpdateWinnerPlayer) {
-                                        await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlacePlayerId}.json`,
-                                            {
-                                                method: 'PUT',
-                                                body: JSON.stringify(winnerData),
-                                                headers: { 'Content-Type': 'application/json' }
-                                            }
-                                        );
-                                        console.log('Winner record updated with 1st place prize');
                                     }
                                 } else {
-                                    console.log('Winner data not found');
-                                    alert('Could not load winner data for prize award');
+                                    console.log(`Promotion to Quarter-final cancelled by user`);
                                 }
-                            } else {
-                                console.log('Winner ID not found');
-                                alert('Could not find winner ID for prize award');
                             }
+                        }
+                    } else if (currentStage === '1/16 Final') {
+                        // Winner goes to 1/8 Final
+                        // Use the newly calculated rating for the winner
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                            // Award 2nd place prize
-                            const secondPlacePlayerId = await lookForUserId(loser);
-                            if (secondPlacePlayerId) {
-                                const loserData = await loadUserById(secondPlacePlayerId);
-                                if (loserData) {
-                                    // Initialize prizes array if it doesn't exist
-                                    if (!loserData.prizes) {
-                                        loserData.prizes = [];
-                                    }
+                        const eighthStageIndex = stageLabels.indexOf('1/8 Final');
+                        if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
+                            const eighthPairIndex = Math.floor(selectedPairIndex / 2);
+                            const eighthPair = updatedPairs[eighthStageIndex][eighthPairIndex];
+                            if (eighthPair) {
+                                const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                                const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
+                                const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
 
-                                    // Add new prize
-                                    loserData.prizes.push({
-                                        tournamentName: tournamentName,
-                                        place: '2nd Place',
-                                        prizeAmount: secondPlacePrize
-                                    });
+                                const confirmPromoteToEighth = confirmWindow(
+                                    `Promote winner to 1/8 Final?\n\n${winner} → 1/8 Final ${eighthPairIndex + 1} ${teamSlot}\n\nPromote?`
+                                );
 
-                                    // Calculate new total prize
-                                    const loserCurrentTotal = await getPlayerPrizeTotal(secondPlacePlayerId);
-                                    const loserNewTotal =
-                                        parseFloat(loserCurrentTotal || 0) + parseFloat(secondPlacePrize);
-                                    loserData.totalPrize = loserNewTotal;
-
-                                    console.log('Updated runner-up data:', loserData);
-
-                                    // Update tournament 2nd place winner
-                                    const confirmUpdateRunnerUp = confirmWindow(
-                                        `Update tournament 2nd place winner?\n\nRunner-up: ${loser}\nPrize: ${secondPlacePrize}\n\nUpdate?`
-                                    );
-
-                                    if (confirmUpdateRunnerUp) {
-                                        await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/2nd place.json`,
-                                            {
-                                                method: 'PUT',
-                                                body: JSON.stringify(loser),
-                                                headers: { 'Content-Type': 'application/json' }
-                                            }
+                                if (confirmPromoteToEighth) {
+                                    if (eighthPair[teamSlot] === 'TBD' || !eighthPair[teamSlot]) {
+                                        eighthPair[teamSlot] = winner;
+                                        eighthPair[ratingsSlot] =
+                                            winnerRating ||
+                                            (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                        eighthPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                        console.log(
+                                            `Promoted ${winner} to 1/8 Final ${eighthPairIndex} ${teamSlot} with updated rating: ${eighthPair[ratingsSlot]}`
                                         );
-                                        console.log('Tournament 2nd place winner updated');
-                                    }
-
-                                    // Update runner-up record
-                                    const confirmUpdateLoserPlayer = confirmWindow(
-                                        `Update runner-up record with prize?\n\nPlayer: ${loser}\nOld Total: ${loserCurrentTotal}\nNew Total: ${loserNewTotal}\n\nUpdate?`
-                                    );
-
-                                    if (confirmUpdateLoserPlayer) {
-                                        await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlacePlayerId}.json`,
-                                            {
-                                                method: 'PUT',
-                                                body: JSON.stringify(loserData),
-                                                headers: { 'Content-Type': 'application/json' }
-                                            }
-                                        );
-                                        console.log('Runner-up record updated with 2nd place prize');
                                     }
                                 } else {
-                                    console.log('Runner-up data not found');
-                                    alert('Could not load runner-up data for prize award');
+                                    console.log(`Promotion to 1/8 Final cancelled by user`);
                                 }
-                            } else {
-                                console.log('Runner-up ID not found');
-                                alert('Could not find runner-up ID for prize award');
                             }
-                        } catch (error) {
-                            console.error('Error awarding Final prizes:', error);
-                            alert('Error awarding Final prizes: ' + error.message);
                         }
+                    } else if (currentStage === 'Third Place') {
+                        // Award Third Place prize to the winner
+                        console.log(`Third Place game completed. Winner: ${winner}`);
 
-                        // Mark pair and all games as 'Processed' for Final
-                        pair.gameStatus = 'Processed';
-                        reportData.games.forEach((game) => {
-                            game.gameStatus = 'Processed';
-                        });
-                        console.log('Final games marked as Processed');
-
-                        // Update tournament status to "Tournament Finished"
-                        const confirmStatusUpdate = confirmWindow(
-                            `Update tournament status to 'Tournament Finished'?\n\nThis will mark the tournament as complete.\n\nUpdate status?`
+                        const confirmThirdPlacePrize = confirmWindow(
+                            `Award Third Place prize to ${winner}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
                         );
 
-                        if (confirmStatusUpdate) {
+                        if (confirmThirdPlacePrize) {
                             try {
-                                await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
-                                    {
-                                        method: 'PUT',
-                                        body: JSON.stringify('Tournament Finished'),
-                                        headers: { 'Content-Type': 'application/json' }
-                                    }
-                                );
-                                console.log('Tournament status updated to Tournament Finished');
+                                // Get tournament prizes
+                                const prizes = await pullTournamentPrizes(tournamentId);
+                                const prizeAmount = prizes['3rd Place'];
 
-                                // Automatically snapshot current leaderboard rankings after tournament finishes
-                                try {
-                                    const snapshotResult = await snapshotLeaderboardRanks();
-                                    if (snapshotResult.success) {
-                                        console.log(
-                                            `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                                console.log('Third Place Prize:', prizeAmount);
+
+                                // Find and update player record
+                                const playerId = await lookForUserId(winner);
+                                if (playerId) {
+                                    const playerData = await loadUserById(playerId);
+
+                                    if (playerData) {
+                                        // Initialize prizes array if it doesn't exist
+                                        if (!playerData.prizes) {
+                                            playerData.prizes = [];
+                                        }
+
+                                        // Add new prize
+                                        playerData.prizes.push({
+                                            tournamentName: tournamentName,
+                                            place: '3rd Place',
+                                            prizeAmount: prizeAmount
+                                        });
+
+                                        // Calculate new total prize
+                                        const currentTotal = await getPlayerPrizeTotal(playerId);
+                                        const newTotal = parseFloat(currentTotal || 0) + parseFloat(prizeAmount);
+                                        playerData.totalPrize = newTotal;
+
+                                        console.log('Updated player data:', playerData);
+
+                                        // Update tournament winners
+                                        const confirmUpdateWinner = confirmWindow(
+                                            `Update tournament 3rd place winner?\n\nWinner: ${winner}\nPrize: ${prizeAmount}\n\nUpdate?`
                                         );
+
+                                        if (confirmUpdateWinner) {
+                                            await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify(winner),
+                                                    headers: { 'Content-Type': 'application/json' }
+                                                }
+                                            );
+                                            console.log('Tournament 3rd place winner updated');
+                                        }
+
+                                        // Update player record
+                                        const confirmUpdatePlayer = confirmWindow(
+                                            `Update player record with prize?\n\nPlayer: ${winner}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
+                                        );
+
+                                        if (confirmUpdatePlayer) {
+                                            await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${playerId}.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify(playerData),
+                                                    headers: { 'Content-Type': 'application/json' }
+                                                }
+                                            );
+                                            console.log('Player record updated with 3rd place prize');
+                                        }
                                     } else {
-                                        console.error(
-                                            'Failed to snapshot leaderboard after tournament:',
-                                            snapshotResult.error
-                                        );
-                                    }
-                                } catch (error) {
-                                    console.error('Error during leaderboard snapshot after tournament:', error);
-                                }
-
-                                // Recalculate stars for all players based on new ratings
-                                const confirmRecalculateStars = confirmWindow(
-                                    `Recalculate stars for all players based on updated ratings?\n\nThis will update every player's star count.`
-                                );
-
-                                if (confirmRecalculateStars) {
-                                    try {
-                                        const result = await recalculatePlayerStars();
-                                        console.log(
-                                            `All player stars recalculated successfully. Updated ${result.updatedCount} players.`
-                                        );
-                                        alert('Player stars recalculated successfully!');
-                                    } catch (error) {
-                                        console.error('Error recalculating stars:', error);
-                                        alert('Error recalculating stars: ' + error.message);
+                                        console.log('Player data not found');
+                                        alert('Could not load player data for prize award');
                                     }
                                 } else {
-                                    console.log('Star recalculation cancelled by user');
+                                    console.log('Player ID not found');
+                                    alert('Could not find player ID for prize award');
                                 }
                             } catch (error) {
-                                console.error('Error updating tournament status:', error);
-                                alert('Error updating tournament status: ' + error.message);
+                                console.error('Error awarding Third Place prize:', error);
+                                alert('Error awarding Third Place prize: ' + error.message);
+                            }
+
+                            console.log('Third Place prizes awarded');
+                        } else {
+                            console.log('Third Place prize award cancelled by user');
+                        }
+                    } else if (currentStage === 'Final') {
+                        // Award Final prizes to winner (1st place) and loser (2nd place)
+                        console.log(`Final game completed. Winner: ${winner}, Runner-up: ${loser}`);
+
+                        const confirmFinalPrizes = confirmWindow(
+                            `Award Final prizes?\n\n1st Place: ${winner}\n2nd Place: ${loser}\n\nThis will update tournament winners and player prize records.\n\nAward prizes?`
+                        );
+
+                        if (confirmFinalPrizes) {
+                            try {
+                                // Get tournament prizes
+                                const prizes = await pullTournamentPrizes(tournamentId);
+                                const firstPlacePrize = prizes['1st Place'];
+                                const secondPlacePrize = prizes['2nd Place'];
+
+                                console.log('1st Place Prize:', firstPlacePrize);
+                                console.log('2nd Place Prize:', secondPlacePrize);
+
+                                // Award 1st place prize
+                                const firstPlacePlayerId = await lookForUserId(winner);
+                                if (firstPlacePlayerId) {
+                                    const winnerData = await loadUserById(firstPlacePlayerId);
+                                    if (winnerData) {
+                                        // Initialize prizes array if it doesn't exist
+                                        if (!winnerData.prizes) {
+                                            winnerData.prizes = [];
+                                        }
+
+                                        // Add new prize
+                                        winnerData.prizes.push({
+                                            tournamentName: tournamentName,
+                                            place: '1st Place',
+                                            prizeAmount: firstPlacePrize
+                                        });
+
+                                        // Calculate new total prize
+                                        const winnerCurrentTotal = await getPlayerPrizeTotal(firstPlacePlayerId);
+                                        const winnerNewTotal =
+                                            parseFloat(winnerCurrentTotal || 0) + parseFloat(firstPlacePrize);
+                                        winnerData.totalPrize = winnerNewTotal;
+
+                                        console.log('Updated winner data:', winnerData);
+
+                                        // Update tournament 1st place winner
+                                        const confirmUpdateWinner = confirmWindow(
+                                            `Update tournament 1st place winner?\n\nWinner: ${winner}\nPrize: ${firstPlacePrize}\n\nUpdate?`
+                                        );
+
+                                        if (confirmUpdateWinner) {
+                                            await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/1st place.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify(winner),
+                                                    headers: { 'Content-Type': 'application/json' }
+                                                }
+                                            );
+                                            console.log('Tournament 1st place winner updated');
+                                        }
+
+                                        // Update winner record
+                                        const confirmUpdateWinnerPlayer = confirmWindow(
+                                            `Update winner record with prize?\n\nPlayer: ${winner}\nOld Total: ${winnerCurrentTotal}\nNew Total: ${winnerNewTotal}\n\nUpdate?`
+                                        );
+
+                                        if (confirmUpdateWinnerPlayer) {
+                                            await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlacePlayerId}.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify(winnerData),
+                                                    headers: { 'Content-Type': 'application/json' }
+                                                }
+                                            );
+                                            console.log('Winner record updated with 1st place prize');
+                                        }
+                                    } else {
+                                        console.log('Winner data not found');
+                                        alert('Could not load winner data for prize award');
+                                    }
+                                } else {
+                                    console.log('Winner ID not found');
+                                    alert('Could not find winner ID for prize award');
+                                }
+
+                                // Award 2nd place prize
+                                const secondPlacePlayerId = await lookForUserId(loser);
+                                if (secondPlacePlayerId) {
+                                    const loserData = await loadUserById(secondPlacePlayerId);
+                                    if (loserData) {
+                                        // Initialize prizes array if it doesn't exist
+                                        if (!loserData.prizes) {
+                                            loserData.prizes = [];
+                                        }
+
+                                        // Add new prize
+                                        loserData.prizes.push({
+                                            tournamentName: tournamentName,
+                                            place: '2nd Place',
+                                            prizeAmount: secondPlacePrize
+                                        });
+
+                                        // Calculate new total prize
+                                        const loserCurrentTotal = await getPlayerPrizeTotal(secondPlacePlayerId);
+                                        const loserNewTotal =
+                                            parseFloat(loserCurrentTotal || 0) + parseFloat(secondPlacePrize);
+                                        loserData.totalPrize = loserNewTotal;
+
+                                        console.log('Updated runner-up data:', loserData);
+
+                                        // Update tournament 2nd place winner
+                                        const confirmUpdateRunnerUp = confirmWindow(
+                                            `Update tournament 2nd place winner?\n\nRunner-up: ${loser}\nPrize: ${secondPlacePrize}\n\nUpdate?`
+                                        );
+
+                                        if (confirmUpdateRunnerUp) {
+                                            await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/2nd place.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify(loser),
+                                                    headers: { 'Content-Type': 'application/json' }
+                                                }
+                                            );
+                                            console.log('Tournament 2nd place winner updated');
+                                        }
+
+                                        // Update runner-up record
+                                        const confirmUpdateLoserPlayer = confirmWindow(
+                                            `Update runner-up record with prize?\n\nPlayer: ${loser}\nOld Total: ${loserCurrentTotal}\nNew Total: ${loserNewTotal}\n\nUpdate?`
+                                        );
+
+                                        if (confirmUpdateLoserPlayer) {
+                                            await fetch(
+                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlacePlayerId}.json`,
+                                                {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify(loserData),
+                                                    headers: { 'Content-Type': 'application/json' }
+                                                }
+                                            );
+                                            console.log('Runner-up record updated with 2nd place prize');
+                                        }
+                                    } else {
+                                        console.log('Runner-up data not found');
+                                        alert('Could not load runner-up data for prize award');
+                                    }
+                                } else {
+                                    console.log('Runner-up ID not found');
+                                    alert('Could not find runner-up ID for prize award');
+                                }
+                            } catch (error) {
+                                console.error('Error awarding Final prizes:', error);
+                                alert('Error awarding Final prizes: ' + error.message);
+                            }
+
+                            console.log('Final prizes awarded');
+
+                            // Update tournament status to "Tournament Finished"
+                            const confirmStatusUpdate = confirmWindow(
+                                `Update tournament status to 'Tournament Finished'?\n\nThis will mark the tournament as complete.\n\nUpdate status?`
+                            );
+
+                            if (confirmStatusUpdate) {
+                                try {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify('Tournament Finished'),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log('Tournament status updated to Tournament Finished');
+
+                                    // Automatically snapshot current leaderboard rankings after tournament finishes
+                                    try {
+                                        const snapshotResult = await snapshotLeaderboardRanks();
+                                        if (snapshotResult.success) {
+                                            console.log(
+                                                `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                                            );
+                                        } else {
+                                            console.error(
+                                                'Failed to snapshot leaderboard after tournament:',
+                                                snapshotResult.error
+                                            );
+                                        }
+                                    } catch (error) {
+                                        console.error('Error during leaderboard snapshot after tournament:', error);
+                                    }
+
+                                    // Recalculate stars for all players based on new ratings
+                                    const confirmRecalculateStars = confirmWindow(
+                                        `Recalculate stars for all players based on updated ratings?\n\nThis will update every player's star count.`
+                                    );
+
+                                    if (confirmRecalculateStars) {
+                                        try {
+                                            const result = await recalculatePlayerStars();
+                                            console.log(
+                                                `All player stars recalculated successfully. Updated ${result.updatedCount} players.`
+                                            );
+                                            alert('Player stars recalculated successfully!');
+                                        } catch (error) {
+                                            console.error('Error recalculating stars:', error);
+                                            alert('Error recalculating stars: ' + error.message);
+                                        }
+                                    } else {
+                                        console.log('Star recalculation cancelled by user');
+                                    }
+                                } catch (error) {
+                                    console.error('Error updating tournament status:', error);
+                                    alert('Error updating tournament status: ' + error.message);
+                                }
+                            } else {
+                                console.log('Tournament status update cancelled by user');
                             }
                         } else {
-                            console.log('Tournament status update cancelled by user');
+                            console.log('Final prizes award cancelled by user');
                         }
-                    } else {
-                        console.log('Final prizes award cancelled by user');
                     }
-                }
 
-                // Update the local state with promoted players
-                setPlayoffPairs(updatedPairs);
-                setDetailedProgressStage('Finished');
-                await setLatestProcessedStage('Finished');
-            }
+                    // Update the local state with promoted players
+                    setPlayoffPairs(updatedPairs);
+                    setDetailedProgressStage('Finished');
+                }
+            } // end if (reportData.winner)
+
+            // All stages done — mark pair and games as Processed before saving to Firebase
+            pair.gameStatus = 'Processed';
+            reportData.games.forEach((game) => {
+                game.gameStatus = 'Processed';
+            });
+            // Sync games back into updatedPairs
+            updatedPairs[selectedStageIndex][selectedPairIndex].games = pair.games;
 
             // Post to Firebase
             const confirmBracketUpdate = confirmWindow(
@@ -2736,8 +2727,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 );
 
                 if (response.ok) {
+                    await savePairProgress(tournamentId, selectedPairId, null); // clear saved progress on success
                     setShowReportGameModal(false);
-                    alert('Game result reported successfully!');
+                    const skippedList = [
+                        skipCastleStats && 'castle_stats',
+                        skipRatings && 'ratings',
+                        skipGamePost && 'game_posted',
+                        skipPrizes && 'prizes'
+                    ].filter(Boolean);
+                    const skippedMsg =
+                        skippedList.length > 0 ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}` : '';
+                    alert(`Game result reported successfully!${skippedMsg}`);
                 } else {
                     alert('Error updating tournament bracket');
                 }
@@ -3521,6 +3521,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             {showReportGameModal && selectedStageIndex !== null && selectedPairIndex !== null && (
                 <ReportGameModal
                     pair={playoffPairs[selectedStageIndex]?.[selectedPairIndex]}
+                    pairId={selectedPairId}
+                    tournamentId={tournamentId}
                     onClose={() => setShowReportGameModal(false)}
                     onSubmit={handleSubmitGameReport}
                     playoffPairs={playoffPairs}

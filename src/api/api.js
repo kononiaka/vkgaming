@@ -28,6 +28,52 @@ export async function setGameProgress(gameId, progress) {
         return false;
     }
 }
+
+// Pair-level progress tracking for tournament submit sessions
+// Stores resumable state per match (tournamentId + stageIndex + pairIndex)
+export async function getPairProgress(tournamentId, pairId) {
+    try {
+        const response = await fetch(
+            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`
+        );
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) {
+        console.error('Error fetching pair progress:', e);
+        return null;
+    }
+}
+
+export async function savePairProgress(tournamentId, pairId, data) {
+    try {
+        const url = `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
+        const response = await fetch(url, {
+            method: data === null ? 'DELETE' : 'PUT',
+            headers: data === null ? {} : { 'Content-Type': 'application/json' },
+            body: data === null ? undefined : JSON.stringify(data)
+        });
+        return response.ok;
+    } catch (e) {
+        console.error('Error saving pair progress:', e);
+        return false;
+    }
+}
+
+// PATCH only the latestStage field without overwriting form data saved by the modal
+export async function updatePairProgressStage(tournamentId, pairId, stage) {
+    try {
+        const url = `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
+        const response = await fetch(url, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latestStage: stage })
+        });
+        return response.ok;
+    } catch (e) {
+        console.error('Error updating pair progress stage:', e);
+        return false;
+    }
+}
 export const fetchLeaderboard = async (player) => {
     try {
         const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`);

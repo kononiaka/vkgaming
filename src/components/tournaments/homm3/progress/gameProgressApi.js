@@ -38,7 +38,7 @@ export function restoreProgressFieldsFromNested(game) {
 export function stripUiFields(game) {
     const clean = {};
     for (const key in game) {
-        if (!key.startsWith('_')) {
+        if (!key.startsWith('_') && key !== 'latestProcessedStage') {
             clean[key] = game[key];
         }
     }
