@@ -4,7 +4,9 @@ export async function getGameProgress(gameId) {
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${gameId}/progress.json`
         );
-        if (!response.ok) return null;
+        if (!response.ok) {
+            return null;
+        }
         return await response.json();
     } catch (e) {
         console.error('Error fetching game progress:', e);
@@ -36,7 +38,9 @@ export async function getPairProgress(tournamentId, pairId) {
         const response = await fetch(
             `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`
         );
-        if (!response.ok) return null;
+        if (!response.ok) {
+            return null;
+        }
         return await response.json();
     } catch (e) {
         console.error('Error fetching pair progress:', e);
@@ -55,6 +59,22 @@ export async function savePairProgress(tournamentId, pairId, data) {
         return response.ok;
     } catch (e) {
         console.error('Error saving pair progress:', e);
+        return false;
+    }
+}
+
+// PATCH a single per-castle key (e.g. 'g0_c1') into the progress document
+export async function updatePairProgressCastle(tournamentId, pairId, castleKey) {
+    try {
+        const url = `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
+        const response = await fetch(url, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [castleKey]: true })
+        });
+        return response.ok;
+    } catch (e) {
+        console.error('Error updating castle progress:', e);
         return false;
     }
 }

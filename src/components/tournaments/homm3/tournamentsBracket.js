@@ -16,7 +16,8 @@ import {
     snapshotLeaderboardRanks,
     getPairProgress,
     savePairProgress,
-    updatePairProgressStage
+    updatePairProgressStage,
+    updatePairProgressCastle
 } from '../../../api/api';
 import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
@@ -1688,7 +1689,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     // Helper function to update player ratings and statistics after a game
-    const updatePlayerRatings = async (team1, team2, winnerId) => {
+    const updatePlayerRatings = async (
+        team1,
+        team2,
+        winnerId,
+        { skipRatings = false, skipPlayerStats = false, onCheckpoint = null } = {}
+    ) => {
         try {
             // Get player IDs
             const opponent1Id = await lookForUserId(team1);
@@ -1787,35 +1793,42 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     `Update player ratings to database?\n\n${team1}: ${opponent1CurrentRating.toFixed(2)} → ${opponent1NewRating.toFixed(2)}\n${team2}: ${opponent2CurrentRating.toFixed(2)} → ${opponent2NewRating.toFixed(2)}\n\nUpdate ratings?`
                 );
                 if (confirmRatingsUpdate) {
-                    try {
-                        console.log(
-                            `Updating ${team1} (${opponent1Id}) rating: ${opponent1CurrentRating.toFixed(2)} → ${opponent1NewRating.toFixed(2)}`
-                        );
-                        await addScoreToUser(
-                            opponent1Id,
-                            opponent1PrevData,
-                            opponent1NewRating,
-                            winnerId,
-                            tournamentId,
-                            team1
-                        );
-                        console.log(`✓ ${team1} rating updated successfully`);
+                    if (!skipRatings) {
+                        try {
+                            console.log(
+                                `Updating ${team1} (${opponent1Id}) rating: ${opponent1CurrentRating.toFixed(2)} → ${opponent1NewRating.toFixed(2)}`
+                            );
+                            await addScoreToUser(
+                                opponent1Id,
+                                opponent1PrevData,
+                                opponent1NewRating,
+                                winnerId,
+                                tournamentId,
+                                team1
+                            );
+                            console.log(`✓ ${team1} rating updated successfully`);
 
-                        console.log(
-                            `Updating ${team2} (${opponent2Id}) rating: ${opponent2CurrentRating.toFixed(2)} → ${opponent2NewRating.toFixed(2)}`
-                        );
-                        await addScoreToUser(
-                            opponent2Id,
-                            opponent2PrevData,
-                            opponent2NewRating,
-                            winnerId,
-                            tournamentId,
-                            team2
-                        );
-                        console.log(`✓ ${team2} rating updated successfully`);
-                    } catch (error) {
-                        console.error('Error updating player ratings:', error);
-                        alert(`Error updating ratings: ${error.message}`);
+                            console.log(
+                                `Updating ${team2} (${opponent2Id}) rating: ${opponent2CurrentRating.toFixed(2)} → ${opponent2NewRating.toFixed(2)}`
+                            );
+                            await addScoreToUser(
+                                opponent2Id,
+                                opponent2PrevData,
+                                opponent2NewRating,
+                                winnerId,
+                                tournamentId,
+                                team2
+                            );
+                            console.log(`✓ ${team2} rating updated successfully`);
+                        } catch (error) {
+                            console.error('Error updating player ratings:', error);
+                            alert(`Error updating ratings: ${error.message}`);
+                        }
+                    } else {
+                        console.log('Ratings update skipped (already done in previous session)');
+                    }
+                    if (onCheckpoint) {
+                        await onCheckpoint('ratings');
                     }
                 } else {
                     console.log('Player ratings update skipped by user');
@@ -1823,6 +1836,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             }
 
             // Separate step for player statistics
+            if (skipPlayerStats) {
+                console.log('Player statistics update skipped (already done in previous session)');
+                return {
+                    success: true,
+                    newRatings: {
+                        [team1]: opponent1NewRating.toFixed(2),
+                        [team2]: opponent2NewRating.toFixed(2)
+                    }
+                };
+            }
             const confirmStatistics = confirmWindow(
                 `Update Player Statistics?\n\n${team1}:\nOld - Total: ${opponent1Stats.total}, Win: ${opponent1Win}, Lose: ${opponent1Stats.lose}\nNew - Total: ${updatedOpponent1Stats.total}, Win: ${updatedOpponent1Stats.win}, Lose: ${updatedOpponent1Stats.lose}\n\n${team2}:\nOld - Total: ${opponent2Stats.total}, Win: ${opponent2Win}, Lose: ${opponent2Stats.lose}\nNew - Total: ${updatedOpponent2Stats.total}, Win: ${updatedOpponent2Stats.win}, Lose: ${updatedOpponent2Stats.lose}\n\nUpdate?`
             );
@@ -1875,6 +1898,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             }
 
             console.log('Player ratings and statistics process completed');
+            if (onCheckpoint) {
+                await onCheckpoint('player_stats');
+            }
             alert('✅ Player ratings and statistics process completed!');
             return {
                 success: true,
@@ -1891,7 +1917,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     const handleSubmitGameReport = async (reportData) => {
         // Ordered processing stages — used for skip logic on session restore
-        const STAGES = ['castle_stats', 'ratings', 'game_posted', 'prizes', 'finished'];
+        const STAGES = [
+            'castle_stats',
+            'ratings',
+            'player_stats',
+            'game_posted',
+            'prizes',
+            'promotion',
+            'tournament_status',
+            'bracket'
+        ];
         const stageAtLeast = (latest, target) => STAGES.indexOf(latest) >= STAGES.indexOf(target);
 
         await setDetailedProgressStage('Started');
@@ -1904,16 +1939,26 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             // not pair.gameStatus (which only reaches Firebase at the very end of the process)
             let skipCastleStats = false;
             let skipRatings = false;
+            let skipPlayerStats = false;
             let skipGamePost = false;
             let skipPrizes = false;
+            let skipPromotion = false;
+            let skipTournamentStatus = false;
+            let skipBracket = false;
             const savedProgress = await getPairProgress(tournamentId, selectedPairId);
             const latestStage = savedProgress?.latestStage || '';
+            // Per-castle checkpoint keys stored as { g0_c1: true, g0_c2: true, g1_c1: true, ... }
+            const completedCastleKeys = new Set(Object.keys(savedProgress || {}).filter((k) => /^g\d+_c[12]$/.test(k)));
             if (latestStage && latestStage !== 'submitted') {
                 // 'submitted' means form was saved but processing hadn't started yet — no stages to skip
                 skipCastleStats = stageAtLeast(latestStage, 'castle_stats');
                 skipRatings = stageAtLeast(latestStage, 'ratings');
+                skipPlayerStats = stageAtLeast(latestStage, 'player_stats');
                 skipGamePost = stageAtLeast(latestStage, 'game_posted');
                 skipPrizes = stageAtLeast(latestStage, 'prizes');
+                skipPromotion = stageAtLeast(latestStage, 'promotion');
+                skipTournamentStatus = stageAtLeast(latestStage, 'tournament_status');
+                skipBracket = stageAtLeast(latestStage, 'bracket');
             }
 
             if (pair.gameStatus === 'Processed' && !authCtx.isAdmin) {
@@ -1938,107 +1983,112 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             await setDetailedProgressStage('Pair state updated');
 
             // Update castle statistics for each game (runs regardless of overall winner)
-            let castleIdx = 1;
             let anyCastleWritten = false; // tracks if any castle stat was actually saved to DB
-            for (const game of reportData.games) {
-                // Per-game skip: if this game was already fully processed, skip it
-                game._skipCastleProcessing = skipCastleStats;
-                game._skipRatings = skipRatings;
-                game._skipGamePost = skipGamePost;
-                game._skipPrizes = skipPrizes;
+            if (!skipCastleStats) {
+                for (let gameIndex = 0; gameIndex < reportData.games.length; gameIndex++) {
+                    const game = reportData.games[gameIndex];
+                    const castleIdx = gameIndex + 1;
+                    // Per-game flags for downstream stages
+                    game._skipRatings = skipRatings;
+                    game._skipGamePost = skipGamePost;
+                    game._skipPrizes = skipPrizes;
 
-                // Skip games that have already been processed
-                if (game.gameStatus === 'Processed') {
-                    setDetailedProgressStage(`Game ${castleIdx} already processed`);
-                    console.log(`Game ${game.gameId + 1} already processed, skipping castle stats update`);
-                    castleIdx++;
-                    continue;
-                }
+                    // Skip games that have already been fully processed
+                    if (game.gameStatus === 'Processed') {
+                        setDetailedProgressStage(`Game ${castleIdx} already processed`);
+                        console.log(`Game ${game.gameId + 1} already processed, skipping castle stats update`);
+                        continue;
+                    }
 
-                if (game.castle1 && game.castle2) {
-                    console.log('game', game);
-                    // If winner is selected, update win/lose stats
-                    if (game.gameWinner) {
-                        // Track if each castle update is skipped
+                    if (game.castle1 && game.castle2 && game.gameWinner) {
+                        console.log('game', game);
+                        const c1Key = `g${gameIndex}_c1`;
+                        const c2Key = `g${gameIndex}_c2`;
                         let castle1Skipped = false;
                         let castle2Skipped = false;
 
                         // Update castle1 stats
-                        setDetailedProgressStage(`First castle processed`, {
-                            castle: game.castle1,
-                            gameId: game.gameId
-                        });
-                        const castle1Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                        );
-                        if (castle1Response.ok) {
-                            const castle1Data = await castle1Response.json();
-                            const isWinner = game.castleWinner === game.castle1;
-                            const updatedCastle1Stats = {
-                                win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
-                                lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
-                                total: (castle1Data.total || 0) + 1
-                            };
-
-                            const confirmCastle1 = confirmWindow(
-                                `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
+                        if (!completedCastleKeys.has(c1Key)) {
+                            setDetailedProgressStage(`First castle processed`, {
+                                castle: game.castle1,
+                                gameId: game.gameId
+                            });
+                            const castle1Response = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
                             );
-                            if (confirmCastle1) {
-                                await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
-                                    {
-                                        method: 'PUT',
-                                        body: JSON.stringify(updatedCastle1Stats),
-                                        headers: { 'Content-Type': 'application/json' }
-                                    }
+                            if (castle1Response.ok) {
+                                const castle1Data = await castle1Response.json();
+                                const isWinner = game.castleWinner === game.castle1;
+                                const updatedCastle1Stats = {
+                                    win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
+                                    lose: (castle1Data.lose || 0) + (isWinner ? 0 : 1),
+                                    total: (castle1Data.total || 0) + 1
+                                };
+                                const confirmCastle1 = confirmWindow(
+                                    `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
                                 );
-                                console.log(`${game.castle1} castle stats updated`);
-                                // Set to PartiallyProcessed after any DB-changing step
-                                updateGameStatusForPartialProgress(game);
-                                anyCastleWritten = true;
-                            } else {
-                                castle1Skipped = true;
-                                console.log(`${game.castle1} castle stats update skipped`);
+                                if (confirmCastle1) {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify(updatedCastle1Stats),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log(`${game.castle1} castle stats updated`);
+                                    updateGameStatusForPartialProgress(game);
+                                    await updatePairProgressCastle(tournamentId, selectedPairId, c1Key);
+                                    anyCastleWritten = true;
+                                } else {
+                                    castle1Skipped = true;
+                                    console.log(`${game.castle1} castle stats update skipped`);
+                                }
                             }
+                        } else {
+                            console.log(`${game.castle1} (game ${castleIdx}) already checkpointed, skipping`);
                         }
 
                         // Update castle2 stats
-                        setDetailedProgressStage(`Second castle processed`, {
-                            castle: game.castle2,
-                            gameId: game.gameId
-                        });
-                        const castle2Response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                        );
-                        if (castle2Response.ok) {
-                            const castle2Data = await castle2Response.json();
-                            const isWinner = game.castleWinner === game.castle2;
-                            const updatedCastle2Stats = {
-                                win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
-                                lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
-                                total: (castle2Data.total || 0) + 1
-                            };
-
-                            const confirmCastle2 = confirmWindow(
-                                `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
+                        if (!completedCastleKeys.has(c2Key)) {
+                            setDetailedProgressStage(`Second castle processed`, {
+                                castle: game.castle2,
+                                gameId: game.gameId
+                            });
+                            const castle2Response = await fetch(
+                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
                             );
-                            if (confirmCastle2) {
-                                await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
-                                    {
-                                        method: 'PUT',
-                                        body: JSON.stringify(updatedCastle2Stats),
-                                        headers: { 'Content-Type': 'application/json' }
-                                    }
+                            if (castle2Response.ok) {
+                                const castle2Data = await castle2Response.json();
+                                const isWinner = game.castleWinner === game.castle2;
+                                const updatedCastle2Stats = {
+                                    win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
+                                    lose: (castle2Data.lose || 0) + (isWinner ? 0 : 1),
+                                    total: (castle2Data.total || 0) + 1
+                                };
+                                const confirmCastle2 = confirmWindow(
+                                    `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
                                 );
-                                console.log(`${game.castle2} castle stats updated`);
-                                // Set to PartiallyProcessed after any DB-changing step
-                                updateGameStatusForPartialProgress(game);
-                                anyCastleWritten = true;
-                            } else {
-                                castle2Skipped = true;
-                                console.log(`${game.castle2} castle stats update skipped`);
+                                if (confirmCastle2) {
+                                    await fetch(
+                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                        {
+                                            method: 'PUT',
+                                            body: JSON.stringify(updatedCastle2Stats),
+                                            headers: { 'Content-Type': 'application/json' }
+                                        }
+                                    );
+                                    console.log(`${game.castle2} castle stats updated`);
+                                    updateGameStatusForPartialProgress(game);
+                                    await updatePairProgressCastle(tournamentId, selectedPairId, c2Key);
+                                    anyCastleWritten = true;
+                                } else {
+                                    castle2Skipped = true;
+                                    console.log(`${game.castle2} castle stats update skipped`);
+                                }
                             }
+                        } else {
+                            console.log(`${game.castle2} (game ${castleIdx}) already checkpointed, skipping`);
                         }
 
                         // If both castle updates were skipped, still mark as processed
@@ -2051,27 +2101,31 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         }
                     }
                 }
-                castleIdx++;
-            }
 
-            // Save castle_stats checkpoint only if at least one castle was actually written to DB
-            if (anyCastleWritten) {
-                await updatePairProgressStage(tournamentId, selectedPairId, 'castle_stats');
-                pair.gameStatus = 'PartiallyProcessed';
-                setPlayoffPairs(updatedPairs);
+                // Save castle_stats stage checkpoint only if at least one castle was actually written to DB
+                if (anyCastleWritten) {
+                    await updatePairProgressStage(tournamentId, selectedPairId, 'castle_stats');
+                    pair.gameStatus = 'PartiallyProcessed';
+                    setPlayoffPairs(updatedPairs);
+                }
+            } else {
+                console.log('Castle stats step skipped (already done in previous session)');
             }
 
             // If overall winner is selected, handle ratings, game posting, and promotions
             if (reportData.winner) {
-                // Update player ratings FIRST (skip if already done)
+                // Update player ratings and stats (each writes its own checkpoint via onCheckpoint callback)
                 let ratingResult = null;
-                if (!skipRatings) {
+                if (!skipRatings || !skipPlayerStats) {
                     const winnerId = await lookForUserId(reportData.winner);
-                    ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId);
-                    setDetailedProgressStage('Ratings updated');
-                    await updatePairProgressStage(tournamentId, selectedPairId, 'ratings');
+                    ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId, {
+                        skipRatings,
+                        skipPlayerStats,
+                        onCheckpoint: (stage) => updatePairProgressStage(tournamentId, selectedPairId, stage)
+                    });
+                    setDetailedProgressStage('Ratings and stats updated');
                 } else {
-                    console.log('Ratings step skipped (already done in previous session)');
+                    console.log('Ratings and player_stats steps skipped (already done in previous session)');
                 }
 
                 // Use the newly calculated ratings directly
@@ -2175,13 +2229,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                 if (!skipPrizes) {
                     setDetailedProgressStage('Prizes processing');
-                    await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
                     // Promote winner and loser to next stage
                     const currentStage = stageLabels[selectedStageIndex];
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
                     console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
+
+                    // Prize DB writes happen only for Third Place and Final stages
+                    // For all other stages this just falls through and checkpoints immediately
 
                     // Promote based on current stage
                     if (currentStage === 'Semi-final') {
@@ -2470,6 +2526,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             }
 
                             console.log('Third Place prizes awarded');
+                            await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
                         } else {
                             console.log('Third Place prize award cancelled by user');
                         }
@@ -2630,6 +2687,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             }
 
                             console.log('Final prizes awarded');
+                            await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
 
                             // Update tournament status to "Tournament Finished"
                             const confirmStatusUpdate = confirmWindow(
@@ -2691,6 +2749,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             } else {
                                 console.log('Tournament status update cancelled by user');
                             }
+                            await updatePairProgressStage(tournamentId, selectedPairId, 'tournament_status');
                         } else {
                             console.log('Final prizes award cancelled by user');
                         }
@@ -2699,6 +2758,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     // Update the local state with promoted players
                     setPlayoffPairs(updatedPairs);
                     setDetailedProgressStage('Finished');
+                    await updatePairProgressStage(tournamentId, selectedPairId, 'promotion');
                 }
             } // end if (reportData.winner)
 
@@ -2713,40 +2773,64 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             updatedPairs[selectedStageIndex][selectedPairIndex].games = pair.games;
 
             // Post to Firebase
-            const confirmBracketUpdate = confirmWindow(
-                `Update tournament bracket in database?\n\nThis will save all changes to the tournament.\n\nUpdate bracket?`
-            );
-            if (confirmBracketUpdate) {
-                const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(updatedPairs),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
+            if (!skipBracket) {
+                const confirmBracketUpdate = confirmWindow(
+                    `Update tournament bracket in database?\n\nThis will save all changes to the tournament.\n\nUpdate bracket?`
                 );
+                if (confirmBracketUpdate) {
+                    const response = await fetch(
+                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                        {
+                            method: 'PUT',
+                            body: JSON.stringify(updatedPairs),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
 
-                if (response.ok) {
-                    await savePairProgress(tournamentId, selectedPairId, null); // clear saved progress on success
-                    setShowReportGameModal(false);
-                    const skippedList = [
-                        skipCastleStats && 'castle_stats',
-                        skipRatings && 'ratings',
-                        skipGamePost && 'game_posted',
-                        skipPrizes && 'prizes'
-                    ].filter(Boolean);
-                    const skippedMsg =
-                        skippedList.length > 0 ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}` : '';
-                    alert(`Game result reported successfully!${skippedMsg}`);
+                    if (response.ok) {
+                        await updatePairProgressStage(tournamentId, selectedPairId, 'bracket');
+                        await savePairProgress(tournamentId, selectedPairId, null); // clear saved progress on success
+                        setShowReportGameModal(false);
+                        const skippedList = [
+                            skipCastleStats && 'castle_stats',
+                            skipRatings && 'ratings',
+                            skipPlayerStats && 'player_stats',
+                            skipGamePost && 'game_posted',
+                            skipPrizes && 'prizes',
+                            skipPromotion && 'promotion',
+                            skipTournamentStatus && 'tournament_status',
+                            skipBracket && 'bracket'
+                        ].filter(Boolean);
+                        const skippedMsg =
+                            skippedList.length > 0 ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}` : '';
+                        alert(`Game result reported successfully!${skippedMsg}`);
+                    } else {
+                        alert('Error updating tournament bracket');
+                    }
                 } else {
-                    alert('Error updating tournament bracket');
+                    console.log('Bracket update skipped by user');
+                    alert('Bracket update cancelled - local changes saved but not synced to database');
+                    setShowReportGameModal(false);
                 }
             } else {
-                console.log('Bracket update skipped by user');
-                alert('Bracket update cancelled - local changes saved but not synced to database');
+                console.log('Bracket update step skipped (already done in previous session)');
                 setShowReportGameModal(false);
+                await savePairProgress(tournamentId, selectedPairId, null);
+                const skippedList = [
+                    skipCastleStats && 'castle_stats',
+                    skipRatings && 'ratings',
+                    skipPlayerStats && 'player_stats',
+                    skipGamePost && 'game_posted',
+                    skipPrizes && 'prizes',
+                    skipPromotion && 'promotion',
+                    skipTournamentStatus && 'tournament_status',
+                    skipBracket && 'bracket'
+                ].filter(Boolean);
+                const skippedMsg =
+                    skippedList.length > 0 ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}` : '';
+                alert(`Game result reported successfully!${skippedMsg}`);
             }
         } catch (error) {
             setDetailedProgressStage('Error', { error: error.message });
