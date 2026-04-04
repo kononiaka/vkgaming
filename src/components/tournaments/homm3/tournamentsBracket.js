@@ -2702,11 +2702,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 }
             } // end if (reportData.winner)
 
-            // All stages done — mark pair and games as Processed before saving to Firebase
-            pair.gameStatus = 'Processed';
-            reportData.games.forEach((game) => {
-                game.gameStatus = 'Processed';
-            });
+            // All stages done — mark pair and games as Processed only when there's an overall winner
+            if (reportData.winner) {
+                pair.gameStatus = 'Processed';
+                reportData.games.forEach((game) => {
+                    game.gameStatus = 'Processed';
+                });
+            }
             // Sync games back into updatedPairs
             updatedPairs[selectedStageIndex][selectedPairIndex].games = pair.games;
 
@@ -3159,13 +3161,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     >
                                                         {pair.team1 !== 'TBD' &&
                                                         pair.team2 !== 'TBD' &&
-                                                        canViewReportButtonForPair(pair) ? (
+                                                        canViewReportButtonForPair(pair) &&
+                                                        (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
                                                             <button
                                                                 onClick={() =>
                                                                     handleOpenReportGame(pair, stageIndex, pairIndex)
-                                                                }
-                                                                disabled={
-                                                                    pair.gameStatus === 'Processed' && !authCtx.isAdmin
                                                                 }
                                                                 style={{
                                                                     padding: '0.5rem 1rem',
@@ -3180,24 +3180,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             ? '#ffffff'
                                                                             : 'rgb(62, 32, 192)',
                                                                     fontWeight: 'bold',
-                                                                    cursor:
-                                                                        pair.gameStatus === 'Processed' &&
-                                                                        !authCtx.isAdmin
-                                                                            ? 'not-allowed'
-                                                                            : 'pointer',
-                                                                    opacity:
-                                                                        pair.gameStatus === 'Processed' &&
-                                                                        !authCtx.isAdmin
-                                                                            ? 0.75
-                                                                            : 1,
+                                                                    cursor: 'pointer',
                                                                     fontSize: '0.9rem'
                                                                 }}
                                                             >
-                                                                {pair.gameStatus === 'Processed' && !authCtx.isAdmin
-                                                                    ? '🔒 Report Game'
-                                                                    : pair.gameStatus === 'Processed'
-                                                                      ? 'Re-report Game'
-                                                                      : 'Report Game'}
+                                                                {pair.gameStatus === 'Processed'
+                                                                    ? 'Re-report Game'
+                                                                    : 'Report Game'}
                                                             </button>
                                                         ) : null}
                                                     </div>
@@ -3284,7 +3273,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     >
                                                         {pair.team1 !== 'TBD' &&
                                                         pair.team2 !== 'TBD' &&
-                                                        canViewReportButtonForPair(pair) ? (
+                                                        canViewReportButtonForPair(pair) &&
+                                                        (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
                                                             <button
                                                                 onClick={() =>
                                                                     handleOpenReportGame(
@@ -3292,9 +3282,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         thirdPlaceIndex,
                                                                         pairIndex
                                                                     )
-                                                                }
-                                                                disabled={
-                                                                    pair.gameStatus === 'Processed' && !authCtx.isAdmin
                                                                 }
                                                                 style={{
                                                                     padding: '0.5rem 1rem',
@@ -3309,24 +3296,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             ? '#ffffff'
                                                                             : 'rgb(62, 32, 192)',
                                                                     fontWeight: 'bold',
-                                                                    cursor:
-                                                                        pair.gameStatus === 'Processed' &&
-                                                                        !authCtx.isAdmin
-                                                                            ? 'not-allowed'
-                                                                            : 'pointer',
-                                                                    opacity:
-                                                                        pair.gameStatus === 'Processed' &&
-                                                                        !authCtx.isAdmin
-                                                                            ? 0.75
-                                                                            : 1,
+                                                                    cursor: 'pointer',
                                                                     fontSize: '0.9rem'
                                                                 }}
                                                             >
-                                                                {pair.gameStatus === 'Processed' && !authCtx.isAdmin
-                                                                    ? '🔒 Report Game'
-                                                                    : pair.gameStatus === 'Processed'
-                                                                      ? 'Re-report Game'
-                                                                      : 'Report Game'}
+                                                                {pair.gameStatus === 'Processed'
+                                                                    ? 'Re-report Game'
+                                                                    : 'Report Game'}
                                                             </button>
                                                         ) : null}
                                                     </div>
@@ -3464,13 +3440,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 >
                                                     {pair.team1 !== 'TBD' &&
                                                     pair.team2 !== 'TBD' &&
-                                                    canViewReportButtonForPair(pair) ? (
+                                                    canViewReportButtonForPair(pair) &&
+                                                    (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
                                                         <button
                                                             onClick={() =>
                                                                 handleOpenReportGame(pair, stageIndex, pairIndex)
-                                                            }
-                                                            disabled={
-                                                                pair.gameStatus === 'Processed' && !authCtx.isAdmin
                                                             }
                                                             style={{
                                                                 padding: '0.5rem 1rem',
@@ -3485,22 +3459,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         ? '#ffffff'
                                                                         : 'rgb(62, 32, 192)',
                                                                 fontWeight: 'bold',
-                                                                cursor:
-                                                                    pair.gameStatus === 'Processed' && !authCtx.isAdmin
-                                                                        ? 'not-allowed'
-                                                                        : 'pointer',
-                                                                opacity:
-                                                                    pair.gameStatus === 'Processed' && !authCtx.isAdmin
-                                                                        ? 0.75
-                                                                        : 1,
+                                                                cursor: 'pointer',
                                                                 fontSize: '0.9rem'
                                                             }}
                                                         >
-                                                            {pair.gameStatus === 'Processed' && !authCtx.isAdmin
-                                                                ? '🔒 Report Game'
-                                                                : pair.gameStatus === 'Processed'
-                                                                  ? 'Re-report Game'
-                                                                  : 'Report Game'}
+                                                            {pair.gameStatus === 'Processed'
+                                                                ? 'Re-report Game'
+                                                                : 'Report Game'}
                                                         </button>
                                                     ) : null}
                                                 </div>

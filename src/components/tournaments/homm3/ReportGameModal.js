@@ -74,27 +74,61 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         }
         // latestStage, bannedCastles and castleMarkOverrides are NOT in pair data — restore from progress
         setLatestProcessedStage(initial.latestStage || '');
-        if (initial.bannedCastlesBO1_1) setBannedCastlesBO1_1(initial.bannedCastlesBO1_1);
-        if (initial.bannedCastlesBO1_2) setBannedCastlesBO1_2(initial.bannedCastlesBO1_2);
-        if (initial.castleMarkOverrides) setCastleMarkOverrides(initial.castleMarkOverrides);
+        if (initial.bannedCastlesBO1_1) {
+            setBannedCastlesBO1_1(initial.bannedCastlesBO1_1);
+        }
+        if (initial.bannedCastlesBO1_2) {
+            setBannedCastlesBO1_2(initial.bannedCastlesBO1_2);
+        }
+        if (initial.castleMarkOverrides) {
+            setCastleMarkOverrides(initial.castleMarkOverrides);
+        }
         // Restore form fields only if saved progress has them (don't overwrite pair useEffect values with empty)
-        if (initial.winner !== undefined) setSelectedWinner(initial.winner);
-        if (initial.score1 !== undefined) setScore1(initial.score1);
-        if (initial.score2 !== undefined) setScore2(initial.score2);
-        if (initial.color1) setColor1(initial.color1);
-        if (initial.color2) setColor2(initial.color2);
+        if (initial.winner !== undefined) {
+            setSelectedWinner(initial.winner);
+        }
+        if (initial.score1 !== undefined) {
+            setScore1(initial.score1);
+        }
+        if (initial.score2 !== undefined) {
+            setScore2(initial.score2);
+        }
+        if (initial.color1) {
+            setColor1(initial.color1);
+        }
+        if (initial.color2) {
+            setColor2(initial.color2);
+        }
         // For BO-1: castle and game fields are nested in initial.games[0]
         const g0 = initial.games?.[0];
         if (g0) {
-            if (g0.castle1) setCastle1(g0.castle1);
-            if (g0.castle2) setCastle2(g0.castle2);
-            if (g0.gold1 !== undefined) setGold1(g0.gold1);
-            if (g0.gold2 !== undefined) setGold2(g0.gold2);
-            if (g0.restart1_111 !== undefined) setRestart1_111(g0.restart1_111);
-            if (g0.restart1_112 !== undefined) setRestart1_112(g0.restart1_112);
-            if (g0.restart2_111 !== undefined) setRestart2_111(g0.restart2_111);
-            if (g0.restart2_112 !== undefined) setRestart2_112(g0.restart2_112);
-            if (g0.restartsFinished !== undefined) setRestartsFinished(g0.restartsFinished);
+            if (g0.castle1) {
+                setCastle1(g0.castle1);
+            }
+            if (g0.castle2) {
+                setCastle2(g0.castle2);
+            }
+            if (g0.gold1 !== undefined) {
+                setGold1(g0.gold1);
+            }
+            if (g0.gold2 !== undefined) {
+                setGold2(g0.gold2);
+            }
+            if (g0.restart1_111 !== undefined) {
+                setRestart1_111(g0.restart1_111);
+            }
+            if (g0.restart1_112 !== undefined) {
+                setRestart1_112(g0.restart1_112);
+            }
+            if (g0.restart2_111 !== undefined) {
+                setRestart2_111(g0.restart2_111);
+            }
+            if (g0.restart2_112 !== undefined) {
+                setRestart2_112(g0.restart2_112);
+            }
+            if (g0.restartsFinished !== undefined) {
+                setRestartsFinished(g0.restartsFinished);
+            }
         }
         // For series: restore gameResults from initial.games if present
         if (initial.games && initial.games.length > 1) {
@@ -112,7 +146,8 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                     restart1_111: g.restart1_111 || 0,
                     restart1_112: g.restart1_112 || 0,
                     restart2_111: g.restart2_111 || 0,
-                    restart2_112: g.restart2_112 || 0
+                    restart2_112: g.restart2_112 || 0,
+                    restartsFinished: g.restartsFinished || false
                 }))
             );
         }
@@ -312,8 +347,6 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         }
 
         if (isSeriesMatch) {
-            const hasRestartFinishedFlag = (pair.games || []).some((game) => game?.restartsFinished);
-            setRestartsFinished(Boolean(hasRestartFinishedFlag));
             setGameResults(
                 pair.games.map((game, idx) => ({
                     gameId: idx,
@@ -330,7 +363,8 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                     restart1_111: game.restart1_111 || 0,
                     restart1_112: game.restart1_112 || 0,
                     restart2_111: game.restart2_111 || 0,
-                    restart2_112: game.restart2_112 || 0
+                    restart2_112: game.restart2_112 || 0,
+                    restartsFinished: game.restartsFinished || false
                 }))
             );
         } else {
@@ -603,7 +637,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                       restart1_112: g.restart1_112 || 0,
                       restart2_111: g.restart2_111 || 0,
                       restart2_112: g.restart2_112 || 0,
-                      restartsFinished: restartsFinished
+                      restartsFinished: g.restartsFinished || false
                   }))
                 : [
                       {
@@ -1948,6 +1982,23 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                                             </div>
                                         </div>
                                     </div> */}
+                                    <div className={classes.restartConfirmationRow}>
+                                        <label className={classes.restartConfirmationLabel}>
+                                            <input
+                                                type="checkbox"
+                                                checked={game.restartsFinished || false}
+                                                onChange={(e) => {
+                                                    const updated = [...gameResults];
+                                                    updated[idx] = {
+                                                        ...updated[idx],
+                                                        restartsFinished: e.target.checked
+                                                    };
+                                                    setGameResults(updated);
+                                                }}
+                                            />
+                                            Restarts finished / main game started
+                                        </label>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -3141,16 +3192,18 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                         </div>
                     )}
 
-                    <div className={classes.restartConfirmationRow}>
-                        <label className={classes.restartConfirmationLabel}>
-                            <input
-                                type="checkbox"
-                                checked={restartsFinished}
-                                onChange={(e) => setRestartsFinished(e.target.checked)}
-                            />
-                            Restarts finished / main game started
-                        </label>
-                    </div>
+                    {!isSeriesMatch && (
+                        <div className={classes.restartConfirmationRow}>
+                            <label className={classes.restartConfirmationLabel}>
+                                <input
+                                    type="checkbox"
+                                    checked={restartsFinished}
+                                    onChange={(e) => setRestartsFinished(e.target.checked)}
+                                />
+                                Restarts finished / main game started
+                            </label>
+                        </div>
+                    )}
 
                     <div className={classes.buttonGroup} style={{ position: 'relative', zIndex: 2 }}>
                         <button type="submit" className={classes.submitButton}>
