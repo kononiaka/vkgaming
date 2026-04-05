@@ -748,7 +748,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             }
 
             console.log('Pairs posted to Firebase successfully');
-            let reloadResponse = confirmWindow(`Are you sure you want to reload the page?`);
+            let reloadResponse = window.confirm(`Are you sure you want to reload the page?`);
             if (reloadResponse) {
                 window.location.reload();
             }
@@ -771,7 +771,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     const retrieveWinnersFromDatabase = async () => {
         try {
-            let mustFetch = confirmWindow('Please wait...');
+            let mustFetch = window.confirm('Please wait...');
             if (mustFetch) {
                 const tournamentResponseGET = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
@@ -1141,13 +1141,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const confirmWindow = (message) => {
-        const response = window.confirm(message);
-        if (response) {
-            console.log('YES');
-        } else {
-            console.log('NO');
-        }
-        return response;
+        console.log('Auto-confirmed:', message);
+        return true;
     };
 
     const determineThirdPlaceWinner = async (playOffPairs, stages) => {
@@ -1961,6 +1956,284 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 skipBracket = stageAtLeast(latestStage, 'bracket');
             }
 
+            // Build upfront summary of all DB operations and ask for one confirmation
+            // Pre-fetch castle data here so we can show exact stats and reuse in the write loop
+            const castleDataCache = new Map();
+            // Pre-fetch player + prize data for summary (reused in updatePlayerRatings via cache)
+            let summaryPlayerData = null; // { team1: { id, prevData, newRating, updatedStats }, team2: { ... } }
+            let summaryPrizes = null;
+            {
+                const currentStage = stageLabels[selectedStageIndex];
+                const isResume = !!(latestStage && latestStage !== 'submitted');
+                const hasWinner = !!reportData.winner;
+                const castleGames = reportData.games.filter(
+                    (g) => g.castle1 && g.castle2 && g.gameWinner && g.gameStatus !== 'Processed'
+                );
+
+                // Pre-fetch current castle stats from DB
+                if (!skipCastleStats && castleGames.length > 0) {
+                    const uniqueCastles = [...new Set(castleGames.flatMap((g) => [g.castle1, g.castle2]))];
+                    await Promise.all(
+                        uniqueCastles.map(async (castle) => {
+                            try {
+                                const r = await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${castle}.json`
+                                );
+                                if (r.ok) {
+                                    castleDataCache.set(castle, await r.json());
+                                }
+                            } catch (e) {
+                                console.warn(`Could not pre-fetch castle stats for ${castle}`, e);
+                            }
+                        })
+                    );
+                }
+
+                // Pre-fetch player and prize data for ELO/stats/prize summary lines
+                if (hasWinner && (!skipRatings || !skipPlayerStats || !skipPrizes)) {
+                    try {
+                        const [p1Id, p2Id] = await Promise.all([lookForUserId(pair.team1), lookForUserId(pair.team2)]);
+                        const [p1Data, p2Data] = await Promise.all([
+                            lookForUserPrevScore(p1Id),
+                            lookForUserPrevScore(p2Id)
+                        ]);
+
+                        const winnerId = await lookForUserId(reportData.winner);
+                        const didWin1 = winnerId === p1Id;
+                        const didWin2 = winnerId === p2Id;
+
+                        const p1CurrentRating = parseFloat(p1Data.ratings?.split(',').pop().trim() || '0');
+                        const p2CurrentRating = parseFloat(p2Data.ratings?.split(',').pop().trim() || '0');
+                        const p1NewRating = getNewRating(p1CurrentRating, p2CurrentRating, didWin1);
+                        const p2NewRating = getNewRating(p2CurrentRating, p1CurrentRating, didWin2);
+
+                        const p1Stats = p1Data.games?.heroes3 || { total: 0, win: 0, lose: 0 };
+                        const p2Stats = p2Data.games?.heroes3 || { total: 0, win: 0, lose: 0 };
+                        const p1Win =
+                            p1Stats.win !== undefined ? p1Stats.win : (p1Stats.total || 0) - (p1Stats.lose || 0);
+                        const p2Win =
+                            p2Stats.win !== undefined ? p2Stats.win : (p2Stats.total || 0) - (p2Stats.lose || 0);
+
+                        summaryPlayerData = {
+                            team1: {
+                                id: p1Id,
+                                prevData: p1Data,
+                                currentRating: p1CurrentRating,
+                                newRating: p1NewRating,
+                                currentStats: { total: p1Stats.total || 0, win: p1Win, lose: p1Stats.lose || 0 },
+                                updatedStats: {
+                                    total: (p1Stats.total || 0) + 1,
+                                    win: p1Win + (didWin1 ? 1 : 0),
+                                    lose: (p1Stats.lose || 0) + (didWin1 ? 0 : 1)
+                                }
+                            },
+                            team2: {
+                                id: p2Id,
+                                prevData: p2Data,
+                                currentRating: p2CurrentRating,
+                                newRating: p2NewRating,
+                                currentStats: { total: p2Stats.total || 0, win: p2Win, lose: p2Stats.lose || 0 },
+                                updatedStats: {
+                                    total: (p2Stats.total || 0) + 1,
+                                    win: p2Win + (didWin2 ? 1 : 0),
+                                    lose: (p2Stats.lose || 0) + (didWin2 ? 0 : 1)
+                                }
+                            },
+                            winnerId
+                        };
+
+                        if (!skipPrizes && (currentStage === 'Third Place' || currentStage === 'Final')) {
+                            summaryPrizes = await pullTournamentPrizes(tournamentId);
+                        }
+                    } catch (e) {
+                        console.warn('Could not pre-fetch player data for summary', e);
+                    }
+                }
+
+                const lines = [];
+
+                if (isResume) {
+                    lines.push(`⚡ RESUMING from checkpoint: "${latestStage}"`);
+                    lines.push('');
+                }
+
+                lines.push('The following DB operations will run automatically:');
+                lines.push('');
+
+                if (skipCastleStats) {
+                    lines.push('  ✓ Castle stats (already done)');
+                } else if (castleGames.length > 0) {
+                    castleGames.forEach((g, i) => {
+                        const gameIndex = reportData.games.indexOf(g);
+                        const alreadyC1 = completedCastleKeys.has(`g${gameIndex}_c1`);
+                        const alreadyC2 = completedCastleKeys.has(`g${gameIndex}_c2`);
+                        const isWinner1 = g.castleWinner === g.castle1;
+                        const isWinner2 = g.castleWinner === g.castle2;
+                        if (!alreadyC1) {
+                            const d = castleDataCache.get(g.castle1) || { win: 0, lose: 0, total: 0 };
+                            const label = isWinner1 ? 'W' : 'L';
+                            lines.push(
+                                `  • ${g.castle1} (game ${i + 1}) [${label}]: W${d.win || 0}→${(d.win || 0) + (isWinner1 ? 1 : 0)} L${d.lose || 0}→${(d.lose || 0) + (isWinner1 ? 0 : 1)} T${d.total || 0}→${(d.total || 0) + 1}`
+                            );
+                        }
+                        if (!alreadyC2) {
+                            const d = castleDataCache.get(g.castle2) || { win: 0, lose: 0, total: 0 };
+                            const label = isWinner2 ? 'W' : 'L';
+                            lines.push(
+                                `  • ${g.castle2} (game ${i + 1}) [${label}]: W${d.win || 0}→${(d.win || 0) + (isWinner2 ? 1 : 0)} L${d.lose || 0}→${(d.lose || 0) + (isWinner2 ? 0 : 1)} T${d.total || 0}→${(d.total || 0) + 1}`
+                            );
+                        }
+                    });
+                } else {
+                    lines.push('  • Castle stats: will update for games with castles + winner set');
+                }
+
+                if (!hasWinner) {
+                    lines.push('');
+                    lines.push(
+                        'No series winner selected — ratings, game post, prizes and bracket update will be skipped.'
+                    );
+                }
+
+                if (hasWinner) {
+                    if (!skipRatings) {
+                        if (summaryPlayerData) {
+                            const { team1, team2 } = summaryPlayerData;
+                            const ch1 = (team1.newRating - team1.currentRating).toFixed(2);
+                            const ch2 = (team2.newRating - team2.currentRating).toFixed(2);
+                            lines.push(
+                                `  • ELO: ${pair.team1} ${team1.currentRating.toFixed(2)}→${team1.newRating.toFixed(2)} (${ch1 > 0 ? '+' : ''}${ch1})`
+                            );
+                            lines.push(
+                                `  • ELO: ${pair.team2} ${team2.currentRating.toFixed(2)}→${team2.newRating.toFixed(2)} (${ch2 > 0 ? '+' : ''}${ch2})`
+                            );
+                        } else {
+                            lines.push(`  • Update ELO ratings: ${pair.team1}, ${pair.team2}`);
+                        }
+                    } else {
+                        lines.push('  ✓ Ratings (already done)');
+                    }
+
+                    if (!skipPlayerStats) {
+                        if (summaryPlayerData) {
+                            const { team1, team2 } = summaryPlayerData;
+                            lines.push(
+                                `  • Stats: ${pair.team1} W${team1.currentStats.win}→${team1.updatedStats.win} L${team1.currentStats.lose}→${team1.updatedStats.lose} T${team1.currentStats.total}→${team1.updatedStats.total}`
+                            );
+                            lines.push(
+                                `  • Stats: ${pair.team2} W${team2.currentStats.win}→${team2.updatedStats.win} L${team2.currentStats.lose}→${team2.updatedStats.lose} T${team2.currentStats.total}→${team2.updatedStats.total}`
+                            );
+                        } else {
+                            lines.push(`  • Update player stats (W/L/total): ${pair.team1}, ${pair.team2}`);
+                        }
+                    } else {
+                        lines.push('  ✓ Player stats (already done)');
+                    }
+
+                    if (!skipGamePost) {
+                        lines.push('  • Post game record to /games/heroes3/');
+                    } else {
+                        lines.push('  ✓ Game post (already done)');
+                    }
+
+                    if (!skipPrizes) {
+                        if (currentStage === 'Third Place') {
+                            if (summaryPrizes) {
+                                const amt = summaryPrizes['3rd Place'];
+                                lines.push(
+                                    `  • Award 3rd place prize: ${reportData.winner} +${amt} (updates player prizes[] + totalPrize)`
+                                );
+                            } else {
+                                lines.push(
+                                    `  • Award 3rd place prize to winner (updates player prizes[] + totalPrize)`
+                                );
+                            }
+                        } else if (currentStage === 'Final') {
+                            if (summaryPrizes) {
+                                const loser = pair.team1 === reportData.winner ? pair.team2 : pair.team1;
+                                lines.push(
+                                    `  • Award 1st place prize: ${reportData.winner} +${summaryPrizes['1st Place']} (updates player prizes[] + totalPrize)`
+                                );
+                                lines.push(
+                                    `  • Award 2nd place prize: ${loser} +${summaryPrizes['2nd Place']} (updates player prizes[] + totalPrize)`
+                                );
+                            } else {
+                                lines.push(`  • Award 1st & 2nd place prizes (updates player prizes[] + totalPrize)`);
+                            }
+                        } else {
+                            lines.push('  • Prizes: N/A for this stage');
+                        }
+                    } else {
+                        lines.push('  ✓ Prizes (already done)');
+                    }
+
+                    if (!skipPromotion) {
+                        const winner = reportData.winner;
+                        const loser = pair.team1 === winner ? pair.team2 : pair.team1;
+                        if (currentStage === 'Semi-final') {
+                            const finalIdx = stageLabels.indexOf('Final');
+                            const thirdIdx = stageLabels.indexOf('Third Place');
+                            const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
+                            if (finalIdx !== -1) {
+                                lines.push(`  • Promote: ${winner} → Final ${slot}`);
+                            }
+                            if (thirdIdx !== -1) {
+                                lines.push(`  • Promote: ${loser} → Third Place ${slot}`);
+                            }
+                            if (finalIdx === -1 && thirdIdx === -1) {
+                                lines.push(`  • Promote: ${winner} → next stage`);
+                            }
+                        } else if (currentStage === 'Quarter-final') {
+                            const semiIdx = stageLabels.indexOf('Semi-final');
+                            const semiPairIdx = Math.floor(selectedPairIndex / 2);
+                            const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            lines.push(
+                                `  • Promote: ${winner} → Semi-final ${semiPairIdx + 1} ${slot}${semiIdx === -1 ? ' (stage not found)' : ''}`
+                            );
+                        } else if (currentStage === '1/8 Final') {
+                            const quarterIdx = stageLabels.indexOf('Quarter-final');
+                            const quarterPairIdx = Math.floor(selectedPairIndex / 2);
+                            const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            lines.push(
+                                `  • Promote: ${winner} → Quarter-final ${quarterPairIdx + 1} ${slot}${quarterIdx === -1 ? ' (stage not found)' : ''}`
+                            );
+                        } else if (currentStage === '1/16 Final') {
+                            const eighthIdx = stageLabels.indexOf('1/8 Final');
+                            const eighthPairIdx = Math.floor(selectedPairIndex / 2);
+                            const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
+                            lines.push(
+                                `  • Promote: ${winner} → 1/8 Final ${eighthPairIdx + 1} ${slot}${eighthIdx === -1 ? ' (stage not found)' : ''}`
+                            );
+                        } else if (currentStage === 'Final' || currentStage === 'Third Place') {
+                            lines.push(`  • No promotion (${currentStage} is the final stage)`);
+                        } else {
+                            lines.push(`  • Promote: ${winner} → next stage`);
+                        }
+                    } else {
+                        lines.push('  ✓ Promotion (already done)');
+                    }
+
+                    if (!skipTournamentStatus && currentStage === 'Final') {
+                        lines.push('  • Set tournament status → Finished + snapshot leaderboard + recalculate stars');
+                    } else if (currentStage === 'Final' && skipTournamentStatus) {
+                        lines.push('  ✓ Tournament status (already done)');
+                    }
+
+                    if (!skipBracket) {
+                        lines.push('  • Save bracket to DB (PUT /bracket/playoffPairs)');
+                    } else {
+                        lines.push('  ✓ Bracket update (already done)');
+                    }
+                }
+
+                const confirmed = window.confirm(lines.join('\n'));
+                if (!confirmed) {
+                    setDetailedProgressStage('Cancelled');
+                    alert('Game report submission cancelled. No changes were made.');
+                    return;
+                }
+            }
+
             if (pair.gameStatus === 'Processed' && !authCtx.isAdmin) {
                 alert('This game is already processed. Only admin can re-report it.');
                 return;
@@ -2013,11 +2286,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 castle: game.castle1,
                                 gameId: game.gameId
                             });
-                            const castle1Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
-                            );
-                            if (castle1Response.ok) {
-                                const castle1Data = await castle1Response.json();
+                            // Use pre-fetched data if available, otherwise fetch now
+                            let castle1Data = castleDataCache.get(game.castle1);
+                            if (!castle1Data) {
+                                const castle1Response = await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                                );
+                                if (castle1Response.ok) {
+                                    castle1Data = await castle1Response.json();
+                                }
+                            }
+                            if (castle1Data !== undefined) {
                                 const isWinner = game.castleWinner === game.castle1;
                                 const updatedCastle1Stats = {
                                     win: (castle1Data.win || 0) + (isWinner ? 1 : 0),
@@ -2055,11 +2334,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 castle: game.castle2,
                                 gameId: game.gameId
                             });
-                            const castle2Response = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
-                            );
-                            if (castle2Response.ok) {
-                                const castle2Data = await castle2Response.json();
+                            // Use pre-fetched data if available, otherwise fetch now
+                            let castle2Data = castleDataCache.get(game.castle2);
+                            if (!castle2Data) {
+                                const castle2Response = await fetch(
+                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                                );
+                                if (castle2Response.ok) {
+                                    castle2Data = await castle2Response.json();
+                                }
+                            }
+                            if (castle2Data !== undefined) {
                                 const isWinner = game.castleWinner === game.castle2;
                                 const updatedCastle2Stats = {
                                     win: (castle2Data.win || 0) + (isWinner ? 1 : 0),
@@ -2094,10 +2379,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         // If both castle updates were skipped, still mark as processed
                         if (castle1Skipped && castle2Skipped) {
                             game.gameStatus = 'Processed';
+                            if (pair.games[gameIndex]) {
+                                pair.games[gameIndex].gameStatus = 'Processed';
+                            }
                             setDetailedProgressStage(`Game ${castleIdx} marked as Processed (skipped)`, {
                                 gameId: game.gameId
                             });
                             console.log(`Game ${game.gameId + 1} marked as Processed (skipped)`);
+                        } else if (!castle1Skipped || !castle2Skipped) {
+                            // At least one castle was written — mark the individual game as Processed
+                            game.gameStatus = 'Processed';
+                            if (pair.games[gameIndex]) {
+                                pair.games[gameIndex].gameStatus = 'Processed';
+                            }
                         }
                     }
                 }

@@ -105,9 +105,16 @@ export const fetchLeaderboard = async (player) => {
             return null;
         }
 
-        // Convert users object to array and sort by totalPrize descending
-        const usersArray = Object.values(data).filter((u) => u && u.totalPrize !== undefined);
-        usersArray.sort((a, b) => (b.totalPrize || 0) - (a.totalPrize || 0));
+        // Convert users object to array and sort by ratings descending (matches Leaderboard)
+        const getLatestRating = (u) => {
+            const r = u.ratings;
+            if (typeof r === 'string' && r.includes(',')) {
+                return parseFloat(r.split(',').at(-1)) || 0;
+            }
+            return parseFloat(r) || 0;
+        };
+        const usersArray = Object.values(data).filter((u) => u && u.ratings !== undefined);
+        usersArray.sort((a, b) => getLatestRating(b) - getLatestRating(a));
 
         // Find the index of the current player
         const place = usersArray.findIndex((u) => u.enteredNickname === player.enteredNickname) + 1;
