@@ -53,6 +53,9 @@ const TournamentList = () => {
         const normalized = String(rawType ?? '')
             .toLowerCase()
             .trim();
+        if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
+            return 'bo-5';
+        }
         if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
             return 'bo-3';
         }
@@ -445,7 +448,7 @@ const TournamentList = () => {
             // Add each selected player
             for (const player of selectedPlayers) {
                 const lastRating = parseFloat(player.ratings.split(',').pop().trim()).toFixed(2);
-                const placeInLeaderboard = await fetchLeaderboard(player.gamesPlayed);
+                const placeInLeaderboard = await fetchLeaderboard(player);
 
                 const userData = {
                     name: player.name,
@@ -544,7 +547,24 @@ const TournamentList = () => {
             const maxPlayers = tournamentData.maxPlayers;
             const tournamentPlayoffGamesRaw = tournamentData.tournamentPlayoffGames || 'bo-1';
             const gameType = normalizeMatchType(tournamentPlayoffGamesRaw);
+            const gameTypeFinal = normalizeMatchType(
+                tournamentData.tournamentPlayoffGamesFinal || tournamentPlayoffGamesRaw
+            );
+            const gameTypeThirdPlace = normalizeMatchType(
+                tournamentData.tournamentPlayoffGamesThirdPlace || tournamentPlayoffGamesRaw
+            );
             const players = tournamentData.players;
+
+            const getNumGames = (type) => (type === 'bo-5' ? 5 : type === 'bo-3' ? 3 : 1);
+            const getGameTypeForStage = (stageName) => {
+                if (stageName === 'Final') {
+                    return gameTypeFinal;
+                }
+                if (stageName === 'Third Place') {
+                    return gameTypeThirdPlace;
+                }
+                return gameType;
+            };
 
             // Calculate stage labels based on maxPlayers
             let currentStageLabels = [];
@@ -558,8 +578,8 @@ const TournamentList = () => {
                 currentStageLabels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
             }
 
-            // Determine number of games based on bo-1 or bo-3
-            const numGames = gameType === 'bo-3' ? 3 : 1;
+            // Determine number of games for first stage
+            const numGames = getNumGames(gameType);
 
             // Format bracket pairs with player data
             const formattedBracket = preBracketPairs.map((pair) => {
@@ -609,7 +629,7 @@ const TournamentList = () => {
                     stars2: player2?.stars || 0,
                     team1: pair[0],
                     team2: pair[1],
-                    type: gameType,
+                    type: getGameTypeForStage(currentStageLabels[0] || 'Quarter-final'),
                     winner: null,
                     color1: 'red',
                     color2: 'blue'
@@ -641,7 +661,9 @@ const TournamentList = () => {
                 }
 
                 for (let j = 0; j < pairsInStage; j++) {
-                    const emptyGames = Array.from({ length: numGames }, (_, index) => ({
+                    const stageGameType = getGameTypeForStage(stageName);
+                    const stageNumGames = getNumGames(stageGameType);
+                    const emptyGames = Array.from({ length: stageNumGames }, (_, index) => ({
                         castle1: '',
                         castle2: '',
                         castleWinner: '',
@@ -670,7 +692,7 @@ const TournamentList = () => {
                         stars2: null,
                         team1: 'TBD',
                         team2: 'TBD',
-                        type: gameType,
+                        type: stageGameType,
                         winner: null,
                         color1: 'red',
                         color2: 'blue'

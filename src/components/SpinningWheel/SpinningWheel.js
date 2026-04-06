@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import StarsComponent from '../Stars/Stars';
 import classes from './SpinningWheel.module.css';
+import { fetchLeaderboard } from '../../api/api';
 
 const SpinningWheel = ({ players, onStartTournament }) => {
     const [remainingPlayers, setRemainingPlayers] = useState([]);
@@ -28,12 +29,18 @@ const SpinningWheel = ({ players, onStartTournament }) => {
 
     // Fetch head-to-head history between two players
     const fetchHeadToHead = async (player1, player2) => {
-        if (player1 === 'TBD' || player2 === 'TBD') return null;
+        if (player1 === 'TBD' || player2 === 'TBD') {
+            return null;
+        }
         try {
             const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
-            if (!response.ok) return null;
+            if (!response.ok) {
+                return null;
+            }
             const data = await response.json();
-            if (!data) return null;
+            if (!data) {
+                return null;
+            }
 
             const games = Object.values(data).filter(
                 (game) =>
@@ -61,10 +68,16 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                 if (player1 !== 'TBD' && player2 !== 'TBD') {
                     const player1Data = Object.values(players).find((p) => p.name === player1);
                     const player2Data = Object.values(players).find((p) => p.name === player2);
-                    const history = await fetchHeadToHead(player1, player2);
+                    const [history, player1Place, player2Place] = await Promise.all([
+                        fetchHeadToHead(player1, player2),
+                        fetchLeaderboard({ enteredNickname: player1 }),
+                        fetchLeaderboard({ enteredNickname: player2 })
+                    ]);
                     details[i] = {
                         player1Stars: player1Data?.stars || 0,
                         player2Stars: player2Data?.stars || 0,
+                        player1Place: player1Place || null,
+                        player2Place: player2Place || null,
                         history
                     };
                 }
@@ -505,6 +518,9 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                             <div className={classes.pairContainer}>
                                 <div className={classes.playerInfo}>
                                     <span className={classes.playerName}>{player1}</span>
+                                    {details?.player1Place != null && player1 !== 'TBD' && (
+                                        <span className={classes.leaderboardPlace}>#{details.player1Place}</span>
+                                    )}
                                     {remainingPlayers.length === 0 && details?.player1Stars && player1 !== 'TBD' && (
                                         <StarsComponent stars={details.player1Stars} />
                                     )}
@@ -512,6 +528,9 @@ const SpinningWheel = ({ players, onStartTournament }) => {
                                 <span className={classes.vsText}>vs</span>
                                 <div className={classes.playerInfo}>
                                     <span className={classes.playerName}>{player2}</span>
+                                    {details?.player2Place != null && player2 !== 'TBD' && (
+                                        <span className={classes.leaderboardPlace}>#{details.player2Place}</span>
+                                    )}
                                     {remainingPlayers.length === 0 && details?.player2Stars && player2 !== 'TBD' && (
                                         <StarsComponent stars={details.player2Stars} />
                                     )}

@@ -116,6 +116,9 @@ export const PlayerBracket = (props) => {
                     setAvatarUrl(null);
                     setUserId(null);
                 }
+            } else {
+                setAvatarUrl(null);
+                setUserId(null);
             }
         };
         fetchAvatar();
@@ -141,6 +144,8 @@ export const PlayerBracket = (props) => {
                     console.error('Error fetching leaderboard position:', error);
                     setLeaderboardPosition(null);
                 }
+            } else {
+                setLeaderboardPosition(null);
             }
         };
         fetchPosition();
@@ -860,7 +865,7 @@ export const PlayerBracket = (props) => {
                 </div>
                 <div
                     className={`${classes.gamesStrip} ${isMultiGameLayout ? classes.gamesStripBo3 : ''}`}
-                    style={{ minWidth: gamesStripMinWidth }}
+                    style={{ minWidth: hasTruthyPlayers ? gamesStripMinWidth : '52px' }}
                 >
                     {hasTruthyPlayers &&
                         numberOfGames.length > 0 &&

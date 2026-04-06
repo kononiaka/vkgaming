@@ -3977,28 +3977,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         </div>
                                                         <div
                                                             style={{
-                                                                position: 'absolute',
-                                                                top: '0.5rem',
-                                                                left: '0.5rem',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                background: 'rgba(0,0,0,0.55)',
-                                                                border: `1px solid ${pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
-                                                                borderRadius: '4px',
-                                                                padding: '1px 7px',
-                                                                fontSize: '0.65rem',
-                                                                fontWeight: 'bold',
-                                                                color: pair.type === 'bo-3' ? '#ff9966' : '#FFD700',
-                                                                letterSpacing: '1.5px',
-                                                                zIndex: 2,
-                                                                textTransform: 'uppercase'
-                                                            }}
-                                                        >
-                                                            ⚔ {pair.type === 'bo-3' ? 'BO3' : 'BO1'}
-                                                        </div>
-                                                        <div
-                                                            style={{
                                                                 display: 'grid',
                                                                 gridTemplateColumns: 'minmax(0, 1fr) auto',
                                                                 alignItems: 'center',
@@ -4090,6 +4068,38 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     </button>
                                                                 ) : null}
                                                             </div>
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: '0.5rem',
+                                                                right: '0.5rem',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px',
+                                                                background: 'rgba(0,0,0,0.55)',
+                                                                border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                borderRadius: '4px',
+                                                                padding: '1px 7px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 'bold',
+                                                                color:
+                                                                    pair.type === 'bo-5'
+                                                                        ? '#cc88ff'
+                                                                        : pair.type === 'bo-3'
+                                                                          ? '#ff9966'
+                                                                          : '#FFD700',
+                                                                letterSpacing: '1.5px',
+                                                                zIndex: 2,
+                                                                textTransform: 'uppercase'
+                                                            }}
+                                                        >
+                                                            ⚔{' '}
+                                                            {pair.type === 'bo-5'
+                                                                ? 'BO5'
+                                                                : pair.type === 'bo-3'
+                                                                  ? 'BO3'
+                                                                  : 'BO1'}
                                                         </div>
                                                     </div>
                                                 );
@@ -4269,6 +4279,38 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         handleShowStats
                                                                     )}
                                                                 </div>
+                                                                <div
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        top: '0.5rem',
+                                                                        right: '0.5rem',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '4px',
+                                                                        background: 'rgba(0,0,0,0.55)',
+                                                                        border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                        borderRadius: '4px',
+                                                                        padding: '1px 7px',
+                                                                        fontSize: '0.65rem',
+                                                                        fontWeight: 'bold',
+                                                                        color:
+                                                                            pair.type === 'bo-5'
+                                                                                ? '#cc88ff'
+                                                                                : pair.type === 'bo-3'
+                                                                                  ? '#ff9966'
+                                                                                  : '#FFD700',
+                                                                        letterSpacing: '1.5px',
+                                                                        zIndex: 2,
+                                                                        textTransform: 'uppercase'
+                                                                    }}
+                                                                >
+                                                                    ⚔{' '}
+                                                                    {pair.type === 'bo-5'
+                                                                        ? 'BO5'
+                                                                        : pair.type === 'bo-3'
+                                                                          ? 'BO3'
+                                                                          : 'BO1'}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );
@@ -4406,6 +4448,38 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             handleShowStats
                                                                         )}
                                                                     </div>
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '0.5rem',
+                                                                            right: '0.5rem',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px',
+                                                                            background: 'rgba(0,0,0,0.55)',
+                                                                            border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                            borderRadius: '4px',
+                                                                            padding: '1px 7px',
+                                                                            fontSize: '0.65rem',
+                                                                            fontWeight: 'bold',
+                                                                            color:
+                                                                                pair.type === 'bo-5'
+                                                                                    ? '#cc88ff'
+                                                                                    : pair.type === 'bo-3'
+                                                                                      ? '#ff9966'
+                                                                                      : '#FFD700',
+                                                                            letterSpacing: '1.5px',
+                                                                            zIndex: 2,
+                                                                            textTransform: 'uppercase'
+                                                                        }}
+                                                                    >
+                                                                        ⚔{' '}
+                                                                        {pair.type === 'bo-5'
+                                                                            ? 'BO5'
+                                                                            : pair.type === 'bo-3'
+                                                                              ? 'BO3'
+                                                                              : 'BO1'}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         );
@@ -4439,6 +4513,38 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 justifyContent: 'center'
                                                             }}
                                                         >
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '0.5rem',
+                                                                    right: '0.5rem',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    background: 'rgba(0,0,0,0.55)',
+                                                                    border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                    borderRadius: '4px',
+                                                                    padding: '1px 7px',
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 'bold',
+                                                                    color:
+                                                                        pair.type === 'bo-5'
+                                                                            ? '#cc88ff'
+                                                                            : pair.type === 'bo-3'
+                                                                              ? '#ff9966'
+                                                                              : '#FFD700',
+                                                                    letterSpacing: '1.5px',
+                                                                    zIndex: 2,
+                                                                    textTransform: 'uppercase'
+                                                                }}
+                                                            >
+                                                                ⚔{' '}
+                                                                {pair.type === 'bo-5'
+                                                                    ? 'BO5'
+                                                                    : pair.type === 'bo-3'
+                                                                      ? 'BO3'
+                                                                      : 'BO1'}
+                                                            </div>
                                                             {pair.games &&
                                                                 pair.games.some(
                                                                     (g) => g.gameStatus === 'In Progress'
@@ -4466,28 +4572,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     pair.team2,
                                                                     handleShowStats
                                                                 )}
-                                                            </div>
-                                                            <div
-                                                                style={{
-                                                                    position: 'absolute',
-                                                                    top: '0.5rem',
-                                                                    left: '0.5rem',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px',
-                                                                    background: 'rgba(0,0,0,0.55)',
-                                                                    border: `1px solid ${pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
-                                                                    borderRadius: '4px',
-                                                                    padding: '1px 7px',
-                                                                    fontSize: '0.65rem',
-                                                                    fontWeight: 'bold',
-                                                                    color: pair.type === 'bo-3' ? '#ff9966' : '#FFD700',
-                                                                    letterSpacing: '1.5px',
-                                                                    zIndex: 2,
-                                                                    textTransform: 'uppercase'
-                                                                }}
-                                                            >
-                                                                ⚔ {pair.type === 'bo-3' ? 'BO3' : 'BO1'}
                                                             </div>
                                                             <div
                                                                 style={{
