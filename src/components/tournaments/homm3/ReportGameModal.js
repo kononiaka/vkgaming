@@ -44,7 +44,6 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
     }, [pairId, tournamentId]);
 
     // All state is initialized only after progress is loaded
-    const [latestProcessedStage, setLatestProcessedStage] = useState('');
     const [selectedWinner, setSelectedWinner] = useState('');
     const [castle1, setCastle1] = useState('');
     const [castle2, setCastle2] = useState('');
@@ -73,7 +72,6 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
             return;
         }
         // latestStage, bannedCastles and castleMarkOverrides are NOT in pair data — restore from progress
-        setLatestProcessedStage(initial.latestStage || '');
         if (initial.bannedCastlesBO1_1) {
             setBannedCastlesBO1_1(initial.bannedCastlesBO1_1);
         }
@@ -153,8 +151,6 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         }
     }, [progressLoaded]);
 
-    // List of all reporting stages in order
-    const reportingStages = ['castle_stats', 'ratings', 'game_posted', 'prizes', 'finished'];
     const getBestOfValue = (type) => {
         const normalized = String(type || '')
             .toLowerCase()
@@ -546,7 +542,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // const hasUsedRestarts = isSeriesMatch
@@ -660,8 +656,8 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                   ]
         };
 
-        // Persist final progress to backend
-        savePairProgress(tournamentId, pairId, {
+        // Persist final progress to backend before handing off
+        await savePairProgress(tournamentId, pairId, {
             ...reportData,
             latestStage: 'submitted',
             bannedCastlesBO1_1,
@@ -875,8 +871,13 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                                         overflow: 'hidden',
                                         display:
                                             idx === gameResults.length - 1 &&
-                                            gameResults.length === bestOf &&
-                                            score1 + score2 < gameResults.length - 1
+                                            !game.castle1 &&
+                                            !game.castle2 &&
+                                            !game.winner &&
+                                            ((gameResults.length === bestOf &&
+                                                score1 + score2 < gameResults.length - 1) ||
+                                                (gameResults.length < bestOf &&
+                                                    Math.max(score1, score2) >= requiredWins))
                                                 ? 'none'
                                                 : undefined
                                     }}
