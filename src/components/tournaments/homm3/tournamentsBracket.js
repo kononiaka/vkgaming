@@ -3460,8 +3460,70 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     const nextDisplayStage = displayStages[clampedStage + 1] ?? null;
                     const nextStageIndex = nextDisplayStage !== null ? stageLabels.indexOf(nextDisplayStage) : -1;
 
+                    // Shared bracket layout constants
+                    const BLOCK_H = 180;
+                    const BLOCK_GAP = 16;
+                    const leftMatchCount = playoffPairs[stageIndex]?.length ?? 0;
+                    const rightMatchCount = nextStageIndex !== -1 ? (playoffPairs[nextStageIndex]?.length ?? 0) : 0;
+                    const leftColHeight = leftMatchCount * BLOCK_H + Math.max(0, leftMatchCount - 1) * BLOCK_GAP;
+                    const bracketRatio = rightMatchCount > 0 ? leftMatchCount / rightMatchCount : 2;
+                    // Pixel distance from top of right column to top of right block i
+                    const getRightBlockTop = (i) =>
+                        ((2 * i * bracketRatio + bracketRatio - 1) * (BLOCK_H + BLOCK_GAP)) / 2;
+                    // SVG Y% for left block i (out of leftColHeight)
+                    const getSvgLeftY = (i) =>
+                        (((i * (BLOCK_H + BLOCK_GAP) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
+                    // SVG Y% for right block i (center of absolutely-positioned block, out of leftColHeight)
+                    const getSvgRightY = (i) =>
+                        (((getRightBlockTop(i) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
+
                     return (
                         <div style={{ marginTop: '100px', width: '100%' }}>
+                            {/* Tournament name + winners + prizes */}
+                            <div
+                                style={{
+                                    textAlign: 'center',
+                                    marginBottom: '1.5rem'
+                                }}
+                            >
+                                {tournamentName && (
+                                    <div
+                                        style={{
+                                            color: 'gold',
+                                            fontSize: '1.6rem',
+                                            fontWeight: 'bold',
+                                            textShadow: '2px 2px 6px rgba(0,0,0,0.6)',
+                                            letterSpacing: '1px',
+                                            marginBottom: '0.6rem'
+                                        }}
+                                    >
+                                        {tournamentName}
+                                    </div>
+                                )}
+                                {tournamentWinners && (
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            gap: '2rem',
+                                            fontSize: '1rem',
+                                            fontWeight: 'bold'
+                                        }}
+                                    >
+                                        {tournamentWinners['1st place'] && (
+                                            <span style={{ color: 'gold' }}>🥇 {tournamentWinners['1st place']}</span>
+                                        )}
+                                        {tournamentWinners['2nd place'] && (
+                                            <span style={{ color: 'silver' }}>🥈 {tournamentWinners['2nd place']}</span>
+                                        )}
+                                        {tournamentWinners['3rd place'] && (
+                                            <span style={{ color: '#CD7F32' }}>
+                                                🥉 {tournamentWinners['3rd place']}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             {/* Stage navigation */}
                             <div
                                 style={{
@@ -3499,7 +3561,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     <div
                                         style={{
                                             color: 'red',
-                                            fontSize: '2.2rem',
+                                            fontSize: '1.5rem',
                                             fontWeight: 'bold',
                                             textTransform: 'uppercase',
                                             textShadow: '2px 2px 8px rgba(0,0,0,0.6)',
@@ -3584,21 +3646,24 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             </div>
 
                             {/* Stage panels - two stages side by side */}
-                            <div style={{ display: 'flex', gap: '2.5rem', width: '100%', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', width: '100%', alignItems: 'stretch' }}>
                                 <div className={classes['bracket-stage-single']}>
+                                    {/* Column header */}
+                                    <h3
+                                        style={{
+                                            color: 'gold',
+                                            textAlign: 'center',
+                                            fontSize: '1.1rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                            marginBottom: '1rem'
+                                        }}
+                                    >
+                                        {currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage}
+                                    </h3>
                                     {currentDisplayStage === 'Final' ? (
                                         /* === FINAL + THIRD PLACE === */
                                         <div>
-                                            <h3
-                                                style={{
-                                                    color: 'red',
-                                                    textAlign: 'center',
-                                                    fontSize: '1.6rem',
-                                                    marginBottom: '1.5rem'
-                                                }}
-                                            >
-                                                Final
-                                            </h3>
                                             {(playoffPairs[stageIndex] || []).map((pair, pairIndex) => {
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
@@ -3863,7 +3928,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         </div>
                                     ) : (
                                         /* === OTHER STAGES === */
-                                        <div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '1rem' }}>
                                             {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
@@ -3872,7 +3937,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     <div
                                                         key={pairIndex}
                                                         className={classes['game-block']}
-                                                        style={{ position: 'relative' }}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: '180px',
+                                                            marginBottom: 0,
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            justifyContent: 'center'
+                                                        }}
                                                     >
                                                         {pair.games &&
                                                             pair.games.some((g) => g.gameStatus === 'In Progress') && (
@@ -4001,21 +4073,57 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         </div>
                                     )}
                                 </div>
+                                {nextDisplayStage !== null &&
+                                    currentDisplayStage !== 'Final' &&
+                                    (() => {
+                                        if (!leftMatchCount || !rightMatchCount) {
+                                            return null;
+                                        }
+                                        return (
+                                            <svg
+                                                style={{ width: '60px', flexShrink: 0, alignSelf: 'stretch' }}
+                                                viewBox="0 0 100 100"
+                                                preserveAspectRatio="none"
+                                            >
+                                                {Array.from({ length: leftMatchCount }, (_, i) => {
+                                                    const leftY = getSvgLeftY(i);
+                                                    const rightMatchIdx = Math.min(
+                                                        Math.floor(i / 2),
+                                                        rightMatchCount - 1
+                                                    );
+                                                    const rightY = getSvgRightY(rightMatchIdx);
+                                                    return (
+                                                        <path
+                                                            key={i}
+                                                            d={`M 0,${leftY} C 50,${leftY} 50,${rightY} 100,${rightY}`}
+                                                            stroke="rgba(255,215,0,0.5)"
+                                                            strokeWidth="2"
+                                                            fill="none"
+                                                            vectorEffect="non-scaling-stroke"
+                                                        />
+                                                    );
+                                                })}
+                                            </svg>
+                                        );
+                                    })()}
                                 {nextDisplayStage !== null && (
                                     <div className={classes['bracket-stage-single']}>
+                                        {/* Column header */}
+                                        <h3
+                                            style={{
+                                                color: 'gold',
+                                                textAlign: 'center',
+                                                fontSize: '1.1rem',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '1px',
+                                                marginBottom: '1rem'
+                                            }}
+                                        >
+                                            {nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}
+                                        </h3>
                                         {nextDisplayStage === 'Final' ? (
                                             /* === FINAL + THIRD PLACE === */
                                             <div>
-                                                <h3
-                                                    style={{
-                                                        color: 'red',
-                                                        textAlign: 'center',
-                                                        fontSize: '1.6rem',
-                                                        marginBottom: '1.5rem'
-                                                    }}
-                                                >
-                                                    Final
-                                                </h3>
                                                 {(playoffPairs[nextStageIndex] || []).map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
@@ -4281,7 +4389,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                             </div>
                                         ) : (
                                             /* === OTHER STAGES === */
-                                            <div>
+                                            <div
+                                                style={{
+                                                    position: 'relative',
+                                                    height: `${leftColHeight}px`
+                                                }}
+                                            >
                                                 {playoffPairs[nextStageIndex]?.map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
@@ -4290,7 +4403,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         <div
                                                             key={pairIndex}
                                                             className={classes['game-block']}
-                                                            style={{ position: 'relative' }}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: `${getRightBlockTop(pairIndex)}px`,
+                                                                left: 0,
+                                                                right: 0,
+                                                                height: `${BLOCK_H}px`,
+                                                                marginBottom: 0,
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                justifyContent: 'center'
+                                                            }}
                                                         >
                                                             {pair.games &&
                                                                 pair.games.some(
