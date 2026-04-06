@@ -3481,7 +3481,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         (((getRightBlockTop(i) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
 
                     return (
-                        <div style={{ marginTop: '100px', width: '100%' }}>
+                        <div style={{ marginTop: '25px', width: '100%' }}>
                             {/* Tournament name + winners + prizes */}
                             <div
                                 style={{
@@ -3975,9 +3975,28 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 handleShowStats
                                                             )}
                                                         </div>
-                                                        <p>
-                                                            {`Match ${pairIndex + 1}`} {`Best of 1`}
-                                                        </p>
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: '0.5rem',
+                                                                left: '0.5rem',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px',
+                                                                background: 'rgba(0,0,0,0.55)',
+                                                                border: `1px solid ${pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                borderRadius: '4px',
+                                                                padding: '1px 7px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 'bold',
+                                                                color: pair.type === 'bo-3' ? '#ff9966' : '#FFD700',
+                                                                letterSpacing: '1.5px',
+                                                                zIndex: 2,
+                                                                textTransform: 'uppercase'
+                                                            }}
+                                                        >
+                                                            ⚔ {pair.type === 'bo-3' ? 'BO3' : 'BO1'}
+                                                        </div>
                                                         <div
                                                             style={{
                                                                 display: 'grid',
@@ -4448,9 +4467,28 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     handleShowStats
                                                                 )}
                                                             </div>
-                                                            <p>
-                                                                {`Match ${pairIndex + 1}`} {`Best of 1`}
-                                                            </p>
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '0.5rem',
+                                                                    left: '0.5rem',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    background: 'rgba(0,0,0,0.55)',
+                                                                    border: `1px solid ${pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                    borderRadius: '4px',
+                                                                    padding: '1px 7px',
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 'bold',
+                                                                    color: pair.type === 'bo-3' ? '#ff9966' : '#FFD700',
+                                                                    letterSpacing: '1.5px',
+                                                                    zIndex: 2,
+                                                                    textTransform: 'uppercase'
+                                                                }}
+                                                            >
+                                                                ⚔ {pair.type === 'bo-3' ? 'BO3' : 'BO1'}
+                                                            </div>
                                                             <div
                                                                 style={{
                                                                     display: 'grid',

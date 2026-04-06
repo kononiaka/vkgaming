@@ -81,7 +81,6 @@ const createPlayoffPairs = (
     tournamentPlayoffGamesFinal,
     tournamentPlayoffGamesThirdPlace,
     shuffledNames
-    // playersRatings
 ) => {
     const updatedPairs = [];
 

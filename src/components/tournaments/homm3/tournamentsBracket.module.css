@@ -133,12 +133,6 @@
     margin-bottom: 0;
 }
 
-.game-block p {
-    color: rgba(255, 255, 255, 0.9);
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
 /* Button Styles */
 .buttonGroup {
     display: flex;
