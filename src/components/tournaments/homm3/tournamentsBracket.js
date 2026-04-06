@@ -112,6 +112,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
     const [selectedPairId, setSelectedPairId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
+    const [displayName, setDisplayName] = useState('');
 
     const normalizeName = (value) =>
         String(value || '')
@@ -205,6 +206,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             const tournamentResponseName = await lookForTournamentName(tournamentId);
 
             tournamentName = tournamentResponseName.name;
+            setDisplayName(tournamentResponseName.name);
         };
 
         fetchData();
@@ -505,6 +507,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const updateTournament = async () => {
         const tournamentResponse = await lookForTournamentName(tournamentId);
         tournamentName = tournamentResponse.name;
+        setDisplayName(tournamentResponse.name);
 
         allPairsHaveTeams = allPairsHaveTeamsFunc(playoffPairs);
 
@@ -3486,7 +3489,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     marginBottom: '1.5rem'
                                 }}
                             >
-                                {tournamentName && (
+                                {displayName && (
                                     <div
                                         style={{
                                             color: 'gold',
@@ -3497,7 +3500,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                             marginBottom: '0.6rem'
                                         }}
                                     >
-                                        {tournamentName}
+                                        {displayName}
                                     </div>
                                 )}
                                 {tournamentWinners && (

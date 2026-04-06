@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { Line } from 'react-chartjs-2';
+import 'chart.js/auto';
 import { NavLink } from 'react-router-dom';
 import StarsComponent from '../../../Stars/Stars';
 import { fetchLastGamesForPlayer, getAvatar, lookForUserId, fetchLeaderboard } from '../../../../api/api';
@@ -51,6 +54,16 @@ export const PlayerBracket = (props) => {
             : Number(typeof score2 === 'string' && score2.includes(',') ? score2.split(',').at(-1) : score2) || null;
     let playerCastle = team === 'team1' ? castle1 : castle2;
     let numberOfGames = Array.isArray(pair.games) ? [...pair.games] : pair.games ? [pair.games] : [];
+    const playerRatings = (() => {
+        const raw = team === 'team1' ? pair.ratings1 : pair.ratings2;
+        if (!raw) {
+            return [];
+        }
+        return raw
+            .split(',')
+            .map((r) => parseFloat(r.trim()))
+            .filter((n) => !isNaN(n));
+    })();
 
     if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
         if (numberOfGames.length === 2) {
@@ -81,6 +94,11 @@ export const PlayerBracket = (props) => {
     const [leaderboardPosition, setLeaderboardPosition] = useState(null);
     const tooltipTimeout = useRef(null);
     const cancelledRef = useRef(false);
+    const [showDetailedStreak, setShowDetailedStreak] = useState(false);
+    const [detailedStreakPos, setDetailedStreakPos] = useState({ x: 0, y: 0 });
+    const [detailedStreakLoading, setDetailedStreakLoading] = useState(false);
+    const [fullRatings, setFullRatings] = useState([]);
+    const detailedPanelRef = useRef(null);
 
     // Fetch player avatar and userId
     useEffect(() => {
@@ -138,9 +156,37 @@ export const PlayerBracket = (props) => {
         return () => {
             window.__playerBracketTooltipRegistry.delete(hide);
             cancelledRef.current = true;
-            if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+            if (tooltipTimeout.current) {
+                clearTimeout(tooltipTimeout.current);
+            }
         };
     }, []);
+
+    // Register detailed panel hide in separate global registry
+    useEffect(() => {
+        if (!window.__playerBracketDetailRegistry) {
+            window.__playerBracketDetailRegistry = new Set();
+        }
+        const hide = () => setShowDetailedStreak(false);
+        window.__playerBracketDetailRegistry.add(hide);
+        return () => {
+            window.__playerBracketDetailRegistry.delete(hide);
+        };
+    }, []);
+
+    // Close detailed panel on click outside
+    useEffect(() => {
+        if (!showDetailedStreak) {
+            return;
+        }
+        const handleClickOutside = (e) => {
+            if (detailedPanelRef.current && !detailedPanelRef.current.contains(e.target)) {
+                setShowDetailedStreak(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showDetailedStreak]);
 
     const hideAllTooltips = () => {
         if (window.__playerBracketTooltipRegistry) {
@@ -151,23 +197,84 @@ export const PlayerBracket = (props) => {
     const handleMouseEnter = async (e) => {
         cancelledRef.current = false;
         hideAllTooltips();
-        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+        if (tooltipTimeout.current) {
+            clearTimeout(tooltipTimeout.current);
+        }
 
         // Capture rect before async — e.currentTarget may be null after await
         const rect = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
 
         const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
-        if (cancelledRef.current) return;
+        if (cancelledRef.current) {
+            return;
+        }
 
         setStreak(streakArr);
-        if (rect) setTooltipPos({ x: rect.right + 8, y: rect.top });
+        if (rect) {
+            setTooltipPos({ x: rect.right + 8, y: rect.top });
+        }
         setShowTooltip(true);
     };
 
     const handleMouseLeave = () => {
         cancelledRef.current = true;
-        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+        if (tooltipTimeout.current) {
+            clearTimeout(tooltipTimeout.current);
+        }
         setShowTooltip(false);
+    };
+
+    const handleStreakClick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (teamPlayer === 'TBD') {
+            return;
+        }
+
+        // Toggle off if already open
+        if (showDetailedStreak) {
+            setShowDetailedStreak(false);
+            return;
+        }
+
+        // Hide all other detailed panels
+        if (window.__playerBracketDetailRegistry) {
+            window.__playerBracketDetailRegistry.forEach((fn) => fn());
+        }
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        setDetailedStreakPos({ x: rect.right + 12, y: rect.top });
+
+        // Reuse cached streak data if already fetched, otherwise fetch now
+        if (streak.length === 0) {
+            setDetailedStreakLoading(true);
+            const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
+            setStreak(streakArr);
+            setDetailedStreakLoading(false);
+        }
+
+        // Fetch full player ratings from DB if not yet loaded
+        if (fullRatings.length === 0 && userId) {
+            try {
+                const response = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+                );
+                if (response.ok) {
+                    const userData = await response.json();
+                    if (userData && userData.ratings) {
+                        const parsed = userData.ratings
+                            .split(',')
+                            .map((r) => parseFloat(r.trim()))
+                            .filter((n) => !isNaN(n));
+                        setFullRatings(parsed);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching full ratings:', error);
+            }
+        }
+
+        setShowDetailedStreak(true);
     };
 
     const isMultiGameLayout = Array.isArray(numberOfGames) && numberOfGames.length > 1;
@@ -184,6 +291,7 @@ export const PlayerBracket = (props) => {
                     htmlFor={`score-${team}-${pairIndex}`}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
+                    onClick={handleStreakClick}
                     style={{ cursor: 'pointer' }}
                 >
                     {teamPlayer === winner ? (
@@ -329,6 +437,354 @@ export const PlayerBracket = (props) => {
                     </div>
                 )}
             </div>
+
+            {/* Detailed streak panel — opened on click, rendered via portal to escape stacking contexts */}
+            {showDetailedStreak &&
+                teamPlayer !== 'TBD' &&
+                ReactDOM.createPortal(
+                    <>
+                        {/* Overlay — blocks hover/click on background */}
+                        <div
+                            style={{
+                                position: 'fixed',
+                                inset: 0,
+                                background: 'rgba(0, 0, 0, 0.75)',
+                                zIndex: 10000
+                            }}
+                            onClick={() => setShowDetailedStreak(false)}
+                        />
+
+                        {/* Modal */}
+                        <div
+                            ref={detailedPanelRef}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                position: 'fixed',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                background: '#120c2e',
+                                border: '1px solid rgba(62,32,192,0.8)',
+                                borderRadius: 12,
+                                padding: '20px 24px',
+                                zIndex: 10001,
+                                color: '#fff',
+                                boxShadow: '0 8px 40px rgba(0,0,0,0.85)',
+                                width: '900px',
+                                maxWidth: '96vw',
+                                maxHeight: '90vh',
+                                overflowY: 'auto'
+                            }}
+                        >
+                            {/* Header */}
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: 16,
+                                    paddingBottom: 14,
+                                    borderBottom: '1px solid rgba(62,32,192,0.5)'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    {avatarUrl && (
+                                        <img
+                                            src={avatarUrl}
+                                            alt={teamPlayer}
+                                            style={{
+                                                width: 38,
+                                                height: 38,
+                                                borderRadius: '50%',
+                                                border: '2px solid #ffd700',
+                                                objectFit: 'cover'
+                                            }}
+                                        />
+                                    )}
+                                    <span style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '1.15rem' }}>
+                                        {teamPlayer}
+                                    </span>
+                                    {leaderboardPosition && (
+                                        <span style={{ color: '#888', fontSize: '0.85rem' }}>
+                                            #{leaderboardPosition}
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => setShowDetailedStreak(false)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#aaa',
+                                        cursor: 'pointer',
+                                        fontSize: '1.5rem',
+                                        lineHeight: 1,
+                                        padding: '0 4px'
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            {/* Body: two columns */}
+                            <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+                                {/* Left: recent games table */}
+                                <div style={{ flex: '1 1 190px', minWidth: 0 }}>
+                                    <div
+                                        style={{
+                                            color: '#aaa',
+                                            fontSize: '0.72rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '.07em',
+                                            marginBottom: 10
+                                        }}
+                                    >
+                                        Recent games
+                                    </div>
+                                    {detailedStreakLoading ? (
+                                        <div style={{ color: '#aaa', fontSize: '0.85rem' }}>Loading...</div>
+                                    ) : streak.length === 0 ? (
+                                        <div style={{ color: '#aaa', fontSize: '0.85rem' }}>No games found</div>
+                                    ) : (
+                                        <table
+                                            style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}
+                                        >
+                                            <thead>
+                                                <tr
+                                                    style={{
+                                                        color: '#aaa',
+                                                        borderBottom: '1px solid rgba(62,32,192,0.5)'
+                                                    }}
+                                                >
+                                                    <th
+                                                        style={{
+                                                            padding: '2px 8px 6px 0',
+                                                            textAlign: 'left',
+                                                            fontWeight: 'normal'
+                                                        }}
+                                                    >
+                                                        #
+                                                    </th>
+                                                    <th
+                                                        style={{
+                                                            padding: '2px 8px 6px',
+                                                            textAlign: 'left',
+                                                            fontWeight: 'normal'
+                                                        }}
+                                                    >
+                                                        Result
+                                                    </th>
+                                                    <th
+                                                        style={{
+                                                            padding: '2px 8px 6px',
+                                                            textAlign: 'left',
+                                                            fontWeight: 'normal'
+                                                        }}
+                                                    >
+                                                        Opponent
+                                                    </th>
+                                                    <th
+                                                        style={{
+                                                            padding: '2px 8px 6px 0',
+                                                            textAlign: 'left',
+                                                            fontWeight: 'normal'
+                                                        }}
+                                                    >
+                                                        Date
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {streak.map((g, i) => (
+                                                    <tr
+                                                        key={i}
+                                                        style={{ borderBottom: '1px solid rgba(62,32,192,0.15)' }}
+                                                    >
+                                                        <td style={{ padding: '6px 8px 6px 0', color: '#888' }}>
+                                                            {i + 1}
+                                                        </td>
+                                                        <td style={{ padding: '6px 8px' }}>
+                                                            <span
+                                                                style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 5
+                                                                }}
+                                                            >
+                                                                <span
+                                                                    style={{
+                                                                        display: 'inline-block',
+                                                                        width: 10,
+                                                                        height: 10,
+                                                                        borderRadius: '50%',
+                                                                        background:
+                                                                            g.result === 'Win' ? '#4caf50' : '#f44336',
+                                                                        flexShrink: 0
+                                                                    }}
+                                                                />
+                                                                <span
+                                                                    style={{
+                                                                        color:
+                                                                            g.result === 'Win' ? '#4caf50' : '#f44336',
+                                                                        fontWeight: 'bold'
+                                                                    }}
+                                                                >
+                                                                    {g.result === 'Win' ? 'W' : 'L'}
+                                                                </span>
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ padding: '6px 8px', color: '#00ffff' }}>
+                                                            {g.opponent}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: '6px 8px 6px 0',
+                                                                color: '#aaa',
+                                                                whiteSpace: 'nowrap',
+                                                                fontSize: '0.8rem'
+                                                            }}
+                                                        >
+                                                            {g.date ? new Date(g.date).toLocaleDateString() : '—'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {/* Right: rating history chart */}
+                                <div style={{ flex: '2 1 280px', minWidth: 0 }}>
+                                    <div
+                                        style={{
+                                            color: '#aaa',
+                                            fontSize: '0.72rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '.07em',
+                                            marginBottom: 10
+                                        }}
+                                    >
+                                        Rating history ({fullRatings.length} point
+                                        {fullRatings.length !== 1 ? 's' : ''})
+                                    </div>
+                                    {fullRatings.length === 0 ? (
+                                        <div style={{ color: '#aaa', fontSize: '0.85rem' }}>No rating data</div>
+                                    ) : fullRatings.length === 1 ? (
+                                        <div style={{ color: '#aaa', fontSize: '0.85rem' }}>
+                                            Current rating:{' '}
+                                            <span style={{ color: '#ffd700', fontWeight: 'bold' }}>
+                                                {fullRatings[0].toFixed(2)}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        (() => {
+                                            const minRating = Math.min(...fullRatings);
+                                            const maxRating = Math.max(...fullRatings);
+                                            const padding = (maxRating - minRating) * 0.1 || 0.5;
+                                            const chartData = {
+                                                labels: fullRatings.map((_, i) => `Game ${i + 1}`),
+                                                datasets: [
+                                                    {
+                                                        label: 'Rating Trend',
+                                                        data: fullRatings,
+                                                        borderColor: '#FFD700',
+                                                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                                                        borderWidth: 3,
+                                                        fill: true,
+                                                        tension: 0.4,
+                                                        pointRadius: 5,
+                                                        pointBackgroundColor: '#FFD700',
+                                                        pointBorderColor: '#FFF',
+                                                        pointBorderWidth: 2,
+                                                        pointHoverRadius: 7,
+                                                        pointHoverBackgroundColor: '#FFF',
+                                                        pointHoverBorderColor: '#FFD700'
+                                                    }
+                                                ]
+                                            };
+                                            const chartOptions = {
+                                                responsive: true,
+                                                maintainAspectRatio: true,
+                                                plugins: {
+                                                    legend: {
+                                                        display: true,
+                                                        labels: {
+                                                            color: '#00ffff',
+                                                            font: { size: 14, weight: 'bold' },
+                                                            padding: 15
+                                                        }
+                                                    },
+                                                    tooltip: {
+                                                        backgroundColor: 'rgba(0,0,0,0.8)',
+                                                        titleColor: '#FFD700',
+                                                        bodyColor: '#00ffff',
+                                                        borderColor: '#FFD700',
+                                                        borderWidth: 2,
+                                                        padding: 10,
+                                                        displayColors: false,
+                                                        callbacks: {
+                                                            label: (context) => {
+                                                                const value = context.parsed.y;
+                                                                const prevValue =
+                                                                    context.dataIndex > 0
+                                                                        ? fullRatings[context.dataIndex - 1]
+                                                                        : null;
+                                                                const change = prevValue
+                                                                    ? (value - prevValue).toFixed(2)
+                                                                    : 'N/A';
+                                                                const changeSymbol = prevValue
+                                                                    ? value > prevValue
+                                                                        ? '↑'
+                                                                        : value < prevValue
+                                                                          ? '↓'
+                                                                          : '→'
+                                                                    : '';
+                                                                return `Rating: ${value.toFixed(2)} ${changeSymbol ? `(${changeSymbol} ${change})` : ''}`;
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                scales: {
+                                                    y: {
+                                                        beginAtZero: false,
+                                                        min: Math.max(0, minRating - padding),
+                                                        max: maxRating + padding,
+                                                        ticks: { color: '#00ffff', font: { size: 12 } },
+                                                        grid: { color: 'rgba(0,255,255,0.1)', drawBorder: false }
+                                                    },
+                                                    x: {
+                                                        ticks: {
+                                                            color: '#00ffff',
+                                                            font: { size: 11 },
+                                                            maxRotation: 45,
+                                                            minRotation: 0
+                                                        },
+                                                        grid: { color: 'rgba(0,255,255,0.05)', drawBorder: false }
+                                                    }
+                                                }
+                                            };
+                                            return (
+                                                <div
+                                                    style={{
+                                                        background:
+                                                            'linear-gradient(135deg, rgba(255,215,0,0.05), rgba(0,255,255,0.05))',
+                                                        border: '2px solid rgba(255,215,0,0.3)',
+                                                        borderRadius: 8,
+                                                        padding: '1rem',
+                                                        boxShadow: '0 4px 12px rgba(255,215,0,0.1)'
+                                                    }}
+                                                >
+                                                    <Line data={chartData} options={chartOptions} />
+                                                </div>
+                                            );
+                                        })()
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>,
+                    document.body
+                )}
 
             {/* TODO: add the stars image when the tournament just started */}
             <div className={classes.playerMiddleRow}>
