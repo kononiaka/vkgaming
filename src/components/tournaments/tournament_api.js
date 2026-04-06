@@ -80,16 +80,10 @@ const createPlayoffPairs = (
     playoffsGames,
     tournamentPlayoffGamesFinal,
     tournamentPlayoffGamesThirdPlace,
-    shuffledNames,
-    playersRatings
+    shuffledNames
+    // playersRatings
 ) => {
     const updatedPairs = [];
-
-    // Get the player's rating using the nickname
-    function getRating(name) {
-        const player = Object.values(playersRatings).find((p) => p.name === name);
-        return player ? player.ratings : null;
-    }
 
     const updatedArray = shuffledNames.map((player) => ({
         name: player.name,

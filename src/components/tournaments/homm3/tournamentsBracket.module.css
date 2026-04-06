@@ -48,6 +48,15 @@
     z-index: 1;
 }
 
+.bracket-stage-single {
+    color: #ffffff;
+    flex: 1;
+    min-width: 0;
+    padding: 0 1.5rem 2rem;
+    position: relative;
+    z-index: 1;
+}
+
 .bracket-stages-container:has(.bracket-stages-column:last-child) {
     justify-content: flex-start;
 }
