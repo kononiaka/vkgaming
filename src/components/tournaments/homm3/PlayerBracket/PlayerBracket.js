@@ -80,6 +80,7 @@ export const PlayerBracket = (props) => {
     const [userId, setUserId] = useState(null);
     const [leaderboardPosition, setLeaderboardPosition] = useState(null);
     const tooltipTimeout = useRef(null);
+    const cancelledRef = useRef(false);
 
     // Fetch player avatar and userId
     useEffect(() => {
@@ -127,32 +128,46 @@ export const PlayerBracket = (props) => {
         fetchPosition();
     }, [teamPlayer, userId]);
 
-    // Ensure only one tooltip is visible at a time (global for this component type)
-    window.__playerBracketTooltipHideAll = window.__playerBracketTooltipHideAll || (() => {});
+    // Register this instance's hide fn in a global Set so every instance can hide all others
+    useEffect(() => {
+        if (!window.__playerBracketTooltipRegistry) {
+            window.__playerBracketTooltipRegistry = new Set();
+        }
+        const hide = () => setShowTooltip(false);
+        window.__playerBracketTooltipRegistry.add(hide);
+        return () => {
+            window.__playerBracketTooltipRegistry.delete(hide);
+            cancelledRef.current = true;
+            if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+        };
+    }, []);
+
     const hideAllTooltips = () => {
-        if (window.__playerBracketTooltipHideAll) {
-            window.__playerBracketTooltipHideAll();
+        if (window.__playerBracketTooltipRegistry) {
+            window.__playerBracketTooltipRegistry.forEach((fn) => fn());
         }
     };
-    window.__playerBracketTooltipHideAll = () => setShowTooltip(false);
 
     const handleMouseEnter = async (e) => {
-        hideAllTooltips(); // Hide any other tooltip
-        if (tooltipTimeout.current) {
-            clearTimeout(tooltipTimeout.current);
-        }
+        cancelledRef.current = false;
+        hideAllTooltips();
+        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+
+        // Capture rect before async — e.currentTarget may be null after await
+        const rect = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
 
         const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
+        if (cancelledRef.current) return;
+
         setStreak(streakArr);
+        if (rect) setTooltipPos({ x: rect.right + 8, y: rect.top });
+        setShowTooltip(true);
+    };
 
-        // Use bounding rect for better positioning
-        if (e && e.currentTarget) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setTooltipPos({ x: rect.right + 8, y: rect.top });
-        }
-
-        // Show tooltip after a short delay to ensure previous is hidden
-        tooltipTimeout.current = setTimeout(() => setShowTooltip(true), 10);
+    const handleMouseLeave = () => {
+        cancelledRef.current = true;
+        if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+        setShowTooltip(false);
     };
 
     const isMultiGameLayout = Array.isArray(numberOfGames) && numberOfGames.length > 1;
@@ -168,7 +183,7 @@ export const PlayerBracket = (props) => {
                 <label
                     htmlFor={`score-${team}-${pairIndex}`}
                     onMouseEnter={handleMouseEnter}
-                    onMouseLeave={() => setShowTooltip(false)}
+                    onMouseLeave={handleMouseLeave}
                     style={{ cursor: 'pointer' }}
                 >
                     {teamPlayer === winner ? (
@@ -256,8 +271,7 @@ export const PlayerBracket = (props) => {
                             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                             minWidth: 120
                         }}
-                        onMouseLeave={() => setShowTooltip(false)}
-                        onMouseEnter={() => setShowTooltip(true)}
+                        onMouseLeave={handleMouseLeave}
                     >
                         <b>Last 5 games:</b>
                         <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', gap: 6 }}>
