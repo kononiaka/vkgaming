@@ -257,6 +257,7 @@ function AddGameModal(props) {
                         <option value="">Select Game Type</option>
                         <option value="bo-1">bo-1</option>
                         <option value="bo-3">bo-3</option>
+                        <option value="bo-5">bo-5</option>
                     </select>
                     <br />
                     <label htmlFor="opponent1">Opponent #1:</label>
@@ -302,13 +303,27 @@ function AddGameModal(props) {
                             <option value="1-0">1-0</option>
                             <option value="0-1">0-1</option>
                         </select>
-                    ) : (
+                    ) : gameType === 'bo-3' ? (
                         <select id="score" value={score} onChange={handleScoreChange}>
                             <option value="">Select Score</option>
                             <option value="2-0">2-0</option>
                             <option value="2-1">2-1</option>
                             <option value="1-2">1-2</option>
                             <option value="0-2">0-2</option>
+                        </select>
+                    ) : gameType === 'bo-5' ? (
+                        <select id="score" value={score} onChange={handleScoreChange}>
+                            <option value="">Select Score</option>
+                            <option value="3-0">3-0</option>
+                            <option value="3-1">3-1</option>
+                            <option value="3-2">3-2</option>
+                            <option value="2-3">2-3</option>
+                            <option value="1-3">1-3</option>
+                            <option value="0-3">0-3</option>
+                        </select>
+                    ) : (
+                        <select id="score" value={score} onChange={handleScoreChange}>
+                            <option value="">Select Score</option>
                         </select>
                     )}
                 </>

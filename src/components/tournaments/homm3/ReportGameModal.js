@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import classes from './ReportGameModal.module.css';
-import { getAvatar, lookForUserId, fetchCastlesList } from '../../../api/api';
-
+import { getAvatar, lookForUserId, fetchCastlesList, getPairProgress, savePairProgress } from '../../../api/api';
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -19,28 +18,155 @@ import redFlagImg from '../../../image/flags/red.jpg';
 import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
-const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
-    const [selectedWinner, setSelectedWinner] = useState(pair.winner || '');
+const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs }) => {
+    // Use backend progress instead of localStorage
+    const [initial, setInitial] = useState({});
+    const [progressLoaded, setProgressLoaded] = useState(false);
+
+    // On mount, fetch progress from backend
+    useEffect(() => {
+        let mounted = true;
+        async function fetchProgress() {
+            if (!pairId || !tournamentId) {
+                setProgressLoaded(true);
+                return;
+            }
+            const progress = await getPairProgress(tournamentId, pairId);
+            if (mounted) {
+                setInitial(progress || {});
+                setProgressLoaded(true);
+            }
+        }
+        fetchProgress();
+        return () => {
+            mounted = false;
+        };
+    }, [pairId, tournamentId]);
+
+    // All state is initialized only after progress is loaded
+    const [selectedWinner, setSelectedWinner] = useState('');
     const [castle1, setCastle1] = useState('');
     const [castle2, setCastle2] = useState('');
     const [bannedCastlesBO1_1, setBannedCastlesBO1_1] = useState([]);
     const [bannedCastlesBO1_2, setBannedCastlesBO1_2] = useState([]);
-    const [score1, setScore1] = useState(pair.score1 || 0);
-    const [score2, setScore2] = useState(pair.score2 || 0);
+    const [score1, setScore1] = useState(0);
+    const [score2, setScore2] = useState(0);
     const [gameResults, setGameResults] = useState([]);
-    const [color1, setColor1] = useState('red'); // Default color for team1
-    const [color2, setColor2] = useState('blue'); // Default color for team2
-    const [gold1, setGold1] = useState(0); // Gold for team1
-    const [gold2, setGold2] = useState(0); // Gold for team2
-    const [restart1_111, setRestart1_111] = useState(0); // 111 restarts for team1 (max 2)
-    const [restart1_112, setRestart1_112] = useState(0); // 112 restarts for team1 (max 1)
-    const [restart2_111, setRestart2_111] = useState(0); // 111 restarts for team2 (max 2)
-    const [restart2_112, setRestart2_112] = useState(0); // 112 restarts for team2 (max 1)
+    const [color1, setColor1] = useState('red');
+    const [color2, setColor2] = useState('blue');
+    const [gold1, setGold1] = useState(0);
+    const [gold2, setGold2] = useState(0);
+    const [restart1_111, setRestart1_111] = useState(0);
+    const [restart1_112, setRestart1_112] = useState(0);
+    const [restart2_111, setRestart2_111] = useState(0);
+    const [restart2_112, setRestart2_112] = useState(0);
     const [restartsFinished, setRestartsFinished] = useState(false);
     const [avatar1, setAvatar1] = useState(null);
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
-    const [castleMarkOverrides, setCastleMarkOverrides] = useState({}); // Manual marks + 11/12 state (shared for BO-1 and BO-3)
+    const [castleMarkOverrides, setCastleMarkOverrides] = useState({});
+
+    // When progress is loaded, restore only fields the pair useEffect doesn't already cover
+    useEffect(() => {
+        if (!progressLoaded) {
+            return;
+        }
+        // latestStage, bannedCastles and castleMarkOverrides are NOT in pair data — restore from progress
+        if (initial.bannedCastlesBO1_1) {
+            setBannedCastlesBO1_1(initial.bannedCastlesBO1_1);
+        }
+        if (initial.bannedCastlesBO1_2) {
+            setBannedCastlesBO1_2(initial.bannedCastlesBO1_2);
+        }
+        if (initial.castleMarkOverrides) {
+            setCastleMarkOverrides(initial.castleMarkOverrides);
+        }
+        // Restore form fields only if saved progress has them (don't overwrite pair useEffect values with empty)
+        if (initial.winner !== undefined) {
+            setSelectedWinner(initial.winner);
+        }
+        if (initial.score1 !== undefined) {
+            setScore1(initial.score1);
+        }
+        if (initial.score2 !== undefined) {
+            setScore2(initial.score2);
+        }
+        if (initial.color1) {
+            setColor1(initial.color1);
+        }
+        if (initial.color2) {
+            setColor2(initial.color2);
+        }
+        // For BO-1: castle and game fields are nested in initial.games[0]
+        const g0 = initial.games?.[0];
+        if (g0) {
+            if (g0.castle1) {
+                setCastle1(g0.castle1);
+            }
+            if (g0.castle2) {
+                setCastle2(g0.castle2);
+            }
+            if (g0.gold1 !== undefined) {
+                setGold1(g0.gold1);
+            }
+            if (g0.gold2 !== undefined) {
+                setGold2(g0.gold2);
+            }
+            if (g0.restart1_111 !== undefined) {
+                setRestart1_111(g0.restart1_111);
+            }
+            if (g0.restart1_112 !== undefined) {
+                setRestart1_112(g0.restart1_112);
+            }
+            if (g0.restart2_111 !== undefined) {
+                setRestart2_111(g0.restart2_111);
+            }
+            if (g0.restart2_112 !== undefined) {
+                setRestart2_112(g0.restart2_112);
+            }
+            if (g0.restartsFinished !== undefined) {
+                setRestartsFinished(g0.restartsFinished);
+            }
+        }
+        // For series: restore gameResults from initial.games if present
+        if (initial.games && initial.games.length > 1) {
+            setGameResults(
+                initial.games.map((g, idx) => ({
+                    gameId: idx,
+                    castle1: g.castle1 || '',
+                    castle2: g.castle2 || '',
+                    winner: g.gameWinner || '',
+                    gameStatus: g.gameStatus || 'Not Started',
+                    color1: g.color1 || 'red',
+                    color2: g.color2 || 'blue',
+                    gold1: g.gold1 || 0,
+                    gold2: g.gold2 || 0,
+                    restart1_111: g.restart1_111 || 0,
+                    restart1_112: g.restart1_112 || 0,
+                    restart2_111: g.restart2_111 || 0,
+                    restart2_112: g.restart2_112 || 0,
+                    restartsFinished: g.restartsFinished || false
+                }))
+            );
+        }
+    }, [progressLoaded]);
+
+    const getBestOfValue = (type) => {
+        const normalized = String(type || '')
+            .toLowerCase()
+            .trim();
+        if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
+            return 5;
+        }
+        if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
+            return 3;
+        }
+        return 1;
+    };
+
+    const bestOf = getBestOfValue(pair.type);
+    const requiredWins = Math.floor(bestOf / 2) + 1;
+    const isSeriesMatch = bestOf > 1;
 
     // Available castles - using database format with Russian names
     const castles = [
@@ -84,7 +210,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         // API castles already have the correct 'total' count
         const castlesWithLiveGames = apiCastles.map((castle) => {
             let liveGames = 0;
-
             // Count live games across all stages
             if (pairsData && Array.isArray(pairsData)) {
                 pairsData.forEach((stage) => {
@@ -97,7 +222,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                     // 2. Both castles are selected but no winner declared
                                     const isInProgress = game.gameStatus === 'In Progress';
                                     const hasCastlesNoWinner = game.castle1 && game.castle2 && !game.castleWinner;
-
                                     if (
                                         (game.castle1 === castle.name || game.castle2 === castle.name) &&
                                         (isInProgress || hasCastlesNoWinner)
@@ -110,13 +234,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     }
                 });
             }
-
-            return {
-                ...castle,
-                liveGames: liveGames
-            };
+            return { ...castle, liveGames };
         });
-
         return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
     };
 
@@ -223,9 +342,7 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             setColor2(pair.color2);
         }
 
-        if (pair.type === 'bo-3') {
-            const hasRestartFinishedFlag = (pair.games || []).some((game) => game?.restartsFinished);
-            setRestartsFinished(Boolean(hasRestartFinishedFlag));
+        if (isSeriesMatch) {
             setGameResults(
                 pair.games.map((game, idx) => ({
                     gameId: idx,
@@ -242,7 +359,8 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     restart1_111: game.restart1_111 || 0,
                     restart1_112: game.restart1_112 || 0,
                     restart2_111: game.restart2_111 || 0,
-                    restart2_112: game.restart2_112 || 0
+                    restart2_112: game.restart2_112 || 0,
+                    restartsFinished: game.restartsFinished || false
                 }))
             );
         } else {
@@ -288,14 +406,14 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                     const stats = calculateAvailableCastles(apiCastles, playoffPairs);
                     setAvailableCastles(stats);
 
-                    // For BO-3: Check if any game hasn't started
+                    // For series matches: check if any game hasn't started
                     let shouldAutoMark = false;
-                    if (pair.type === 'bo-3' && pair.games) {
+                    if (isSeriesMatch && pair.games) {
                         const hasUnstartedGame = pair.games.some(
                             (g) => !g.castle1 || !g.castle2 || g.gameStatus === 'Not Started'
                         );
                         shouldAutoMark = hasUnstartedGame;
-                        console.log('BO-3 has unstarted game?', shouldAutoMark);
+                        console.log('Series match has unstarted game?', shouldAutoMark);
                     }
 
                     if (shouldAutoMark) {
@@ -388,10 +506,16 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         setScore1(team1Wins);
         setScore2(team2Wins);
 
-        // Auto-add Game 3 if score is 1-1 and only 2 games exist
-        if (team1Wins === 1 && team2Wins === 1 && updated.length === 2) {
+        // Auto-add deciding game for incremental series setup (e.g. BO-3 starts with 2, BO-5 with 4).
+        const shouldAddDeciderGame =
+            isSeriesMatch &&
+            updated.length < bestOf &&
+            team1Wins === team2Wins &&
+            team1Wins + team2Wins === updated.length;
+
+        if (shouldAddDeciderGame) {
             updated.push({
-                gameId: 2,
+                gameId: updated.length,
                 castle1: '',
                 castle2: '',
                 bannedCastles1: [],
@@ -410,42 +534,43 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
         setGameResults(updated);
 
-        // Auto-select winner if reached 2 wins
-        if (team1Wins >= 2) {
+        // Auto-select winner if required wins are reached.
+        if (team1Wins >= requiredWins) {
             setSelectedWinner(pair.team1);
-        } else if (team2Wins >= 2) {
+        } else if (team2Wins >= requiredWins) {
             setSelectedWinner(pair.team2);
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const hasUsedRestarts =
-            pair.type === 'bo-3'
-                ? gameResults.some(
-                      (game) =>
-                          (Number(game.restart1_111) || 0) > 0 ||
-                          (Number(game.restart1_112) || 0) > 0 ||
-                          (Number(game.restart2_111) || 0) > 0 ||
-                          (Number(game.restart2_112) || 0) > 0
-                  )
-                : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
+        // const hasUsedRestarts = isSeriesMatch
+        //     ? gameResults.some(
+        //           (game) =>
+        //               (Number(game.restart1_111) || 0) > 0 ||
+        //               (Number(game.restart1_112) || 0) > 0 ||
+        //               (Number(game.restart2_111) || 0) > 0 ||
+        //               (Number(game.restart2_112) || 0) > 0
+        //       )
+        //     : restart1_111 > 0 || restart1_112 > 0 || restart2_111 > 0 || restart2_112 > 0;
 
-        if (hasUsedRestarts && !restartsFinished) {
-            alert('Please confirm that restarts are finished and the main game has started.');
-            return;
-        }
+        // if (hasUsedRestarts && !restartsFinished) {
+        //     alert('Please confirm that restarts are finished and the main game has started.');
+        //     return;
+        // }
 
         // Validate based on what's being reported
-        if (pair.type === 'bo-3') {
+        if (isSeriesMatch) {
             const hasAnyCompleteGame = gameResults.some((game) => game.castle1 && game.castle2);
             if (!hasAnyCompleteGame) {
-                alert('BO-3: At least one game must have both castles selected before submitting.');
+                alert(
+                    `${pair.type.toUpperCase()}: At least one game must have both castles selected before submitting.`
+                );
                 return;
             }
 
-            // For bo-3, validate each game that has any data filled in
+            // For series matches, validate each game that has any data filled in.
             for (let i = 0; i < gameResults.length; i++) {
                 const game = gameResults[i];
                 // If game has a winner, it must have castles
@@ -462,8 +587,13 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
             // If overall winner is selected, validate the series is properly concluded
             if (selectedWinner) {
-                if ((score1 !== 2 && score2 !== 2) || (score1 === 2 && score2 === 2)) {
-                    alert('Invalid score for BO-3. One player must have exactly 2 wins to determine a match winner.');
+                const hasValidSeriesWinner =
+                    (score1 === requiredWins && score2 < requiredWins) ||
+                    (score2 === requiredWins && score1 < requiredWins);
+                if (!hasValidSeriesWinner) {
+                    alert(
+                        `Invalid score for ${pair.type.toUpperCase()}. One player must have exactly ${requiredWins} wins to determine a match winner.`
+                    );
                     return;
                 }
             }
@@ -487,59 +617,75 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
             score2: score2,
             color1: color1,
             color2: color2,
-            games:
-                pair.type === 'bo-3'
-                    ? gameResults.map((g) => ({
-                          castle1: g.castle1 || '',
-                          castle2: g.castle2 || '',
-                          castleWinner: g.winner ? (g.winner === pair.team1 ? g.castle1 : g.castle2) : '',
-                          gameWinner: g.winner || '',
-                          gameStatus:
-                              g.gameStatus === 'Processed' ? 'Processed' : g.winner ? 'Finished' : 'In Progress',
-                          gameId: g.gameId,
-                          color1: g.color1 || color1,
-                          color2: g.color2 || color2,
-                          gold1: g.gold1 || 0,
-                          gold2: g.gold2 || 0,
-                          restart1_111: g.restart1_111 || 0,
-                          restart1_112: g.restart1_112 || 0,
-                          restart2_111: g.restart2_111 || 0,
-                          restart2_112: g.restart2_112 || 0,
+            games: isSeriesMatch
+                ? gameResults.map((g) => ({
+                      castle1: g.castle1 || '',
+                      castle2: g.castle2 || '',
+                      castleWinner: g.winner ? (g.winner === pair.team1 ? g.castle1 : g.castle2) : '',
+                      gameWinner: g.winner || '',
+                      gameStatus: g.gameStatus === 'Processed' ? 'Processed' : g.winner ? 'Finished' : 'In Progress',
+                      gameId: g.gameId,
+                      color1: g.color1 || color1,
+                      color2: g.color2 || color2,
+                      gold1: g.gold1 || 0,
+                      gold2: g.gold2 || 0,
+                      restart1_111: g.restart1_111 || 0,
+                      restart1_112: g.restart1_112 || 0,
+                      restart2_111: g.restart2_111 || 0,
+                      restart2_112: g.restart2_112 || 0,
+                      restartsFinished: g.restartsFinished || false
+                  }))
+                : [
+                      {
+                          castle1: castle1 || '',
+                          castle2: castle2 || '',
+                          castleWinner: selectedWinner ? (selectedWinner === pair.team1 ? castle1 : castle2) : '',
+                          gameWinner: selectedWinner || '',
+                          gameStatus: selectedWinner ? 'Finished' : 'In Progress',
+                          gameId: 0,
+                          color1: color1,
+                          color2: color2,
+                          gold1: gold1,
+                          gold2: gold2,
+                          restart1_111: restart1_111,
+                          restart1_112: restart1_112,
+                          restart2_111: restart2_111,
+                          restart2_112: restart2_112,
                           restartsFinished: restartsFinished
-                      }))
-                    : [
-                          {
-                              castle1: castle1 || '',
-                              castle2: castle2 || '',
-                              castleWinner: selectedWinner ? (selectedWinner === pair.team1 ? castle1 : castle2) : '',
-                              gameWinner: selectedWinner || '',
-                              gameStatus: selectedWinner ? 'Finished' : 'In Progress',
-                              gameId: 0,
-                              color1: color1,
-                              color2: color2,
-                              gold1: gold1,
-                              gold2: gold2,
-                              restart1_111: restart1_111,
-                              restart1_112: restart1_112,
-                              restart2_111: restart2_111,
-                              restart2_112: restart2_112,
-                              restartsFinished: restartsFinished
-                          }
-                      ]
+                      }
+                  ]
         };
 
+        // Persist final progress to backend before handing off
+        await savePairProgress(tournamentId, pairId, {
+            ...reportData,
+            latestStage: 'submitted',
+            bannedCastlesBO1_1,
+            bannedCastlesBO1_2,
+            castleMarkOverrides
+        });
         onSubmit(reportData);
     };
 
     return (
-        <div className={classes.backdrop} onClick={onClose}>
+        <div
+            className={classes.backdrop}
+            onClick={() => {
+                onClose();
+            }}
+        >
             <div className={classes.modal} onClick={(e) => e.stopPropagation()}>
-                <button className={classes.closeButton} onClick={onClose}>
+                <button
+                    className={classes.closeButton}
+                    onClick={() => {
+                        onClose();
+                    }}
+                >
                     ×
                 </button>
 
-                {/* Player Header Bar at Top - STICKY (only for BO-3) */}
-                {pair.type === 'bo-3' && (
+                {/* Player Header Bar at Top - STICKY (only for series matches) */}
+                {isSeriesMatch && (
                     <div
                         style={{
                             position: 'sticky',
@@ -713,9 +859,9 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
 
                 <form onSubmit={handleSubmit} className={classes.form} style={{ position: 'relative' }}>
                     {/* Game Results */}
-                    {pair.type === 'bo-3' ? (
+                    {isSeriesMatch ? (
                         <div style={{ position: 'relative', zIndex: 2 }}>
-                            {/* BO-3 Game Results */}
+                            {/* Series match game results */}
                             {gameResults.map((game, idx) => (
                                 <div
                                     key={idx}
@@ -723,7 +869,17 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                     style={{
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        display: idx === 2 && score1 + score2 < 2 ? 'none' : undefined
+                                        display:
+                                            idx === gameResults.length - 1 &&
+                                            !game.castle1 &&
+                                            !game.castle2 &&
+                                            !game.winner &&
+                                            ((gameResults.length === bestOf &&
+                                                score1 + score2 < gameResults.length - 1) ||
+                                                (gameResults.length < bestOf &&
+                                                    Math.max(score1, score2) >= requiredWins))
+                                                ? 'none'
+                                                : undefined
                                     }}
                                 >
                                     {/* Left Side Background - Player 1 for this game */}
@@ -1766,7 +1922,11 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     {pair.team1.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div
-                                                    style={{ color: '#00ffff', fontSize: '12px', textAlign: 'center' }}
+                                                    style={{
+                                                        color: '#00ffff',
+                                                        fontSize: '12px',
+                                                        textAlign: 'center'
+                                                    }}
                                                 >
                                                     {pair.team1}
                                                 </div>
@@ -1812,13 +1972,34 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                                     {pair.team2.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div
-                                                    style={{ color: '#00ffff', fontSize: '12px', textAlign: 'center' }}
+                                                    style={{
+                                                        color: '#00ffff',
+                                                        fontSize: '12px',
+                                                        textAlign: 'center'
+                                                    }}
                                                 >
                                                     {pair.team2}
                                                 </div>
                                             </div>
                                         </div>
                                     </div> */}
+                                    <div className={classes.restartConfirmationRow}>
+                                        <label className={classes.restartConfirmationLabel}>
+                                            <input
+                                                type="checkbox"
+                                                checked={game.restartsFinished || false}
+                                                onChange={(e) => {
+                                                    const updated = [...gameResults];
+                                                    updated[idx] = {
+                                                        ...updated[idx],
+                                                        restartsFinished: e.target.checked
+                                                    };
+                                                    setGameResults(updated);
+                                                }}
+                                            />
+                                            Restarts finished / main game started
+                                        </label>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -2363,7 +2544,6 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                                         </div> */}
                                         <input
                                             type="number"
-                                            step="100"
                                             value={gold2}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -3013,16 +3193,18 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
                         </div>
                     )}
 
-                    <div className={classes.restartConfirmationRow}>
-                        <label className={classes.restartConfirmationLabel}>
-                            <input
-                                type="checkbox"
-                                checked={restartsFinished}
-                                onChange={(e) => setRestartsFinished(e.target.checked)}
-                            />
-                            Restarts finished / main game started
-                        </label>
-                    </div>
+                    {!isSeriesMatch && (
+                        <div className={classes.restartConfirmationRow}>
+                            <label className={classes.restartConfirmationLabel}>
+                                <input
+                                    type="checkbox"
+                                    checked={restartsFinished}
+                                    onChange={(e) => setRestartsFinished(e.target.checked)}
+                                />
+                                Restarts finished / main game started
+                            </label>
+                        </div>
+                    )}
 
                     <div className={classes.buttonGroup} style={{ position: 'relative', zIndex: 2 }}>
                         <button type="submit" className={classes.submitButton}>
@@ -3037,5 +3219,4 @@ const ReportGameModal = ({ pair, onClose, onSubmit, playoffPairs }) => {
         </div>
     );
 };
-
 export default ReportGameModal;
