@@ -3977,16 +3977,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         </p>
                                                         <div
                                                             style={{
-                                                                display: 'flex',
-                                                                alignItems: 'flex-start',
-                                                                gap: '1rem'
+                                                                display: 'grid',
+                                                                gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                alignItems: 'center',
+                                                                gap: '0.75rem',
+                                                                width: '100%'
                                                             }}
                                                         >
                                                             <div
                                                                 style={{
                                                                     display: 'flex',
                                                                     flexDirection: 'column',
-                                                                    gap: '0.5rem'
+                                                                    gap: '0.5rem',
+                                                                    minWidth: 0
                                                                 }}
                                                             >
                                                                 <PlayerBracket
@@ -4027,8 +4030,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 style={{
                                                                     display: 'flex',
                                                                     gap: '0.5rem',
-                                                                    alignItems: 'center',
-                                                                    marginTop: '2.5rem'
+                                                                    alignItems: 'center'
                                                                 }}
                                                             >
                                                                 {pair.team1 !== 'TBD' &&
@@ -4448,16 +4450,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             </p>
                                                             <div
                                                                 style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'flex-start',
-                                                                    gap: '1rem'
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.75rem',
+                                                                    width: '100%'
                                                                 }}
                                                             >
                                                                 <div
                                                                     style={{
                                                                         display: 'flex',
                                                                         flexDirection: 'column',
-                                                                        gap: '0.5rem'
+                                                                        gap: '0.5rem',
+                                                                        minWidth: 0
                                                                     }}
                                                                 >
                                                                     <PlayerBracket
@@ -4498,8 +4503,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     style={{
                                                                         display: 'flex',
                                                                         gap: '0.5rem',
-                                                                        alignItems: 'center',
-                                                                        marginTop: '2.5rem'
+                                                                        alignItems: 'center'
                                                                     }}
                                                                 >
                                                                     {pair.team1 !== 'TBD' &&

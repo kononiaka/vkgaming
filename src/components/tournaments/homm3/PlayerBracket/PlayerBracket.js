@@ -541,6 +541,7 @@ export const PlayerBracket = (props) => {
                     background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
                     color: '#FFD700',
                     margin: '0.5rem 0',
+                    marginLeft: 'auto',
                     fontWeight: 'bold',
                     fontSize: '1.1rem',
                     boxShadow: '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
