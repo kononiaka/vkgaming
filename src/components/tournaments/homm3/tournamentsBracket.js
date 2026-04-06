@@ -3846,6 +3846,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         getWinner={getWinner}
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                pairIndex * 2
+                                                                            ]
+                                                                        }
+                                                                        sourceIsLoser={true}
                                                                     />
                                                                     <PlayerBracket
                                                                         pair={pair}
@@ -3864,6 +3870,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         isManualScore={isManualScore}
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                pairIndex * 2 + 1
+                                                                            ]
+                                                                        }
+                                                                        sourceIsLoser={true}
                                                                     />
                                                                 </div>
                                                                 <div
@@ -4201,6 +4213,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         getWinner={getWinner}
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[pairIndex * 2]
+                                                                        }
                                                                     />
                                                                     <PlayerBracket
                                                                         pair={pair}
@@ -4219,6 +4234,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         isManualScore={isManualScore}
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[
+                                                                                pairIndex * 2 + 1
+                                                                            ]
+                                                                        }
                                                                     />
                                                                 </div>
                                                                 <div
@@ -4370,6 +4390,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             getWinner={getWinner}
                                                                             clickedRadioButton={clickedRadioButton}
                                                                             playersObj={playersObj}
+                                                                            sourcePair={
+                                                                                playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                    pairIndex * 2
+                                                                                ]
+                                                                            }
+                                                                            sourceIsLoser={true}
                                                                         />
                                                                         <PlayerBracket
                                                                             pair={pair}
@@ -4388,6 +4414,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             isManualScore={isManualScore}
                                                                             clickedRadioButton={clickedRadioButton}
                                                                             playersObj={playersObj}
+                                                                            sourcePair={
+                                                                                playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                    pairIndex * 2 + 1
+                                                                                ]
+                                                                            }
+                                                                            sourceIsLoser={true}
                                                                         />
                                                                     </div>
                                                                     <div
@@ -4605,6 +4637,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         teamIndex={1}
                                                                         getWinner={getWinner}
                                                                         clickedRadioButton={clickedRadioButton}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[pairIndex * 2]
+                                                                        }
                                                                     />
                                                                     <PlayerBracket
                                                                         pair={pair}
@@ -4622,6 +4657,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         getWinner={getWinner}
                                                                         isManualScore={isManualScore}
                                                                         clickedRadioButton={clickedRadioButton}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[
+                                                                                pairIndex * 2 + 1
+                                                                            ]
+                                                                        }
                                                                     />
                                                                 </div>
                                                                 <div

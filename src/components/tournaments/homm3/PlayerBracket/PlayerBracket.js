@@ -37,7 +37,9 @@ export const PlayerBracket = (props) => {
         teamIndex,
         getWinner,
         clickedRadioButton,
-        playersObj
+        playersObj,
+        sourcePair,
+        sourceIsLoser
     } = props;
 
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2, color1, color2 } = pair;
@@ -285,13 +287,23 @@ export const PlayerBracket = (props) => {
     const isMultiGameLayout = Array.isArray(numberOfGames) && numberOfGames.length > 1;
     const gamesCount = Array.isArray(numberOfGames) ? numberOfGames.length : 1;
     const gamesStripMinWidth = isMultiGameLayout ? `${gamesCount * 44 + Math.max(gamesCount - 1, 0) * 8}px` : '52px';
+    const isSourcePairHint =
+        teamPlayer === 'TBD' &&
+        sourcePair &&
+        sourcePair.team1 &&
+        sourcePair.team1 !== 'TBD' &&
+        sourcePair.team2 &&
+        sourcePair.team2 !== 'TBD';
 
     return (
         <div
             className={classes.player_bracket}
             style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap' }}
         >
-            <div className={classes.playerInfoColumn}>
+            <div
+                className={classes.playerInfoColumn}
+                style={isSourcePairHint ? { flex: '1 1 auto', maxWidth: 'none', overflow: 'visible' } : undefined}
+            >
                 <label
                     htmlFor={`score-${team}-${pairIndex}`}
                     onMouseEnter={handleMouseEnter}
@@ -364,9 +376,22 @@ export const PlayerBracket = (props) => {
                         <span>{teamPlayer}</span>
                     </NavLink>
                 ) : (
-                    <span className={classes.playerName}>
-                        <span className={classes.leaderboardPlace}>({leaderboardPosition || '...'})</span>
-                        <span>{teamPlayer}</span>
+                    <span
+                        className={classes.playerName}
+                        style={isSourcePairHint ? { whiteSpace: 'normal', overflow: 'visible' } : undefined}
+                    >
+                        {!isSourcePairHint && (
+                            <span className={classes.leaderboardPlace}>({leaderboardPosition || '...'})</span>
+                        )}
+                        <span>
+                            {isSourcePairHint ? (
+                                <span>
+                                    {sourceIsLoser ? 'L' : 'W'}: {sourcePair.team1} / {sourcePair.team2}
+                                </span>
+                            ) : (
+                                teamPlayer
+                            )}
+                        </span>
                     </span>
                 )}
                 {showTooltip && teamPlayer !== 'TBD' && (
@@ -792,7 +817,7 @@ export const PlayerBracket = (props) => {
                 )}
 
             {/* TODO: add the stars image when the tournament just started */}
-            <div className={classes.playerMiddleRow}>
+            <div className={classes.playerMiddleRow} style={isSourcePairHint ? { display: 'none' } : undefined}>
                 <div className={classes.starsContainer}>
                     {playerStars && playerStars !== 'TBD' && (
                         <div className={classes.stars_wrapper} style={{ cursor: 'pointer' }}>
