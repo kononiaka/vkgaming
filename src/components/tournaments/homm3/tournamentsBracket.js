@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useRef } from 'react';
 import { stripUiFields, moveProgressFieldsToNested } from './progress/gameProgressApi';
 import { updateGameStatusForPartialProgress } from './progress/gameStatusUtils';
 import {
@@ -102,6 +102,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
+    const fixedHeaderRef = useRef(null);
+    const [fixedHeaderHeight, setFixedHeaderHeight] = useState(0);
+
+    useEffect(() => {
+        const el = fixedHeaderRef.current;
+        if (!el) {
+            return;
+        }
+        const observer = new ResizeObserver(() => {
+            setFixedHeaderHeight(el.offsetHeight);
+        });
+        observer.observe(el);
+        setFixedHeaderHeight(el.offsetHeight);
+        return () => observer.disconnect();
+    }, []);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
@@ -3138,6 +3153,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
+                ref={fixedHeaderRef}
                 className={classes.brackets}
                 style={{
                     position: 'fixed',
@@ -3152,91 +3168,108 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     left: 0
                 }}
             >
-                {!startTournament && isUpdateButtonVisible && (
+                {!startTournament && (
                     <div
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}
                     >
-                        <button
-                            id="update-tournament"
-                            onClick={() => updateTournament()}
-                            className={classes.actionButton}
-                            style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
-                        >
-                            Update Tournament
-                        </button>
+                        {/* Left: admin action button (or spacer) */}
+                        <div style={{ minWidth: '180px', flexShrink: 0 }}>
+                            {authCtx.isAdmin && isUpdateButtonVisible && (
+                                <button
+                                    id="update-tournament"
+                                    onClick={() => updateTournament()}
+                                    className={classes.actionButton}
+                                    style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', width: '100%' }}
+                                >
+                                    Update Tournament
+                                </button>
+                            )}
+                        </div>
 
+                        {/* Center: always show tournament name + winners */}
                         <div style={{ flex: 1, textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>{tournamentName}</div>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                {tournamentName}
+                            </div>
                             {tournamentWinners && (
-                                <div style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                    <p style={{ color: 'gold', margin: '0.4rem 0' }}>
-                                        🥇 Gold: {tournamentWinners['1st place']}
-                                    </p>
-                                    <p style={{ color: 'silver', margin: '0.4rem 0' }}>
-                                        🥈 Silver: {tournamentWinners['2nd place']}
-                                    </p>
-                                    <p style={{ color: '#CD7F32', margin: '0.4rem 0' }}>
-                                        🥉 Bronze: {tournamentWinners['3rd place']}
-                                    </p>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        gap: '2rem',
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold',
+                                        flexWrap: 'wrap'
+                                    }}
+                                >
+                                    {tournamentWinners['1st place'] && (
+                                        <span style={{ color: 'gold' }}>🥇 Gold: {tournamentWinners['1st place']}</span>
+                                    )}
+                                    {tournamentWinners['2nd place'] && (
+                                        <span style={{ color: 'silver' }}>
+                                            🥈 Silver: {tournamentWinners['2nd place']}
+                                        </span>
+                                    )}
+                                    {tournamentWinners['3rd place'] && (
+                                        <span style={{ color: '#CD7F32' }}>
+                                            🥉 Bronze: {tournamentWinners['3rd place']}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-                            <button
-                                onClick={() => handleGetAvailableCastles()}
-                                className={classes.actionButton}
-                                style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
-                            >
-                                Get Available Castles
-                            </button>
-                        </div>
-                    </div>
-                )}
-                {!startTournament && !isUpdateButtonVisible && authCtx.isAdmin && (
-                    <div style={{ marginBottom: '1rem' }}>
-                        {tournamentName}
-                        {tournamentWinners && (
-                            <p style={{ color: 'gold', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                🥇 Gold: {tournamentWinners['1st place']}
-                            </p>
-                        )}
-                        {tournamentWinners && (
-                            <p style={{ color: 'silver', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                🥈 Silver: {tournamentWinners['2nd place']}
-                            </p>
-                        )}
-                        {tournamentWinners && (
-                            <p style={{ color: '#CD7F32', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                🥉 Bronze: {tournamentWinners['3rd place']}
-                            </p>
-                        )}
-                        <button
-                            onClick={async () => {
-                                const confirmed = window.confirm(
-                                    "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
-                                );
-                                if (!confirmed) {
-                                    return;
-                                }
-                                try {
-                                    const result = await recalculatePlayerStars();
-                                    alert(`Stars recalculated successfully! Updated ${result.updatedCount} players.`);
-                                } catch (error) {
-                                    console.error('Error recalculating stars:', error);
-                                    alert('Error recalculating stars: ' + error.message);
-                                }
-                            }}
-                            className={classes.actionButton}
+                        {/* Right: admin action button (or spacer) */}
+                        <div
                             style={{
-                                marginTop: '0.75rem',
-                                padding: '0.6rem 1.2rem',
-                                fontSize: '0.95rem',
-                                background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)'
+                                minWidth: '180px',
+                                flexShrink: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.5rem',
+                                alignItems: 'flex-end'
                             }}
                         >
-                            ⭐ Recalculate Stars Now
-                        </button>
+                            {authCtx.isAdmin && (
+                                <button
+                                    onClick={() => handleGetAvailableCastles()}
+                                    className={classes.actionButton}
+                                    style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', width: '100%' }}
+                                >
+                                    Get Available Castles
+                                </button>
+                            )}
+                            {authCtx.isAdmin && !isUpdateButtonVisible && (
+                                <button
+                                    onClick={async () => {
+                                        const confirmed = window.confirm(
+                                            "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
+                                        );
+                                        if (!confirmed) {
+                                            return;
+                                        }
+                                        try {
+                                            const result = await recalculatePlayerStars();
+                                            alert(
+                                                `Stars recalculated successfully! Updated ${result.updatedCount} players.`
+                                            );
+                                        } catch (error) {
+                                            console.error('Error recalculating stars:', error);
+                                            alert('Error recalculating stars: ' + error.message);
+                                        }
+                                    }}
+                                    className={classes.actionButton}
+                                    style={{
+                                        padding: '0.6rem 1.2rem',
+                                        fontSize: '0.95rem',
+                                        width: '100%',
+                                        background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)'
+                                    }}
+                                >
+                                    ⭐ Recalculate Stars Now
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -3455,12 +3488,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 <h6>Tournament registration hasn't started</h6>
             ) : (
                 (() => {
-                    const displayStages = stageLabels.filter((s) => s !== 'Third Place');
+                    const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
+                    // When there are multiple stages, the last one (Final) is already shown
+                    // as the right column of the previous page — no need for a dedicated page.
+                    const displayStages =
+                        allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
                     const clampedStage = Math.min(activeBracketStage, displayStages.length - 1);
                     const currentDisplayStage = displayStages[clampedStage];
                     const stageIndex = stageLabels.indexOf(currentDisplayStage);
                     const thirdPlaceIndex = stageLabels.indexOf('Third Place');
-                    const nextDisplayStage = displayStages[clampedStage + 1] ?? null;
+                    // On the last navigable page, show the removed Final as the right column
+                    const nextDisplayStage =
+                        displayStages[clampedStage + 1] ??
+                        (clampedStage === displayStages.length - 1 && allDisplayStages.length > displayStages.length
+                            ? allDisplayStages[allDisplayStages.length - 1]
+                            : null);
                     const nextStageIndex = nextDisplayStage !== null ? stageLabels.indexOf(nextDisplayStage) : -1;
 
                     // Shared bracket layout constants
@@ -3481,52 +3523,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         (((getRightBlockTop(i) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
 
                     return (
-                        <div style={{ marginTop: '25px', width: '100%' }}>
-                            {/* Tournament name + winners + prizes */}
-                            <div
-                                style={{
-                                    textAlign: 'center',
-                                    marginBottom: '1.5rem'
-                                }}
-                            >
-                                {displayName && (
-                                    <div
-                                        style={{
-                                            color: 'gold',
-                                            fontSize: '1.6rem',
-                                            fontWeight: 'bold',
-                                            textShadow: '2px 2px 6px rgba(0,0,0,0.6)',
-                                            letterSpacing: '1px',
-                                            marginBottom: '0.6rem'
-                                        }}
-                                    >
-                                        {displayName}
-                                    </div>
-                                )}
-                                {tournamentWinners && (
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            gap: '2rem',
-                                            fontSize: '1rem',
-                                            fontWeight: 'bold'
-                                        }}
-                                    >
-                                        {tournamentWinners['1st place'] && (
-                                            <span style={{ color: 'gold' }}>🥇 {tournamentWinners['1st place']}</span>
-                                        )}
-                                        {tournamentWinners['2nd place'] && (
-                                            <span style={{ color: 'silver' }}>🥈 {tournamentWinners['2nd place']}</span>
-                                        )}
-                                        {tournamentWinners['3rd place'] && (
-                                            <span style={{ color: '#CD7F32' }}>
-                                                🥉 {tournamentWinners['3rd place']}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                        <div style={{ paddingTop: `${fixedHeaderHeight + 16}px`, width: '100%' }}>
                             {/* Stage navigation */}
                             <div
                                 style={{
@@ -4007,6 +4004,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     teamIndex={1}
                                                                     getWinner={getWinner}
                                                                     clickedRadioButton={clickedRadioButton}
+                                                                    sourcePair={
+                                                                        stageIndex > 0
+                                                                            ? playoffPairs[stageIndex - 1]?.[
+                                                                                  pairIndex * 2
+                                                                              ]
+                                                                            : undefined
+                                                                    }
                                                                 />
                                                                 <PlayerBracket
                                                                     pair={pair}
@@ -4024,6 +4028,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     getWinner={getWinner}
                                                                     isManualScore={isManualScore}
                                                                     clickedRadioButton={clickedRadioButton}
+                                                                    sourcePair={
+                                                                        stageIndex > 0
+                                                                            ? playoffPairs[stageIndex - 1]?.[
+                                                                                  pairIndex * 2 + 1
+                                                                              ]
+                                                                            : undefined
+                                                                    }
                                                                 />
                                                             </div>
                                                             <div
