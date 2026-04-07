@@ -3961,18 +3961,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             justifyContent: 'center'
                                                         }}
                                                     >
-                                                        {pair.games &&
-                                                            pair.games.some((g) => g.gameStatus === 'In Progress') && (
-                                                                <div
-                                                                    className={classes.liveIndicator}
-                                                                    style={{
-                                                                        position: 'absolute',
-                                                                        top: '0.5rem',
-                                                                        right: '0.5rem',
-                                                                        margin: 0
-                                                                    }}
-                                                                />
-                                                            )}
                                                         <div
                                                             style={{
                                                                 position: 'absolute',
@@ -4106,6 +4094,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 textTransform: 'uppercase'
                                                             }}
                                                         >
+                                                            {pair.games &&
+                                                                pair.games.some(
+                                                                    (g) => g.gameStatus === 'In Progress'
+                                                                ) && <span className={classes.liveDot} />}
                                                             ⚔{' '}
                                                             {pair.type === 'bo-5'
                                                                 ? 'BO5'
@@ -4570,6 +4562,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     textTransform: 'uppercase'
                                                                 }}
                                                             >
+                                                                {pair.games &&
+                                                                    pair.games.some(
+                                                                        (g) => g.gameStatus === 'In Progress'
+                                                                    ) && <span className={classes.liveDot} />}
                                                                 ⚔{' '}
                                                                 {pair.type === 'bo-5'
                                                                     ? 'BO5'
@@ -4577,20 +4573,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                       ? 'BO3'
                                                                       : 'BO1'}
                                                             </div>
-                                                            {pair.games &&
-                                                                pair.games.some(
-                                                                    (g) => g.gameStatus === 'In Progress'
-                                                                ) && (
-                                                                    <div
-                                                                        className={classes.liveIndicator}
-                                                                        style={{
-                                                                            position: 'absolute',
-                                                                            top: '0.5rem',
-                                                                            right: '0.5rem',
-                                                                            margin: 0
-                                                                        }}
-                                                                    />
-                                                                )}
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',

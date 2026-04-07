@@ -176,6 +176,16 @@
     margin-top: 0.5rem;
 }
 
+.liveDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: red;
+    display: inline-block;
+    flex-shrink: 0;
+    animation: blink 2s infinite;
+}
+
 @keyframes blink {
     0%,
     49% {
