@@ -5,6 +5,7 @@
     display: block;
     line-height: 0;
     z-index: 120;
+    pointer-events: none;
 }
 
 .footer-href:hover {
@@ -20,6 +21,8 @@
     transform: rotate(270deg);
     line-height: 23px;
     font-size: 9px;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .footer-logo-text {
