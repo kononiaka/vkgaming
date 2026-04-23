@@ -9,7 +9,7 @@ import AuthContext from '../../store/auth-context';
 const Bracket = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [date, setDate] = useState('');
-    const [prizeType, setPrizeType] = useState('money');
+    const [prizeType, setPrizeType] = useState('coins');
     const [tournamentType, setTournamentType] = useState('kick-off');
     const authCtx = useContext(AuthContext);
 

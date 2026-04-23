@@ -158,6 +158,23 @@ const StartingPageContent = () => {
                 );
                 const historyData = await historyResponse.json();
                 const avatarByNickname = {};
+                const rankByNickname = {};
+
+                const getLatestRating = (u) => {
+                    const r = u.ratings;
+                    if (typeof r === 'string' && r.includes(',')) {
+                        return parseFloat(r.split(',').at(-1)) || 0;
+                    }
+                    return parseFloat(r) || 0;
+                };
+                const sortedUsers = Object.values(usersData || {})
+                    .filter((u) => u && u.ratings !== undefined)
+                    .sort((a, b) => getLatestRating(b) - getLatestRating(a));
+                sortedUsers.forEach((user, idx) => {
+                    if (user?.enteredNickname) {
+                        rankByNickname[user.enteredNickname] = idx + 1;
+                    }
+                });
 
                 Object.values(usersData || {}).forEach((user) => {
                     if (user?.enteredNickname) {
@@ -251,8 +268,14 @@ const StartingPageContent = () => {
                                                         team2Stars: parseNumericValue(
                                                             pair.stars2 ?? team2Player?.stars
                                                         ),
-                                                        team1Place: team1Player?.placeInLeaderboard || '-',
-                                                        team2Place: team2Player?.placeInLeaderboard || '-',
+                                                        team1Place:
+                                                            rankByNickname[pair.team1] ||
+                                                            team1Player?.placeInLeaderboard ||
+                                                            '-',
+                                                        team2Place:
+                                                            rankByNickname[pair.team2] ||
+                                                            team2Player?.placeInLeaderboard ||
+                                                            '-',
                                                         team1Rating: parseNumericValue(
                                                             pair.ratings1 ?? team1Player?.ratings
                                                         ),

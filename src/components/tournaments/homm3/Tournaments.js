@@ -17,10 +17,15 @@ const TournamentList = () => {
     const [tournamentStatus, setTournamentStatus] = useState('');
     const [tournamentWinnersObject, setTournamentWinners] = useState('');
     const [showDetails, setShowDetails] = useState(false);
-    const [firstStagePairs, setFirstStagePairs] = useState([]);
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
-    const [statusFilter, setStatusFilter] = useState('started');
+    const [statusFilter, setStatusFilter] = useState(() => {
+        // Pre-initialise from URL so the fetch-based default respects it
+        const params = new URLSearchParams(window.location.search);
+        const param = params.get('status');
+        const allowed = ['all', 'registration', 'registrationFinished', 'started', 'live', 'finished'];
+        return param && allowed.includes(param) ? param : null;
+    });
     const [showSpinningWheel, setShowSpinningWheel] = useState(false);
     const [tournamentPlayers, setTournamentPlayers] = useState({});
     const [allPlayerNicknames, setAllPlayerNicknames] = useState([]);
@@ -48,6 +53,9 @@ const TournamentList = () => {
         const normalized = String(rawType ?? '')
             .toLowerCase()
             .trim();
+        if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
+            return 'bo-5';
+        }
         if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
             return 'bo-3';
         }
@@ -71,10 +79,15 @@ const TournamentList = () => {
                     })
                     .filter(Boolean);
                 setTournaments(tournamentList);
-                // Update tournament ID outside the map function
-                if (tournamentList.length > 0) {
-                    setFirstStagePairs(tournamentList[0].bracket.playoffPairs[0]);
-                }
+                // Set default filter: 'started' if any in-progress tournament exists, else 'finished'
+                setStatusFilter((prev) => {
+                    if (prev !== null) {
+                        return prev;
+                    } // already set (e.g. from URL param)
+                    const hasInProgress = tournamentList.some((t) => t.status === 'Started!');
+                    return hasInProgress ? 'started' : 'finished';
+                });
+                // (no post-fetch setup needed)
             } else {
                 console.error('Failed to fetch tournaments:', data);
             }
@@ -315,12 +328,11 @@ const TournamentList = () => {
             }
 
             if (response.ok && +Object.keys(currentTournamentPlayers).length === +maxPlayers - 1) {
-                let tournamentStatusResponse = {};
-                let tournamentStatusResponseModal = confirmWindow(
+                const tournamentStatusResponseModal = confirmWindow(
                     `Are you sure you want to update tournament's status to 'Registration Finished'?`
                 );
                 if (tournamentStatusResponseModal) {
-                    tournamentStatusResponse = await fetch(
+                    const tournamentStatusResponse = await fetch(
                         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
                         {
                             method: 'PUT',
@@ -330,6 +342,16 @@ const TournamentList = () => {
                             }
                         }
                     );
+                    if (tournamentStatusResponse.ok) {
+                        authCtx.setNotificationShown(
+                            true,
+                            'Tournament status updated to Registration Finished!',
+                            'success',
+                            4
+                        );
+                    } else {
+                        authCtx.setNotificationShown(true, 'Failed to update tournament status.', 'error', 5);
+                    }
                 }
             }
 
@@ -374,19 +396,22 @@ const TournamentList = () => {
 
             // Filter eligible users: not in tournament and have at least 1 game played
             const eligibleUsers = Object.entries(allUsers)
-                .filter(([userId, user]) => {
-                    if (!user || !user.enteredNickname) return false;
+                .filter(([, user]) => {
+                    if (!user || !user.enteredNickname) {
+                        return false;
+                    }
 
                     // Check if already in tournament
-                    if (currentPlayerNames.includes(user.enteredNickname)) return false;
+                    if (currentPlayerNames.includes(user.enteredNickname)) {
+                        return false;
+                    }
 
                     // Check if has at least 1 game played
                     console.log('User games user:', user);
                     const totalGames = user.gamesPlayed?.heroes3?.total || 0;
                     return totalGames >= 1;
                 })
-                .map(([userId, user]) => ({
-                    userId,
+                .map(([, user]) => ({
                     name: user.enteredNickname,
                     stars: user.stars || 0,
                     ratings: user.ratings || '0',
@@ -412,7 +437,9 @@ const TournamentList = () => {
                 `Found ${eligibleUsers.length} eligible players.\nAdd ${playersToAdd} random players to fill the tournament?`
             );
 
-            if (!confirm) return;
+            if (!confirm) {
+                return;
+            }
 
             // Shuffle and select random players
             const shuffled = [...eligibleUsers].sort(() => Math.random() - 0.5);
@@ -421,7 +448,7 @@ const TournamentList = () => {
             // Add each selected player
             for (const player of selectedPlayers) {
                 const lastRating = parseFloat(player.ratings.split(',').pop().trim()).toFixed(2);
-                const placeInLeaderboard = await fetchLeaderboard(player.gamesPlayed);
+                const placeInLeaderboard = await fetchLeaderboard(player);
 
                 const userData = {
                     name: player.name,
@@ -520,7 +547,24 @@ const TournamentList = () => {
             const maxPlayers = tournamentData.maxPlayers;
             const tournamentPlayoffGamesRaw = tournamentData.tournamentPlayoffGames || 'bo-1';
             const gameType = normalizeMatchType(tournamentPlayoffGamesRaw);
+            const gameTypeFinal = normalizeMatchType(
+                tournamentData.tournamentPlayoffGamesFinal || tournamentPlayoffGamesRaw
+            );
+            const gameTypeThirdPlace = normalizeMatchType(
+                tournamentData.tournamentPlayoffGamesThirdPlace || tournamentPlayoffGamesRaw
+            );
             const players = tournamentData.players;
+
+            const getNumGames = (type) => (type === 'bo-5' ? 5 : type === 'bo-3' ? 3 : 1);
+            const getGameTypeForStage = (stageName) => {
+                if (stageName === 'Final') {
+                    return gameTypeFinal;
+                }
+                if (stageName === 'Third Place') {
+                    return gameTypeThirdPlace;
+                }
+                return gameType;
+            };
 
             // Calculate stage labels based on maxPlayers
             let currentStageLabels = [];
@@ -534,8 +578,8 @@ const TournamentList = () => {
                 currentStageLabels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
             }
 
-            // Determine number of games based on bo-1 or bo-3
-            const numGames = gameType === 'bo-3' ? 3 : 1;
+            // Determine number of games for first stage
+            const numGames = getNumGames(gameType);
 
             // Format bracket pairs with player data
             const formattedBracket = preBracketPairs.map((pair) => {
@@ -585,7 +629,7 @@ const TournamentList = () => {
                     stars2: player2?.stars || 0,
                     team1: pair[0],
                     team2: pair[1],
-                    type: gameType,
+                    type: getGameTypeForStage(currentStageLabels[0] || 'Quarter-final'),
                     winner: null,
                     color1: 'red',
                     color2: 'blue'
@@ -617,7 +661,9 @@ const TournamentList = () => {
                 }
 
                 for (let j = 0; j < pairsInStage; j++) {
-                    const emptyGames = Array.from({ length: numGames }, (_, index) => ({
+                    const stageGameType = getGameTypeForStage(stageName);
+                    const stageNumGames = getNumGames(stageGameType);
+                    const emptyGames = Array.from({ length: stageNumGames }, (_, index) => ({
                         castle1: '',
                         castle2: '',
                         castleWinner: '',
@@ -646,7 +692,7 @@ const TournamentList = () => {
                         stars2: null,
                         team1: 'TBD',
                         team2: 'TBD',
-                        type: gameType,
+                        type: stageGameType,
                         winner: null,
                         color1: 'red',
                         color2: 'blue'
@@ -823,6 +869,9 @@ const TournamentList = () => {
     };
 
     const filteredTournaments = tournaments.filter((tournament) => {
+        if (statusFilter === null) {
+            return false;
+        } // still loading default
         if (statusFilter === 'all') {
             return true;
         }
@@ -865,16 +914,28 @@ const TournamentList = () => {
                         maxTournamnetPlayers = tournament.maxPlayers;
 
                         const getStatusClass = (status) => {
-                            if (status === 'Registration' || status.includes('Registration')) return 'registration';
-                            if (status === 'Started!') return 'started';
-                            if (status.includes('Finished')) return 'finished';
+                            if (status === 'Registration' || status.includes('Registration')) {
+                                return 'registration';
+                            }
+                            if (status === 'Started!') {
+                                return 'started';
+                            }
+                            if (status.includes('Finished')) {
+                                return 'finished';
+                            }
                             return '';
                         };
 
                         const getMedalEmoji = (place) => {
-                            if (place === '1st' || place === '1') return '🥇';
-                            if (place === '2nd' || place === '2') return '🥈';
-                            if (place === '3rd' || place === '3') return '🥉';
+                            if (place === '1st' || place === '1') {
+                                return '🥇';
+                            }
+                            if (place === '2nd' || place === '2') {
+                                return '🥈';
+                            }
+                            if (place === '3rd' || place === '3') {
+                                return '🥉';
+                            }
                             return '🏅';
                         };
 

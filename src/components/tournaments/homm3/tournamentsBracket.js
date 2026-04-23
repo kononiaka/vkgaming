@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useRef } from 'react';
 import { stripUiFields, moveProgressFieldsToNested } from './progress/gameProgressApi';
 import { updateGameStatusForPartialProgress } from './progress/gameStatusUtils';
 import {
@@ -31,7 +31,6 @@ import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
 const uniquePlayerNames = [];
-const currentStageIndex = 0;
 let SHOULD_POSTING = true;
 let isManualScore = false;
 let clickedRadioButton;
@@ -103,6 +102,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
+    const fixedHeaderRef = useRef(null);
+    const [fixedHeaderHeight, setFixedHeaderHeight] = useState(0);
+
+    useEffect(() => {
+        const el = fixedHeaderRef.current;
+        if (!el) {
+            return;
+        }
+        const observer = new ResizeObserver(() => {
+            setFixedHeaderHeight(el.offsetHeight);
+        });
+        observer.observe(el);
+        setFixedHeaderHeight(el.offsetHeight);
+        return () => observer.disconnect();
+    }, []);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
@@ -112,6 +126,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
     const [selectedPairId, setSelectedPairId] = useState(null);
+    const [activeBracketStage, setActiveBracketStage] = useState(0);
+    const [displayName, setDisplayName] = useState('');
 
     const normalizeName = (value) =>
         String(value || '')
@@ -205,6 +221,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             const tournamentResponseName = await lookForTournamentName(tournamentId);
 
             tournamentName = tournamentResponseName.name;
+            setDisplayName(tournamentResponseName.name);
         };
 
         fetchData();
@@ -505,6 +522,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const updateTournament = async () => {
         const tournamentResponse = await lookForTournamentName(tournamentId);
         tournamentName = tournamentResponse.name;
+        setDisplayName(tournamentResponse.name);
 
         allPairsHaveTeams = allPairsHaveTeamsFunc(playoffPairs);
 
@@ -3135,6 +3153,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     return (
         <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
             <div
+                ref={fixedHeaderRef}
                 className={classes.brackets}
                 style={{
                     position: 'fixed',
@@ -3149,91 +3168,108 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     left: 0
                 }}
             >
-                {!startTournament && isUpdateButtonVisible && (
+                {!startTournament && (
                     <div
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}
                     >
-                        <button
-                            id="update-tournament"
-                            onClick={() => updateTournament()}
-                            className={classes.actionButton}
-                            style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
-                        >
-                            Update Tournament
-                        </button>
+                        {/* Left: admin action button (or spacer) */}
+                        <div style={{ minWidth: '180px', flexShrink: 0 }}>
+                            {authCtx.isAdmin && isUpdateButtonVisible && (
+                                <button
+                                    id="update-tournament"
+                                    onClick={() => updateTournament()}
+                                    className={classes.actionButton}
+                                    style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', width: '100%' }}
+                                >
+                                    Update Tournament
+                                </button>
+                            )}
+                        </div>
 
+                        {/* Center: always show tournament name + winners */}
                         <div style={{ flex: 1, textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>{tournamentName}</div>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                {tournamentName}
+                            </div>
                             {tournamentWinners && (
-                                <div style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                    <p style={{ color: 'gold', margin: '0.4rem 0' }}>
-                                        🥇 Gold: {tournamentWinners['1st place']}
-                                    </p>
-                                    <p style={{ color: 'silver', margin: '0.4rem 0' }}>
-                                        🥈 Silver: {tournamentWinners['2nd place']}
-                                    </p>
-                                    <p style={{ color: '#CD7F32', margin: '0.4rem 0' }}>
-                                        🥉 Bronze: {tournamentWinners['3rd place']}
-                                    </p>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        gap: '2rem',
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold',
+                                        flexWrap: 'wrap'
+                                    }}
+                                >
+                                    {tournamentWinners['1st place'] && (
+                                        <span style={{ color: 'gold' }}>🥇 Gold: {tournamentWinners['1st place']}</span>
+                                    )}
+                                    {tournamentWinners['2nd place'] && (
+                                        <span style={{ color: 'silver' }}>
+                                            🥈 Silver: {tournamentWinners['2nd place']}
+                                        </span>
+                                    )}
+                                    {tournamentWinners['3rd place'] && (
+                                        <span style={{ color: '#CD7F32' }}>
+                                            🥉 Bronze: {tournamentWinners['3rd place']}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-                            <button
-                                onClick={() => handleGetAvailableCastles()}
-                                className={classes.actionButton}
-                                style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', minWidth: '180px' }}
-                            >
-                                Get Available Castles
-                            </button>
-                        </div>
-                    </div>
-                )}
-                {!startTournament && !isUpdateButtonVisible && authCtx.isAdmin && (
-                    <div style={{ marginBottom: '1rem' }}>
-                        {tournamentName}
-                        {tournamentWinners && (
-                            <p style={{ color: 'gold', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                🥇 Gold: {tournamentWinners['1st place']}
-                            </p>
-                        )}
-                        {tournamentWinners && (
-                            <p style={{ color: 'silver', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                🥈 Silver: {tournamentWinners['2nd place']}
-                            </p>
-                        )}
-                        {tournamentWinners && (
-                            <p style={{ color: '#CD7F32', margin: 0, fontSize: '1.4rem', fontWeight: 'bold' }}>
-                                🥉 Bronze: {tournamentWinners['3rd place']}
-                            </p>
-                        )}
-                        <button
-                            onClick={async () => {
-                                const confirmed = window.confirm(
-                                    "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
-                                );
-                                if (!confirmed) {
-                                    return;
-                                }
-                                try {
-                                    const result = await recalculatePlayerStars();
-                                    alert(`Stars recalculated successfully! Updated ${result.updatedCount} players.`);
-                                } catch (error) {
-                                    console.error('Error recalculating stars:', error);
-                                    alert('Error recalculating stars: ' + error.message);
-                                }
-                            }}
-                            className={classes.actionButton}
+                        {/* Right: admin action button (or spacer) */}
+                        <div
                             style={{
-                                marginTop: '0.75rem',
-                                padding: '0.6rem 1.2rem',
-                                fontSize: '0.95rem',
-                                background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)'
+                                minWidth: '180px',
+                                flexShrink: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.5rem',
+                                alignItems: 'flex-end'
                             }}
                         >
-                            ⭐ Recalculate Stars Now
-                        </button>
+                            {authCtx.isAdmin && (
+                                <button
+                                    onClick={() => handleGetAvailableCastles()}
+                                    className={classes.actionButton}
+                                    style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', width: '100%' }}
+                                >
+                                    Get Available Castles
+                                </button>
+                            )}
+                            {authCtx.isAdmin && !isUpdateButtonVisible && (
+                                <button
+                                    onClick={async () => {
+                                        const confirmed = window.confirm(
+                                            "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
+                                        );
+                                        if (!confirmed) {
+                                            return;
+                                        }
+                                        try {
+                                            const result = await recalculatePlayerStars();
+                                            alert(
+                                                `Stars recalculated successfully! Updated ${result.updatedCount} players.`
+                                            );
+                                        } catch (error) {
+                                            console.error('Error recalculating stars:', error);
+                                            alert('Error recalculating stars: ' + error.message);
+                                        }
+                                    }}
+                                    className={classes.actionButton}
+                                    style={{
+                                        padding: '0.6rem 1.2rem',
+                                        fontSize: '0.95rem',
+                                        width: '100%',
+                                        background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)'
+                                    }}
+                                >
+                                    ⭐ Recalculate Stars Now
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -3451,410 +3487,1231 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             {stageLabels.length === 0 ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : (
-                <div className={classes['bracket-stages-container']} style={{ marginTop: '100px' }}>
-                    {stageLabels.map(function (stage, stageIndex) {
-                        // Combine Final and Third Place in one column
-                        if (stage === 'Final') {
-                            const thirdPlaceIndex = stageLabels.findIndex((label) => label === 'Third Place');
-                            const finalPairs = playoffPairs[stageIndex] || [];
-                            const thirdPlacePairs = thirdPlaceIndex !== -1 ? playoffPairs[thirdPlaceIndex] || [] : [];
+                (() => {
+                    const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
+                    // When there are multiple stages, the last one (Final) is already shown
+                    // as the right column of the previous page — no need for a dedicated page.
+                    const displayStages =
+                        allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+                    const clampedStage = Math.min(activeBracketStage, displayStages.length - 1);
+                    const currentDisplayStage = displayStages[clampedStage];
+                    const stageIndex = stageLabels.indexOf(currentDisplayStage);
+                    const thirdPlaceIndex = stageLabels.indexOf('Third Place');
+                    // On the last navigable page, show the removed Final as the right column
+                    const nextDisplayStage =
+                        displayStages[clampedStage + 1] ??
+                        (clampedStage === displayStages.length - 1 && allDisplayStages.length > displayStages.length
+                            ? allDisplayStages[allDisplayStages.length - 1]
+                            : null);
+                    const nextStageIndex = nextDisplayStage !== null ? stageLabels.indexOf(nextDisplayStage) : -1;
 
-                            return (
-                                <div
-                                    key="final-and-third"
-                                    className={`${classes['bracket-stages-column']} 
-                        ${stageIndex === currentStageIndex ? classes.active : ''}`}
-                                >
-                                    <h3 style={{ color: 'red' }}>Final</h3>
-                                    {finalPairs.map((pair, pairIndex) => {
-                                        const { team1, team2 } = pair;
-                                        const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                    // Shared bracket layout constants
+                    const BLOCK_H = 180;
+                    const BLOCK_GAP = 16;
+                    const leftMatchCount = playoffPairs[stageIndex]?.length ?? 0;
+                    const rightMatchCount = nextStageIndex !== -1 ? (playoffPairs[nextStageIndex]?.length ?? 0) : 0;
+                    const leftColHeight = leftMatchCount * BLOCK_H + Math.max(0, leftMatchCount - 1) * BLOCK_GAP;
+                    const bracketRatio = rightMatchCount > 0 ? leftMatchCount / rightMatchCount : 2;
+                    // Pixel distance from top of right column to top of right block i
+                    const getRightBlockTop = (i) =>
+                        ((2 * i * bracketRatio + bracketRatio - 1) * (BLOCK_H + BLOCK_GAP)) / 2;
+                    // SVG Y% for left block i (out of leftColHeight)
+                    const getSvgLeftY = (i) =>
+                        (((i * (BLOCK_H + BLOCK_GAP) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
+                    // SVG Y% for right block i (center of absolutely-positioned block, out of leftColHeight)
+                    const getSvgRightY = (i) =>
+                        (((getRightBlockTop(i) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
 
-                                        return (
-                                            <div
-                                                key={`final-${pairIndex}`}
-                                                className={classes['game-block']}
-                                                style={{ position: 'relative' }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                        alignItems: 'center',
-                                                        gap: '0.75rem',
-                                                        width: '100%'
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: '0.5rem',
-                                                            minWidth: 0
-                                                        }}
-                                                    >
-                                                        <PlayerBracket
-                                                            pair={pair}
-                                                            team={'team1'}
-                                                            pairIndex={pairIndex}
-                                                            hasTruthyPlayers={hasTruthyPlayers}
-                                                            stageIndex={stageIndex}
-                                                            setPlayoffPairs={setPlayoffPairs}
-                                                            handleCastleChange={handleCastleChange}
-                                                            handleScoreChange={handleScoreChange}
-                                                            handleBlur={handleBlur}
-                                                            handleRadioChange={handleRadioChange}
-                                                            stage={stage}
-                                                            teamIndex={1}
-                                                            getWinner={getWinner}
-                                                            clickedRadioButton={clickedRadioButton}
-                                                            playersObj={playersObj}
-                                                        />
-                                                        <PlayerBracket
-                                                            pair={pair}
-                                                            team={'team2'}
-                                                            pairIndex={pairIndex}
-                                                            hasTruthyPlayers={hasTruthyPlayers}
-                                                            stageIndex={stageIndex}
-                                                            setPlayoffPairs={setPlayoffPairs}
-                                                            handleCastleChange={handleCastleChange}
-                                                            handleScoreChange={handleScoreChange}
-                                                            handleBlur={handleBlur}
-                                                            handleRadioChange={handleRadioChange}
-                                                            stage={stage}
-                                                            teamIndex={2}
-                                                            getWinner={getWinner}
-                                                            isManualScore={isManualScore}
-                                                            clickedRadioButton={clickedRadioButton}
-                                                            playersObj={playersObj}
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            gap: '0.5rem',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'flex-end'
-                                                        }}
-                                                    >
-                                                        {pair.team1 !== 'TBD' &&
-                                                        pair.team2 !== 'TBD' &&
-                                                        canViewReportButtonForPair(pair) &&
-                                                        (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
-                                                            <button
-                                                                onClick={() =>
-                                                                    handleOpenReportGame(pair, stageIndex, pairIndex)
-                                                                }
-                                                                style={{
-                                                                    padding: '0.5rem 1rem',
-                                                                    background:
-                                                                        pair.gameStatus === 'Processed'
-                                                                            ? '#808080'
-                                                                            : 'gold',
-                                                                    border: 'none',
-                                                                    borderRadius: '6px',
-                                                                    color:
-                                                                        pair.gameStatus === 'Processed'
-                                                                            ? '#ffffff'
-                                                                            : 'rgb(62, 32, 192)',
-                                                                    fontWeight: 'bold',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '0.9rem'
-                                                                }}
-                                                            >
-                                                                {pair.gameStatus === 'Processed'
-                                                                    ? 'Re-report Game'
-                                                                    : 'Report Game'}
-                                                            </button>
-                                                        ) : null}
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            position: 'absolute',
-                                                            bottom: '0.5rem',
-                                                            right: '0.5rem',
-                                                            zIndex: 2
-                                                        }}
-                                                    >
-                                                        {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    <h3 style={{ color: 'orange', marginTop: '20rem' }}>Third Place</h3>
-                                    {thirdPlacePairs.map((pair, pairIndex) => {
-                                        const { team1, team2 } = pair;
-                                        const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
-                                        return (
-                                            <div key={`thirdplace-${pairIndex}`} className={classes['game-block']}>
-                                                <div
-                                                    style={{
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                        alignItems: 'center',
-                                                        gap: '0.75rem',
-                                                        width: '100%'
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: '0.5rem',
-                                                            minWidth: 0
-                                                        }}
-                                                    >
-                                                        <PlayerBracket
-                                                            pair={pair}
-                                                            team={'team1'}
-                                                            pairIndex={pairIndex}
-                                                            hasTruthyPlayers={hasTruthyPlayers}
-                                                            stageIndex={stageIndex - 1}
-                                                            setPlayoffPairs={setPlayoffPairs}
-                                                            handleCastleChange={handleCastleChange}
-                                                            handleScoreChange={handleScoreChange}
-                                                            handleBlur={handleBlur}
-                                                            handleRadioChange={handleRadioChange}
-                                                            stage={stage}
-                                                            teamIndex={1}
-                                                            getWinner={getWinner}
-                                                            clickedRadioButton={clickedRadioButton}
-                                                            playersObj={playersObj}
-                                                        />
-                                                        <PlayerBracket
-                                                            pair={pair}
-                                                            team={'team2'}
-                                                            pairIndex={pairIndex}
-                                                            hasTruthyPlayers={hasTruthyPlayers}
-                                                            stageIndex={stageIndex - 1}
-                                                            setPlayoffPairs={setPlayoffPairs}
-                                                            handleCastleChange={handleCastleChange}
-                                                            handleScoreChange={handleScoreChange}
-                                                            handleBlur={handleBlur}
-                                                            handleRadioChange={handleRadioChange}
-                                                            stage={stage}
-                                                            teamIndex={2}
-                                                            getWinner={getWinner}
-                                                            isManualScore={isManualScore}
-                                                            clickedRadioButton={clickedRadioButton}
-                                                            playersObj={playersObj}
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            gap: '0.5rem',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'flex-end'
-                                                        }}
-                                                    >
-                                                        {pair.team1 !== 'TBD' &&
-                                                        pair.team2 !== 'TBD' &&
-                                                        canViewReportButtonForPair(pair) &&
-                                                        (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
-                                                            <button
-                                                                onClick={() =>
-                                                                    handleOpenReportGame(
-                                                                        pair,
-                                                                        thirdPlaceIndex,
-                                                                        pairIndex
-                                                                    )
-                                                                }
-                                                                style={{
-                                                                    padding: '0.5rem 1rem',
-                                                                    background:
-                                                                        pair.gameStatus === 'Processed'
-                                                                            ? '#808080'
-                                                                            : 'gold',
-                                                                    border: 'none',
-                                                                    borderRadius: '6px',
-                                                                    color:
-                                                                        pair.gameStatus === 'Processed'
-                                                                            ? '#ffffff'
-                                                                            : 'rgb(62, 32, 192)',
-                                                                    fontWeight: 'bold',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '0.9rem'
-                                                                }}
-                                                            >
-                                                                {pair.gameStatus === 'Processed'
-                                                                    ? 'Re-report Game'
-                                                                    : 'Report Game'}
-                                                            </button>
-                                                        ) : null}
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            position: 'absolute',
-                                                            bottom: '0.5rem',
-                                                            right: '0.5rem',
-                                                            zIndex: 2
-                                                        }}
-                                                    >
-                                                        {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        }
-
-                        // Skip rendering the Third Place column separately
-                        if (stage === 'Third Place') {
-                            return null;
-                        }
-
-                        // Default rendering for other stages
-                        return (
+                    return (
+                        <div style={{ paddingTop: `${fixedHeaderHeight + 16}px`, width: '100%' }}>
+                            {/* Stage navigation */}
                             <div
-                                key={stage}
-                                className={`${classes['bracket-stages-column']} ${stageIndex === currentStageIndex ? classes.active : ''}`}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '2rem',
+                                    marginBottom: '1.5rem',
+                                    padding: '1rem 0'
+                                }}
                             >
-                                <h3 style={{ color: 'red' }}>{stage}</h3>
-                                {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
-                                    const { team1, team2 } = pair;
+                                <button
+                                    onClick={() => setActiveBracketStage((prev) => Math.max(0, prev - 1))}
+                                    disabled={clampedStage === 0}
+                                    style={{
+                                        background: clampedStage === 0 ? 'rgba(255,215,0,0.2)' : 'gold',
+                                        border: '2px solid gold',
+                                        borderRadius: '50%',
+                                        width: '52px',
+                                        height: '52px',
+                                        fontSize: '1.6rem',
+                                        color: clampedStage === 0 ? 'rgba(62,32,192,0.4)' : 'rgb(62,32,192)',
+                                        cursor: clampedStage === 0 ? 'default' : 'pointer',
+                                        fontWeight: 'bold',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s',
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    ←
+                                </button>
+                                <div style={{ textAlign: 'center', minWidth: '280px' }}>
+                                    <div
+                                        style={{
+                                            color: 'red',
+                                            fontSize: '1.5rem',
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase',
+                                            textShadow: '2px 2px 8px rgba(0,0,0,0.6)',
+                                            letterSpacing: '2px'
+                                        }}
+                                    >
+                                        {nextDisplayStage !== null
+                                            ? `${currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage} → ${nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}`
+                                            : currentDisplayStage === 'Final'
+                                              ? 'Final & Third Place'
+                                              : currentDisplayStage}
+                                    </div>
+                                    <div
+                                        style={{
+                                            color: 'rgba(255,255,255,0.6)',
+                                            fontSize: '0.9rem',
+                                            marginTop: '0.3rem'
+                                        }}
+                                    >
+                                        Stage {clampedStage + 1}
+                                        {nextDisplayStage !== null ? `–${clampedStage + 2}` : ''} of{' '}
+                                        {displayStages.length}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() =>
+                                        setActiveBracketStage((prev) => Math.min(displayStages.length - 1, prev + 1))
+                                    }
+                                    disabled={clampedStage === displayStages.length - 1}
+                                    style={{
+                                        background:
+                                            clampedStage === displayStages.length - 1 ? 'rgba(255,215,0,0.2)' : 'gold',
+                                        border: '2px solid gold',
+                                        borderRadius: '50%',
+                                        width: '52px',
+                                        height: '52px',
+                                        fontSize: '1.6rem',
+                                        color:
+                                            clampedStage === displayStages.length - 1
+                                                ? 'rgba(62,32,192,0.4)'
+                                                : 'rgb(62,32,192)',
+                                        cursor: clampedStage === displayStages.length - 1 ? 'default' : 'pointer',
+                                        fontWeight: 'bold',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s',
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    →
+                                </button>
+                            </div>
 
-                                    const hasTruthyPlayers = (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                            {/* Stage dots indicator */}
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    gap: '0.6rem',
+                                    marginBottom: '2rem'
+                                }}
+                            >
+                                {displayStages.map((label, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setActiveBracketStage(idx)}
+                                        title={label}
+                                        style={{
+                                            width: '14px',
+                                            height: '14px',
+                                            borderRadius: '50%',
+                                            background: idx === clampedStage ? 'gold' : 'rgba(255,215,0,0.25)',
+                                            border: '2px solid gold',
+                                            padding: 0,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            transform: idx === clampedStage ? 'scale(1.3)' : 'scale(1)'
+                                        }}
+                                    />
+                                ))}
+                            </div>
 
-                                    return (
-                                        <div
-                                            key={pairIndex}
-                                            className={classes['game-block']}
-                                            style={{ position: 'relative' }}
-                                        >
-                                            {/* Live indicator - top right corner */}
-                                            {pair.games && pair.games.some((g) => g.gameStatus === 'In Progress') && (
-                                                <div
-                                                    className={classes.liveIndicator}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '0.5rem',
-                                                        right: '0.5rem',
-                                                        margin: 0
-                                                    }}
-                                                />
-                                            )}
-                                            {/* Stats button - bottom right */}
-                                            <div
-                                                style={{
-                                                    position: 'absolute',
-                                                    bottom: '0.5rem',
-                                                    right: '0.5rem',
-                                                    zIndex: 2
-                                                }}
-                                            >
-                                                {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
-                                            </div>
-                                            {stage !== 'Third Place' && stage !== 'Final' && (
-                                                <p>
-                                                    {`Match ${pairIndex + 1}`} {`Best of ${stage === 'Final' ? 3 : 1}`}
-                                                </p>
-                                            )}
-                                            {/* TODO: implement the game date */}
-                                            {/* <div>Date:</div> */}
-
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                                                <div
-                                                    style={{
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        gap: '0.5rem'
-                                                    }}
-                                                >
-                                                    <PlayerBracket
-                                                        pair={pair}
-                                                        team={'team1'}
-                                                        pairIndex={pairIndex}
-                                                        hasTruthyPlayers={hasTruthyPlayers}
-                                                        stageIndex={stageIndex}
-                                                        setPlayoffPairs={setPlayoffPairs}
-                                                        handleCastleChange={handleCastleChange}
-                                                        handleScoreChange={handleScoreChange}
-                                                        handleBlur={handleBlur}
-                                                        handleRadioChange={handleRadioChange}
-                                                        stage={stage}
-                                                        teamIndex={1}
-                                                        getWinner={getWinner}
-                                                        clickedRadioButton={clickedRadioButton}
-                                                    />
-                                                    <PlayerBracket
-                                                        pair={pair}
-                                                        team={'team2'}
-                                                        pairIndex={pairIndex}
-                                                        hasTruthyPlayers={hasTruthyPlayers}
-                                                        stageIndex={stageIndex}
-                                                        setPlayoffPairs={setPlayoffPairs}
-                                                        handleCastleChange={handleCastleChange}
-                                                        handleScoreChange={handleScoreChange}
-                                                        handleBlur={handleBlur}
-                                                        handleRadioChange={handleRadioChange}
-                                                        stage={stage}
-                                                        teamIndex={2}
-                                                        getWinner={getWinner}
-                                                        isManualScore={isManualScore}
-                                                        clickedRadioButton={clickedRadioButton}
-                                                    />
-                                                </div>
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        bottom: '0.5rem',
-                                                        right: '0.5rem',
-                                                        zIndex: 2
-                                                    }}
-                                                >
-                                                    {renderShowStatsButton(pair.team1, pair.team2, handleShowStats)}
-                                                </div>
-                                                <div
-                                                    style={{
-                                                        display: 'flex',
-                                                        gap: '0.5rem',
-                                                        alignItems: 'center',
-                                                        marginTop: '2.5rem'
-                                                    }}
-                                                >
-                                                    {pair.team1 !== 'TBD' &&
-                                                    pair.team2 !== 'TBD' &&
-                                                    canViewReportButtonForPair(pair) &&
-                                                    (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
-                                                        <button
-                                                            onClick={() =>
-                                                                handleOpenReportGame(pair, stageIndex, pairIndex)
-                                                            }
+                            {/* Stage panels - two stages side by side */}
+                            <div style={{ display: 'flex', width: '100%', alignItems: 'stretch' }}>
+                                <div className={classes['bracket-stage-single']}>
+                                    {/* Column header */}
+                                    <h3
+                                        style={{
+                                            color: 'gold',
+                                            textAlign: 'center',
+                                            fontSize: '1.1rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                            marginBottom: '1rem'
+                                        }}
+                                    >
+                                        {currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage}
+                                    </h3>
+                                    {currentDisplayStage === 'Final' ? (
+                                        /* === FINAL + THIRD PLACE === */
+                                        <div>
+                                            {(playoffPairs[stageIndex] || []).map((pair, pairIndex) => {
+                                                const { team1, team2 } = pair;
+                                                const hasTruthyPlayers =
+                                                    (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                return (
+                                                    <div
+                                                        key={`final-${pairIndex}`}
+                                                        className={classes['game-block']}
+                                                        style={{ position: 'relative' }}
+                                                    >
+                                                        <div
                                                             style={{
-                                                                padding: '0.5rem 1rem',
-                                                                background:
-                                                                    pair.gameStatus === 'Processed'
-                                                                        ? '#808080'
-                                                                        : 'gold',
-                                                                border: 'none',
-                                                                borderRadius: '6px',
-                                                                color:
-                                                                    pair.gameStatus === 'Processed'
-                                                                        ? '#ffffff'
-                                                                        : 'rgb(62, 32, 192)',
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer',
-                                                                fontSize: '0.9rem'
+                                                                display: 'grid',
+                                                                gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                alignItems: 'center',
+                                                                gap: '0.75rem',
+                                                                width: '100%'
                                                             }}
                                                         >
-                                                            {pair.gameStatus === 'Processed'
-                                                                ? 'Re-report Game'
-                                                                : 'Report Game'}
-                                                        </button>
-                                                    ) : null}
-                                                </div>
-                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    gap: '0.5rem',
+                                                                    minWidth: 0
+                                                                }}
+                                                            >
+                                                                <PlayerBracket
+                                                                    pair={pair}
+                                                                    team={'team1'}
+                                                                    pairIndex={pairIndex}
+                                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                                    stageIndex={stageIndex}
+                                                                    setPlayoffPairs={setPlayoffPairs}
+                                                                    handleCastleChange={handleCastleChange}
+                                                                    handleScoreChange={handleScoreChange}
+                                                                    handleBlur={handleBlur}
+                                                                    handleRadioChange={handleRadioChange}
+                                                                    stage={'Final'}
+                                                                    teamIndex={1}
+                                                                    getWinner={getWinner}
+                                                                    clickedRadioButton={clickedRadioButton}
+                                                                    playersObj={playersObj}
+                                                                />
+                                                                <PlayerBracket
+                                                                    pair={pair}
+                                                                    team={'team2'}
+                                                                    pairIndex={pairIndex}
+                                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                                    stageIndex={stageIndex}
+                                                                    setPlayoffPairs={setPlayoffPairs}
+                                                                    handleCastleChange={handleCastleChange}
+                                                                    handleScoreChange={handleScoreChange}
+                                                                    handleBlur={handleBlur}
+                                                                    handleRadioChange={handleRadioChange}
+                                                                    stage={'Final'}
+                                                                    teamIndex={2}
+                                                                    getWinner={getWinner}
+                                                                    isManualScore={isManualScore}
+                                                                    clickedRadioButton={clickedRadioButton}
+                                                                    playersObj={playersObj}
+                                                                />
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    gap: '0.5rem',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'flex-end'
+                                                                }}
+                                                            >
+                                                                {pair.team1 !== 'TBD' &&
+                                                                pair.team2 !== 'TBD' &&
+                                                                canViewReportButtonForPair(pair) &&
+                                                                (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleOpenReportGame(
+                                                                                pair,
+                                                                                stageIndex,
+                                                                                pairIndex
+                                                                            )
+                                                                        }
+                                                                        style={{
+                                                                            padding: '0.5rem 1rem',
+                                                                            background:
+                                                                                pair.gameStatus === 'Processed'
+                                                                                    ? '#808080'
+                                                                                    : 'gold',
+                                                                            border: 'none',
+                                                                            borderRadius: '6px',
+                                                                            color:
+                                                                                pair.gameStatus === 'Processed'
+                                                                                    ? '#ffffff'
+                                                                                    : 'rgb(62, 32, 192)',
+                                                                            fontWeight: 'bold',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '0.9rem'
+                                                                        }}
+                                                                    >
+                                                                        {pair.gameStatus === 'Processed'
+                                                                            ? 'Re-report Game'
+                                                                            : 'Report Game'}
+                                                                    </button>
+                                                                ) : null}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    bottom: '0.5rem',
+                                                                    right: '0.5rem',
+                                                                    zIndex: 2
+                                                                }}
+                                                            >
+                                                                {renderShowStatsButton(
+                                                                    pair.team1,
+                                                                    pair.team2,
+                                                                    handleShowStats
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            <h3
+                                                style={{
+                                                    color: 'orange',
+                                                    textAlign: 'center',
+                                                    fontSize: '1.4rem',
+                                                    marginTop: '3rem',
+                                                    marginBottom: '1.5rem'
+                                                }}
+                                            >
+                                                Third Place
+                                            </h3>
+                                            {thirdPlaceIndex !== -1 &&
+                                                (playoffPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
+                                                    const { team1, team2 } = pair;
+                                                    const hasTruthyPlayers =
+                                                        (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    return (
+                                                        <div
+                                                            key={`thirdplace-${pairIndex}`}
+                                                            className={classes['game-block']}
+                                                            style={{ position: 'relative' }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.75rem',
+                                                                    width: '100%'
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        flexDirection: 'column',
+                                                                        gap: '0.5rem',
+                                                                        minWidth: 0
+                                                                    }}
+                                                                >
+                                                                    <PlayerBracket
+                                                                        pair={pair}
+                                                                        team={'team1'}
+                                                                        pairIndex={pairIndex}
+                                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                                        stageIndex={thirdPlaceIndex}
+                                                                        setPlayoffPairs={setPlayoffPairs}
+                                                                        handleCastleChange={handleCastleChange}
+                                                                        handleScoreChange={handleScoreChange}
+                                                                        handleBlur={handleBlur}
+                                                                        handleRadioChange={handleRadioChange}
+                                                                        stage={'Third Place'}
+                                                                        teamIndex={1}
+                                                                        getWinner={getWinner}
+                                                                        clickedRadioButton={clickedRadioButton}
+                                                                        playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                pairIndex * 2
+                                                                            ]
+                                                                        }
+                                                                        sourceIsLoser={true}
+                                                                    />
+                                                                    <PlayerBracket
+                                                                        pair={pair}
+                                                                        team={'team2'}
+                                                                        pairIndex={pairIndex}
+                                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                                        stageIndex={thirdPlaceIndex}
+                                                                        setPlayoffPairs={setPlayoffPairs}
+                                                                        handleCastleChange={handleCastleChange}
+                                                                        handleScoreChange={handleScoreChange}
+                                                                        handleBlur={handleBlur}
+                                                                        handleRadioChange={handleRadioChange}
+                                                                        stage={'Third Place'}
+                                                                        teamIndex={2}
+                                                                        getWinner={getWinner}
+                                                                        isManualScore={isManualScore}
+                                                                        clickedRadioButton={clickedRadioButton}
+                                                                        playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                pairIndex * 2 + 1
+                                                                            ]
+                                                                        }
+                                                                        sourceIsLoser={true}
+                                                                    />
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        gap: '0.5rem',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'flex-end'
+                                                                    }}
+                                                                >
+                                                                    {pair.team1 !== 'TBD' &&
+                                                                    pair.team2 !== 'TBD' &&
+                                                                    canViewReportButtonForPair(pair) &&
+                                                                    (pair.gameStatus !== 'Processed' ||
+                                                                        authCtx.isAdmin) ? (
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleOpenReportGame(
+                                                                                    pair,
+                                                                                    thirdPlaceIndex,
+                                                                                    pairIndex
+                                                                                )
+                                                                            }
+                                                                            style={{
+                                                                                padding: '0.5rem 1rem',
+                                                                                background:
+                                                                                    pair.gameStatus === 'Processed'
+                                                                                        ? '#808080'
+                                                                                        : 'gold',
+                                                                                border: 'none',
+                                                                                borderRadius: '6px',
+                                                                                color:
+                                                                                    pair.gameStatus === 'Processed'
+                                                                                        ? '#ffffff'
+                                                                                        : 'rgb(62, 32, 192)',
+                                                                                fontWeight: 'bold',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '0.9rem'
+                                                                            }}
+                                                                        >
+                                                                            {pair.gameStatus === 'Processed'
+                                                                                ? 'Re-report Game'
+                                                                                : 'Report Game'}
+                                                                        </button>
+                                                                    ) : null}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        bottom: '0.5rem',
+                                                                        right: '0.5rem',
+                                                                        zIndex: 2
+                                                                    }}
+                                                                >
+                                                                    {renderShowStatsButton(
+                                                                        pair.team1,
+                                                                        pair.team2,
+                                                                        handleShowStats
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                         </div>
-                                    );
-                                })}
+                                    ) : (
+                                        /* === OTHER STAGES === */
+                                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '1rem' }}>
+                                            {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
+                                                const { team1, team2 } = pair;
+                                                const hasTruthyPlayers =
+                                                    (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                return (
+                                                    <div
+                                                        key={pairIndex}
+                                                        className={classes['game-block']}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: '180px',
+                                                            marginBottom: 0,
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                bottom: '0.5rem',
+                                                                right: '0.5rem',
+                                                                zIndex: 2
+                                                            }}
+                                                        >
+                                                            {renderShowStatsButton(
+                                                                pair.team1,
+                                                                pair.team2,
+                                                                handleShowStats
+                                                            )}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                display: 'grid',
+                                                                gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                alignItems: 'center',
+                                                                gap: '0.75rem',
+                                                                width: '100%'
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    gap: '0.5rem',
+                                                                    minWidth: 0
+                                                                }}
+                                                            >
+                                                                <PlayerBracket
+                                                                    pair={pair}
+                                                                    team={'team1'}
+                                                                    pairIndex={pairIndex}
+                                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                                    stageIndex={stageIndex}
+                                                                    setPlayoffPairs={setPlayoffPairs}
+                                                                    handleCastleChange={handleCastleChange}
+                                                                    handleScoreChange={handleScoreChange}
+                                                                    handleBlur={handleBlur}
+                                                                    handleRadioChange={handleRadioChange}
+                                                                    stage={currentDisplayStage}
+                                                                    teamIndex={1}
+                                                                    getWinner={getWinner}
+                                                                    clickedRadioButton={clickedRadioButton}
+                                                                    sourcePair={
+                                                                        stageIndex > 0
+                                                                            ? playoffPairs[stageIndex - 1]?.[
+                                                                                  pairIndex * 2
+                                                                              ]
+                                                                            : undefined
+                                                                    }
+                                                                />
+                                                                <PlayerBracket
+                                                                    pair={pair}
+                                                                    team={'team2'}
+                                                                    pairIndex={pairIndex}
+                                                                    hasTruthyPlayers={hasTruthyPlayers}
+                                                                    stageIndex={stageIndex}
+                                                                    setPlayoffPairs={setPlayoffPairs}
+                                                                    handleCastleChange={handleCastleChange}
+                                                                    handleScoreChange={handleScoreChange}
+                                                                    handleBlur={handleBlur}
+                                                                    handleRadioChange={handleRadioChange}
+                                                                    stage={currentDisplayStage}
+                                                                    teamIndex={2}
+                                                                    getWinner={getWinner}
+                                                                    isManualScore={isManualScore}
+                                                                    clickedRadioButton={clickedRadioButton}
+                                                                    sourcePair={
+                                                                        stageIndex > 0
+                                                                            ? playoffPairs[stageIndex - 1]?.[
+                                                                                  pairIndex * 2 + 1
+                                                                              ]
+                                                                            : undefined
+                                                                    }
+                                                                />
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    gap: '0.5rem',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                            >
+                                                                {pair.team1 !== 'TBD' &&
+                                                                pair.team2 !== 'TBD' &&
+                                                                canViewReportButtonForPair(pair) &&
+                                                                (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleOpenReportGame(
+                                                                                pair,
+                                                                                stageIndex,
+                                                                                pairIndex
+                                                                            )
+                                                                        }
+                                                                        style={{
+                                                                            padding: '0.5rem 1rem',
+                                                                            background:
+                                                                                pair.gameStatus === 'Processed'
+                                                                                    ? '#808080'
+                                                                                    : 'gold',
+                                                                            border: 'none',
+                                                                            borderRadius: '6px',
+                                                                            color:
+                                                                                pair.gameStatus === 'Processed'
+                                                                                    ? '#ffffff'
+                                                                                    : 'rgb(62, 32, 192)',
+                                                                            fontWeight: 'bold',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '0.9rem'
+                                                                        }}
+                                                                    >
+                                                                        {pair.gameStatus === 'Processed'
+                                                                            ? 'Re-report Game'
+                                                                            : 'Report Game'}
+                                                                    </button>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: '0.5rem',
+                                                                right: '0.5rem',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px',
+                                                                background: 'rgba(0,0,0,0.55)',
+                                                                border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                borderRadius: '4px',
+                                                                padding: '1px 7px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 'bold',
+                                                                color:
+                                                                    pair.type === 'bo-5'
+                                                                        ? '#cc88ff'
+                                                                        : pair.type === 'bo-3'
+                                                                          ? '#ff9966'
+                                                                          : '#FFD700',
+                                                                letterSpacing: '1.5px',
+                                                                zIndex: 2,
+                                                                textTransform: 'uppercase'
+                                                            }}
+                                                        >
+                                                            {pair.games &&
+                                                                pair.games.some(
+                                                                    (g) => g.gameStatus === 'In Progress'
+                                                                ) && <span className={classes.liveDot} />}
+                                                            ⚔{' '}
+                                                            {pair.type === 'bo-5'
+                                                                ? 'BO5'
+                                                                : pair.type === 'bo-3'
+                                                                  ? 'BO3'
+                                                                  : 'BO1'}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                {nextDisplayStage !== null &&
+                                    currentDisplayStage !== 'Final' &&
+                                    (() => {
+                                        if (!leftMatchCount || !rightMatchCount) {
+                                            return null;
+                                        }
+                                        return (
+                                            <svg
+                                                style={{ width: '60px', flexShrink: 0, alignSelf: 'stretch' }}
+                                                viewBox="0 0 100 100"
+                                                preserveAspectRatio="none"
+                                            >
+                                                {Array.from({ length: leftMatchCount }, (_, i) => {
+                                                    const leftY = getSvgLeftY(i);
+                                                    const rightMatchIdx = Math.min(
+                                                        Math.floor(i / 2),
+                                                        rightMatchCount - 1
+                                                    );
+                                                    const rightY = getSvgRightY(rightMatchIdx);
+                                                    return (
+                                                        <path
+                                                            key={i}
+                                                            d={`M 0,${leftY} C 50,${leftY} 50,${rightY} 100,${rightY}`}
+                                                            stroke="rgba(255,215,0,0.5)"
+                                                            strokeWidth="2"
+                                                            fill="none"
+                                                            vectorEffect="non-scaling-stroke"
+                                                        />
+                                                    );
+                                                })}
+                                            </svg>
+                                        );
+                                    })()}
+                                {nextDisplayStage !== null && (
+                                    <div className={classes['bracket-stage-single']}>
+                                        {/* Column header */}
+                                        <h3
+                                            style={{
+                                                color: 'gold',
+                                                textAlign: 'center',
+                                                fontSize: '1.1rem',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '1px',
+                                                marginBottom: '1rem'
+                                            }}
+                                        >
+                                            {nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}
+                                        </h3>
+                                        {nextDisplayStage === 'Final' ? (
+                                            /* === FINAL + THIRD PLACE === */
+                                            <div>
+                                                {(playoffPairs[nextStageIndex] || []).map((pair, pairIndex) => {
+                                                    const { team1, team2 } = pair;
+                                                    const hasTruthyPlayers =
+                                                        (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    return (
+                                                        <div
+                                                            key={`final-next-${pairIndex}`}
+                                                            className={classes['game-block']}
+                                                            style={{ position: 'relative' }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.75rem',
+                                                                    width: '100%'
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        flexDirection: 'column',
+                                                                        gap: '0.5rem',
+                                                                        minWidth: 0
+                                                                    }}
+                                                                >
+                                                                    <PlayerBracket
+                                                                        pair={pair}
+                                                                        team={'team1'}
+                                                                        pairIndex={pairIndex}
+                                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                                        stageIndex={nextStageIndex}
+                                                                        setPlayoffPairs={setPlayoffPairs}
+                                                                        handleCastleChange={handleCastleChange}
+                                                                        handleScoreChange={handleScoreChange}
+                                                                        handleBlur={handleBlur}
+                                                                        handleRadioChange={handleRadioChange}
+                                                                        stage={'Final'}
+                                                                        teamIndex={1}
+                                                                        getWinner={getWinner}
+                                                                        clickedRadioButton={clickedRadioButton}
+                                                                        playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[pairIndex * 2]
+                                                                        }
+                                                                    />
+                                                                    <PlayerBracket
+                                                                        pair={pair}
+                                                                        team={'team2'}
+                                                                        pairIndex={pairIndex}
+                                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                                        stageIndex={nextStageIndex}
+                                                                        setPlayoffPairs={setPlayoffPairs}
+                                                                        handleCastleChange={handleCastleChange}
+                                                                        handleScoreChange={handleScoreChange}
+                                                                        handleBlur={handleBlur}
+                                                                        handleRadioChange={handleRadioChange}
+                                                                        stage={'Final'}
+                                                                        teamIndex={2}
+                                                                        getWinner={getWinner}
+                                                                        isManualScore={isManualScore}
+                                                                        clickedRadioButton={clickedRadioButton}
+                                                                        playersObj={playersObj}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[
+                                                                                pairIndex * 2 + 1
+                                                                            ]
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        gap: '0.5rem',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'flex-end'
+                                                                    }}
+                                                                >
+                                                                    {pair.team1 !== 'TBD' &&
+                                                                    pair.team2 !== 'TBD' &&
+                                                                    canViewReportButtonForPair(pair) &&
+                                                                    (pair.gameStatus !== 'Processed' ||
+                                                                        authCtx.isAdmin) ? (
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleOpenReportGame(
+                                                                                    pair,
+                                                                                    nextStageIndex,
+                                                                                    pairIndex
+                                                                                )
+                                                                            }
+                                                                            style={{
+                                                                                padding: '0.5rem 1rem',
+                                                                                background:
+                                                                                    pair.gameStatus === 'Processed'
+                                                                                        ? '#808080'
+                                                                                        : 'gold',
+                                                                                border: 'none',
+                                                                                borderRadius: '6px',
+                                                                                color:
+                                                                                    pair.gameStatus === 'Processed'
+                                                                                        ? '#ffffff'
+                                                                                        : 'rgb(62, 32, 192)',
+                                                                                fontWeight: 'bold',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '0.9rem'
+                                                                            }}
+                                                                        >
+                                                                            {pair.gameStatus === 'Processed'
+                                                                                ? 'Re-report Game'
+                                                                                : 'Report Game'}
+                                                                        </button>
+                                                                    ) : null}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        bottom: '0.5rem',
+                                                                        right: '0.5rem',
+                                                                        zIndex: 2
+                                                                    }}
+                                                                >
+                                                                    {renderShowStatsButton(
+                                                                        pair.team1,
+                                                                        pair.team2,
+                                                                        handleShowStats
+                                                                    )}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        top: '0.5rem',
+                                                                        right: '0.5rem',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '4px',
+                                                                        background: 'rgba(0,0,0,0.55)',
+                                                                        border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                        borderRadius: '4px',
+                                                                        padding: '1px 7px',
+                                                                        fontSize: '0.65rem',
+                                                                        fontWeight: 'bold',
+                                                                        color:
+                                                                            pair.type === 'bo-5'
+                                                                                ? '#cc88ff'
+                                                                                : pair.type === 'bo-3'
+                                                                                  ? '#ff9966'
+                                                                                  : '#FFD700',
+                                                                        letterSpacing: '1.5px',
+                                                                        zIndex: 2,
+                                                                        textTransform: 'uppercase'
+                                                                    }}
+                                                                >
+                                                                    ⚔{' '}
+                                                                    {pair.type === 'bo-5'
+                                                                        ? 'BO5'
+                                                                        : pair.type === 'bo-3'
+                                                                          ? 'BO3'
+                                                                          : 'BO1'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                <h3
+                                                    style={{
+                                                        color: 'orange',
+                                                        textAlign: 'center',
+                                                        fontSize: '1.4rem',
+                                                        marginTop: '3rem',
+                                                        marginBottom: '1.5rem'
+                                                    }}
+                                                >
+                                                    Third Place
+                                                </h3>
+                                                {thirdPlaceIndex !== -1 &&
+                                                    (playoffPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
+                                                        const { team1, team2 } = pair;
+                                                        const hasTruthyPlayers =
+                                                            (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                        return (
+                                                            <div
+                                                                key={`thirdplace-next-${pairIndex}`}
+                                                                className={classes['game-block']}
+                                                                style={{ position: 'relative' }}
+                                                            >
+                                                                <div
+                                                                    style={{
+                                                                        display: 'grid',
+                                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.75rem',
+                                                                        width: '100%'
+                                                                    }}
+                                                                >
+                                                                    <div
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            flexDirection: 'column',
+                                                                            gap: '0.5rem',
+                                                                            minWidth: 0
+                                                                        }}
+                                                                    >
+                                                                        <PlayerBracket
+                                                                            pair={pair}
+                                                                            team={'team1'}
+                                                                            pairIndex={pairIndex}
+                                                                            hasTruthyPlayers={hasTruthyPlayers}
+                                                                            stageIndex={thirdPlaceIndex}
+                                                                            setPlayoffPairs={setPlayoffPairs}
+                                                                            handleCastleChange={handleCastleChange}
+                                                                            handleScoreChange={handleScoreChange}
+                                                                            handleBlur={handleBlur}
+                                                                            handleRadioChange={handleRadioChange}
+                                                                            stage={'Third Place'}
+                                                                            teamIndex={1}
+                                                                            getWinner={getWinner}
+                                                                            clickedRadioButton={clickedRadioButton}
+                                                                            playersObj={playersObj}
+                                                                            sourcePair={
+                                                                                playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                    pairIndex * 2
+                                                                                ]
+                                                                            }
+                                                                            sourceIsLoser={true}
+                                                                        />
+                                                                        <PlayerBracket
+                                                                            pair={pair}
+                                                                            team={'team2'}
+                                                                            pairIndex={pairIndex}
+                                                                            hasTruthyPlayers={hasTruthyPlayers}
+                                                                            stageIndex={thirdPlaceIndex}
+                                                                            setPlayoffPairs={setPlayoffPairs}
+                                                                            handleCastleChange={handleCastleChange}
+                                                                            handleScoreChange={handleScoreChange}
+                                                                            handleBlur={handleBlur}
+                                                                            handleRadioChange={handleRadioChange}
+                                                                            stage={'Third Place'}
+                                                                            teamIndex={2}
+                                                                            getWinner={getWinner}
+                                                                            isManualScore={isManualScore}
+                                                                            clickedRadioButton={clickedRadioButton}
+                                                                            playersObj={playersObj}
+                                                                            sourcePair={
+                                                                                playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                    pairIndex * 2 + 1
+                                                                                ]
+                                                                            }
+                                                                            sourceIsLoser={true}
+                                                                        />
+                                                                    </div>
+                                                                    <div
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            gap: '0.5rem',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'flex-end'
+                                                                        }}
+                                                                    >
+                                                                        {pair.team1 !== 'TBD' &&
+                                                                        pair.team2 !== 'TBD' &&
+                                                                        canViewReportButtonForPair(pair) &&
+                                                                        (pair.gameStatus !== 'Processed' ||
+                                                                            authCtx.isAdmin) ? (
+                                                                            <button
+                                                                                onClick={() =>
+                                                                                    handleOpenReportGame(
+                                                                                        pair,
+                                                                                        thirdPlaceIndex,
+                                                                                        pairIndex
+                                                                                    )
+                                                                                }
+                                                                                style={{
+                                                                                    padding: '0.5rem 1rem',
+                                                                                    background:
+                                                                                        pair.gameStatus === 'Processed'
+                                                                                            ? '#808080'
+                                                                                            : 'gold',
+                                                                                    border: 'none',
+                                                                                    borderRadius: '6px',
+                                                                                    color:
+                                                                                        pair.gameStatus === 'Processed'
+                                                                                            ? '#ffffff'
+                                                                                            : 'rgb(62, 32, 192)',
+                                                                                    fontWeight: 'bold',
+                                                                                    cursor: 'pointer',
+                                                                                    fontSize: '0.9rem'
+                                                                                }}
+                                                                            >
+                                                                                {pair.gameStatus === 'Processed'
+                                                                                    ? 'Re-report Game'
+                                                                                    : 'Report Game'}
+                                                                            </button>
+                                                                        ) : null}
+                                                                    </div>
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            bottom: '0.5rem',
+                                                                            right: '0.5rem',
+                                                                            zIndex: 2
+                                                                        }}
+                                                                    >
+                                                                        {renderShowStatsButton(
+                                                                            pair.team1,
+                                                                            pair.team2,
+                                                                            handleShowStats
+                                                                        )}
+                                                                    </div>
+                                                                    <div
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '0.5rem',
+                                                                            right: '0.5rem',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px',
+                                                                            background: 'rgba(0,0,0,0.55)',
+                                                                            border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                            borderRadius: '4px',
+                                                                            padding: '1px 7px',
+                                                                            fontSize: '0.65rem',
+                                                                            fontWeight: 'bold',
+                                                                            color:
+                                                                                pair.type === 'bo-5'
+                                                                                    ? '#cc88ff'
+                                                                                    : pair.type === 'bo-3'
+                                                                                      ? '#ff9966'
+                                                                                      : '#FFD700',
+                                                                            letterSpacing: '1.5px',
+                                                                            zIndex: 2,
+                                                                            textTransform: 'uppercase'
+                                                                        }}
+                                                                    >
+                                                                        ⚔{' '}
+                                                                        {pair.type === 'bo-5'
+                                                                            ? 'BO5'
+                                                                            : pair.type === 'bo-3'
+                                                                              ? 'BO3'
+                                                                              : 'BO1'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        ) : (
+                                            /* === OTHER STAGES === */
+                                            <div
+                                                style={{
+                                                    position: 'relative',
+                                                    height: `${leftColHeight}px`
+                                                }}
+                                            >
+                                                {playoffPairs[nextStageIndex]?.map((pair, pairIndex) => {
+                                                    const { team1, team2 } = pair;
+                                                    const hasTruthyPlayers =
+                                                        (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    return (
+                                                        <div
+                                                            key={pairIndex}
+                                                            className={classes['game-block']}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: `${getRightBlockTop(pairIndex)}px`,
+                                                                left: 0,
+                                                                right: 0,
+                                                                height: `${BLOCK_H}px`,
+                                                                marginBottom: 0,
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '0.5rem',
+                                                                    right: '0.5rem',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    background: 'rgba(0,0,0,0.55)',
+                                                                    border: `1px solid ${pair.type === 'bo-5' ? 'rgba(180,80,255,0.7)' : pair.type === 'bo-3' ? 'rgba(255,120,80,0.7)' : 'rgba(255,215,0,0.5)'}`,
+                                                                    borderRadius: '4px',
+                                                                    padding: '1px 7px',
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 'bold',
+                                                                    color:
+                                                                        pair.type === 'bo-5'
+                                                                            ? '#cc88ff'
+                                                                            : pair.type === 'bo-3'
+                                                                              ? '#ff9966'
+                                                                              : '#FFD700',
+                                                                    letterSpacing: '1.5px',
+                                                                    zIndex: 2,
+                                                                    textTransform: 'uppercase'
+                                                                }}
+                                                            >
+                                                                {pair.games &&
+                                                                    pair.games.some(
+                                                                        (g) => g.gameStatus === 'In Progress'
+                                                                    ) && <span className={classes.liveDot} />}
+                                                                ⚔{' '}
+                                                                {pair.type === 'bo-5'
+                                                                    ? 'BO5'
+                                                                    : pair.type === 'bo-3'
+                                                                      ? 'BO3'
+                                                                      : 'BO1'}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    bottom: '0.5rem',
+                                                                    right: '0.5rem',
+                                                                    zIndex: 2
+                                                                }}
+                                                            >
+                                                                {renderShowStatsButton(
+                                                                    pair.team1,
+                                                                    pair.team2,
+                                                                    handleShowStats
+                                                                )}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.75rem',
+                                                                    width: '100%'
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        flexDirection: 'column',
+                                                                        gap: '0.5rem',
+                                                                        minWidth: 0
+                                                                    }}
+                                                                >
+                                                                    <PlayerBracket
+                                                                        pair={pair}
+                                                                        team={'team1'}
+                                                                        pairIndex={pairIndex}
+                                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                                        stageIndex={nextStageIndex}
+                                                                        setPlayoffPairs={setPlayoffPairs}
+                                                                        handleCastleChange={handleCastleChange}
+                                                                        handleScoreChange={handleScoreChange}
+                                                                        handleBlur={handleBlur}
+                                                                        handleRadioChange={handleRadioChange}
+                                                                        stage={nextDisplayStage}
+                                                                        teamIndex={1}
+                                                                        getWinner={getWinner}
+                                                                        clickedRadioButton={clickedRadioButton}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[pairIndex * 2]
+                                                                        }
+                                                                    />
+                                                                    <PlayerBracket
+                                                                        pair={pair}
+                                                                        team={'team2'}
+                                                                        pairIndex={pairIndex}
+                                                                        hasTruthyPlayers={hasTruthyPlayers}
+                                                                        stageIndex={nextStageIndex}
+                                                                        setPlayoffPairs={setPlayoffPairs}
+                                                                        handleCastleChange={handleCastleChange}
+                                                                        handleScoreChange={handleScoreChange}
+                                                                        handleBlur={handleBlur}
+                                                                        handleRadioChange={handleRadioChange}
+                                                                        stage={nextDisplayStage}
+                                                                        teamIndex={2}
+                                                                        getWinner={getWinner}
+                                                                        isManualScore={isManualScore}
+                                                                        clickedRadioButton={clickedRadioButton}
+                                                                        sourcePair={
+                                                                            playoffPairs[stageIndex]?.[
+                                                                                pairIndex * 2 + 1
+                                                                            ]
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        gap: '0.5rem',
+                                                                        alignItems: 'center'
+                                                                    }}
+                                                                >
+                                                                    {pair.team1 !== 'TBD' &&
+                                                                    pair.team2 !== 'TBD' &&
+                                                                    canViewReportButtonForPair(pair) &&
+                                                                    (pair.gameStatus !== 'Processed' ||
+                                                                        authCtx.isAdmin) ? (
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleOpenReportGame(
+                                                                                    pair,
+                                                                                    nextStageIndex,
+                                                                                    pairIndex
+                                                                                )
+                                                                            }
+                                                                            style={{
+                                                                                padding: '0.5rem 1rem',
+                                                                                background:
+                                                                                    pair.gameStatus === 'Processed'
+                                                                                        ? '#808080'
+                                                                                        : 'gold',
+                                                                                border: 'none',
+                                                                                borderRadius: '6px',
+                                                                                color:
+                                                                                    pair.gameStatus === 'Processed'
+                                                                                        ? '#ffffff'
+                                                                                        : 'rgb(62, 32, 192)',
+                                                                                fontWeight: 'bold',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '0.9rem'
+                                                                            }}
+                                                                        >
+                                                                            {pair.gameStatus === 'Processed'
+                                                                                ? 'Re-report Game'
+                                                                                : 'Report Game'}
+                                                                        </button>
+                                                                    ) : null}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                        );
-                    })}
-                </div>
+                        </div>
+                    );
+                })()
             )}
 
             {/* Stats Popup - Single instance for all games */}
