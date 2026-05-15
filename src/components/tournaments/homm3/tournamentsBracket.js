@@ -1,4 +1,5 @@
 import { useEffect, useState, useContext, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { stripUiFields, moveProgressFieldsToNested } from './progress/gameProgressApi';
 import { updateGameStatusForPartialProgress } from './progress/gameStatusUtils';
 import {
@@ -128,6 +129,46 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedPairId, setSelectedPairId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
     const [displayName, setDisplayName] = useState('');
+    const [searchParams] = useSearchParams();
+    const highlightedPairRef = useRef(null);
+
+    // Auto-navigate to the stage+pair indicated by URL params (from "My Upcoming Matches")
+    useEffect(() => {
+        const stageParam = searchParams.get('stage');
+        const pairParam = searchParams.get('pair');
+        if (stageParam === null || pairParam === null || stageLabels.length === 0 || playoffPairs.length === 0) {
+            return;
+        }
+
+        const targetStageIndex = Number(stageParam);
+        const targetPairIndex = Number(pairParam);
+
+        // Map playoffPairs stageIndex → displayStages index
+        const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
+        const displayStages = allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+        const stageLabel = stageLabels[targetStageIndex];
+        // Final is the right column of the last page; Third Place also lives there
+        if (stageLabel === 'Final' || stageLabel === 'Third Place') {
+            setActiveBracketStage(displayStages.length - 1);
+        } else {
+            const displayIdx = displayStages.indexOf(stageLabel);
+            if (displayIdx !== -1) {
+                setActiveBracketStage(displayIdx);
+            }
+        }
+
+        // Store for scroll after render
+        highlightedPairRef.current = { stageIndex: targetStageIndex, pairIndex: targetPairIndex };
+
+        // Scroll to the pair after the stage renders
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`pair-s${targetStageIndex}-p${targetPairIndex}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [searchParams, stageLabels, playoffPairs]);
 
     const normalizeName = (value) =>
         String(value || '')
@@ -3668,11 +3709,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                const isFinalHighlighted =
+                                                    highlightedPairRef.current?.stageIndex === stageIndex &&
+                                                    highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
                                                         key={`final-${pairIndex}`}
+                                                        id={`pair-s${stageIndex}-p${pairIndex}`}
                                                         className={classes['game-block']}
-                                                        style={{ position: 'relative' }}
+                                                        style={{
+                                                            position: 'relative',
+                                                            ...(isFinalHighlighted && {
+                                                                outline: '3px solid #ffd700',
+                                                                boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                            })
+                                                        }}
                                                     >
                                                         <div
                                                             style={{
@@ -3804,11 +3855,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    const isThirdHighlighted =
+                                                        highlightedPairRef.current?.stageIndex === thirdPlaceIndex &&
+                                                        highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
                                                             key={`thirdplace-${pairIndex}`}
+                                                            id={`pair-s${thirdPlaceIndex}-p${pairIndex}`}
                                                             className={classes['game-block']}
-                                                            style={{ position: 'relative' }}
+                                                            style={{
+                                                                position: 'relative',
+                                                                ...(isThirdHighlighted && {
+                                                                    outline: '3px solid #ffd700',
+                                                                    boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                                })
+                                                            }}
                                                         >
                                                             <div
                                                                 style={{
@@ -3945,9 +4006,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                const isOtherHighlighted =
+                                                    highlightedPairRef.current?.stageIndex === stageIndex &&
+                                                    highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
                                                         key={pairIndex}
+                                                        id={`pair-s${stageIndex}-p${pairIndex}`}
                                                         className={classes['game-block']}
                                                         style={{
                                                             position: 'relative',
@@ -3955,7 +4020,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             marginBottom: 0,
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            justifyContent: 'center'
+                                                            justifyContent: 'center',
+                                                            ...(isOtherHighlighted && {
+                                                                outline: '3px solid #ffd700',
+                                                                boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                            })
                                                         }}
                                                     >
                                                         <div
@@ -4105,10 +4174,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 textTransform: 'uppercase'
                                                             }}
                                                         >
-                                                            {pair.games &&
-                                                                pair.games.some(
-                                                                    (g) => g.gameStatus === 'In Progress'
-                                                                ) && <span className={classes.liveDot} />}
                                                             ⚔{' '}
                                                             {pair.type === 'bo-5'
                                                                 ? 'BO5'
@@ -4116,6 +4181,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                   ? 'BO3'
                                                                   : 'BO1'}
                                                         </div>
+                                                        {pair.games &&
+                                                            pair.games.some(
+                                                                (g) => g.castle1 && g.castle2 && !g.castleWinner
+                                                            ) && (
+                                                                <span
+                                                                    className={classes.liveDot}
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        top: '0.5rem',
+                                                                        left: '0.5rem',
+                                                                        zIndex: 3
+                                                                    }}
+                                                                />
+                                                            )}
                                                     </div>
                                                 );
                                             })}
@@ -4177,11 +4256,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    const isFinalNextHighlighted =
+                                                        highlightedPairRef.current?.stageIndex === nextStageIndex &&
+                                                        highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
                                                             key={`final-next-${pairIndex}`}
+                                                            id={`pair-s${nextStageIndex}-p${pairIndex}`}
                                                             className={classes['game-block']}
-                                                            style={{ position: 'relative' }}
+                                                            style={{
+                                                                position: 'relative',
+                                                                ...(isFinalNextHighlighted && {
+                                                                    outline: '3px solid #ffd700',
+                                                                    boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                                })
+                                                            }}
                                                         >
                                                             <div
                                                                 style={{
@@ -4334,6 +4423,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                           ? 'BO3'
                                                                           : 'BO1'}
                                                                 </div>
+                                                                {pair.games &&
+                                                                    pair.games.some(
+                                                                        (g) => g.castle1 && g.castle2 && !g.castleWinner
+                                                                    ) && (
+                                                                        <span
+                                                                            className={classes.liveDot}
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                top: '0.5rem',
+                                                                                left: '0.5rem',
+                                                                                zIndex: 3
+                                                                            }}
+                                                                        />
+                                                                    )}
                                                             </div>
                                                         </div>
                                                     );
@@ -4354,11 +4457,22 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         const { team1, team2 } = pair;
                                                         const hasTruthyPlayers =
                                                             (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                        const isThirdNextHighlighted =
+                                                            highlightedPairRef.current?.stageIndex ===
+                                                                thirdPlaceIndex &&
+                                                            highlightedPairRef.current?.pairIndex === pairIndex;
                                                         return (
                                                             <div
                                                                 key={`thirdplace-next-${pairIndex}`}
+                                                                id={`pair-s${thirdPlaceIndex}-p${pairIndex}`}
                                                                 className={classes['game-block']}
-                                                                style={{ position: 'relative' }}
+                                                                style={{
+                                                                    position: 'relative',
+                                                                    ...(isThirdNextHighlighted && {
+                                                                        outline: '3px solid #ffd700',
+                                                                        boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                                    })
+                                                                }}
                                                             >
                                                                 <div
                                                                     style={{
@@ -4515,6 +4629,23 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                               ? 'BO3'
                                                                               : 'BO1'}
                                                                     </div>
+                                                                    {pair.games &&
+                                                                        pair.games.some(
+                                                                            (g) =>
+                                                                                g.castle1 &&
+                                                                                g.castle2 &&
+                                                                                !g.castleWinner
+                                                                        ) && (
+                                                                            <span
+                                                                                className={classes.liveDot}
+                                                                                style={{
+                                                                                    position: 'absolute',
+                                                                                    top: '0.5rem',
+                                                                                    left: '0.5rem',
+                                                                                    zIndex: 3
+                                                                                }}
+                                                                            />
+                                                                        )}
                                                                 </div>
                                                             </div>
                                                         );
@@ -4573,10 +4704,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     textTransform: 'uppercase'
                                                                 }}
                                                             >
-                                                                {pair.games &&
-                                                                    pair.games.some(
-                                                                        (g) => g.gameStatus === 'In Progress'
-                                                                    ) && <span className={classes.liveDot} />}
                                                                 ⚔{' '}
                                                                 {pair.type === 'bo-5'
                                                                     ? 'BO5'
@@ -4584,6 +4711,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                       ? 'BO3'
                                                                       : 'BO1'}
                                                             </div>
+                                                            {pair.games &&
+                                                                pair.games.some(
+                                                                    (g) => g.castle1 && g.castle2 && !g.castleWinner
+                                                                ) && (
+                                                                    <span
+                                                                        className={classes.liveDot}
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '0.5rem',
+                                                                            left: '0.5rem',
+                                                                            zIndex: 3
+                                                                        }}
+                                                                    />
+                                                                )}
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',

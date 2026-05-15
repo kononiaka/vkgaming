@@ -344,7 +344,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
 
         if (isSeriesMatch) {
             setGameResults(
-                pair.games.map((game, idx) => ({
+                pair.games.slice(0, requiredWins).map((game, idx) => ({
                     gameId: idx,
                     castle1: game.castle1 || '',
                     castle2: game.castle2 || '',
@@ -506,12 +506,12 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         setScore1(team1Wins);
         setScore2(team2Wins);
 
-        // Auto-add deciding game for incremental series setup (e.g. BO-3 starts with 2, BO-5 with 4).
+        // Auto-add next game when all current games are decided but neither player has won enough yet.
         const shouldAddDeciderGame =
             isSeriesMatch &&
             updated.length < bestOf &&
-            team1Wins === team2Wins &&
-            team1Wins + team2Wins === updated.length;
+            team1Wins + team2Wins === updated.length &&
+            Math.max(team1Wins, team2Wins) < requiredWins;
 
         if (shouldAddDeciderGame) {
             updated.push({
@@ -874,10 +874,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                                             !game.castle1 &&
                                             !game.castle2 &&
                                             !game.winner &&
-                                            ((gameResults.length === bestOf &&
-                                                score1 + score2 < gameResults.length - 1) ||
-                                                (gameResults.length < bestOf &&
-                                                    Math.max(score1, score2) >= requiredWins))
+                                            Math.max(score1, score2) >= requiredWins
                                                 ? 'none'
                                                 : undefined
                                     }}

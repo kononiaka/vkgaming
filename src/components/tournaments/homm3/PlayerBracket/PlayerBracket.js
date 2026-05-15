@@ -313,7 +313,7 @@ export const PlayerBracket = (props) => {
                 >
                     {teamPlayer === winner ? (
                         <div className={classes['green-indicator']}></div>
-                    ) : winner === 'Tie' || winner === undefined ? (
+                    ) : !winner || winner === 'Tie' ? (
                         <div className={classes['grey-indicator']}></div>
                     ) : (
                         <div className={classes['red-indicator']}></div>
