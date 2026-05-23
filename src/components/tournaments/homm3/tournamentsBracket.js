@@ -127,6 +127,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
     const [selectedPairId, setSelectedPairId] = useState(null);
+    const [selectedInitialGameId, setSelectedInitialGameId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
     const [displayName, setDisplayName] = useState('');
     const [searchParams] = useSearchParams();
@@ -167,6 +168,33 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }, 400);
+
+        // Auto-open ReportGameModal when report=1 param is present
+        const reportParam = searchParams.get('report');
+        if (reportParam === '1') {
+            const pair = playoffPairs[targetStageIndex]?.[targetPairIndex];
+            if (
+                pair &&
+                pair.team1 !== 'TBD' &&
+                pair.team2 !== 'TBD' &&
+                pair.team1 &&
+                pair.team2 &&
+                pair.gameStatus !== 'Processed' &&
+                canReportGameForPair(pair)
+            ) {
+                const pairId = `${tournamentId}_s${targetStageIndex}_p${targetPairIndex}`;
+                setSelectedPairId(pairId);
+                if (pair.gameStatus !== 'PartiallyProcessed') {
+                    savePairProgress(tournamentId, pairId, null);
+                }
+                const gameParam = searchParams.get('game');
+                setSelectedInitialGameId(gameParam !== null ? Number(gameParam) : null);
+                setSelectedStageIndex(targetStageIndex);
+                setSelectedPairIndex(targetPairIndex);
+                setShowReportGameModal(true);
+            }
+        }
+
         return () => clearTimeout(timer);
     }, [searchParams, stageLabels, playoffPairs]);
 
@@ -4867,6 +4895,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     onClose={() => setShowReportGameModal(false)}
                     onSubmit={handleSubmitGameReport}
                     playoffPairs={playoffPairs}
+                    initialGameId={selectedInitialGameId}
                 />
             )}
         </div>

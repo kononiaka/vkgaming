@@ -230,6 +230,7 @@ const StartingPageContent = () => {
                                         );
 
                                         if (pair.games && Array.isArray(pair.games)) {
+                                            let pushedForPair = false;
                                             pair.games.forEach((game) => {
                                                 if (game.castle1 && game.castle2 && !game.castleWinner) {
                                                     const prediction = getHeadToHeadPrediction(
@@ -294,8 +295,70 @@ const StartingPageContent = () => {
                                                         restart2_112: game.restart2_112 || 0,
                                                         restartsFinished: Boolean(game.restartsFinished)
                                                     });
+                                                    pushedForPair = true;
                                                 }
                                             });
+
+                                            // Series is ongoing but between games (e.g. BO-5 at 2-1, game 4 not started)
+                                            if (!pushedForPair) {
+                                                const pairBestOf = pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
+                                                const pairReqWins = Math.floor(pairBestOf / 2) + 1;
+                                                const ps1 = Number(pair.score1) || 0;
+                                                const ps2 = Number(pair.score2) || 0;
+                                                if (
+                                                    ps1 + ps2 > 0 &&
+                                                    Math.max(ps1, ps2) < pairReqWins &&
+                                                    pair.gameStatus !== 'Processed'
+                                                ) {
+                                                    const prediction = getHeadToHeadPrediction(
+                                                        pair.team1,
+                                                        pair.team2,
+                                                        historyData,
+                                                        {
+                                                            team1Place: team1Player?.placeInLeaderboard,
+                                                            team2Place: team2Player?.placeInLeaderboard,
+                                                            team1Rating: pair.ratings1 ?? team1Player?.ratings,
+                                                            team2Rating: pair.ratings2 ?? team2Player?.ratings,
+                                                            team1Stars: pair.stars1 ?? team1Player?.stars,
+                                                            team2Stars: pair.stars2 ?? team2Player?.stars
+                                                        }
+                                                    );
+                                                    games.push({
+                                                        tournamentId,
+                                                        tournamentName: tournament.name,
+                                                        stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
+                                                        team1: pair.team1,
+                                                        team2: pair.team2,
+                                                        team1Avatar: avatarByNickname[pair.team1] || null,
+                                                        team2Avatar: avatarByNickname[pair.team2] || null,
+                                                        score1: ps1,
+                                                        score2: ps2,
+                                                        type: pair.type,
+                                                        stageIndex,
+                                                        pairIndex,
+                                                        castle1: '',
+                                                        castle2: '',
+                                                        color1: pair.color1 || 'red',
+                                                        color2: pair.color2 || 'blue',
+                                                        gameNumber: ps1 + ps2 + 1,
+                                                        team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
+                                                        team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                                                        team1Place: rankByNickname[pair.team1] || team1Player?.placeInLeaderboard || '-',
+                                                        team2Place: rankByNickname[pair.team2] || team2Player?.placeInLeaderboard || '-',
+                                                        team1Rating: parseNumericValue(pair.ratings1 ?? team1Player?.ratings),
+                                                        team2Rating: parseNumericValue(pair.ratings2 ?? team2Player?.ratings),
+                                                        team1Prediction: prediction.team1,
+                                                        team2Prediction: prediction.team2,
+                                                        gold1: 0,
+                                                        gold2: 0,
+                                                        restart1_111: 0,
+                                                        restart1_112: 0,
+                                                        restart2_111: 0,
+                                                        restart2_112: 0,
+                                                        restartsFinished: false
+                                                    });
+                                                }
+                                            }
                                         }
                                     });
                                 }
@@ -327,7 +390,8 @@ const StartingPageContent = () => {
                                     }
 
                                     // Skip finished series
-                                    const winThreshold = pair.type === 'bo-3' ? 2 : 1;
+                                    const bestOf = pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
+                                    const winThreshold = Math.floor(bestOf / 2) + 1;
                                     const s1 = Number(pair.score1) || 0;
                                     const s2 = Number(pair.score2) || 0;
                                     if (s1 >= winThreshold || s2 >= winThreshold || pair.winner) {
@@ -584,7 +648,7 @@ const StartingPageContent = () => {
                             {liveGames.map((game, index) => (
                                 <Link
                                     key={index}
-                                    to={`/tournaments/homm3/${game.tournamentId}?status=started&stage=${game.stageIndex}&pair=${game.pairIndex}`}
+                                    to={`/tournaments/homm3/${game.tournamentId}?status=started&stage=${game.stageIndex}&pair=${game.pairIndex}&report=1&game=${game.gameNumber - 1}`}
                                     className={classes.liveGameCard}
                                 >
                                     <div className={classes.liveIndicator}>LIVE</div>

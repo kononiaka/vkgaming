@@ -18,7 +18,7 @@ import redFlagImg from '../../../image/flags/red.jpg';
 import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
-const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs }) => {
+const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs, initialGameId }) => {
     // Use backend progress instead of localStorage
     const [initial, setInitial] = useState({});
     const [progressLoaded, setProgressLoaded] = useState(false);
@@ -42,6 +42,20 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
             mounted = false;
         };
     }, [pairId, tournamentId]);
+
+    // Scroll to the target game section once content is ready
+    useEffect(() => {
+        if (initialGameId == null || !progressLoaded) {
+            return;
+        }
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`report-game-section-${initialGameId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [initialGameId, progressLoaded]);
 
     // All state is initialized only after progress is loaded
     const [selectedWinner, setSelectedWinner] = useState('');
@@ -344,7 +358,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
 
         if (isSeriesMatch) {
             setGameResults(
-                pair.games.slice(0, requiredWins).map((game, idx) => ({
+                pair.games.slice(0, bestOf).map((game, idx) => ({
                     gameId: idx,
                     castle1: game.castle1 || '',
                     castle2: game.castle2 || '',
@@ -865,16 +879,17 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                             {gameResults.map((game, idx) => (
                                 <div
                                     key={idx}
+                                    id={`report-game-section-${idx}`}
                                     className={classes.gameSection}
                                     style={{
                                         position: 'relative',
                                         overflow: 'hidden',
                                         display:
-                                            idx === gameResults.length - 1 &&
-                                            !game.castle1 &&
-                                            !game.castle2 &&
-                                            !game.winner &&
-                                            Math.max(score1, score2) >= requiredWins
+                                            (!game.castle1 &&
+                                                !game.castle2 &&
+                                                !game.winner &&
+                                                Math.max(score1, score2) >= requiredWins) ||
+                                            idx >= Math.min(score1, score2) + requiredWins
                                                 ? 'none'
                                                 : undefined
                                     }}
