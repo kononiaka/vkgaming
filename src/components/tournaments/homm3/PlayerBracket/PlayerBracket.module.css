@@ -144,7 +144,7 @@
 .gamesStripBo3 {
     display: flex;
     flex-direction: row;
-    gap: 0.65rem;
+    gap: 0.4rem;
     align-items: center;
     justify-content: flex-start;
     flex-wrap: nowrap;
@@ -160,4 +160,74 @@
 .castle-selected {
     border: 5px solid #cb27e0 !important; /* Gold border for visibility */
     box-shadow: 0 0 6px #ffb30055;
+}
+
+/* Compact castle slot — dot by default, full image on hover */
+.castleSlot {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.castleDot {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background: rgba(62, 32, 192, 0.4);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    flex-shrink: 0;
+    transition:
+        border-color 0.15s,
+        background 0.15s;
+}
+
+.castleDotSelected {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(203, 39, 224, 0.2));
+    border: 1px solid #ffd700;
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.55);
+}
+
+.castleDotEmpty {
+    background: rgba(30, 20, 60, 0.35);
+    border: 1px dashed rgba(255, 215, 0, 0.2);
+}
+
+.castlePopup {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    background: rgba(14, 9, 36, 0.97);
+    border: 2px solid rgba(255, 215, 0, 0.6);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.castleSlot:hover .castlePopup {
+    display: block;
+}
+
+.castlePopupImg {
+    width: 64px;
+    height: 64px;
+    border-radius: 5px;
+    display: block;
+    object-fit: cover;
+}
+
+.castlePopupLabel {
+    text-align: center;
+    color: #ffd700;
+    font-size: 10px;
+    font-weight: bold;
+    margin-top: 4px;
+    letter-spacing: 0.04em;
 }

@@ -286,7 +286,7 @@ export const PlayerBracket = (props) => {
 
     const isMultiGameLayout = Array.isArray(numberOfGames) && numberOfGames.length > 1;
     const gamesCount = Array.isArray(numberOfGames) ? numberOfGames.length : 1;
-    const gamesStripMinWidth = isMultiGameLayout ? `${gamesCount * 44 + Math.max(gamesCount - 1, 0) * 8}px` : '52px';
+    const gamesStripMinWidth = isMultiGameLayout ? `${gamesCount * 14 + Math.max(gamesCount - 1, 0) * 6}px` : '52px';
     const isSourcePairHint =
         teamPlayer === 'TBD' &&
         sourcePair &&
@@ -946,6 +946,83 @@ export const PlayerBracket = (props) => {
                             // Get the gold for this game
                             const gameGold = team === 'team1' ? game.gold1 : game.gold2;
 
+                            // For multi-game layouts (BO-3, BO-5) use compact dot + hover popup
+                            if (isMultiGameLayout) {
+                                return (
+                                    <div key={game.gameId} className={classes.castleSlot}>
+                                        {/* Compact dot — always visible */}
+                                        <div
+                                            className={`${classes.castleDot} ${checked ? classes.castleDotSelected : ''} ${!castleImageUrl ? classes.castleDotEmpty : ''}`}
+                                        />
+                                        {/* Hover popup with full castle image + badges */}
+                                        {castleImageUrl && (
+                                            <div className={classes.castlePopup}>
+                                                <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                    <img
+                                                        src={castleImageUrl}
+                                                        alt={castleName}
+                                                        className={`${classes.castlePopupImg} ${checked ? classes['castle-selected'] : ''}`}
+                                                    />
+                                                    {gameColor && (
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: '-4px',
+                                                                right: '-4px',
+                                                                width: '17px',
+                                                                height: '17px',
+                                                                borderRadius: '50%',
+                                                                background:
+                                                                    gameColor === 'red'
+                                                                        ? 'linear-gradient(135deg, #8B0000, #FF0000)'
+                                                                        : 'linear-gradient(135deg, #00008B, #0000FF)',
+                                                                border: '2px solid #FFD700',
+                                                                boxShadow:
+                                                                    gameColor === 'red'
+                                                                        ? '0 0 6px rgba(255, 0, 0, 0.8)'
+                                                                        : '0 0 6px rgba(0, 0, 255, 0.8)'
+                                                            }}
+                                                            title={`Playing as ${gameColor}`}
+                                                        />
+                                                    )}
+                                                    {gameGold !== 0 && gameGold !== undefined && (
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                bottom: '-4px',
+                                                                left: '50%',
+                                                                transform: 'translateX(-50%)',
+                                                                padding: '1px 4px',
+                                                                borderRadius: '8px',
+                                                                background:
+                                                                    gameGold > 0
+                                                                        ? 'linear-gradient(135deg, #00AA00, #00FF00)'
+                                                                        : 'linear-gradient(135deg, #AA0000, #FF0000)',
+                                                                border: '1px solid #FFD700',
+                                                                fontSize: '10px',
+                                                                fontWeight: 'bold',
+                                                                color: '#FFF',
+                                                                boxShadow:
+                                                                    gameGold > 0
+                                                                        ? '0 0 6px rgba(0, 255, 0, 0.8)'
+                                                                        : '0 0 6px rgba(255, 0, 0, 0.8)',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                            title={`Gold: ${gameGold > 0 ? '+' : ''}${gameGold}`}
+                                                        >
+                                                            {gameGold > 0 ? '+' : ''}
+                                                            {gameGold}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className={classes.castlePopupLabel}>{castleName}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
+
+                            // BO-1: show image directly as before
                             return (
                                 <div
                                     key={game.gameId}
@@ -960,8 +1037,8 @@ export const PlayerBracket = (props) => {
                                                 title={castleName}
                                                 className={checked ? classes['castle-selected'] : ''}
                                                 style={{
-                                                    width: isMultiGameLayout ? '44px' : '48px',
-                                                    height: isMultiGameLayout ? '44px' : '48px',
+                                                    width: '48px',
+                                                    height: '48px',
                                                     border: checked
                                                         ? '3px solid #FFD700'
                                                         : '2px solid rgba(62, 32, 192, 0.3)',
@@ -970,15 +1047,14 @@ export const PlayerBracket = (props) => {
                                                     cursor: 'pointer'
                                                 }}
                                             />
-                                            {/* Color indicator badge on castle */}
                                             {gameColor && (
                                                 <div
                                                     style={{
                                                         position: 'absolute',
                                                         top: '-4px',
                                                         right: '-4px',
-                                                        width: isMultiGameLayout ? '17px' : '16px',
-                                                        height: isMultiGameLayout ? '17px' : '16px',
+                                                        width: '16px',
+                                                        height: '16px',
                                                         borderRadius: '50%',
                                                         background:
                                                             gameColor === 'red'
@@ -993,7 +1069,6 @@ export const PlayerBracket = (props) => {
                                                     title={`Playing as ${gameColor}`}
                                                 />
                                             )}
-                                            {/* Gold indicator badge on castle */}
                                             {gameGold !== 0 && gameGold !== undefined && (
                                                 <div
                                                     style={{
@@ -1008,7 +1083,7 @@ export const PlayerBracket = (props) => {
                                                                 ? 'linear-gradient(135deg, #00AA00, #00FF00)'
                                                                 : 'linear-gradient(135deg, #AA0000, #FF0000)',
                                                         border: '1px solid #FFD700',
-                                                        fontSize: isMultiGameLayout ? '10px' : '9px',
+                                                        fontSize: '9px',
                                                         fontWeight: 'bold',
                                                         color: '#FFF',
                                                         boxShadow:

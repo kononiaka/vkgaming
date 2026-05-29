@@ -301,7 +301,8 @@ const StartingPageContent = () => {
 
                                             // Series is ongoing but between games (e.g. BO-5 at 2-1, game 4 not started)
                                             if (!pushedForPair) {
-                                                const pairBestOf = pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
+                                                const pairBestOf =
+                                                    pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
                                                 const pairReqWins = Math.floor(pairBestOf / 2) + 1;
                                                 const ps1 = Number(pair.score1) || 0;
                                                 const ps2 = Number(pair.score2) || 0;
@@ -341,12 +342,26 @@ const StartingPageContent = () => {
                                                         color1: pair.color1 || 'red',
                                                         color2: pair.color2 || 'blue',
                                                         gameNumber: ps1 + ps2 + 1,
-                                                        team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-                                                        team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
-                                                        team1Place: rankByNickname[pair.team1] || team1Player?.placeInLeaderboard || '-',
-                                                        team2Place: rankByNickname[pair.team2] || team2Player?.placeInLeaderboard || '-',
-                                                        team1Rating: parseNumericValue(pair.ratings1 ?? team1Player?.ratings),
-                                                        team2Rating: parseNumericValue(pair.ratings2 ?? team2Player?.ratings),
+                                                        team1Stars: parseNumericValue(
+                                                            pair.stars1 ?? team1Player?.stars
+                                                        ),
+                                                        team2Stars: parseNumericValue(
+                                                            pair.stars2 ?? team2Player?.stars
+                                                        ),
+                                                        team1Place:
+                                                            rankByNickname[pair.team1] ||
+                                                            team1Player?.placeInLeaderboard ||
+                                                            '-',
+                                                        team2Place:
+                                                            rankByNickname[pair.team2] ||
+                                                            team2Player?.placeInLeaderboard ||
+                                                            '-',
+                                                        team1Rating: parseNumericValue(
+                                                            pair.ratings1 ?? team1Player?.ratings
+                                                        ),
+                                                        team2Rating: parseNumericValue(
+                                                            pair.ratings2 ?? team2Player?.ratings
+                                                        ),
                                                         team1Prediction: prediction.team1,
                                                         team2Prediction: prediction.team2,
                                                         gold1: 0,
