@@ -1,4 +1,5 @@
 import { useEffect, useState, useContext, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { stripUiFields, moveProgressFieldsToNested } from './progress/gameProgressApi';
 import { updateGameStatusForPartialProgress } from './progress/gameStatusUtils';
 import {
@@ -54,6 +55,30 @@ const normalizeMatchType = (rawType) => {
 const getBestOfValue = (matchType) => {
     const normalized = normalizeMatchType(matchType);
     return Number(normalized.split('-')[1]) || 1;
+};
+
+// Chains ELO across every played game in a series and returns the final ratings.
+// Each game's result updates both running ratings before the next game is evaluated.
+// Falls back to a single series-level calculation when no individual game data is available.
+const calcSeriesRatings = (startRating1, startRating2, team1Name, team2Name, games, didWin1Fallback) => {
+    const playedGames = Array.isArray(games) ? games.filter((g) => g.gameWinner && g.gameWinner !== '') : [];
+
+    if (playedGames.length === 0) {
+        return {
+            r1: getNewRating(startRating1, startRating2, didWin1Fallback),
+            r2: getNewRating(startRating2, startRating1, !didWin1Fallback)
+        };
+    }
+
+    let r1 = startRating1;
+    let r2 = startRating2;
+    for (const game of playedGames) {
+        const next1 = getNewRating(r1, r2, game.gameWinner === team1Name);
+        const next2 = getNewRating(r2, r1, game.gameWinner === team2Name);
+        r1 = next1;
+        r2 = next2;
+    }
+    return { r1, r2 };
 };
 
 const buildMatchKey = (gameData, tournamentId) => {
@@ -126,8 +151,76 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
     const [selectedPairId, setSelectedPairId] = useState(null);
+    const [selectedInitialGameId, setSelectedInitialGameId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
     const [displayName, setDisplayName] = useState('');
+    const [searchParams] = useSearchParams();
+    const highlightedPairRef = useRef(null);
+
+    // Auto-navigate to the stage+pair indicated by URL params (from "My Upcoming Matches")
+    useEffect(() => {
+        const stageParam = searchParams.get('stage');
+        const pairParam = searchParams.get('pair');
+        if (stageParam === null || pairParam === null || stageLabels.length === 0 || playoffPairs.length === 0) {
+            return;
+        }
+
+        const targetStageIndex = Number(stageParam);
+        const targetPairIndex = Number(pairParam);
+
+        // Map playoffPairs stageIndex → displayStages index
+        const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
+        const displayStages = allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+        const stageLabel = stageLabels[targetStageIndex];
+        // Final is the right column of the last page; Third Place also lives there
+        if (stageLabel === 'Final' || stageLabel === 'Third Place') {
+            setActiveBracketStage(displayStages.length - 1);
+        } else {
+            const displayIdx = displayStages.indexOf(stageLabel);
+            if (displayIdx !== -1) {
+                setActiveBracketStage(displayIdx);
+            }
+        }
+
+        // Store for scroll after render
+        highlightedPairRef.current = { stageIndex: targetStageIndex, pairIndex: targetPairIndex };
+
+        // Scroll to the pair after the stage renders
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`pair-s${targetStageIndex}-p${targetPairIndex}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 400);
+
+        // Auto-open ReportGameModal when report=1 param is present
+        const reportParam = searchParams.get('report');
+        if (reportParam === '1') {
+            const pair = playoffPairs[targetStageIndex]?.[targetPairIndex];
+            if (
+                pair &&
+                pair.team1 !== 'TBD' &&
+                pair.team2 !== 'TBD' &&
+                pair.team1 &&
+                pair.team2 &&
+                pair.gameStatus !== 'Processed' &&
+                canReportGameForPair(pair)
+            ) {
+                const pairId = `${tournamentId}_s${targetStageIndex}_p${targetPairIndex}`;
+                setSelectedPairId(pairId);
+                if (pair.gameStatus !== 'PartiallyProcessed') {
+                    savePairProgress(tournamentId, pairId, null);
+                }
+                const gameParam = searchParams.get('game');
+                setSelectedInitialGameId(gameParam !== null ? Number(gameParam) : null);
+                setSelectedStageIndex(targetStageIndex);
+                setSelectedPairIndex(targetPairIndex);
+                setShowReportGameModal(true);
+            }
+        }
+
+        return () => clearTimeout(timer);
+    }, [searchParams, stageLabels, playoffPairs]);
 
     const normalizeName = (value) =>
         String(value || '')
@@ -1706,7 +1799,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         team1,
         team2,
         winnerId,
-        { skipRatings = false, skipPlayerStats = false, onCheckpoint = null } = {}
+        { skipRatings = false, skipPlayerStats = false, seriesGames = null, onCheckpoint = null } = {}
     ) => {
         try {
             // Get player IDs
@@ -1781,20 +1874,52 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             const opponent1CurrentRating = parseFloat(opponent1PrevData.ratings.split(',').pop().trim());
             const opponent2CurrentRating = parseFloat(opponent2PrevData.ratings.split(',').pop().trim());
 
-            // Calculate new ratings
-            const opponent1NewRating = await getNewRating(
+            // Calculate new ratings — chain ELO across each played game in the series
+            const { r1: opponent1NewRating, r2: opponent2NewRating } = calcSeriesRatings(
                 opponent1CurrentRating,
                 opponent2CurrentRating,
+                team1,
+                team2,
+                seriesGames,
                 didWinOpponent1
             );
-            const opponent2NewRating = await getNewRating(
-                opponent2CurrentRating,
-                opponent1CurrentRating,
-                didWinOpponent2
-            );
+            const playedGames = Array.isArray(seriesGames)
+                ? seriesGames.filter((g) => g.gameWinner && g.gameWinner !== '')
+                : [];
+            const playedGamesCount = playedGames.length;
+            console.log(`ELO chained across ${playedGamesCount || 1} game(s)`);
+
+            // Build ELO context explanation for the confirmation dialog
+            const buildEloExplanation = (playerName, currentRating, opponentRating, newRating) => {
+                const change = newRating - currentRating;
+                const changeStr = (change >= 0 ? '+' : '') + change.toFixed(2);
+                let explanation = `${playerName}:\nOld: ${currentRating.toFixed(2)}  →  New: ${newRating.toFixed(2)}  (${changeStr})`;
+
+                if (playedGamesCount > 1) {
+                    const playerWins = playedGames.filter((g) => g.gameWinner === playerName).length;
+                    const playerLosses = playedGamesCount - playerWins;
+                    const wonSeries = playerWins > playerLosses;
+                    const expectedPerGame = 1 / (1 + Math.pow(10, (opponentRating - currentRating) / 10));
+                    const actualPerGame = playerWins / playedGamesCount;
+                    explanation += `\n  Series: ${playerWins}-${playerLosses} (${playedGamesCount} games)`;
+                    explanation += `\n  Expected win rate: ${(expectedPerGame * 100).toFixed(0)}%  |  Actual: ${(actualPerGame * 100).toFixed(0)}%`;
+                    if (change < 0 && wonSeries) {
+                        explanation += `\n  ↓ Won the series but underperformed expectations — rating reflects actual play level.`;
+                    } else if (change < 0) {
+                        explanation += `\n  ↓ Lost the series — rating dropped.`;
+                    } else {
+                        explanation += `\n  ↑ Outperformed or met expectations.`;
+                    }
+                }
+                return explanation;
+            };
 
             const confirmRatingChanges = confirmWindow(
-                `Rating Changes:\n\n${team1}:\nOld: ${opponent1CurrentRating.toFixed(2)}\nNew: ${opponent1NewRating.toFixed(2)}\nChange: ${(opponent1NewRating - opponent1CurrentRating).toFixed(2)}\n\n${team2}:\nOld: ${opponent2CurrentRating.toFixed(2)}\nNew: ${opponent2NewRating.toFixed(2)}\nChange: ${(opponent2NewRating - opponent2CurrentRating).toFixed(2)}\n\nUpdate ratings?`
+                `Rating Changes:\n\n` +
+                    buildEloExplanation(team1, opponent1CurrentRating, opponent2CurrentRating, opponent1NewRating) +
+                    `\n\n` +
+                    buildEloExplanation(team2, opponent2CurrentRating, opponent1CurrentRating, opponent2NewRating) +
+                    `\n\nUpdate ratings?`
             );
             if (!confirmRatingChanges) {
                 console.log('Rating changes preview cancelled - skipping ratings update but continuing to statistics');
@@ -2022,8 +2147,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                         const p1CurrentRating = parseFloat(p1Data.ratings?.split(',').pop().trim() || '0');
                         const p2CurrentRating = parseFloat(p2Data.ratings?.split(',').pop().trim() || '0');
-                        const p1NewRating = getNewRating(p1CurrentRating, p2CurrentRating, didWin1);
-                        const p2NewRating = getNewRating(p2CurrentRating, p1CurrentRating, didWin2);
+                        const { r1: p1NewRating, r2: p2NewRating } = calcSeriesRatings(
+                            p1CurrentRating,
+                            p2CurrentRating,
+                            pair.team1,
+                            pair.team2,
+                            reportData.games,
+                            didWin1
+                        );
 
                         const p1Stats = p1Data.games?.heroes3 || { total: 0, win: 0, lose: 0 };
                         const p2Stats = p2Data.games?.heroes3 || { total: 0, win: 0, lose: 0 };
@@ -2116,7 +2247,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 if (hasWinner) {
                     if (!skipRatings) {
                         if (summaryPlayerData) {
-                            const { team1, team2 } = summaryPlayerData;
+                            const { team1, team2, winnerId } = summaryPlayerData;
                             const ch1 = (team1.newRating - team1.currentRating).toFixed(2);
                             const ch2 = (team2.newRating - team2.currentRating).toFixed(2);
                             lines.push(
@@ -2125,6 +2256,26 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             lines.push(
                                 `  • ELO: ${pair.team2} ${team2.currentRating.toFixed(2)}→${team2.newRating.toFixed(2)} (${ch2 > 0 ? '+' : ''}${ch2})`
                             );
+                            const previewPlayedGames = reportData.games
+                                ? reportData.games.filter((g) => g.gameWinner && g.gameWinner !== '')
+                                : [];
+                            if (previewPlayedGames.length > 1) {
+                                const check = (playerName, data, isWinner, opponentCurrentRating) => {
+                                    if (isWinner && data.newRating < data.currentRating) {
+                                        const playerWins = previewPlayedGames.filter(
+                                            (g) => g.gameWinner === playerName
+                                        ).length;
+                                        const ratingDiff = opponentCurrentRating - data.currentRating;
+                                        const expectedPct = Math.round(100 / (1 + Math.pow(10, ratingDiff / 10)));
+                                        const actualPct = Math.round((playerWins / previewPlayedGames.length) * 100);
+                                        lines.push(
+                                            `    ↓ ${playerName} won series (${playerWins}-${previewPlayedGames.length - playerWins}) but underperformed expectations (expected ${expectedPct}%, actual ${actualPct}%) — rating dropped.`
+                                        );
+                                    }
+                                };
+                                check(pair.team1, team1, winnerId === team1.id, team2.currentRating);
+                                check(pair.team2, team2, winnerId === team2.id, team1.currentRating);
+                            }
                         } else {
                             lines.push(`  • Update ELO ratings: ${pair.team1}, ${pair.team2}`);
                         }
@@ -2433,6 +2584,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId, {
                         skipRatings,
                         skipPlayerStats,
+                        seriesGames: pair.games,
                         onCheckpoint: (stage) => updatePairProgressStage(tournamentId, selectedPairId, stage)
                     });
                     setDetailedProgressStage('Ratings and stats updated');
@@ -3668,11 +3820,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                const isFinalHighlighted =
+                                                    highlightedPairRef.current?.stageIndex === stageIndex &&
+                                                    highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
                                                         key={`final-${pairIndex}`}
+                                                        id={`pair-s${stageIndex}-p${pairIndex}`}
                                                         className={classes['game-block']}
-                                                        style={{ position: 'relative' }}
+                                                        style={{
+                                                            position: 'relative',
+                                                            ...(isFinalHighlighted && {
+                                                                outline: '3px solid #ffd700',
+                                                                boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                            })
+                                                        }}
                                                     >
                                                         <div
                                                             style={{
@@ -3804,11 +3966,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    const isThirdHighlighted =
+                                                        highlightedPairRef.current?.stageIndex === thirdPlaceIndex &&
+                                                        highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
                                                             key={`thirdplace-${pairIndex}`}
+                                                            id={`pair-s${thirdPlaceIndex}-p${pairIndex}`}
                                                             className={classes['game-block']}
-                                                            style={{ position: 'relative' }}
+                                                            style={{
+                                                                position: 'relative',
+                                                                ...(isThirdHighlighted && {
+                                                                    outline: '3px solid #ffd700',
+                                                                    boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                                })
+                                                            }}
                                                         >
                                                             <div
                                                                 style={{
@@ -3945,9 +4117,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                const isOtherHighlighted =
+                                                    highlightedPairRef.current?.stageIndex === stageIndex &&
+                                                    highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
                                                         key={pairIndex}
+                                                        id={`pair-s${stageIndex}-p${pairIndex}`}
                                                         className={classes['game-block']}
                                                         style={{
                                                             position: 'relative',
@@ -3955,7 +4131,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             marginBottom: 0,
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            justifyContent: 'center'
+                                                            justifyContent: 'center',
+                                                            ...(isOtherHighlighted && {
+                                                                outline: '3px solid #ffd700',
+                                                                boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                            })
                                                         }}
                                                     >
                                                         <div
@@ -4105,10 +4285,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 textTransform: 'uppercase'
                                                             }}
                                                         >
-                                                            {pair.games &&
-                                                                pair.games.some(
-                                                                    (g) => g.gameStatus === 'In Progress'
-                                                                ) && <span className={classes.liveDot} />}
                                                             ⚔{' '}
                                                             {pair.type === 'bo-5'
                                                                 ? 'BO5'
@@ -4116,6 +4292,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                   ? 'BO3'
                                                                   : 'BO1'}
                                                         </div>
+                                                        {pair.games &&
+                                                            pair.games.some(
+                                                                (g) => g.castle1 && g.castle2 && !g.castleWinner
+                                                            ) && (
+                                                                <span
+                                                                    className={classes.liveDot}
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        top: '0.5rem',
+                                                                        left: '0.5rem',
+                                                                        zIndex: 3
+                                                                    }}
+                                                                />
+                                                            )}
                                                     </div>
                                                 );
                                             })}
@@ -4177,11 +4367,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                    const isFinalNextHighlighted =
+                                                        highlightedPairRef.current?.stageIndex === nextStageIndex &&
+                                                        highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
                                                             key={`final-next-${pairIndex}`}
+                                                            id={`pair-s${nextStageIndex}-p${pairIndex}`}
                                                             className={classes['game-block']}
-                                                            style={{ position: 'relative' }}
+                                                            style={{
+                                                                position: 'relative',
+                                                                ...(isFinalNextHighlighted && {
+                                                                    outline: '3px solid #ffd700',
+                                                                    boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                                })
+                                                            }}
                                                         >
                                                             <div
                                                                 style={{
@@ -4334,6 +4534,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                           ? 'BO3'
                                                                           : 'BO1'}
                                                                 </div>
+                                                                {pair.games &&
+                                                                    pair.games.some(
+                                                                        (g) => g.castle1 && g.castle2 && !g.castleWinner
+                                                                    ) && (
+                                                                        <span
+                                                                            className={classes.liveDot}
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                top: '0.5rem',
+                                                                                left: '0.5rem',
+                                                                                zIndex: 3
+                                                                            }}
+                                                                        />
+                                                                    )}
                                                             </div>
                                                         </div>
                                                     );
@@ -4354,11 +4568,22 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         const { team1, team2 } = pair;
                                                         const hasTruthyPlayers =
                                                             (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
+                                                        const isThirdNextHighlighted =
+                                                            highlightedPairRef.current?.stageIndex ===
+                                                                thirdPlaceIndex &&
+                                                            highlightedPairRef.current?.pairIndex === pairIndex;
                                                         return (
                                                             <div
                                                                 key={`thirdplace-next-${pairIndex}`}
+                                                                id={`pair-s${thirdPlaceIndex}-p${pairIndex}`}
                                                                 className={classes['game-block']}
-                                                                style={{ position: 'relative' }}
+                                                                style={{
+                                                                    position: 'relative',
+                                                                    ...(isThirdNextHighlighted && {
+                                                                        outline: '3px solid #ffd700',
+                                                                        boxShadow: '0 0 18px rgba(255,215,0,0.55)'
+                                                                    })
+                                                                }}
                                                             >
                                                                 <div
                                                                     style={{
@@ -4515,6 +4740,23 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                               ? 'BO3'
                                                                               : 'BO1'}
                                                                     </div>
+                                                                    {pair.games &&
+                                                                        pair.games.some(
+                                                                            (g) =>
+                                                                                g.castle1 &&
+                                                                                g.castle2 &&
+                                                                                !g.castleWinner
+                                                                        ) && (
+                                                                            <span
+                                                                                className={classes.liveDot}
+                                                                                style={{
+                                                                                    position: 'absolute',
+                                                                                    top: '0.5rem',
+                                                                                    left: '0.5rem',
+                                                                                    zIndex: 3
+                                                                                }}
+                                                                            />
+                                                                        )}
                                                                 </div>
                                                             </div>
                                                         );
@@ -4573,10 +4815,6 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     textTransform: 'uppercase'
                                                                 }}
                                                             >
-                                                                {pair.games &&
-                                                                    pair.games.some(
-                                                                        (g) => g.gameStatus === 'In Progress'
-                                                                    ) && <span className={classes.liveDot} />}
                                                                 ⚔{' '}
                                                                 {pair.type === 'bo-5'
                                                                     ? 'BO5'
@@ -4584,6 +4822,20 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                       ? 'BO3'
                                                                       : 'BO1'}
                                                             </div>
+                                                            {pair.games &&
+                                                                pair.games.some(
+                                                                    (g) => g.castle1 && g.castle2 && !g.castleWinner
+                                                                ) && (
+                                                                    <span
+                                                                        className={classes.liveDot}
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '0.5rem',
+                                                                            left: '0.5rem',
+                                                                            zIndex: 3
+                                                                        }}
+                                                                    />
+                                                                )}
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -4726,6 +4978,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     onClose={() => setShowReportGameModal(false)}
                     onSubmit={handleSubmitGameReport}
                     playoffPairs={playoffPairs}
+                    initialGameId={selectedInitialGameId}
                 />
             )}
         </div>

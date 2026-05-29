@@ -392,3 +392,111 @@
     color: #eaf6ff;
     background: rgba(40, 56, 110, 0.55);
 }
+
+/* ── My Upcoming Matches section ── */
+
+.myGamesSection {
+    margin-top: 3rem;
+}
+
+.myGamesSection h2 {
+    font-size: 1.5rem;
+    color: #ffd700;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    margin-bottom: 2rem;
+}
+
+.myGamesList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.myGameCard {
+    background: linear-gradient(135deg, rgba(20, 40, 20, 0.55) 0%, rgba(10, 30, 60, 0.7) 100%);
+    border: 2px solid #ffd700;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow:
+        2px 2px 0 rgba(0, 0, 0, 0.5),
+        0 0 14px rgba(255, 215, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    position: relative;
+}
+
+.myGameCard:hover {
+    border-color: #00ffff;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.12) 0%, rgba(255, 215, 0, 0.1) 100%);
+    transform: translateY(-4px);
+    box-shadow:
+        0 8px 18px rgba(255, 215, 0, 0.35),
+        0 0 16px rgba(0, 255, 255, 0.25);
+}
+
+.upcomingIndicator {
+    font-size: 0.78rem;
+    color: #ffd700;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+}
+
+.myGameStage {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.myGameMatchup {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 0.4rem 0;
+}
+
+.myGamePlayer {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+}
+
+.myGamePlayerName {
+    font-size: 1rem;
+    color: #00ffff;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.myGameScore {
+    font-size: 1.35rem;
+    color: #ffd700;
+    font-weight: 900;
+    min-width: 24px;
+    text-align: center;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.myGamePlayerMeta {
+    font-size: 0.82rem;
+    color: #ffd700;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.myGameType {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    margin-top: 0.2rem;
+}

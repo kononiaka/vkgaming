@@ -18,7 +18,7 @@ import redFlagImg from '../../../image/flags/red.jpg';
 import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
-const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs }) => {
+const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs, initialGameId }) => {
     // Use backend progress instead of localStorage
     const [initial, setInitial] = useState({});
     const [progressLoaded, setProgressLoaded] = useState(false);
@@ -42,6 +42,20 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
             mounted = false;
         };
     }, [pairId, tournamentId]);
+
+    // Scroll to the target game section once content is ready
+    useEffect(() => {
+        if (initialGameId == null || !progressLoaded) {
+            return;
+        }
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`report-game-section-${initialGameId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [initialGameId, progressLoaded]);
 
     // All state is initialized only after progress is loaded
     const [selectedWinner, setSelectedWinner] = useState('');
@@ -344,7 +358,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
 
         if (isSeriesMatch) {
             setGameResults(
-                pair.games.map((game, idx) => ({
+                pair.games.slice(0, bestOf).map((game, idx) => ({
                     gameId: idx,
                     castle1: game.castle1 || '',
                     castle2: game.castle2 || '',
@@ -506,12 +520,12 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         setScore1(team1Wins);
         setScore2(team2Wins);
 
-        // Auto-add deciding game for incremental series setup (e.g. BO-3 starts with 2, BO-5 with 4).
+        // Auto-add next game when all current games are decided but neither player has won enough yet.
         const shouldAddDeciderGame =
             isSeriesMatch &&
             updated.length < bestOf &&
-            team1Wins === team2Wins &&
-            team1Wins + team2Wins === updated.length;
+            team1Wins + team2Wins === updated.length &&
+            Math.max(team1Wins, team2Wins) < requiredWins;
 
         if (shouldAddDeciderGame) {
             updated.push({
@@ -865,19 +879,17 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                             {gameResults.map((game, idx) => (
                                 <div
                                     key={idx}
+                                    id={`report-game-section-${idx}`}
                                     className={classes.gameSection}
                                     style={{
                                         position: 'relative',
                                         overflow: 'hidden',
                                         display:
-                                            idx === gameResults.length - 1 &&
-                                            !game.castle1 &&
-                                            !game.castle2 &&
-                                            !game.winner &&
-                                            ((gameResults.length === bestOf &&
-                                                score1 + score2 < gameResults.length - 1) ||
-                                                (gameResults.length < bestOf &&
-                                                    Math.max(score1, score2) >= requiredWins))
+                                            (!game.castle1 &&
+                                                !game.castle2 &&
+                                                !game.winner &&
+                                                Math.max(score1, score2) >= requiredWins) ||
+                                            idx >= Math.min(score1, score2) + requiredWins
                                                 ? 'none'
                                                 : undefined
                                     }}
