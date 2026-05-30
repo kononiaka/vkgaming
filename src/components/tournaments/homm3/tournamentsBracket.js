@@ -27,6 +27,7 @@ import { findByName } from '../../../api/api.js';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
+import LeagueBracket from './LeagueBracket';
 import AuthContext from '../../../store/auth-context';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
@@ -147,6 +148,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
+    const [isLeague, setIsLeague] = useState(false);
+    const [registeredPlayerNames, setRegisteredPlayerNames] = useState([]);
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
@@ -337,6 +340,31 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const fetchPlayoffPairs = async () => {
             try {
+                // Detect league tournament type from tournament root
+                const typeResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/type.json`
+                );
+                if (typeResponse.ok) {
+                    const typeData = await typeResponse.json();
+                    if (typeData === 'league') {
+                        setIsLeague(true);
+                    }
+                }
+
+                // Fetch registered players for pre-start standings
+                const playersResponse = await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players.json`
+                );
+                if (playersResponse.ok) {
+                    const playersData = await playersResponse.json();
+                    if (playersData) {
+                        const names = Object.values(playersData)
+                            .map((p) => p && p.name)
+                            .filter((name) => name && name.trim() !== 'TBD');
+                        setRegisteredPlayerNames(names);
+                    }
+                }
+
                 const bracketResponse = await fetch(
                     `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
@@ -531,7 +559,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             console.log('Tournament data:', data);
             // const playoffsGames = data.tournamentPlayoffGames;
             // const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
-            const randomBrackets = data.randomBracket;
+            const randomBrackets = data.type === 'league' ? false : data.randomBracket;
             playersObj = data.players;
             console.log('playersObj:', playersObj);
             // let tournamentData = {};
@@ -1769,6 +1797,151 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
     };
 
+    const handleFinishLeague = async () => {
+        const pairs = playoffPairs[0] || [];
+        const allDone = pairs.length > 0 && pairs.every((p) => p.winner);
+        if (!allDone) {
+            alert('Not all matches have been completed yet.');
+            return;
+        }
+
+        // Compute standings (same logic as LeagueBracket)
+        const standingsMap = {};
+        pairs.forEach((pair) => {
+            if (!standingsMap[pair.team1]) {
+                standingsMap[pair.team1] = { played: 0, wins: 0, losses: 0, points: 0 };
+            }
+            if (!standingsMap[pair.team2]) {
+                standingsMap[pair.team2] = { played: 0, wins: 0, losses: 0, points: 0 };
+            }
+            if (pair.winner) {
+                standingsMap[pair.team1].played++;
+                standingsMap[pair.team2].played++;
+                if (pair.winner === pair.team1) {
+                    standingsMap[pair.team1].wins++;
+                    standingsMap[pair.team1].points += 3;
+                    standingsMap[pair.team2].losses++;
+                } else {
+                    standingsMap[pair.team2].wins++;
+                    standingsMap[pair.team2].points += 3;
+                    standingsMap[pair.team1].losses++;
+                }
+            }
+        });
+        const standings = Object.entries(standingsMap)
+            .map(([name, s]) => ({ name, ...s }))
+            .sort((a, b) => b.points - a.points || b.wins - a.wins);
+
+        const first = standings[0]?.name;
+        const second = standings[1]?.name;
+        const third = standings[2]?.name;
+
+        if (!first) {
+            alert('Unable to determine standings. Cannot finish league.');
+            return;
+        }
+
+        const standingsSummary = standings
+            .slice(0, 3)
+            .map((s, i) => `${i + 1}. ${s.name} — ${s.points} pts (${s.wins}W / ${s.losses}L)`)
+            .join('\n');
+
+        const confirmed = window.confirm(
+            `Final Standings:\n\n${standingsSummary}\n\nDistribute prizes and mark league as finished?`
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            // Leagues always use coins — read coinPrizePull, not pricePull (USD)
+            const coinPrizePullRes = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/coinPrizePull.json`
+            );
+            const prizes = await coinPrizePullRes.json();
+            if (!prizes || typeof prizes !== 'object') {
+                alert('Could not load coin prize data. Aborting.');
+                return;
+            }
+
+            const tName = tournamentName || 'Unknown Tournament';
+
+            const placements = [
+                { place: '1st Place', name: first, winnerKey: '1st place' },
+                { place: '2nd Place', name: second, winnerKey: '2nd place' },
+                { place: '3rd Place', name: third, winnerKey: '3rd place' }
+            ];
+
+            for (const { place, name, winnerKey } of placements) {
+                if (!name) {
+                    continue;
+                }
+                const prizeAmount = prizes[place];
+                if (!prizeAmount) {
+                    continue;
+                }
+
+                const userId = await lookForUserId(name);
+                const userRecord = await loadUserById(userId);
+                if (!userRecord || typeof userRecord !== 'object') {
+                    console.error(`Failed to load user record for ${place}: ${name}`);
+                    continue;
+                }
+
+                const currentTotal = await getPlayerPrizeTotal(userId);
+                userRecord.totalPrize = +currentTotal + +prizeAmount;
+                if (!Array.isArray(userRecord.prizes)) {
+                    userRecord.prizes = [];
+                }
+                userRecord.prizes.push({ tournamentName: tName, place, prizeAmount });
+
+                await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userRecord)
+                });
+                await fetch(
+                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/${winnerKey}.json`,
+                    {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(name)
+                    }
+                );
+            }
+
+            const res = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('Tournament Finished'),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!res.ok) {
+                alert('Failed to update tournament status.');
+                return;
+            }
+
+            try {
+                await recalculatePlayerStars();
+            } catch (e) {
+                console.warn('Star recalculation failed', e);
+            }
+            try {
+                await snapshotLeaderboardRanks();
+            } catch (e) {
+                console.warn('Leaderboard snapshot failed', e);
+            }
+
+            alert('League finished! Prizes distributed and status updated.');
+            window.location.reload();
+        } catch (error) {
+            console.error('Error finishing league:', error);
+            alert('Error finishing league: ' + error.message);
+        }
+    };
+
     const handleOpenReportGame = (pair, stageIdx, pairIdx) => {
         if (pair.team1 === 'TBD' || pair.team2 === 'TBD' || !pair.team1 || !pair.team2) {
             alert('Cannot report game until both players are assigned.');
@@ -2375,6 +2548,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             );
                         } else if (currentStage === 'Final' || currentStage === 'Third Place') {
                             lines.push(`  • No promotion (${currentStage} is the final stage)`);
+                        } else if (isLeague) {
+                            lines.push('  • Promotion: N/A (league format)');
                         } else {
                             lines.push(`  • Promote: ${winner} → next stage`);
                         }
@@ -3326,7 +3501,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     >
                         {/* Left: admin action button (or spacer) */}
                         <div style={{ minWidth: '180px', flexShrink: 0 }}>
-                            {authCtx.isAdmin && isUpdateButtonVisible && (
+                            {authCtx.isAdmin && isUpdateButtonVisible && !isLeague && (
                                 <button
                                     id="update-tournament"
                                     onClick={() => updateTournament()}
@@ -3625,7 +3800,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 </div>
             )}
 
-            {!startTournament && tournamentStatus === 'Registration finished!' && (
+            {!startTournament && tournamentStatus === 'Registration finished!' && !isLeague && (
                 <button onClick={handleStartTournament} className={classes.actionButton}>
                     Start Tournament
                 </button>
@@ -3636,8 +3811,36 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 </button>
             )}
 
-            {stageLabels.length === 0 ? (
+            {stageLabels.length === 0 && !isLeague ? (
                 <h6>Tournament registration hasn't started</h6>
+            ) : isLeague ? (
+                <div style={{ paddingTop: `${fixedHeaderHeight + 16}px` }}>
+                    <LeagueBracket
+                        pairs={playoffPairs[0] || []}
+                        registeredPlayers={registeredPlayerNames}
+                        onSelectPair={(pairIdx) => {
+                            const pair = playoffPairs[0]?.[pairIdx];
+                            if (pair) {
+                                handleOpenReportGame(pair, 0, pairIdx);
+                            }
+                        }}
+                        canViewReportButton={canViewReportButtonForPair}
+                    />
+                    {authCtx.isAdmin &&
+                        tournamentStatus !== 'Tournament Finished' &&
+                        (playoffPairs[0] || []).length > 0 &&
+                        (playoffPairs[0] || []).every((p) => p.winner) && (
+                            <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
+                                <button
+                                    className={classes.actionButton}
+                                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)' }}
+                                    onClick={handleFinishLeague}
+                                >
+                                    🏆 Finish League
+                                </button>
+                            </div>
+                        )}
+                </div>
             ) : (
                 (() => {
                     const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');

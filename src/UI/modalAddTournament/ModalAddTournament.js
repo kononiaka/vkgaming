@@ -11,14 +11,22 @@ const Bracket = (props) => {
     const [date, setDate] = useState('');
     const [prizeType, setPrizeType] = useState('coins');
     const [tournamentType, setTournamentType] = useState('kick-off');
+    const isLeague = tournamentType === 'league';
     const authCtx = useContext(AuthContext);
 
-    const tournamentTypeOptions = [{ value: 'kick-off', label: 'Kick-off' }];
+    const tournamentTypeOptions = [
+        { value: 'kick-off', label: 'Kick-off' },
+        { value: 'league', label: 'League (Round-Robin)' }
+    ];
     const playoffGameCountOptions = [
         { value: '1', label: 'BO-1 (1 game)' },
         { value: '3', label: 'BO-3 (3 games)' },
         { value: '5', label: 'BO-5 (5 games)' }
     ];
+
+    useEffect(() => {
+        if (isLeague) setPrizeType('coins');
+    }, [isLeague]);
 
     useEffect(() => {
         const now = new Date();
@@ -94,7 +102,7 @@ const Bracket = (props) => {
         // Build tournament object from current values
         const objTournament = {
             name: tournamentNameRef.current.value,
-            tournamentType,
+            type: tournamentType,
             maxPlayers: tournamentPlayerRef.current.value,
             pricePull: determineTournamentPrizes(selectedPrizePool),
             coinPrizePull: prizeType === 'coins' ? determineTournamentPrizes(coinPrizePool) : null,
@@ -105,7 +113,7 @@ const Bracket = (props) => {
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
             tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
             tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
-            randomBracket: randomBracketRef.current.checked,
+            randomBracket: tournamentType === 'league' ? false : randomBracketRef.current.checked,
             status: 'Registration Started',
             players: 0,
             winners: {
@@ -117,7 +125,7 @@ const Bracket = (props) => {
 
         let playOffPairs;
 
-        if (randomBracketRef.current.checked) {
+        if (!isLeague && randomBracketRef.current.checked) {
             objTournament.bracket = {};
 
             playOffPairs = shuffleArray(
@@ -204,7 +212,7 @@ const Bracket = (props) => {
                             ))}
                         </select>
                     </div>
-                    <div>
+                    <div style={{ display: isLeague ? 'none' : '' }}>
                         <label htmlFor="prepareRandomRef">Spinning Wheel:</label>
                         <input
                             type="checkbox"
@@ -214,7 +222,7 @@ const Bracket = (props) => {
                             defaultChecked
                         />
                     </div>
-                    <div>
+                    <div style={{ display: isLeague ? 'none' : '' }}>
                         <label>Prize Type:</label>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <label
@@ -272,7 +280,7 @@ const Bracket = (props) => {
                         <label htmlFor="tournamentPricePoolCoins">Tournament Prize Pool (Coins):</label>
                         <input id="tournamentPricePoolCoins" type="number" min="0" ref={tournamentPricePoolCoinsRef} />
                     </div>
-                    <div>
+                    <div style={{ display: isLeague ? 'none' : '' }}>
                         <label htmlFor="tournamentPlayoffGames">PlayOff Games:</label>
                         <select id="tournamentPlayoffGames" defaultValue="1" ref={tournamentPlayoffGames}>
                             {playoffGameCountOptions.map((option) => (
@@ -282,7 +290,7 @@ const Bracket = (props) => {
                             ))}
                         </select>
                     </div>
-                    <div>
+                    <div style={{ display: isLeague ? 'none' : '' }}>
                         <label htmlFor="tournamentPlayoffGamesThirdPlace">Third Place Games:</label>
                         <select
                             id="tournamentPlayoffGamesThirdPlace"
@@ -296,7 +304,7 @@ const Bracket = (props) => {
                             ))}
                         </select>
                     </div>
-                    <div>
+                    <div style={{ display: isLeague ? 'none' : '' }}>
                         <label htmlFor="tournamentPlayoffGamesFinal">PlayOff Final Games:</label>
                         <select id="tournamentPlayoffGamesFinal" defaultValue="1" ref={tournamentPlayoffGamesFinal}>
                             {playoffGameCountOptions.map((option) => (
