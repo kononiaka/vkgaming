@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import StarsComponent from '../../Stars/Stars';
 import classes from './LeagueBracket.module.css';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -51,6 +52,44 @@ const renderRestartTokens = (r111, r112) => {
     );
 };
 
+// Circle-method round-robin: returns map of "team1|team2" -> round number (1-indexed)
+const buildRoundMap = (names) => {
+    const list = names.length % 2 !== 0 ? [...names, null] : [...names];
+    const size = list.length;
+    const map = {};
+    for (let r = 0; r < size - 1; r++) {
+        const rotation = [list[0]];
+        for (let i = 0; i < size - 1; i++) {
+            rotation.push(list[1 + ((i + r) % (size - 1))]);
+        }
+        for (let i = 0; i < size / 2; i++) {
+            const p1 = rotation[i];
+            const p2 = rotation[size - 1 - i];
+            if (p1 !== null && p2 !== null) {
+                map[`${p1}|${p2}`] = r + 1;
+                map[`${p2}|${p1}`] = r + 1;
+            }
+        }
+    }
+    return map;
+};
+
+// Leaderboard-based win prediction (no H2H history needed)
+const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team1Place, team2Place) => {
+    const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+    const r1 = parseFloat(team1Rating) || 0;
+    const r2 = parseFloat(team2Rating) || 0;
+    const s1 = parseFloat(team1Stars) || 0;
+    const s2 = parseFloat(team2Stars) || 0;
+    const p1 = Number(team1Place) > 0 ? Number(team1Place) : null;
+    const p2 = Number(team2Place) > 0 ? Number(team2Place) : null;
+    const placeAdv = p1 && p2 ? clamp((p2 - p1) * 1.8, -12, 12) : 0;
+    const ratingAdv = clamp((r1 - r2) * 0.04, -12, 12);
+    const starsAdv = clamp((s1 - s2) * 0.8, -4, 4);
+    const pred1 = clamp(50 + placeAdv + ratingAdv + starsAdv, 15, 85);
+    return { team1: pred1.toFixed(1), team2: (100 - pred1).toFixed(1) };
+};
+
 /**
  * LeagueBracket — display component for round-robin league tournaments.
  *
@@ -59,8 +98,36 @@ const renderRestartTokens = (r111, r112) => {
  *  onSelectPair(idx)  — called when user wants to report / view a match
  *  canViewReportButton(pair) — whether to show the report button for this pair
  */
-const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, registeredPlayers = [] }) => {
+const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, registeredPlayers = [], playersObj = {} }) => {
     const [activeTab, setActiveTab] = useState('schedule');
+    const [rankByNickname, setRankByNickname] = useState({});
+
+    // Fetch all users once and compute global leaderboard ranks (same as StartingPageContent)
+    useEffect(() => {
+        const fetchRanks = async () => {
+            try {
+                const res = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                if (!res.ok) return;
+                const data = await res.json();
+                const getLatestRating = (u) => {
+                    const r = u.ratings;
+                    if (typeof r === 'string' && r.includes(',')) return parseFloat(r.split(',').at(-1)) || 0;
+                    return parseFloat(r) || 0;
+                };
+                const sorted = Object.values(data || {})
+                    .filter((u) => u && u.ratings !== undefined)
+                    .sort((a, b) => getLatestRating(b) - getLatestRating(a));
+                const map = {};
+                sorted.forEach((u, idx) => {
+                    if (u.enteredNickname) map[u.enteredNickname] = idx + 1;
+                });
+                setRankByNickname(map);
+            } catch {
+                // silently ignore
+            }
+        };
+        fetchRanks();
+    }, []);
 
     // Compute standings from settled pairs, seeding all registered players at zero
     const computeStandings = () => {
@@ -98,6 +165,41 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
     const finished = pairs.filter((p) => p.winner).length;
     const total = pairs.length;
 
+    // Group matches into days using pair.round if available, else compute via circle method
+    const computeRoundGroups = () => {
+        if (pairs.length === 0) {
+            return [];
+        }
+        if (pairs[0]?.round != null) {
+            const groups = {};
+            pairs.forEach((pair, idx) => {
+                const r = pair.round;
+                if (!groups[r]) {
+                    groups[r] = [];
+                }
+                groups[r].push({ pair, idx });
+            });
+            return Object.keys(groups)
+                .sort((a, b) => Number(a) - Number(b))
+                .map((r) => ({ round: Number(r), items: groups[r] }));
+        }
+        // Fallback: derive rounds from team names using circle method
+        const playerNames = [...new Set(pairs.flatMap((p) => [p.team1, p.team2]).filter((n) => n && n !== 'TBD'))];
+        const roundMap = buildRoundMap(playerNames);
+        const groups = {};
+        pairs.forEach((pair, idx) => {
+            const r = roundMap[`${pair.team1}|${pair.team2}`] || 1;
+            if (!groups[r]) {
+                groups[r] = [];
+            }
+            groups[r].push({ pair, idx });
+        });
+        return Object.keys(groups)
+            .sort((a, b) => Number(a) - Number(b))
+            .map((r) => ({ round: Number(r), items: groups[r] }));
+    };
+    const roundGroups = computeRoundGroups();
+
     return (
         <div className={classes.container}>
             <div className={classes.progress}>
@@ -121,86 +223,149 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
 
             {activeTab === 'schedule' && (
                 <div className={classes.schedule}>
-                    {pairs.map((pair, idx) => {
-                        const isFinished = Boolean(pair.winner);
-                        const showBtn = canViewReportButton ? canViewReportButton(pair) : false;
-                        const inProgressGames = !isFinished
-                            ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
-                            : [];
-                        const isInProgress = inProgressGames.length > 0;
-                        return (
-                            <div
-                                key={idx}
-                                className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending}`}
-                            >
-                                <span
-                                    className={`${classes.teamName} ${pair.winner === pair.team1 ? classes.winnerName : ''}`}
-                                >
-                                    {pair.team1}
-                                </span>
+                    {roundGroups.map(({ round, items }) => (
+                        <div key={round}>
+                            <div className={classes.dayHeader}>Day {round}</div>
+                            {items.map(({ pair, idx }) => {
+                                const isFinished = Boolean(pair.winner);
+                                const showBtn = canViewReportButton ? canViewReportButton(pair) : false;
+                                const inProgressGames = !isFinished
+                                    ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
+                                    : [];
+                                const isInProgress = inProgressGames.length > 0;
 
-                                <div className={classes.centerBlock}>
-                                    {isFinished ? (
-                                        <span className={classes.score}>
-                                            {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
-                                        </span>
-                                    ) : isInProgress ? (
-                                        <span className={classes.liveTag}>LIVE</span>
-                                    ) : (
-                                        <span className={classes.vs}>vs</span>
-                                    )}
-                                    {showBtn && (
-                                        <button
-                                            className={`${classes.reportBtn} ${isFinished ? classes.reReportBtn : ''}`}
-                                            onClick={() => onSelectPair(idx)}
-                                            title={isFinished ? 'Re-report result' : 'Report result'}
-                                        >
-                                            {isFinished ? '✎' : '▶'}
-                                        </button>
-                                    )}
-                                </div>
+                                const getPlayer = (name) =>
+                                    name && name !== 'TBD'
+                                        ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
+                                        : null;
 
-                                <span
-                                    className={`${classes.teamName} ${classes.teamRight} ${pair.winner === pair.team2 ? classes.winnerName : ''}`}
-                                >
-                                    {pair.team2}
-                                </span>
+                                const getLatestRating = (ratingsStr) => {
+                                    if (!ratingsStr) return 0;
+                                    const str = String(ratingsStr);
+                                    if (str.includes(',')) return parseFloat(str.split(',').at(-1)) || 0;
+                                    return parseFloat(str) || 0;
+                                };
 
-                                {isInProgress &&
-                                    inProgressGames.map((game, gIdx) => (
-                                        <div key={gIdx} className={classes.gameDetail}>
-                                            <div className={classes.castleCard}>
-                                                {getCastleImage(game.castle1) && (
-                                                    <img
-                                                        src={getCastleImage(game.castle1)}
-                                                        alt={game.castle1}
-                                                        className={classes.castleImg}
-                                                    />
-                                                )}
-                                                <div className={classes.castleName}>{game.castle1 || '—'}</div>
-                                                <div className={classes.goldRow}>💰 {game.gold1 ?? 0}</div>
-                                                {renderRestartTokens(game.restart1_111, game.restart1_112)}
-                                            </div>
-                                            <div className={classes.gameDetailCenter}>
-                                                Game {(game.gameId ?? gIdx) + 1}
-                                            </div>
-                                            <div className={`${classes.castleCard} ${classes.castleCardRight}`}>
-                                                {getCastleImage(game.castle2) && (
-                                                    <img
-                                                        src={getCastleImage(game.castle2)}
-                                                        alt={game.castle2}
-                                                        className={classes.castleImg}
-                                                    />
-                                                )}
-                                                <div className={classes.castleName}>{game.castle2 || '—'}</div>
-                                                <div className={classes.goldRow}>💰 {game.gold2 ?? 0}</div>
-                                                {renderRestartTokens(game.restart2_111, game.restart2_112)}
-                                            </div>
+                                const p1 = getPlayer(pair.team1);
+                                const p2 = getPlayer(pair.team2);
+
+                                const stars1 =
+                                    pair.stars1 != null
+                                        ? (typeof pair.stars1 === 'string' && pair.stars1.includes(',')
+                                              ? parseFloat(pair.stars1.split(',').at(-1))
+                                              : parseFloat(pair.stars1)) || 0
+                                        : parseFloat(p1?.stars) || 0;
+                                const stars2 =
+                                    pair.stars2 != null
+                                        ? (typeof pair.stars2 === 'string' && pair.stars2.includes(',')
+                                              ? parseFloat(pair.stars2.split(',').at(-1))
+                                              : parseFloat(pair.stars2)) || 0
+                                        : parseFloat(p2?.stars) || 0;
+
+                                const place1 = rankByNickname[pair.team1] || p1?.placeInLeaderboard || null;
+                                const place2 = rankByNickname[pair.team2] || p2?.placeInLeaderboard || null;
+
+                                const rating1 = getLatestRating(pair.ratings1 ?? p1?.ratings);
+                                const rating2 = getLatestRating(pair.ratings2 ?? p2?.ratings);
+
+                                const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending}`}
+                                    >
+                                        <div className={classes.teamCell}>
+                                            <span
+                                                className={`${classes.teamName} ${pair.winner === pair.team1 ? classes.winnerName : ''}`}
+                                            >
+                                                {place1 && <span className={classes.placeTag}>#{place1}</span>}
+                                                {pair.team1}
+                                            </span>
+                                            {stars1 > 0 && (
+                                                <div className={classes.starsWrap}>
+                                                    <StarsComponent stars={stars1} />
+                                                </div>
+                                            )}
                                         </div>
-                                    ))}
-                            </div>
-                        );
-                    })}
+
+                                        <div className={classes.centerBlock}>
+                                            {isFinished ? (
+                                                <span className={classes.score}>
+                                                    {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
+                                                </span>
+                                            ) : isInProgress ? (
+                                                <span className={classes.liveTag}>LIVE</span>
+                                            ) : (
+                                                <span className={classes.vs}>vs</span>
+                                            )}
+                                            {!isFinished && (
+                                                <span className={classes.predictionRow}>
+                                                    {prediction.team1}% / {prediction.team2}%
+                                                </span>
+                                            )}
+                                            {showBtn && (
+                                                <button
+                                                    className={`${classes.reportBtn} ${isFinished ? classes.reReportBtn : ''}`}
+                                                    onClick={() => onSelectPair(idx)}
+                                                    title={isFinished ? 'Re-report result' : 'Report result'}
+                                                >
+                                                    {isFinished ? '✎' : '▶'}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
+                                            {stars2 > 0 && (
+                                                <div className={classes.starsWrap}>
+                                                    <StarsComponent stars={stars2} />
+                                                </div>
+                                            )}
+                                            <span
+                                                className={`${classes.teamName} ${classes.teamRight} ${pair.winner === pair.team2 ? classes.winnerName : ''}`}
+                                            >
+                                                {pair.team2}
+                                                {place2 && <span className={classes.placeTag}>#{place2}</span>}
+                                            </span>
+                                        </div>
+
+                                        {isInProgress &&
+                                            inProgressGames.map((game, gIdx) => (
+                                                <div key={gIdx} className={classes.gameDetail}>
+                                                    <div className={classes.castleCard}>
+                                                        {getCastleImage(game.castle1) && (
+                                                            <img
+                                                                src={getCastleImage(game.castle1)}
+                                                                alt={game.castle1}
+                                                                className={classes.castleImg}
+                                                            />
+                                                        )}
+                                                        <div className={classes.castleName}>{game.castle1 || '—'}</div>
+                                                        <div className={classes.goldRow}>💰 {game.gold1 ?? 0}</div>
+                                                        {renderRestartTokens(game.restart1_111, game.restart1_112)}
+                                                    </div>
+                                                    <div className={classes.gameDetailCenter}>
+                                                        Game {(game.gameId ?? gIdx) + 1}
+                                                    </div>
+                                                    <div className={`${classes.castleCard} ${classes.castleCardRight}`}>
+                                                        {getCastleImage(game.castle2) && (
+                                                            <img
+                                                                src={getCastleImage(game.castle2)}
+                                                                alt={game.castle2}
+                                                                className={classes.castleImg}
+                                                            />
+                                                        )}
+                                                        <div className={classes.castleName}>{game.castle2 || '—'}</div>
+                                                        <div className={classes.goldRow}>💰 {game.gold2 ?? 0}</div>
+                                                        {renderRestartTokens(game.restart2_111, game.restart2_112)}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))}
                     {pairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
                 </div>
             )}

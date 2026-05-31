@@ -358,6 +358,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 if (playersResponse.ok) {
                     const playersData = await playersResponse.json();
                     if (playersData) {
+                        playersObj = playersData;
                         const names = Object.values(playersData)
                             .map((p) => p && p.name)
                             .filter((name) => name && name.trim() !== 'TBD');
@@ -3818,6 +3819,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     <LeagueBracket
                         pairs={playoffPairs[0] || []}
                         registeredPlayers={registeredPlayerNames}
+                        playersObj={playersObj}
                         onSelectPair={(pairIdx) => {
                             const pair = playoffPairs[0]?.[pairIdx];
                             if (pair) {

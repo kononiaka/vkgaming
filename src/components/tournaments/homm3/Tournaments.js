@@ -546,6 +546,28 @@ const TournamentList = () => {
             }
 
             // Generate all round-robin pairs (N*(N-1)/2)
+            // Pre-compute round assignments via circle method
+            const buildLeagueRoundMap = (players) => {
+                const list = players.length % 2 !== 0 ? [...players, null] : [...players];
+                const size = list.length;
+                const map = {};
+                for (let r = 0; r < size - 1; r++) {
+                    const rotation = [list[0]];
+                    for (let i = 0; i < size - 1; i++) {
+                        rotation.push(list[1 + ((i + r) % (size - 1))]);
+                    }
+                    for (let i = 0; i < size / 2; i++) {
+                        const p1 = rotation[i];
+                        const p2 = rotation[size - 1 - i];
+                        if (p1 !== null && p2 !== null) {
+                            map[`${p1.name}|${p2.name}`] = r + 1;
+                            map[`${p2.name}|${p1.name}`] = r + 1;
+                        }
+                    }
+                }
+                return map;
+            };
+            const leagueRoundMap = buildLeagueRoundMap(playerList);
             const leaguePairs = [];
             for (let i = 0; i < playerList.length; i++) {
                 for (let j = i + 1; j < playerList.length; j++) {
@@ -578,6 +600,7 @@ const TournamentList = () => {
                         games,
                         ratings1: getRating(p1),
                         ratings2: getRating(p2),
+                        round: leagueRoundMap[`${p1.name}|${p2.name}`] || 1,
                         score1: 0,
                         score2: 0,
                         stage: 'League',
