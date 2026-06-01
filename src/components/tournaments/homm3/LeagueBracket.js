@@ -129,6 +129,24 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
         fetchRanks();
     }, []);
 
+    // Points for a series win based on total restarts used by the winner:
+    //   0 restarts → 3 pts | 1× 111 → 2.5 pts | 2× 111 or any 112 → 2 pts
+    const calcWinPoints = (pair, winnerTeam) => {
+        const games = Array.isArray(pair.games) ? pair.games : [];
+        const isTeam1 = winnerTeam === pair.team1;
+        let total111 = 0;
+        let total112 = 0;
+        games.forEach((g) => {
+            if (!g) return;
+            total111 += Number(isTeam1 ? g.restart1_111 : g.restart2_111) || 0;
+            total112 += Number(isTeam1 ? g.restart1_112 : g.restart2_112) || 0;
+        });
+        const totalRestarts = total111 + total112;
+        if (totalRestarts === 0) return 3;
+        if (totalRestarts === 1) return 2.5;
+        return 2;
+    };
+
     // Compute standings from settled pairs, seeding all registered players at zero
     const computeStandings = () => {
         const map = {};
@@ -145,13 +163,14 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
             if (pair.winner && pair.winner !== 'TBD') {
                 map[pair.team1].played++;
                 map[pair.team2].played++;
+                const pts = calcWinPoints(pair, pair.winner);
                 if (pair.winner === pair.team1) {
                     map[pair.team1].wins++;
-                    map[pair.team1].points += 3;
+                    map[pair.team1].points += pts;
                     map[pair.team2].losses++;
                 } else {
                     map[pair.team2].wins++;
-                    map[pair.team2].points += 3;
+                    map[pair.team2].points += pts;
                     map[pair.team1].losses++;
                 }
             }
@@ -380,7 +399,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                 <th title="Played">P</th>
                                 <th title="Wins">W</th>
                                 <th title="Losses">L</th>
-                                <th title="Points (win = 3)">Pts</th>
+                                <th title="Points (3/2.5/2 per win based on restarts)">Pts</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -403,7 +422,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                             )}
                         </tbody>
                     </table>
-                    <p className={classes.pointsNote}>3 points awarded per series win.</p>
+                    <p className={classes.pointsNote}>Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)</p>
                 </div>
             )}
         </div>
