@@ -519,6 +519,133 @@ const TournamentList = () => {
         // setSelectedTournament(null);
     };
 
+    const handleStartLeague = async (leagueTournamentId) => {
+        if (!window.confirm('Generate league schedule and start the tournament?')) return;
+        try {
+            const response = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${leagueTournamentId}/.json`
+            );
+            if (!response.ok) throw new Error('Failed to fetch tournament data');
+            const tournamentData = await response.json();
+
+            const rawGameType = tournamentData.tournamentPlayoffGames || 'bo-1';
+            const gameType =
+                rawGameType === 'BO-5' || rawGameType === 'bo-5' || rawGameType === '5'
+                    ? 'bo-5'
+                    : rawGameType === 'BO-3' || rawGameType === 'bo-3' || rawGameType === '3'
+                      ? 'bo-3'
+                      : rawGameType === 'BO-2' || rawGameType === 'bo-2' || rawGameType === '2'
+                        ? 'bo-2'
+                        : 'bo-1';
+            const numGames = gameType === 'bo-5' ? 5 : gameType === 'bo-3' ? 3 : gameType === 'bo-2' ? 2 : 1;
+
+            const playerList = Object.values(tournamentData.players || {}).filter(
+                (p) => p && p.name && p.name.trim() !== '' && p.name.trim() !== 'TBD'
+            );
+            if (playerList.length < 2) {
+                alert('Not enough players to start the league (minimum 2).');
+                return;
+            }
+
+            // Generate all round-robin pairs (N*(N-1)/2)
+            // Pre-compute round assignments via circle method
+            const buildLeagueRoundMap = (players) => {
+                const list = players.length % 2 !== 0 ? [...players, null] : [...players];
+                const size = list.length;
+                const map = {};
+                for (let r = 0; r < size - 1; r++) {
+                    const rotation = [list[0]];
+                    for (let i = 0; i < size - 1; i++) {
+                        rotation.push(list[1 + ((i + r) % (size - 1))]);
+                    }
+                    for (let i = 0; i < size / 2; i++) {
+                        const p1 = rotation[i];
+                        const p2 = rotation[size - 1 - i];
+                        if (p1 !== null && p2 !== null) {
+                            map[`${p1.name}|${p2.name}`] = r + 1;
+                            map[`${p2.name}|${p1.name}`] = r + 1;
+                        }
+                    }
+                }
+                return map;
+            };
+            const leagueRoundMap = buildLeagueRoundMap(playerList);
+            const leaguePairs = [];
+            for (let i = 0; i < playerList.length; i++) {
+                for (let j = i + 1; j < playerList.length; j++) {
+                    const p1 = playerList[i];
+                    const p2 = playerList[j];
+                    const getRating = (p) =>
+                        p.ratings
+                            ? typeof p.ratings === 'string' && p.ratings.includes(',')
+                                ? p.ratings.split(',').pop().trim()
+                                : String(p.ratings)
+                            : '0';
+                    const games = Array.from({ length: numGames }, (_, idx) => ({
+                        castle1: '',
+                        castle2: '',
+                        castleWinner: '',
+                        gameId: idx,
+                        gameStatus: 'Not Started',
+                        gameWinner: '',
+                        color1: 'red',
+                        color2: 'blue',
+                        gold1: 0,
+                        gold2: 0,
+                        restart1_111: 0,
+                        restart1_112: 0,
+                        restart2_111: 0,
+                        restart2_112: 0
+                    }));
+                    leaguePairs.push({
+                        gameStatus: 'Not Started',
+                        games,
+                        ratings1: getRating(p1),
+                        ratings2: getRating(p2),
+                        round: leagueRoundMap[`${p1.name}|${p2.name}`] || 1,
+                        score1: 0,
+                        score2: 0,
+                        stage: 'League',
+                        stars1: p1.stars || 0,
+                        stars2: p2.stars || 0,
+                        team1: p1.name,
+                        team2: p2.name,
+                        type: gameType,
+                        winner: null,
+                        color1: 'red',
+                        color2: 'blue'
+                    });
+                }
+            }
+
+            // Save as single-stage bracket (playoffPairs[0]) + update status
+            const bracketRes = await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${leagueTournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify([leaguePairs]),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) throw new Error('Failed to save league pairs');
+
+            await fetch(
+                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${leagueTournamentId}/status.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            alert(`League started! Generated ${leaguePairs.length} matches.`);
+            window.location.reload();
+        } catch (error) {
+            console.error('Error starting league:', error);
+            alert('Error starting league: ' + error.message);
+        }
+    };
+
     const handleStartTournament = async (preBracketPairs) => {
         // This will be called when spinning wheel completes
 
@@ -842,7 +969,12 @@ const TournamentList = () => {
         setTournamentWinners(currentTournamentWinnersObject);
 
         // Check if this is a "Registration finished!" status and tournament has randomBracket enabled
-        if (currentTournamentStatus === 'Registration finished!' && tournament && tournament.randomBracket) {
+        if (
+            currentTournamentStatus === 'Registration finished!' &&
+            tournament &&
+            tournament.randomBracket &&
+            tournament.type !== 'league'
+        ) {
             // Show spinning wheel directly
             setTournamentPlayers(tournament.players || {});
             setShowSpinningWheel(true);
@@ -1018,8 +1150,23 @@ const TournamentList = () => {
                                             )
                                         }
                                     >
-                                        🏆 View Bracket
+                                        {tournament.type === 'league' ? '⚽ View League' : '🏆 View Bracket'}
                                     </button>
+
+                                    {authCtx.isAdmin &&
+                                        tournament.type === 'league' &&
+                                        tournament.status === 'Registration finished!' && (
+                                            <button
+                                                className={`${classes.btn} ${classes.btnPrimary}`}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                                                    borderColor: '#22c55e'
+                                                }}
+                                                onClick={() => handleStartLeague(tournament.id)}
+                                            >
+                                                ▶ Start League
+                                            </button>
+                                        )}
 
                                     {'players' in tournament &&
                                     Object.keys(tournament.players).length < tournament.maxPlayers ? (
@@ -1209,7 +1356,7 @@ const TournamentList = () => {
                                         >
                                             ✅ Tournament is Full!
                                         </p>
-                                        {authCtx.isAdmin && (
+                                        {authCtx.isAdmin && tournament.type !== 'league' && (
                                             <button
                                                 className={`${classes.btn} ${classes.btnPrimary}`}
                                                 style={{
