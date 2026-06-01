@@ -107,11 +107,15 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
         const fetchRanks = async () => {
             try {
                 const res = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
-                if (!res.ok) return;
+                if (!res.ok) {
+                    return;
+                }
                 const data = await res.json();
                 const getLatestRating = (u) => {
                     const r = u.ratings;
-                    if (typeof r === 'string' && r.includes(',')) return parseFloat(r.split(',').at(-1)) || 0;
+                    if (typeof r === 'string' && r.includes(',')) {
+                        return parseFloat(r.split(',').at(-1)) || 0;
+                    }
                     return parseFloat(r) || 0;
                 };
                 const sorted = Object.values(data || {})
@@ -119,7 +123,9 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                     .sort((a, b) => getLatestRating(b) - getLatestRating(a));
                 const map = {};
                 sorted.forEach((u, idx) => {
-                    if (u.enteredNickname) map[u.enteredNickname] = idx + 1;
+                    if (u.enteredNickname) {
+                        map[u.enteredNickname] = idx + 1;
+                    }
                 });
                 setRankByNickname(map);
             } catch {
@@ -137,13 +143,19 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
         let total111 = 0;
         let total112 = 0;
         games.forEach((g) => {
-            if (!g) return;
+            if (!g) {
+                return;
+            }
             total111 += Number(isTeam1 ? g.restart1_111 : g.restart2_111) || 0;
             total112 += Number(isTeam1 ? g.restart1_112 : g.restart2_112) || 0;
         });
         const totalRestarts = total111 + total112;
-        if (totalRestarts === 0) return 3;
-        if (totalRestarts === 1) return 2.5;
+        if (totalRestarts === 0) {
+            return 3;
+        }
+        if (totalRestarts === 1) {
+            return 2.5;
+        }
         return 2;
     };
 
@@ -152,26 +164,36 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
         const map = {};
         registeredPlayers.forEach((name) => {
             if (name) {
-                map[name] = { played: 0, wins: 0, losses: 0, points: 0 };
+                map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
         });
         pairs.forEach((pair) => {
-            if (pair.team1 && pair.team1 !== 'TBD' && !map[pair.team1])
-                map[pair.team1] = { played: 0, wins: 0, losses: 0, points: 0 };
-            if (pair.team2 && pair.team2 !== 'TBD' && !map[pair.team2])
-                map[pair.team2] = { played: 0, wins: 0, losses: 0, points: 0 };
+            if (pair.team1 && pair.team1 !== 'TBD' && !map[pair.team1]) {
+                map[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+            }
+            if (pair.team2 && pair.team2 !== 'TBD' && !map[pair.team2]) {
+                map[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+            }
             if (pair.winner && pair.winner !== 'TBD') {
                 map[pair.team1].played++;
                 map[pair.team2].played++;
-                const pts = calcWinPoints(pair, pair.winner);
-                if (pair.winner === pair.team1) {
-                    map[pair.team1].wins++;
-                    map[pair.team1].points += pts;
-                    map[pair.team2].losses++;
+                if (pair.winner === 'draw') {
+                    // BO-2 draw: 1 point each
+                    map[pair.team1].draws++;
+                    map[pair.team1].points += 1;
+                    map[pair.team2].draws++;
+                    map[pair.team2].points += 1;
                 } else {
-                    map[pair.team2].wins++;
-                    map[pair.team2].points += pts;
-                    map[pair.team1].losses++;
+                    const pts = pair.type === 'bo-2' ? 2 : calcWinPoints(pair, pair.winner);
+                    if (pair.winner === pair.team1) {
+                        map[pair.team1].wins++;
+                        map[pair.team1].points += pts;
+                        map[pair.team2].losses++;
+                    } else {
+                        map[pair.team2].wins++;
+                        map[pair.team2].points += pts;
+                        map[pair.team1].losses++;
+                    }
                 }
             }
         });
@@ -181,6 +203,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
     };
 
     const standings = computeStandings();
+    const hasBo2 = pairs.some((p) => p.type === 'bo-2');
     const finished = pairs.filter((p) => p.winner).length;
     const total = pairs.length;
 
@@ -259,9 +282,13 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                         : null;
 
                                 const getLatestRating = (ratingsStr) => {
-                                    if (!ratingsStr) return 0;
+                                    if (!ratingsStr) {
+                                        return 0;
+                                    }
                                     const str = String(ratingsStr);
-                                    if (str.includes(',')) return parseFloat(str.split(',').at(-1)) || 0;
+                                    if (str.includes(',')) {
+                                        return parseFloat(str.split(',').at(-1)) || 0;
+                                    }
                                     return parseFloat(str) || 0;
                                 };
 
@@ -398,8 +425,9 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                 <th>Player</th>
                                 <th title="Played">P</th>
                                 <th title="Wins">W</th>
+                                {hasBo2 && <th title="Draws">D</th>}
                                 <th title="Losses">L</th>
-                                <th title="Points (3/2.5/2 per win based on restarts)">Pts</th>
+                                <th title="Points">Pts</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -409,20 +437,25 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                     <td className={classes.playerCell}>{s.name}</td>
                                     <td>{s.played}</td>
                                     <td>{s.wins}</td>
+                                    {hasBo2 && <td>{s.draws || 0}</td>}
                                     <td>{s.losses}</td>
                                     <td className={classes.pointsCell}>{s.points}</td>
                                 </tr>
                             ))}
                             {standings.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className={classes.emptyNote}>
+                                    <td colSpan={hasBo2 ? 7 : 6} className={classes.emptyNote}>
                                         No completed matches yet.
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
-                    <p className={classes.pointsNote}>Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)</p>
+                    <p className={classes.pointsNote}>
+                        {hasBo2
+                            ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts'
+                            : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
+                    </p>
                 </div>
             )}
         </div>

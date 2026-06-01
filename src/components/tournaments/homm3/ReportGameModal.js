@@ -175,6 +175,9 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
         if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
             return 3;
         }
+        if (normalized === 'bo-2' || normalized === '2' || normalized === 'bo2') {
+            return 2;
+        }
         return 1;
     };
 
@@ -548,8 +551,10 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
 
         setGameResults(updated);
 
-        // Auto-select winner if required wins are reached.
-        if (team1Wins >= requiredWins) {
+        // Auto-select winner if required wins are reached; detect draw for bo-2 (1-1).
+        if (bestOf === 2 && team1Wins === 1 && team2Wins === 1) {
+            setSelectedWinner('draw');
+        } else if (team1Wins >= requiredWins) {
             setSelectedWinner(pair.team1);
         } else if (team2Wins >= requiredWins) {
             setSelectedWinner(pair.team2);
@@ -600,7 +605,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
             }
 
             // If overall winner is selected, validate the series is properly concluded
-            if (selectedWinner) {
+            if (selectedWinner && selectedWinner !== 'draw') {
                 const hasValidSeriesWinner =
                     (score1 === requiredWins && score2 < requiredWins) ||
                     (score2 === requiredWins && score1 < requiredWins);
@@ -610,6 +615,10 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                     );
                     return;
                 }
+            }
+            if (selectedWinner === 'draw' && !(score1 === 1 && score2 === 1 && bestOf === 2)) {
+                alert('Draw is only valid for BO-2 with a 1-1 score.');
+                return;
             }
         } else {
             // Validate bo-1

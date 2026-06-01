@@ -1810,21 +1810,26 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         const standingsMap = {};
         pairs.forEach((pair) => {
             if (!standingsMap[pair.team1]) {
-                standingsMap[pair.team1] = { played: 0, wins: 0, losses: 0, points: 0 };
+                standingsMap[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
             if (!standingsMap[pair.team2]) {
-                standingsMap[pair.team2] = { played: 0, wins: 0, losses: 0, points: 0 };
+                standingsMap[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
             if (pair.winner) {
                 standingsMap[pair.team1].played++;
                 standingsMap[pair.team2].played++;
-                if (pair.winner === pair.team1) {
+                if (pair.winner === 'draw') {
+                    standingsMap[pair.team1].draws++;
+                    standingsMap[pair.team1].points += 1;
+                    standingsMap[pair.team2].draws++;
+                    standingsMap[pair.team2].points += 1;
+                } else if (pair.winner === pair.team1) {
                     standingsMap[pair.team1].wins++;
-                    standingsMap[pair.team1].points += 3;
+                    standingsMap[pair.team1].points += pair.type === 'bo-2' ? 2 : 3;
                     standingsMap[pair.team2].losses++;
                 } else {
                     standingsMap[pair.team2].wins++;
-                    standingsMap[pair.team2].points += 3;
+                    standingsMap[pair.team2].points += pair.type === 'bo-2' ? 2 : 3;
                     standingsMap[pair.team1].losses++;
                 }
             }
@@ -1844,7 +1849,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const standingsSummary = standings
             .slice(0, 3)
-            .map((s, i) => `${i + 1}. ${s.name} — ${s.points} pts (${s.wins}W / ${s.losses}L)`)
+            .map((s, i) => {
+                const drawPart = s.draws > 0 ? ` / ${s.draws}D` : '';
+                return `${i + 1}. ${s.name} — ${s.points} pts (${s.wins}W${drawPart} / ${s.losses}L)`;
+            })
             .join('\n');
 
         const confirmed = window.confirm(
@@ -2282,7 +2290,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             {
                 const currentStage = stageLabels[selectedStageIndex];
                 const isResume = !!(latestStage && latestStage !== 'submitted');
-                const hasWinner = !!reportData.winner;
+                const hasWinner = !!reportData.winner && reportData.winner !== 'draw';
                 const castleGames = reportData.games.filter(
                     (g) => g.castle1 && g.castle2 && g.gameWinner && g.gameStatus !== 'Processed'
                 );
@@ -2413,9 +2421,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                 if (!hasWinner) {
                     lines.push('');
-                    lines.push(
-                        'No series winner selected — ratings, game post, prizes and bracket update will be skipped.'
-                    );
+                    if (reportData.winner === 'draw') {
+                        lines.push('  • Draw (1-1) — ELO ratings and player stats will NOT be updated.');
+                        if (!skipGamePost) {
+                            lines.push('  • Post game record to /games/heroes3/ (with winner: draw)');
+                        }
+                    } else {
+                        lines.push(
+                            'No series winner selected — ratings, game post, prizes and bracket update will be skipped.'
+                        );
+                    }
                 }
 
                 if (hasWinner) {
@@ -2753,9 +2768,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             // If overall winner is selected, handle ratings, game posting, and promotions
             if (reportData.winner) {
+                const isDraw = reportData.winner === 'draw';
                 // Update player ratings and stats (each writes its own checkpoint via onCheckpoint callback)
                 let ratingResult = null;
-                if (!skipRatings || !skipPlayerStats) {
+                if (!isDraw && (!skipRatings || !skipPlayerStats)) {
                     const winnerId = await lookForUserId(reportData.winner);
                     ratingResult = await updatePlayerRatings(pair.team1, pair.team2, winnerId, {
                         skipRatings,

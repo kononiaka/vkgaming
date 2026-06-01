@@ -530,12 +530,14 @@ const TournamentList = () => {
 
             const rawGameType = tournamentData.tournamentPlayoffGames || 'bo-1';
             const gameType =
-                rawGameType === 'BO-5' || rawGameType === 'bo-5'
+                rawGameType === 'BO-5' || rawGameType === 'bo-5' || rawGameType === '5'
                     ? 'bo-5'
-                    : rawGameType === 'BO-3' || rawGameType === 'bo-3'
+                    : rawGameType === 'BO-3' || rawGameType === 'bo-3' || rawGameType === '3'
                       ? 'bo-3'
-                      : 'bo-1';
-            const numGames = gameType === 'bo-5' ? 5 : gameType === 'bo-3' ? 3 : 1;
+                      : rawGameType === 'BO-2' || rawGameType === 'bo-2' || rawGameType === '2'
+                        ? 'bo-2'
+                        : 'bo-1';
+            const numGames = gameType === 'bo-5' ? 5 : gameType === 'bo-3' ? 3 : gameType === 'bo-2' ? 2 : 1;
 
             const playerList = Object.values(tournamentData.players || {}).filter(
                 (p) => p && p.name && p.name.trim() !== '' && p.name.trim() !== 'TBD'

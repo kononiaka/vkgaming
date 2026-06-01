@@ -23,6 +23,11 @@ const Bracket = (props) => {
         { value: '3', label: 'BO-3 (3 games)' },
         { value: '5', label: 'BO-5 (5 games)' }
     ];
+    const leagueGameCountOptions = [
+        { value: '1', label: 'BO-1 (1 game per match)' },
+        { value: '2', label: 'BO-2 (2 games, draw possible)' },
+        { value: '3', label: 'BO-3 (3 games per match)' }
+    ];
 
     useEffect(() => {
         if (isLeague) setPrizeType('coins');
@@ -280,10 +285,10 @@ const Bracket = (props) => {
                         <label htmlFor="tournamentPricePoolCoins">Tournament Prize Pool (Coins):</label>
                         <input id="tournamentPricePoolCoins" type="number" min="0" ref={tournamentPricePoolCoinsRef} />
                     </div>
-                    <div style={{ display: isLeague ? 'none' : '' }}>
-                        <label htmlFor="tournamentPlayoffGames">PlayOff Games:</label>
+                    <div>
+                        <label htmlFor="tournamentPlayoffGames">{isLeague ? 'Match Type:' : 'PlayOff Games:'}</label>
                         <select id="tournamentPlayoffGames" defaultValue="1" ref={tournamentPlayoffGames}>
-                            {playoffGameCountOptions.map((option) => (
+                            {(isLeague ? leagueGameCountOptions : playoffGameCountOptions).map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
                                 </option>
