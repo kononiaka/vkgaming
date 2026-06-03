@@ -1,5 +1,4 @@
 import { useContext, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../store/auth-context';
 
 const TWITCH_AUTH_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/twitchAuth';
@@ -7,11 +6,12 @@ const FIREBASE_API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
 
 const TwitchCallback = () => {
     const authCtx = useContext(AuthContext);
-    const navigate = useNavigate();
     const handled = useRef(false);
 
     useEffect(() => {
-        if (handled.current) return;
+        if (handled.current) {
+            return;
+        }
         handled.current = true;
 
         const params = new URLSearchParams(window.location.search);
@@ -20,14 +20,18 @@ const TwitchCallback = () => {
         const error = params.get('error');
 
         if (error) {
-            authCtx.setNotificationShown(true, `Twitch login cancelled: ${error}`, 'error', 5);
-            navigate('/auth');
+            const message = `Twitch login cancelled: ${error}`;
+            sessionStorage.setItem('auth_error_message', message);
+            authCtx.setNotificationShown(true, message, 'error', 5);
+            window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
             return;
         }
 
         if (!code) {
-            authCtx.setNotificationShown(true, 'Twitch login failed: missing code.', 'error', 5);
-            navigate('/auth');
+            const message = 'Twitch login failed: missing code.';
+            sessionStorage.setItem('auth_error_message', message);
+            authCtx.setNotificationShown(true, message, 'error', 5);
+            window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
             return;
         }
 
@@ -35,8 +39,10 @@ const TwitchCallback = () => {
         const savedState = sessionStorage.getItem('twitch_oauth_state');
         sessionStorage.removeItem('twitch_oauth_state');
         if (!savedState || savedState !== state) {
-            authCtx.setNotificationShown(true, 'Twitch login failed: invalid state.', 'error', 5);
-            navigate('/auth');
+            const message = 'Twitch login failed: invalid state.';
+            sessionStorage.setItem('auth_error_message', message);
+            authCtx.setNotificationShown(true, message, 'error', 5);
+            window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
             return;
         }
 
@@ -114,16 +120,18 @@ const TwitchCallback = () => {
                     }
                 }
 
-                navigate('/');
+                window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/`;
             } catch (err) {
                 console.error('Twitch OAuth error:', err);
-                authCtx.setNotificationShown(true, `Twitch login failed: ${err.message}`, 'error', 5);
-                navigate('/auth');
+                const message = `Twitch login failed: ${err.message}`;
+                sessionStorage.setItem('auth_error_message', message);
+                authCtx.setNotificationShown(true, message, 'error', 5);
+                window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
             }
         };
 
         doAuth();
-    }, [authCtx, navigate]);
+    }, [authCtx]);
 
     return (
         <div style={{ textAlign: 'center', marginTop: '5rem', color: '#00ffff', fontSize: '1.3rem' }}>

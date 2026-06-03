@@ -23,3 +23,6 @@ src/.env
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Firebase local debug output can contain sensitive tokens/keys
+functions/firebase-debug.log

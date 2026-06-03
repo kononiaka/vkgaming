@@ -1,4 +1,4 @@
-import { useContext, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 import { addCoinsToUser } from '../../api/api';
@@ -21,6 +21,14 @@ const AuthForm = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
+
+    useEffect(() => {
+        const pendingAuthError = sessionStorage.getItem('auth_error_message');
+        if (pendingAuthError) {
+            authCtx.setNotificationShown(true, pendingAuthError, 'error', 7);
+            sessionStorage.removeItem('auth_error_message');
+        }
+    }, [authCtx]);
 
     const switchAuthModeHandler = () => {
         setIsLogin((prevState) => !prevState);

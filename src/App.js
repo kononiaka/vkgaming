@@ -22,6 +22,11 @@ import classes from './App.module.css';
 
 function App() {
     const authCtx = useContext(AuthContext);
+    const isTwitchCallback = window.location.pathname.endsWith('/auth/twitch/callback');
+
+    if (isTwitchCallback) {
+        return <TwitchCallback />;
+    }
 
     return (
         <div className={classes.main}>
