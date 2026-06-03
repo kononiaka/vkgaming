@@ -961,6 +961,68 @@ const PlayerDetails = () => {
                     </div>
 
                     <div className={classes.section}>
+                        <h3 className={classes.sectionTitle}>🌐 Social Links</h3>
+                        <div className={classes.socialLinks}>
+                            {[
+                                {
+                                    key: 'twitch',
+                                    label: '📺 Twitch',
+                                    color: '#9146FF',
+                                    bg: 'rgba(145,70,255,0.1)',
+                                    fallback: (v) => `https://twitch.tv/${v}`
+                                },
+                                {
+                                    key: 'youtube',
+                                    label: '🎥 YouTube',
+                                    color: '#FF0000',
+                                    bg: 'rgba(255,0,0,0.1)',
+                                    fallback: (v) => `https://youtube.com/${v}`
+                                },
+                                {
+                                    key: 'telegram',
+                                    label: '💬 Telegram',
+                                    color: '#229ED9',
+                                    bg: 'rgba(34,158,217,0.1)',
+                                    fallback: (v) => `https://t.me/${v}`
+                                },
+                                {
+                                    key: 'discord',
+                                    label: '🎮 Discord',
+                                    color: '#5865F2',
+                                    bg: 'rgba(88,101,242,0.1)',
+                                    fallback: (v) => `https://discord.com/users/${v}`
+                                }
+                            ].map(({ key, label, color, bg, fallback }) =>
+                                player[key] ? (
+                                    <a
+                                        key={key}
+                                        href={player[key].startsWith('http') ? player[key] : fallback(player[key])}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={classes.socialLink}
+                                        style={{ borderColor: color, color, background: bg }}
+                                    >
+                                        {label}
+                                    </a>
+                                ) : (
+                                    <span
+                                        key={key}
+                                        className={classes.socialLink}
+                                        style={{
+                                            borderColor: '#555',
+                                            color: '#777',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            cursor: 'default'
+                                        }}
+                                    >
+                                        {label}: —
+                                    </span>
+                                )
+                            )}
+                        </div>
+                    </div>
+
+                    <div className={classes.section}>
                         <h3 className={classes.sectionTitle}>🔥 Recent Streak</h3>
                         <div className={classes.streak}>
                             {streak.length === 0 ? (

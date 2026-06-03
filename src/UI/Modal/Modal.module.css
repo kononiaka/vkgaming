@@ -12,7 +12,7 @@
 .modal {
     position: fixed;
     top: 50vh;
-    font-size: 10px;
+    font-size: 14px;
     left: calc(50% + 35rem);
     width: 35em;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
