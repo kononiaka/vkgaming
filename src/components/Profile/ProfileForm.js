@@ -17,6 +17,9 @@ const ProfileForm = () => {
     const [avatarBase64, setAvatarBase64] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [daUsername, setDaUsername] = useState('');
+    const [socialLinks, setSocialLinks] = useState({ twitch: '', youtube: '', telegram: '', discord: '' });
+    const [hotaUsername, setHotaUsername] = useState('');
+    const [hotaVerifyState, setHotaVerifyState] = useState(null);
     const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
 
     let { userNickName } = authCtx;
@@ -48,6 +51,13 @@ const ProfileForm = () => {
                     authCtx.score = playerScore;
                     setPlayerObj(playerFromDB[0]);
                     setDaUsername(playerFromDB[0].daUsername || '');
+                    setHotaUsername(playerFromDB[0].hotaUsername || '');
+                    setSocialLinks({
+                        twitch: playerFromDB[0].twitch || '',
+                        youtube: playerFromDB[0].youtube || '',
+                        telegram: playerFromDB[0].telegram || '',
+                        discord: playerFromDB[0].discord || ''
+                    });
                     setIsLoading(true);
                 } else {
                     setPlayerObj(null);
@@ -178,6 +188,66 @@ const ProfileForm = () => {
             authCtx.setNotificationShown(true, 'Donation Alerts username saved!', 'success', 3);
         } catch (err) {
             authCtx.setNotificationShown(true, 'Failed to save DA username.', 'error', 5);
+        }
+    };
+
+    const verifyHotaUsername = async () => {
+        if (!hotaUsername.trim()) return;
+        setHotaVerifyState('loading');
+        try {
+            const res = await fetch('https://us-central1-test-prod-app-81915.cloudfunctions.net/hotaSearch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: { query: hotaUsername.trim() } })
+            });
+            const json = await res.json();
+            const results = json.result && json.result.results;
+            const match = Array.isArray(results)
+                ? results.find((p) => p.username.toLowerCase() === hotaUsername.trim().toLowerCase())
+                : null;
+            if (!match) {
+                setHotaVerifyState({ found: false });
+                return;
+            }
+            setHotaVerifyState({
+                found: true,
+                rating: match.rating,
+                games: match.total_games
+            });
+        } catch (err) {
+            console.warn('hotameta verify error:', err);
+            setHotaVerifyState({ found: false });
+        }
+    };
+
+    const saveHotaUsername = async () => {
+        try {
+            await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ hotaUsername: hotaUsername.trim() }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            authCtx.setNotificationShown(true, 'HotA username saved!', 'success', 3);
+        } catch {
+            authCtx.setNotificationShown(true, 'Failed to save HotA username.', 'error', 5);
+        }
+    };
+
+    const saveSocialLinks = async () => {
+        try {
+            await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    twitch: socialLinks.twitch.trim(),
+                    youtube: socialLinks.youtube.trim(),
+                    telegram: socialLinks.telegram.trim(),
+                    discord: socialLinks.discord.trim()
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            authCtx.setNotificationShown(true, 'Social links saved!', 'success', 3);
+        } catch (err) {
+            authCtx.setNotificationShown(true, 'Failed to save social links.', 'error', 5);
         }
     };
 
@@ -346,22 +416,32 @@ const ProfileForm = () => {
                     <div className={classes.socialSection}>
                         <h3 className={classes.sectionTitle}>🌐 Social Links</h3>
                         <div className={classes.socialGrid}>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>📺 Twitch:</span>
-                                <span className={classes.socialValue}>{playerObj.twitch || 'N/A'}</span>
-                            </div>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>🎥 Youtube:</span>
-                                <span className={classes.socialValue}>{playerObj.youtube || 'N/A'}</span>
-                            </div>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>💬 Telegram:</span>
-                                <span className={classes.socialValue}>{playerObj.telegram || 'N/A'}</span>
-                            </div>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>🎮 Discord:</span>
-                                <span className={classes.socialValue}>{playerObj.discord || 'N/A'}</span>
-                            </div>
+                            {['twitch', 'youtube', 'telegram', 'discord'].map((key) => (
+                                <div className={classes.socialItem} key={key}>
+                                    <span className={classes.socialLabel}>
+                                        {key === 'twitch'
+                                            ? '📺'
+                                            : key === 'youtube'
+                                              ? '🎥'
+                                              : key === 'telegram'
+                                                ? '💬'
+                                                : '🎮'}{' '}
+                                        {key.charAt(0).toUpperCase() + key.slice(1)}:
+                                    </span>
+                                    {playerObj[key] ? (
+                                        <a
+                                            href={playerObj[key]}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={classes.socialLink}
+                                        >
+                                            {playerObj[key]}
+                                        </a>
+                                    ) : (
+                                        <span className={classes.socialValue}>N/A</span>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -392,6 +472,106 @@ const ProfileForm = () => {
                 <div className={classes.formAction}>
                     <button type="button" onClick={saveDaUsername} className={classes.submitBtn}>
                         💾 Save DA Username
+                    </button>
+                </div>
+            </div>
+
+            <div className={classes.passwordForm}>
+                <h3 className={classes.formTitle}>⚔️ HotA Username</h3>
+                <p style={{ marginBottom: '0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
+                    Link your HotA lobby nickname to show live stats on your public profile.
+                </p>
+                <div className={classes.formControl}>
+                    <label htmlFor="hota-username">HotA Nickname</label>
+                    <input
+                        type="text"
+                        id="hota-username"
+                        value={hotaUsername}
+                        onChange={(e) => {
+                            setHotaUsername(e.target.value);
+                            setHotaVerifyState(null);
+                        }}
+                        placeholder="e.g. Sandro16"
+                    />
+                </div>
+                <div
+                    className={classes.formAction}
+                    style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}
+                >
+                    <button
+                        type="button"
+                        onClick={verifyHotaUsername}
+                        className={classes.submitBtn}
+                        disabled={!hotaUsername.trim() || hotaVerifyState === 'loading'}
+                    >
+                        {hotaVerifyState === 'loading' ? '🔍 Verifying...' : '🔍 Verify on hotameta'}
+                    </button>
+                    {hotaVerifyState &&
+                        hotaVerifyState !== 'loading' &&
+                        (hotaVerifyState.found ? (
+                            <div
+                                style={{
+                                    color: '#39d353',
+                                    fontSize: '0.9rem',
+                                    background: 'rgba(57,211,83,0.1)',
+                                    border: '1px solid #39d353',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem'
+                                }}
+                            >
+                                ✅ Found: <strong>{hotaUsername}</strong> — {hotaVerifyState.rating} rating ·{' '}
+                                {hotaVerifyState.games} games
+                            </div>
+                        ) : (
+                            <div
+                                style={{
+                                    color: '#ff5f5f',
+                                    fontSize: '0.9rem',
+                                    background: 'rgba(255,95,95,0.1)',
+                                    border: '1px solid #ff5f5f',
+                                    borderRadius: '6px',
+                                    padding: '0.5rem 0.75rem'
+                                }}
+                            >
+                                ❌ Player not found on hotameta. Check the nickname spelling.
+                            </div>
+                        ))}
+                    <button
+                        type="button"
+                        onClick={saveHotaUsername}
+                        className={classes.submitBtn}
+                        disabled={!hotaVerifyState || hotaVerifyState === 'loading' || !hotaVerifyState.found}
+                    >
+                        💾 Save HotA Username
+                    </button>
+                </div>
+            </div>
+
+            <div className={classes.passwordForm}>
+                <h3 className={classes.formTitle}>🌐 Social Links</h3>
+                <p style={{ marginBottom: '0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
+                    Add your social links so others can find you. These are visible on your public profile.
+                </p>
+                {[
+                    { key: 'twitch', label: '📺 Twitch URL', placeholder: 'https://twitch.tv/your_channel' },
+                    { key: 'youtube', label: '🎥 YouTube URL', placeholder: 'https://youtube.com/@your_channel' },
+                    { key: 'telegram', label: '💬 Telegram URL', placeholder: 'https://t.me/your_username' },
+                    { key: 'discord', label: '🎮 Discord URL', placeholder: 'https://discord.gg/your_server' }
+                ].map(({ key, label, placeholder }) => (
+                    <div className={classes.formControl} key={key}>
+                        <label htmlFor={`social-${key}`}>{label}</label>
+                        <input
+                            type="url"
+                            id={`social-${key}`}
+                            value={socialLinks[key]}
+                            onChange={(e) => setSocialLinks((prev) => ({ ...prev, [key]: e.target.value }))}
+                            placeholder={placeholder}
+                        />
+                    </div>
+                ))}
+                <div className={classes.formAction}>
+                    <button type="button" onClick={saveSocialLinks} className={classes.submitBtn}>
+                        💾 Save Social Links
                     </button>
                 </div>
             </div>

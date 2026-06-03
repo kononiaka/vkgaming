@@ -27,7 +27,8 @@
     text-decoration: none;
     margin-left: 10px;
     margin-right: 10px;
-    font-size: 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
     transition: all 0.2s ease;
 }
@@ -69,8 +70,8 @@
 .navLink-dropdown-statistic-item {
     border: 2px solid #00ffff;
     width: 100%;
-    padding: 8px;
-    font-size: 9px;
+    padding: 8px 12px;
+    font-size: 13px;
     text-decoration: none;
     display: block;
     color: #00ffff;
@@ -94,8 +95,8 @@
 .navLink-dropdown-item {
     border: 2px solid #00ffff;
     width: 100%;
-    padding: 8px;
-    font-size: 9px;
+    padding: 8px 12px;
+    font-size: 13px;
     text-decoration: none;
     display: block;
     color: #00ffff;
@@ -177,7 +178,8 @@
     color: #ffffff;
     text-transform: uppercase;
     padding: 4px 0px;
-    font-size: 6px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
     position: relative;
     text-align: center;
     letter-spacing: 2px;

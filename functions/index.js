@@ -3,7 +3,9 @@ const admin = require('firebase-admin');
 const crypto = require('crypto');
 const Stripe = require('stripe');
 
-admin.initializeApp();
+admin.initializeApp({
+    databaseURL: 'https://test-prod-app-81915-default-rtdb.firebaseio.com'
+});
 const db = admin.database();
 const DA_CLIENT_ID = '17904';
 const OAUTH_CALLBACK_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/oauthCallback';
@@ -438,4 +440,172 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
 
     console.log(`Stripe: awarded ${coins} coins to user ${dbUserId} (${nickname}) for session ${session.id}`);
     return res.status(200).send('ok');
+});
+
+// ---------------------------------------------------------------------------
+// twitchAuth — exchanges a Twitch OAuth authorization code for a Firebase
+// custom token. Called from the React frontend after Twitch redirects back.
+// ---------------------------------------------------------------------------
+// hotaSearch — proxy to hotameta.com/api/search (no CORS on their end)
+// ---------------------------------------------------------------------------
+exports.hotaSearch = functions.https.onCall(async (data) => {
+    const { query } = data;
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+        throw new functions.https.HttpsError('invalid-argument', 'query must be at least 2 characters');
+    }
+    const https = require('https');
+    const url = `https://hotameta.com/api/search?q=${encodeURIComponent(query.trim())}`;
+    return new Promise((resolve, reject) => {
+        https
+            .get(url, (res) => {
+                let body = '';
+                res.on('data', (chunk) => {
+                    body += chunk;
+                });
+                res.on('end', () => {
+                    try {
+                        resolve({ results: JSON.parse(body) });
+                    } catch (e) {
+                        reject(new functions.https.HttpsError('internal', 'Failed to parse hotameta response'));
+                    }
+                });
+            })
+            .on('error', (err) => {
+                reject(new functions.https.HttpsError('internal', err.message));
+            });
+    });
+});
+
+//
+// Required Firebase config:
+//   firebase functions:config:set twitch.client_id="..." twitch.client_secret="..."
+//
+// Request body: { "data": { "code": "...", "redirectUri": "..." } }
+// Response:     { "result": { "customToken": "...", "displayName": "...",
+//                             "profileImageUrl": "...", "dbUserId": "..." } }
+// ---------------------------------------------------------------------------
+exports.twitchAuth = functions.https.onCall(async (data) => {
+    const { code, redirectUri } = data;
+
+    if (!code || !redirectUri) {
+        throw new functions.https.HttpsError('invalid-argument', 'code and redirectUri are required');
+    }
+
+    const clientId = functions.config().twitch.client_id;
+    const clientSecret = functions.config().twitch.client_secret;
+
+    // 1. Exchange authorization code for Twitch access token
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code,
+            grant_type: 'authorization_code',
+            redirect_uri: redirectUri
+        }).toString()
+    });
+    const tokenData = await tokenRes.json();
+
+    if (!tokenData.access_token) {
+        console.error('Twitch token exchange failed:', JSON.stringify(tokenData));
+        throw new functions.https.HttpsError('unauthenticated', 'Failed to exchange Twitch code for token');
+    }
+
+    // 2. Fetch Twitch user profile
+    const userRes = await fetch('https://api.twitch.tv/helix/users', {
+        headers: {
+            Authorization: `Bearer ${tokenData.access_token}`,
+            'Client-Id': clientId
+        }
+    });
+    const userData = await userRes.json();
+
+    if (!userData.data || userData.data.length === 0) {
+        throw new functions.https.HttpsError('unauthenticated', 'Failed to retrieve Twitch user info');
+    }
+
+    const twitchUser = userData.data[0];
+    const twitchId = twitchUser.id;
+    const displayName = twitchUser.display_name;
+    const profileImageUrl = twitchUser.profile_image_url || '';
+    const email = twitchUser.email || '';
+
+    // 3. Find or create user record in Firebase Realtime DB
+    const usersSnap = await db.ref('users').once('value');
+    const usersData = usersSnap.val() || {};
+
+    let dbUserId = null;
+    for (const [id, user] of Object.entries(usersData)) {
+        if (user.twitchId === twitchId) {
+            dbUserId = id;
+            break;
+        }
+    }
+
+    const twitchProfileUrl = `https://twitch.tv/${twitchUser.login}`;
+
+    if (!dbUserId) {
+        // New user — check that display name is not already taken by email/password account
+        const nameTaken = Object.values(usersData).some(
+            (u) => u.enteredNickname && u.enteredNickname.toLowerCase() === displayName.toLowerCase()
+        );
+        const nickname = nameTaken ? `${displayName}_twitch` : displayName;
+
+        const now = new Date();
+        const newUserRef = db.ref('users').push();
+        dbUserId = newUserRef.key;
+        await newUserRef.set({
+            enteredNickname: nickname,
+            enteredEmail: email,
+            twitchId,
+            twitchDisplayName: displayName,
+            twitch: twitchProfileUrl,
+            profileImageUrl,
+            authProvider: 'twitch',
+            gamesPlayed: { heroes3: { loses: 0, wins: 0 } },
+            prizes: [],
+            ratings: 0,
+            coins: 1,
+            stars: 0.5,
+            avatar: null,
+            totalPrize: 0,
+            score: 0,
+            registeredAt: now.toISOString()
+        });
+        // Registration coin transaction
+        const txKey = db.ref(`users/${dbUserId}/coinTransactions`).push().key;
+        await db.ref(`users/${dbUserId}/coinTransactions/${txKey}`).set({
+            userId: dbUserId,
+            amount: 1,
+            type: 'registration',
+            description: 'Registration bonus (Twitch sign-up)',
+            timestamp: now.toISOString(),
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString()
+        });
+    } else {
+        // Existing user — refresh their Twitch profile info
+        await db.ref(`users/${dbUserId}`).update({
+            twitchDisplayName: displayName,
+            twitch: twitchProfileUrl,
+            profileImageUrl,
+            lastTwitchLogin: new Date().toISOString()
+        });
+    }
+
+    // Fetch the stored nickname (may differ from displayName for existing users)
+    const storedNicknameSnap = await db.ref(`users/${dbUserId}/enteredNickname`).once('value');
+    const storedNickname = storedNicknameSnap.val() || displayName;
+
+    // 4. Create Firebase custom token — UID is "twitch:<twitchId>"
+    const firebaseUid = `twitch:${twitchId}`;
+    const customToken = await admin.auth().createCustomToken(firebaseUid, {
+        twitchId,
+        displayName,
+        dbUserId
+    });
+
+    return { customToken, displayName: storedNickname, profileImageUrl, dbUserId };
 });

@@ -31,3 +31,20 @@ TO CHECK
 TEST NEXT
 
 1. BO-1 GAMES TOURNAMENT AFTER CHANGES
+
+
+FUTURE BACKLOG
+
+1. Add YouTube OAuth authentication/linking for creators who stream on YouTube
+2. [Phase 1 - Quick win] Twitch OAuth: persist twitchLogin (raw username/login) as a dedicated DB field
+3. [Phase 1 - Quick win] Twitch OAuth: persist broadcasterType (partner/affiliate/none) from Twitch profile
+4. [Phase 1 - Safety] Twitch auth identity model: always key/link users by twitchId (never by username)
+5. [Phase 1 - Safety] Twitch profile data model: keep manual override sources for display name and avatar
+6. [Phase 1 - Safety] Data minimization: store only required Twitch fields (avoid extra sensitive data)
+7. [Phase 1 - Reliability] Token lifecycle: handle revoked/expired Twitch tokens and provide reconnect flow
+8. [Phase 2 - Migration] Backfill existing Twitch users missing twitchLogin and broadcasterType
+9. [Phase 3 - Optional high value] Twitch stream card: add live status (online/offline)
+10. [Phase 3 - Optional high value] Twitch stream card: add current stream title and game category
+11. [Phase 3 - Optional high value] Twitch stream card: add language and mature flag
+12. [Phase 3 - Optional high value] Twitch profile enrichment: add basic channel metadata for richer player cards
+13. [Phase 3 - Optional high value] Twitch content enrichment: add recent VOD links
