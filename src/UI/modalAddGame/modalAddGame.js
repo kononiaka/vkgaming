@@ -1,3 +1,5 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { authFetch } from '../../api/authFetch';
 import React, { useEffect, useRef, useState } from 'react';
 import { addScoreToUser, getNewRating, lookForCastleStats, lookForUserId, lookForUserPrevScore } from '../../api/api';
 import { fetchTournamentGames, fetchTournaments } from '../../components/tournaments/homm3/tournamentUtils';
@@ -53,7 +55,7 @@ function AddGameModal(props) {
 
         const fetchOpponentList = async () => {
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const response = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 const data = await response.json();
                 const nicknames = Object.values(data).map((user) => user.enteredNickname);
                 setOpponentList(nicknames);
@@ -176,7 +178,7 @@ function AddGameModal(props) {
         const opponent1Id = await lookForUserId(opponent1);
         const opponent2Id = await lookForUserId(opponent2);
 
-        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json', {
+        const response = await authFetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`, {
             method: 'POST',
             body: JSON.stringify(game),
             headers: {

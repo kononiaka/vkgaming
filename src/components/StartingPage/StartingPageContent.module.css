@@ -1,18 +1,22 @@
 .starting {
     margin: 0 auto;
     text-align: center;
-    max-width: 1200px;
-    padding: 2rem;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border: 3px solid #ffd700;
-    box-shadow:
-        0 0 15px rgba(255, 215, 0, 0.3),
-        inset 0 0 20px rgba(0, 255, 255, 0.1);
-    position: relative;
+    max-width: 1100px;
+    padding: 1.75rem 1.5rem 2.5rem;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
 }
 
-.starting h1 {
-    font-size: 2.5rem;
+/* ── Hero: original konoplay welcome styling ── */
+.hero {
+    margin-bottom: 1rem;
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: clamp(0.85rem, 3.5vw, 2.5rem);
     color: #ffd700;
     text-shadow:
         2px 2px 0 #8b4513,
@@ -26,115 +30,394 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8));
+    line-height: 1.5;
 }
 
+/* ── Section breakers (lines between home blocks) ── */
+.homeSection {
+    position: relative;
+    margin-top: 0;
+    padding-top: 2rem;
+}
+
+.homeSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(201, 162, 39, 0.15) 12%,
+        rgba(201, 162, 39, 0.4) 50%,
+        rgba(201, 162, 39, 0.15) 88%,
+        transparent 100%
+    );
+}
+
+.starting > .homeSection:first-child::before,
+.homeSectionFirst::before {
+    display: none;
+}
+
+.starting > .homeSection:first-child,
+.homeSectionFirst {
+    padding-top: 0;
+}
+
+/* ── Match center (home hub when a cup is active) ── */
+.matchCenterSection {
+    text-align: left;
+    margin-bottom: 0.5rem;
+}
+
+.matchCenterTitle {
+    font-size: 0.8rem;
+    color: var(--color-gold);
+    margin-bottom: 0.35rem;
+}
+
+.matchCenterGreeting {
+    margin: 0 0 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.matchCenterSubtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.matchCenterLabel {
+    margin: 1.25rem 0 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-dim);
+}
+
+.viewAllLink,
+.viewMoreLink {
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-teal);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.viewAllLink:hover,
+.viewMoreLink:hover {
+    color: var(--color-gold-bright);
+}
+
+.viewMoreLink {
+    margin-top: 0.75rem;
+}
+
+.upcomingList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+
+.upcomingGameCard {
+    display: block;
+    padding: 1rem 1.1rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 3px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.upcomingGameCard:hover {
+    border-left-color: var(--color-gold);
+    background: var(--color-bg-elevated);
+}
+
+.upcomingGameCard .upcomingIndicator {
+    font-size: 0.65rem;
+    color: var(--color-gold-dim);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+}
+
+.upcomingGameCard .tournamentName {
+    color: var(--color-text);
+    font-size: 0.88rem;
+    margin-bottom: 0.65rem;
+}
+
+.upcomingMatchup {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.upcomingPlayer {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.upcomingPlayer:last-child {
+    justify-content: flex-end;
+}
+
+.upcomingPlayerName {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.upcomingMeta {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.upcomingScore {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-gold);
+    flex-shrink: 0;
+}
+
+.upcomingScoreSep {
+    color: var(--color-text-dim);
+    font-weight: 500;
+}
+
+.upcomingPrediction {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.emptyUpcoming {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    background: var(--color-bg-deep);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+}
+
+/* ── Sections below: calm data-page tone ── */
 .tournamentsSection {
-    margin-top: 3rem;
+    text-align: left;
 }
 
-.tournamentsSection h2 {
-    font-size: 1.5rem;
-    color: #00ffff;
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
-    margin-bottom: 2rem;
+.sectionHeader {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sectionTitle {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1rem;
+}
+
+.sectionTitleLines {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+}
+
+.sectionTitleLines::before,
+.sectionTitleLines::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(201, 162, 39, 0.35) 30%,
+        rgba(201, 162, 39, 0.35) 70%,
+        transparent
+    );
+}
+
+.sectionHeader .sectionTitle {
+    margin-bottom: 0;
+}
+
+.sectionHeader .sectionTitleLines {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+}
+
+.sectionHeader .sectionTitleLines::after {
+    flex: 0.35;
+    max-width: 4rem;
+}
+
+.statusFilter {
+    padding: 0.45rem 0.75rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.statusFilter:focus {
+    border-color: var(--color-gold-dim);
 }
 
 .tournamentsList {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
 }
 
 .tournamentCard {
-    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%);
-    border: 2px solid #00ffff;
-    border-radius: 8px;
-    padding: 1.5rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    padding: 1.1rem 1.25rem;
     text-decoration: none;
-    transition: all 0.3s ease;
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .tournamentCard:hover {
-    border-color: #ffd700;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(0, 255, 255, 0.1) 100%);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(255, 215, 0, 0.3);
+    border-left-color: var(--color-gold);
+    background: var(--color-bg-elevated);
 }
 
 .tournamentStatus {
-    font-size: 0.8rem;
-    color: #00ffff;
-    margin-bottom: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--color-teal);
+    margin-bottom: 0.35rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.06em;
+    font-weight: 600;
 }
 
 .tournamentName {
-    font-size: 1.2rem;
-    color: #ffd700;
-    margin-bottom: 0.75rem;
-    font-weight: bold;
+    font-size: 1rem;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
 }
 
 .tournamentDetails {
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.tournamentPrize {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-gold-dim);
+}
+
+.prizeLink {
+    color: var(--color-gold);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.prizeLink:hover {
+    color: var(--color-gold-bright);
 }
 
 .predictionBanner {
-    margin: 0.35rem 0 0.7rem;
-    color: #ffd700;
-    font-size: 0.95rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
+    margin: 0.35rem 0 0.65rem;
+    color: var(--color-gold-dim);
+    font-size: 0.8rem;
+    font-weight: 600;
     text-align: center;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.45);
 }
 
+/* Live cards: slightly more energy, still restrained */
 .liveGameCard {
-    background: linear-gradient(135deg, rgba(220, 20, 60, 0.28) 0%, rgba(66, 16, 120, 0.45) 100%);
-    border: 2px solid #ff3a2e;
-    border-radius: 10px;
-    padding: 1.5rem;
+    background: var(--color-bg-deep);
+    border: 1px solid rgba(199, 92, 92, 0.45);
+    border-left: 3px solid #a84a4a;
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
     text-decoration: none;
-    transition: all 0.3s ease;
-    box-shadow:
-        2px 2px 0 rgba(0, 0, 0, 0.55),
-        0 0 18px rgba(255, 55, 55, 0.35),
-        inset 0 0 18px rgba(255, 215, 0, 0.08);
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
     position: relative;
 }
 
 .liveGameCard:hover {
-    border-color: #ffd700;
-    background: linear-gradient(135deg, rgba(255, 0, 0, 0.35) 0%, rgba(255, 215, 0, 0.24) 100%);
-    transform: translateY(-4px);
-    box-shadow:
-        0 10px 20px rgba(255, 215, 0, 0.42),
-        0 0 20px rgba(255, 70, 70, 0.35);
+    border-left-color: var(--color-gold);
+    background: var(--color-bg-elevated);
 }
 
 .liveIndicator {
-    font-size: 0.84rem;
-    color: #ff2518;
-    font-weight: 900;
+    font-size: 0.65rem;
+    color: #c75c5c;
+    font-weight: 700;
     margin-bottom: 0.5rem;
     text-transform: uppercase;
-    letter-spacing: 2.5px;
-    animation: pulse 2s ease-in-out infinite;
+    letter-spacing: 0.12em;
 }
 
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-        text-shadow: 0 0 5px #ff0000;
-    }
-    50% {
-        opacity: 0.6;
-        text-shadow: 0 0 15px #ff0000;
-    }
+.liveGameCard .tournamentName {
+    color: var(--color-gold);
+    font-size: 0.95rem;
+}
+
+.emptyLive {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    background: var(--color-bg-deep);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
+}
+
+.emptyLiveTitle {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.emptyLiveHint {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-text-dim);
 }
 
 .matchup {
@@ -150,9 +433,9 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.55rem 0.65rem;
-    background: rgba(10, 6, 25, 0.48);
-    border: 1px solid rgba(255, 215, 0, 0.25);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
     flex: 1;
     min-width: 0;
 }
@@ -177,7 +460,7 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    border: 2px solid #ffd700;
+    border: 1px solid var(--color-gold-dim);
     object-fit: cover;
 }
 
@@ -185,8 +468,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #1a1a2e, #2c3e50);
-    color: #ffd700;
+    background: var(--color-bg-elevated);
+    color: var(--color-gold);
     font-size: 0.75rem;
     font-weight: 700;
 }
@@ -194,8 +477,8 @@
 .playerFlag {
     width: 22px;
     height: 22px;
-    border-radius: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: var(--radius-sm);
+    border: var(--border-subtle);
     object-fit: cover;
 }
 
@@ -204,19 +487,18 @@
 }
 
 .playerName {
-    font-size: 1.08rem;
-    color: #00ffff;
-    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--color-text);
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 0 6px rgba(0, 255, 255, 0.25);
 }
 
 .playerPlaceInline {
-    color: #ffd700;
-    font-size: 0.86rem;
-    font-weight: 800;
+    color: var(--color-gold-dim);
+    font-size: 0.8rem;
+    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -233,31 +515,31 @@
 }
 
 .score {
-    font-size: 1.45rem;
-    color: #ffd700;
-    font-weight: 900;
+    font-size: 1.25rem;
+    color: var(--color-gold);
+    font-weight: 700;
     min-width: 30px;
     text-align: center;
-    text-shadow: 0 0 8px rgba(255, 215, 0, 0.45);
+    font-variant-numeric: tabular-nums;
 }
 
 .vs {
     text-align: center;
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
-    font-weight: bold;
-    letter-spacing: 2px;
+    font-size: 0.7rem;
+    color: var(--color-text-dim);
+    font-weight: 600;
+    letter-spacing: 0.1em;
     min-width: 2rem;
 }
 
 .gameType {
-    font-size: 0.92rem;
-    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
     text-align: center;
-    margin-top: 0.62rem;
+    margin-top: 0.5rem;
     text-transform: uppercase;
-    font-weight: 800;
-    letter-spacing: 0.08em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
 }
 
 .duelDetails {
@@ -266,14 +548,14 @@
     flex-direction: column;
     gap: 0.2rem;
     text-align: center;
-    font-size: 0.84rem;
-    color: rgba(255, 255, 255, 0.94);
-    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
 }
 
 .winPrediction {
-    color: #ffd700;
-    font-weight: 700;
+    color: var(--color-gold-dim);
+    font-weight: 600;
 }
 
 .restartsFinishedBadge {
@@ -282,13 +564,13 @@
     align-items: center;
     justify-content: center;
     align-self: center;
-    padding: 0.25rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid rgba(114, 247, 145, 0.9);
-    background: rgba(10, 72, 34, 0.5);
-    color: #9effb3;
-    font-size: 0.74rem;
-    font-weight: 800;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(76, 175, 106, 0.5);
+    background: rgba(20, 60, 35, 0.4);
+    color: #7ec99a;
+    font-size: 0.7rem;
+    font-weight: 600;
     letter-spacing: 0.02em;
 }
 
@@ -300,9 +582,9 @@
 }
 
 .castleCard {
-    background: rgba(8, 8, 28, 0.45);
-    border: 1px solid rgba(0, 255, 255, 0.36);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
     padding: 0.45rem;
     text-align: center;
 }
@@ -311,29 +593,29 @@
     width: 100%;
     max-height: 74px;
     object-fit: cover;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 215, 0, 0.45);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201, 162, 39, 0.25);
 }
 
 .castleName {
     margin-top: 0.35rem;
-    color: #ffd700;
-    font-size: 0.9rem;
-    font-weight: 800;
+    color: var(--color-gold-dim);
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
 .castleMeta {
     margin-top: 0.2rem;
-    color: rgba(255, 255, 255, 0.92);
-    font-size: 0.82rem;
-    font-weight: 700;
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
 }
 
 .restartsLabel {
     margin-top: 0.25rem;
-    color: #d8d8ff;
-    font-size: 0.72rem;
-    font-weight: 700;
+    color: var(--color-text-dim);
+    font-size: 0.68rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -352,27 +634,26 @@
     min-width: 1.9rem;
     height: 1.5rem;
     padding: 0 0.25rem;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 215, 0, 0.75);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201, 162, 39, 0.4);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 0.68rem;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .restartTag {
-    color: #ffd700;
-    background: rgba(20, 18, 50, 0.85);
+    color: var(--color-gold-dim);
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .restartUsed {
     position: relative;
-    border-color: rgba(255, 77, 77, 0.95);
-    color: #ff8f8f;
-    background: rgba(90, 18, 30, 0.6);
+    border-color: rgba(199, 92, 92, 0.6);
+    color: #c97a7a;
+    background: rgba(60, 20, 25, 0.4);
 }
 
 .restartUsed::after {
@@ -382,21 +663,35 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #ff2d2d;
-    font-size: 0.95rem;
-    font-weight: 800;
-    text-shadow: 0 0 6px rgba(255, 45, 45, 0.65);
+    color: #c75c5c;
+    font-size: 0.85rem;
+    font-weight: 700;
 }
 
 .restartValue {
-    color: #eaf6ff;
-    background: rgba(40, 56, 110, 0.55);
+    color: var(--color-text-muted);
+    background: rgba(40, 56, 70, 0.4);
+}
+
+@media (max-width: 768px) {
+    .starting {
+        padding: 1rem;
+    }
+
+    .sectionHeader {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .statusFilter {
+        width: 100%;
+    }
 }
 
 /* ── My Upcoming Matches section ── */
 
 .myGamesSection {
-    margin-top: 3rem;
+    margin-top: 0;
 }
 
 .myGamesSection h2 {

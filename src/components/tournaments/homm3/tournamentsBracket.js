@@ -29,6 +29,8 @@ import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
 import AuthContext from '../../../store/auth-context';
+import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
+import { authFetch } from '../../../api/authFetch';
 import classes from './tournamentsBracket.module.css';
 const formatPlayerName = (player) => player.name;
 
@@ -268,7 +270,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const recalculatePlayerStars = async ({ attendeeNames = null } = {}) => {
-        const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+        const usersResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
         const usersData = await usersResponse.json();
 
         const allPlayers = Object.entries(usersData || {})
@@ -293,7 +295,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         for (const player of playersToUpdate) {
             const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
 
-            await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`, {
+            await authFetch(`${FIREBASE_DATABASE_URL}/users/${player.id}.json`, {
                 method: 'PATCH',
                 body: JSON.stringify({ stars: newStars }),
                 headers: { 'Content-Type': 'application/json' }
@@ -341,8 +343,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         const fetchPlayoffPairs = async () => {
             try {
                 // Detect league tournament type from tournament root
-                const typeResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/type.json`
+                const typeResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/type.json`
                 );
                 if (typeResponse.ok) {
                     const typeData = await typeResponse.json();
@@ -352,8 +354,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 }
 
                 // Fetch registered players for pre-start standings
-                const playersResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players.json`
+                const playersResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players.json`
                 );
                 if (playersResponse.ok) {
                     const playersData = await playersResponse.json();
@@ -366,8 +368,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     }
                 }
 
-                const bracketResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+                const bracketResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`
                 );
 
                 if (bracketResponse.ok) {
@@ -416,7 +418,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     const handleShowStats = async (team1, team2) => {
         // Fetch all games from your DB (adjust the URL as needed)
-        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games.json');
+        const response = await authFetch(`${FIREBASE_DATABASE_URL}/games.json`);
         const data = await response.json();
 
         // Filter games where both players played and include game IDs
@@ -548,8 +550,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const handleStartTournament = async () => {
         console.log('handleStartTournament called');
 
-        const tournamentResponseGET = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+        const tournamentResponseGET = await authFetch(
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
             {
                 method: 'GET'
             }
@@ -614,8 +616,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 setIsSpinningWheelOpen(true);
             } else {
                 console.log('Random bracket is true, skipping spinning wheel');
-                tournamentResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+                tournamentResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
                     {
                         method: 'PATCH',
                         body: JSON.stringify({
@@ -651,8 +653,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         try {
             //TODO: check if the playoffPairs is equal to the DB object => do nothing
             // if (SHOULD_POSTING && updateDataResponseModal) {
-            //     const response = await fetch(
-            //         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+            //     const response = await authFetch(
+            //         `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`,
             //         {
             //             method: 'PUT',
             //             body: JSON.stringify(tournamentData),
@@ -689,8 +691,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 );
 
                 if (SHOULD_POSTING && winnersDataPutResponseModal) {
-                    winnerBracket = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`,
+                    winnerBracket = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`,
                         {
                             method: 'PUT',
                             body: JSON.stringify(tournamentDataWithWinners),
@@ -721,8 +723,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             if (firstPlace) {
                 let prizes = await pullTournamentPrizes(tournamentId);
-                const winnersData = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`
+                const winnersData = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/.json`
                 );
 
                 if (winnersData.ok) {
@@ -743,8 +745,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     );
 
                     if (SHOULD_POSTING && winnersResponseModal) {
-                        winnersResponse = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/.json`,
+                        winnersResponse = await authFetch(
+                            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/.json`,
                             {
                                 method: 'PUT',
                                 body: JSON.stringify(existingData),
@@ -762,8 +764,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             `Are you sure you want to update tournament's status to 'FINISHED'?`
                         );
                         if (SHOULD_POSTING && tournamentStatusResponseModal) {
-                            tournamentStatusResponse = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                            tournamentStatusResponse = await authFetch(
+                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
                                 {
                                     method: 'PUT',
                                     body: JSON.stringify('Tournament Finished'),
@@ -801,8 +803,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     `Are you sure you want to update first place winner?`
                                 );
                                 if (SHOULD_POSTING && firstPlaceResponseModal) {
-                                    firstPlaceResponse = await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlaceId}.json`,
+                                    firstPlaceResponse = await authFetch(
+                                        `${FIREBASE_DATABASE_URL}/users/${firstPlaceId}.json`,
                                         {
                                             method: 'PUT',
                                             headers: {
@@ -834,8 +836,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     );
                                     console.log('Final firstPlaceResponseModal:', secondPlaceResponseModal);
                                     if (SHOULD_POSTING && secondPlaceResponseModal) {
-                                        secondPlaceResponse = await fetch(
-                                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlaceId}.json`,
+                                        secondPlaceResponse = await authFetch(
+                                            `${FIREBASE_DATABASE_URL}/users/${secondPlaceId}.json`,
                                             {
                                                 method: 'PUT',
                                                 headers: {
@@ -913,8 +915,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         try {
             let mustFetch = window.confirm('Please wait...');
             if (mustFetch) {
-                const tournamentResponseGET = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+                const tournamentResponseGET = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
                     {
                         method: 'GET'
                     }
@@ -924,11 +926,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     const playoffsGames = data.tournamentPlayoffGames;
                     const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
 
-                    const bracketResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+                    const bracketResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`
                     );
-                    const playerResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
+                    const playerResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players/.json`
                     );
 
                     if (bracketResponse.ok && playerResponse.ok) {
@@ -1116,10 +1118,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         const tournamentInfo = await lookForTournamentName(tournamentId);
         const currentTournamentName = tournamentInfo?.name || tournamentName || 'Unknown Tournament';
 
-        for (const finishedPair of finishedPairs) {
+        // Process one finished pair per invocation so ratings always use current DB values
+        const finishedPair = finishedPairs[0];
+        {
             let { castle1, castle2, score1, score2, team1, team2, winner, type } = finishedPair;
             if (!winner || winner === 'Tie') {
-                continue;
+                return finishedPairs;
             }
 
             const opponent1Id = await lookForUserId(team1);
@@ -1199,14 +1203,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 const matchKey = buildMatchKey(games, tournamentId);
                 games.matchKey = matchKey;
 
-                const existingGameResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`
+                const existingGameResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/games/heroes3/${matchKey}.json`
                 );
                 const existingGameData = await existingGameResponse.json();
 
                 if (!existingGameData) {
-                    const gameResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`,
+                    const gameResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/games/heroes3/${matchKey}.json`,
                         {
                             method: 'PUT',
                             body: JSON.stringify(games),
@@ -1222,19 +1226,28 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
             const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
 
+            const startRating1 = parseFloat(opponent1PrevData.ratings.split(',').pop().trim());
+            const startRating2 = parseFloat(opponent2PrevData.ratings.split(',').pop().trim());
             const didWinOpponent1 = winnerId === opponent1Id;
-            const didWinOpponent2 = winnerId === opponent2Id;
 
-            let opponent1Score = await getNewRating(
-                parseFloat(opponent1PrevData.ratings.split(',').pop().trim()),
-                parseFloat(opponent2PrevData.ratings.split(',').pop().trim()),
-                didWinOpponent1
-            );
-            let opponent2Score = await getNewRating(
-                parseFloat(opponent2PrevData.ratings.split(',').pop().trim()),
-                parseFloat(opponent1PrevData.ratings.split(',').pop().trim()),
-                didWinOpponent2
-            );
+            let opponent1Score;
+            let opponent2Score;
+
+            if (finishedPair.type === 'bo-3' || finishedPair.type === 'bo-5') {
+                const { r1, r2 } = calcSeriesRatings(
+                    startRating1,
+                    startRating2,
+                    team1,
+                    team2,
+                    finishedPair.games,
+                    didWinOpponent1
+                );
+                opponent1Score = r1;
+                opponent2Score = r2;
+            } else {
+                opponent1Score = getNewRating(startRating1, startRating2, didWinOpponent1);
+                opponent2Score = getNewRating(startRating2, startRating1, !didWinOpponent1);
+            }
 
             if (SHOULD_POSTING) {
                 await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId, tournamentId, team1);
@@ -1253,8 +1266,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         let responseFinishedPair;
         if (pushProcessedGame) {
             // Use collectedPlayoffPairs (the mutated parameter) instead of the stale playoffPairs state
-            responseFinishedPair = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/.json`,
+            responseFinishedPair = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify(collectedPlayoffPairs),
@@ -1273,9 +1286,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             setPlayoffPairs(collectedPlayoffPairs);
         }
 
-        // console.log('finishedPairs LENGTH', finishedPairs.length);
-        // console.log('finishedPairs', finishedPairs);
-        // setPlayoffPairs(finishedPairs);
+        if (finishedPairs.length > 1) {
+            await processFinishedGames(collectedPlayoffPairs);
+        }
 
         return finishedPairs;
     };
@@ -1286,8 +1299,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     };
 
     const determineThirdPlaceWinner = async (playOffPairs, stages) => {
-        //TODO tournamentName to add
         let place = '3rd Place';
+        const tournamentInfo = await lookForTournamentName(tournamentId);
+        const currentTournamentName = tournamentInfo?.name || tournamentName || 'Unknown Tournament';
         let prizes = await pullTournamentPrizes(tournamentId);
         if (!prizes || typeof prizes !== 'object' || prizes[place] === undefined || prizes[place] === null) {
             console.warn(`Prize data missing for ${place}. Skipping 3rd place prize processing.`);
@@ -1322,13 +1336,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 }
 
                 userRecord.prizes.push({
-                    tournamentName: tournamentName,
+                    tournamentName: currentTournamentName,
                     place: place,
                     prizeAmount: prizeAmount
                 });
 
-                const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
+                const response = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
                     {
                         method: 'GET'
                     }
@@ -1343,8 +1357,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     console.log('Process Games thirdPlaceModal:', thirdPlaceModal);
 
                     if (SHOULD_POSTING && thirdPlaceModal) {
-                        response = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
+                        response = await authFetch(
+                            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
                             {
                                 method: 'PUT',
                                 headers: {
@@ -1360,8 +1374,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     let responseUser = {};
                     if (response.ok) {
                         if (SHOULD_POSTING && thirdPlaceModal) {
-                            responseUser = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                            responseUser = await authFetch(
+                                `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
                                 {
                                     method: 'PUT',
                                     headers: {
@@ -1612,8 +1626,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         // Fetch tournament data to get playoff games settings
         let tournamentPlayoffGames = 'bo-1';
         try {
-            const tournamentResponseGET = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/.json`,
+            const tournamentResponseGET = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
                 {
                     method: 'GET'
                 }
@@ -1754,8 +1768,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             console.log('Stage labels:', currentStageLabels);
             console.log('Number of stages:', fullBracketStructure.length);
 
-            const tournamentResponse = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+            const tournamentResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify(fullBracketStructure),
@@ -1768,8 +1782,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             if (tournamentResponse.ok) {
                 console.log('Tournament Bracket Updated successfully!');
                 // Update tournament status
-                await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
                     {
                         method: 'PUT',
                         body: JSON.stringify('Started!'),
@@ -1782,8 +1796,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 setIsSpinningWheelOpen(false);
 
                 // Fetch and update playoff pairs instead of reloading
-                const bracketResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`
+                const bracketResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`
                 );
                 if (bracketResponse.ok) {
                     const updatedPairs = await bracketResponse.json();
@@ -1864,8 +1878,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         try {
             // Leagues always use coins — read coinPrizePull, not pricePull (USD)
-            const coinPrizePullRes = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/coinPrizePull.json`
+            const coinPrizePullRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/coinPrizePull.json`
             );
             const prizes = await coinPrizePullRes.json();
             if (!prizes || typeof prizes !== 'object') {
@@ -1904,13 +1918,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 }
                 userRecord.prizes.push({ tournamentName: tName, place, prizeAmount });
 
-                await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+                await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(userRecord)
                 });
-                await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/${winnerKey}.json`,
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/${winnerKey}.json`,
                     {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -1919,8 +1933,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 );
             }
 
-            const res = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+            const res = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify('Tournament Finished'),
@@ -2186,8 +2200,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 `Update ${team1} statistics to database?\n\nTotal: ${updatedOpponent1Stats.total}, Win: ${updatedOpponent1Stats.win}, Lose: ${updatedOpponent1Stats.lose}\n\nUpdate?`
             );
             if (confirmStats1) {
-                await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponent1Id}/gamesPlayed/heroes3.json`,
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/users/${opponent1Id}/gamesPlayed/heroes3.json`,
                     {
                         method: 'PUT',
                         body: JSON.stringify(updatedOpponent1Stats),
@@ -2204,8 +2218,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 `Update ${team2} statistics to database?\n\nTotal: ${updatedOpponent2Stats.total}, Win: ${updatedOpponent2Stats.win}, Lose: ${updatedOpponent2Stats.lose}\n\nUpdate?`
             );
             if (confirmStats2) {
-                await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponent2Id}/gamesPlayed/heroes3.json`,
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/users/${opponent2Id}/gamesPlayed/heroes3.json`,
                     {
                         method: 'PUT',
                         body: JSON.stringify(updatedOpponent2Stats),
@@ -2301,8 +2315,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     await Promise.all(
                         uniqueCastles.map(async (castle) => {
                             try {
-                                const r = await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${castle}.json`
+                                const r = await authFetch(
+                                    `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`
                                 );
                                 if (r.ok) {
                                     castleDataCache.set(castle, await r.json());
@@ -2649,8 +2663,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             // Use pre-fetched data if available, otherwise fetch now
                             let castle1Data = castleDataCache.get(game.castle1);
                             if (!castle1Data) {
-                                const castle1Response = await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`
+                                const castle1Response = await authFetch(
+                                    `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${game.castle1}.json`
                                 );
                                 if (castle1Response.ok) {
                                     castle1Data = await castle1Response.json();
@@ -2667,8 +2681,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     `Update ${game.castle1} castle stats?\n\nOld - Win: ${castle1Data.win || 0}, Lose: ${castle1Data.lose || 0}, Total: ${castle1Data.total || 0}\nNew - Win: ${updatedCastle1Stats.win}, Lose: ${updatedCastle1Stats.lose}, Total: ${updatedCastle1Stats.total}\n\nUpdate?`
                                 );
                                 if (confirmCastle1) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle1}.json`,
+                                    await authFetch(
+                                        `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${game.castle1}.json`,
                                         {
                                             method: 'PUT',
                                             body: JSON.stringify(updatedCastle1Stats),
@@ -2697,8 +2711,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             // Use pre-fetched data if available, otherwise fetch now
                             let castle2Data = castleDataCache.get(game.castle2);
                             if (!castle2Data) {
-                                const castle2Response = await fetch(
-                                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`
+                                const castle2Response = await authFetch(
+                                    `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${game.castle2}.json`
                                 );
                                 if (castle2Response.ok) {
                                     castle2Data = await castle2Response.json();
@@ -2715,8 +2729,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     `Update ${game.castle2} castle stats?\n\nOld - Win: ${castle2Data.win || 0}, Lose: ${castle2Data.lose || 0}, Total: ${castle2Data.total || 0}\nNew - Win: ${updatedCastle2Stats.win}, Lose: ${updatedCastle2Stats.lose}, Total: ${updatedCastle2Stats.total}\n\nUpdate?`
                                 );
                                 if (confirmCastle2) {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${game.castle2}.json`,
+                                    await authFetch(
+                                        `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${game.castle2}.json`,
                                         {
                                             method: 'PUT',
                                             body: JSON.stringify(updatedCastle2Stats),
@@ -2849,16 +2863,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         const matchKey = buildMatchKey(gameData, tournamentId);
                         gameData.matchKey = matchKey;
 
-                        const existingGameResponse = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`
+                        const existingGameResponse = await authFetch(
+                            `${FIREBASE_DATABASE_URL}/games/heroes3/${matchKey}.json`
                         );
                         const existingGameData = await existingGameResponse.json();
 
                         if (existingGameData) {
                             console.log('Skipping duplicate game record:', gameData);
                         } else {
-                            const fetchResponse = await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${matchKey}.json`,
+                            const fetchResponse = await authFetch(
+                                `${FIREBASE_DATABASE_URL}/games/heroes3/${matchKey}.json`,
                                 {
                                     method: 'PUT',
                                     body: JSON.stringify(gameData),
@@ -3141,8 +3155,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         );
 
                                         if (confirmUpdateWinner) {
-                                            await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
+                                            await authFetch(
+                                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
                                                 {
                                                     method: 'PUT',
                                                     body: JSON.stringify(winner),
@@ -3158,8 +3172,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         );
 
                                         if (confirmUpdatePlayer) {
-                                            await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${playerId}.json`,
+                                            await authFetch(
+                                                `${FIREBASE_DATABASE_URL}/users/${playerId}.json`,
                                                 {
                                                     method: 'PUT',
                                                     body: JSON.stringify(playerData),
@@ -3235,8 +3249,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         );
 
                                         if (confirmUpdateWinner) {
-                                            await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/1st place.json`,
+                                            await authFetch(
+                                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/1st place.json`,
                                                 {
                                                     method: 'PUT',
                                                     body: JSON.stringify(winner),
@@ -3252,8 +3266,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         );
 
                                         if (confirmUpdateWinnerPlayer) {
-                                            await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${firstPlacePlayerId}.json`,
+                                            await authFetch(
+                                                `${FIREBASE_DATABASE_URL}/users/${firstPlacePlayerId}.json`,
                                                 {
                                                     method: 'PUT',
                                                     body: JSON.stringify(winnerData),
@@ -3302,8 +3316,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         );
 
                                         if (confirmUpdateRunnerUp) {
-                                            await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/winners/2nd place.json`,
+                                            await authFetch(
+                                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/2nd place.json`,
                                                 {
                                                     method: 'PUT',
                                                     body: JSON.stringify(loser),
@@ -3319,8 +3333,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         );
 
                                         if (confirmUpdateLoserPlayer) {
-                                            await fetch(
-                                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${secondPlacePlayerId}.json`,
+                                            await authFetch(
+                                                `${FIREBASE_DATABASE_URL}/users/${secondPlacePlayerId}.json`,
                                                 {
                                                     method: 'PUT',
                                                     body: JSON.stringify(loserData),
@@ -3352,8 +3366,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                             if (confirmStatusUpdate) {
                                 try {
-                                    await fetch(
-                                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/status.json`,
+                                    await authFetch(
+                                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
                                         {
                                             method: 'PUT',
                                             body: JSON.stringify('Tournament Finished'),
@@ -3434,8 +3448,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     `Update tournament bracket in database?\n\nThis will save all changes to the tournament.\n\nUpdate bracket?`
                 );
                 if (confirmBracketUpdate) {
-                    const response = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                    const response = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
                         {
                             method: 'PUT',
                             body: JSON.stringify(updatedPairs),

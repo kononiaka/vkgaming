@@ -1,16 +1,41 @@
+import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
+import { authFetch } from '../../../api/authFetch';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { lookForUserId, fetchLeaderboard, snapshotLeaderboardRanks } from '../../../api/api';
+import {
+    lookForUserId,
+    fetchLeaderboard,
+    snapshotLeaderboardRanks,
+    getTournamentPrizeLabel
+} from '../../../api/api';
 import { addCoins } from '../../../api/coinTransactions';
 import AuthContext from '../../../store/auth-context';
+import { useAddTournament } from '../../../store/add-tournament-context';
 import { getTournamentData } from '../../tournaments/tournament_api';
 import Modal from '../../Modal/Modal';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 
+const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished']);
+
+const isPlayerVisibleTournament = (tournament) => {
+    const status = tournament?.status;
+    return (
+        status === 'Registration' ||
+        status === 'Registration Started' ||
+        status === 'Started!'
+    );
+};
+
 const TournamentList = () => {
     const { tournamentId } = useParams();
+    const {
+        openAddTournament,
+        refreshAddTournamentState,
+        isAddTournamentDisabled,
+        addTournamentHint
+    } = useAddTournament();
     const [searchParams] = useSearchParams();
     const [tournaments, setTournaments] = useState([]);
     const [clickedId, setClickedId] = useState([]);
@@ -34,7 +59,13 @@ const TournamentList = () => {
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const [addingPlayerTournamentId, setAddingPlayerTournamentId] = useState(null);
     const authCtx = useContext(AuthContext);
-    let { userNickName, isLogged } = authCtx;
+    let { userNickName, isLogged, isAdmin } = authCtx;
+
+    useEffect(() => {
+        if (!isAdmin && statusFilter && ADMIN_ONLY_TOURNAMENT_FILTERS.has(statusFilter)) {
+            setStatusFilter('started');
+        }
+    }, [isAdmin, statusFilter]);
 
     const toggleShowPlayers = (competitionId) => {
         setShowPlayers((prev) => {
@@ -67,8 +98,8 @@ const TournamentList = () => {
 
     const fetchTournaments = async () => {
         try {
-            const response = await fetch(
-                'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json'
+            const response = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`
             );
             const data = await response.json();
             if (response.ok) {
@@ -82,10 +113,22 @@ const TournamentList = () => {
                 // Set default filter: 'started' if any in-progress tournament exists, else 'finished'
                 setStatusFilter((prev) => {
                     if (prev !== null) {
+                        if (!isAdmin && ADMIN_ONLY_TOURNAMENT_FILTERS.has(prev)) {
+                            return 'started';
+                        }
                         return prev;
-                    } // already set (e.g. from URL param)
+                    }
                     const hasInProgress = tournamentList.some((t) => t.status === 'Started!');
-                    return hasInProgress ? 'started' : 'finished';
+                    if (hasInProgress) {
+                        return 'started';
+                    }
+                    const hasRegistration = tournamentList.some(
+                        (t) => t.status === 'Registration' || t.status === 'Registration Started'
+                    );
+                    if (hasRegistration) {
+                        return 'registration';
+                    }
+                    return isAdmin ? 'finished' : 'started';
                 });
                 // (no post-fetch setup needed)
             } else {
@@ -98,7 +141,7 @@ const TournamentList = () => {
 
     const fetchAllPlayerNicknames = async () => {
         try {
-            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const response = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
             const data = await response.json();
             if (!response.ok || !data) {
                 setAllPlayerNicknames([]);
@@ -252,8 +295,8 @@ const TournamentList = () => {
                 return;
             }
 
-            const userResponse = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+            const userResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
                 {
                     method: 'GET'
                 }
@@ -291,8 +334,8 @@ const TournamentList = () => {
                 console.log('Tournament does not have a prepared bracket.');
             }
 
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
+            const response = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/players/.json`,
                 {
                     method: 'POST',
                     body: JSON.stringify(userData),
@@ -332,8 +375,8 @@ const TournamentList = () => {
                     `Are you sure you want to update tournament's status to 'Registration Finished'?`
                 );
                 if (tournamentStatusResponseModal) {
-                    const tournamentStatusResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
+                    const tournamentStatusResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/status.json`,
                         {
                             method: 'PUT',
                             body: JSON.stringify('Registration finished!'),
@@ -378,7 +421,7 @@ const TournamentList = () => {
     const fillTournamentWithRandomPlayers = async (tourId, currentTournamentPlayers, maxPlayers) => {
         try {
             // Get all users from database
-            const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const usersResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
             const allUsers = await usersResponse.json();
 
             if (!allUsers) {
@@ -458,8 +501,8 @@ const TournamentList = () => {
                 };
 
                 // Add to tournament
-                await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/players/.json`,
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/players/.json`,
                     {
                         method: 'POST',
                         body: JSON.stringify(userData),
@@ -486,8 +529,8 @@ const TournamentList = () => {
 
             if (newPlayerCount === +maxPlayers) {
                 console.log('Updating status to Registration finished!');
-                const statusResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tourId}/status.json`,
+                const statusResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/status.json`,
                     {
                         method: 'PUT',
                         body: JSON.stringify('Registration finished!'),
@@ -522,8 +565,8 @@ const TournamentList = () => {
     const handleStartLeague = async (leagueTournamentId) => {
         if (!window.confirm('Generate league schedule and start the tournament?')) return;
         try {
-            const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${leagueTournamentId}/.json`
+            const response = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${leagueTournamentId}/.json`
             );
             if (!response.ok) throw new Error('Failed to fetch tournament data');
             const tournamentData = await response.json();
@@ -619,8 +662,8 @@ const TournamentList = () => {
             }
 
             // Save as single-stage bracket (playoffPairs[0]) + update status
-            const bracketRes = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${leagueTournamentId}/bracket/playoffPairs.json`,
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${leagueTournamentId}/bracket/playoffPairs.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify([leaguePairs]),
@@ -629,8 +672,8 @@ const TournamentList = () => {
             );
             if (!bracketRes.ok) throw new Error('Failed to save league pairs');
 
-            await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${leagueTournamentId}/status.json`,
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${leagueTournamentId}/status.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify('Started!'),
@@ -659,8 +702,8 @@ const TournamentList = () => {
 
         try {
             // Get tournament data
-            const tournamentResponseGET = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${clickedId}/.json`,
+            const tournamentResponseGET = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/.json`,
                 {
                     method: 'GET'
                 }
@@ -832,8 +875,8 @@ const TournamentList = () => {
             console.log('Full bracket structure to be posted:', fullBracketStructure);
 
             // Post the bracket structure to the database
-            const bracketResponse = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${clickedId}/bracket/playoffPairs.json`,
+            const bracketResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/bracket/playoffPairs.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify(fullBracketStructure),
@@ -850,8 +893,8 @@ const TournamentList = () => {
             console.log('Tournament Bracket Updated successfully!');
 
             // Update tournament status to "Started!"
-            await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${clickedId}/status.json`,
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/status.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify('Started!'),
@@ -887,8 +930,8 @@ const TournamentList = () => {
 
     const substituteTBDPlayer = async (user, tournamentInternalId, playerStars, playerRatings) => {
         // Find the index of the first occurrence of 'TBD' team in the array
-        const firstStagePairsResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`
+        const firstStagePairsResponse = await authFetch(
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`
         );
 
         const data = await firstStagePairsResponse.json();
@@ -921,8 +964,8 @@ const TournamentList = () => {
                 }
 
                 try {
-                    const response = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`,
+                    const response = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentInternalId}/bracket/playoffPairs/0.json`,
                         {
                             method: 'PUT',
                             body: JSON.stringify(data),
@@ -1003,9 +1046,12 @@ const TournamentList = () => {
     const filteredTournaments = tournaments.filter((tournament) => {
         if (statusFilter === null) {
             return false;
-        } // still loading default
+        }
+        if (!isAdmin && !isPlayerVisibleTournament(tournament)) {
+            return false;
+        }
         if (statusFilter === 'all') {
-            return true;
+            return isAdmin;
         }
         if (statusFilter === 'registration') {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
@@ -1058,17 +1104,17 @@ const TournamentList = () => {
                             return '';
                         };
 
-                        const getMedalEmoji = (place) => {
+                        const getPlaceLabel = (place) => {
                             if (place === '1st' || place === '1') {
-                                return '🥇';
+                                return '1st';
                             }
                             if (place === '2nd' || place === '2') {
-                                return '🥈';
+                                return '2nd';
                             }
                             if (place === '3rd' || place === '3') {
-                                return '🥉';
+                                return '3rd';
                             }
-                            return '🏅';
+                            return place;
                         };
 
                         return (
@@ -1083,27 +1129,31 @@ const TournamentList = () => {
                                             <strong>{Object.values(tournament.players).length}</strong> /{' '}
                                             {maxTournamnetPlayers}
                                         </p>
-                                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
-                                            Players Registered
-                                        </p>
+                                        <p className={classes.infoLabel}>Players registered</p>
                                     </div>
                                     <div className={classes.infoItem}>
                                         <p>
                                             <strong>{maxTournamnetPlayers}</strong>
                                         </p>
-                                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
-                                            Max Players
-                                        </p>
+                                        <p className={classes.infoLabel}>Max players</p>
                                     </div>
+                                    {getTournamentPrizeLabel(tournament) && (
+                                        <div className={classes.infoItem}>
+                                            <p>
+                                                <strong>{getTournamentPrizeLabel(tournament)}</strong>
+                                            </p>
+                                            <p className={classes.infoLabel}>Prize pool</p>
+                                        </div>
+                                    )}
                                     {tournament.winner && tournament.status.includes('Finished') && (
-                                        <div className={classes.infoItem} style={{ gridColumn: '1 / -1' }}>
+                                        <div className={`${classes.infoItem} ${classes.infoItemFull}`}>
                                             <div className={classes.winnersPreview}>
                                                 {Object.entries(tournament.winners)
                                                     .slice(0, 3)
                                                     .map(([place, winner]) => (
                                                         <div key={place} className={classes.winnerPreviewItem}>
-                                                            <span className={classes.medal}>
-                                                                {getMedalEmoji(place)}
+                                                            <span className={classes.placeBadge}>
+                                                                {getPlaceLabel(place)}
                                                             </span>
                                                             <span className={classes.winnerName}>{winner}</span>
                                                         </div>
@@ -1119,7 +1169,7 @@ const TournamentList = () => {
                                             className={`${classes.btn} ${classes.btnToggle}`}
                                             onClick={() => toggleShowPlayers(tournament.id)}
                                         >
-                                            {showPlayers[tournament.id] ? '👥 Hide Players' : '👥 Show Players'}
+                                            {showPlayers[tournament.id] ? 'Hide players' : 'Show players'}
                                         </button>
                                     </div>
                                     {showPlayers[tournament.id] && 'players' in tournament && (
@@ -1150,28 +1200,24 @@ const TournamentList = () => {
                                             )
                                         }
                                     >
-                                        {tournament.type === 'league' ? '⚽ View League' : '🏆 View Bracket'}
+                                        {tournament.type === 'league' ? 'View league' : 'View bracket'}
                                     </button>
 
                                     {authCtx.isAdmin &&
                                         tournament.type === 'league' &&
                                         tournament.status === 'Registration finished!' && (
                                             <button
-                                                className={`${classes.btn} ${classes.btnPrimary}`}
-                                                style={{
-                                                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                                                    borderColor: '#22c55e'
-                                                }}
+                                                className={`${classes.btn} ${classes.btnSuccess}`}
                                                 onClick={() => handleStartLeague(tournament.id)}
                                             >
-                                                ▶ Start League
+                                                Start league
                                             </button>
                                         )}
 
                                     {'players' in tournament &&
                                     Object.keys(tournament.players).length < tournament.maxPlayers ? (
                                         checkRegisterUser(userNickName, tournament.players) ? (
-                                            <div className={classes.registeredBadge}>✓ You are registered!</div>
+                                            <div className={classes.registeredBadge}>You are registered</div>
                                         ) : (
                                             isLogged && (
                                                 <button
@@ -1185,7 +1231,7 @@ const TournamentList = () => {
                                                         )
                                                     }
                                                 >
-                                                    📝 Register Now
+                                                    Register
                                                 </button>
                                             )
                                         )
@@ -1196,9 +1242,7 @@ const TournamentList = () => {
                                     showDetails && renderPlayerList(tournament.players)
                                 ) : (
                                     <>
-                                        <p style={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>
-                                            No players registered yet.
-                                        </p>
+                                        <p className={classes.emptyPlayersNote}>No players registered yet.</p>
                                         {isLogged &&
                                             +tournament.maxPlayers !== +Object.keys(tournament.players).length && (
                                                 <button
@@ -1212,7 +1256,7 @@ const TournamentList = () => {
                                                         )
                                                     }
                                                 >
-                                                    📝 Be the First to Register
+                                                    Be the first to register
                                                 </button>
                                             )}
                                     </>
@@ -1246,20 +1290,16 @@ const TournamentList = () => {
                                                 required
                                             />
                                             {nicknameSuggestions.length > 0 && (
-                                                <div
-                                                    style={{
-                                                        marginTop: '0.4rem',
-                                                        border: '1px solid rgba(0, 255, 255, 0.3)',
-                                                        borderRadius: '8px',
-                                                        background: 'rgba(10, 20, 40, 0.95)',
-                                                        maxHeight: '180px',
-                                                        overflowY: 'auto'
-                                                    }}
-                                                >
+                                                <div className={classes.suggestionsList}>
                                                     {nicknameSuggestions.map((nickname, index) => (
                                                         <button
                                                             key={nickname}
                                                             type="button"
+                                                            className={
+                                                                index === activeSuggestionIndex
+                                                                    ? `${classes.suggestionItem} ${classes.suggestionItemActive}`
+                                                                    : classes.suggestionItem
+                                                            }
                                                             onMouseDown={(e) => {
                                                                 e.preventDefault();
                                                                 setNicknameQuery(nickname);
@@ -1267,26 +1307,13 @@ const TournamentList = () => {
                                                                 setActiveSuggestionIndex(-1);
                                                             }}
                                                             onMouseEnter={() => setActiveSuggestionIndex(index)}
-                                                            style={{
-                                                                display: 'block',
-                                                                width: '100%',
-                                                                textAlign: 'left',
-                                                                padding: '0.5rem 0.75rem',
-                                                                border: 'none',
-                                                                background:
-                                                                    index === activeSuggestionIndex
-                                                                        ? 'rgba(0, 255, 255, 0.18)'
-                                                                        : 'transparent',
-                                                                color: '#00ffff',
-                                                                cursor: 'pointer'
-                                                            }}
                                                         >
                                                             {nickname}
                                                         </button>
                                                     ))}
                                                 </div>
                                             )}
-                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <div className={classes.adminActions}>
                                                 <button
                                                     className={classes.btn}
                                                     disabled={addingPlayerTournamentId === tournament.id}
@@ -1313,15 +1340,11 @@ const TournamentList = () => {
                                                             Adding...
                                                         </span>
                                                     ) : (
-                                                        '➕ Add Player'
+                                                        'Add player'
                                                     )}
                                                 </button>
                                                 <button
-                                                    className={classes.btn}
-                                                    style={{
-                                                        background: 'linear-gradient(135deg, #ff6b6b, #ee5a6f)',
-                                                        border: '2px solid #ff6b6b'
-                                                    }}
+                                                    className={`${classes.btn} ${classes.btnDanger}`}
                                                     onClick={() =>
                                                         fillTournamentWithRandomPlayers(
                                                             tournament.id,
@@ -1330,41 +1353,18 @@ const TournamentList = () => {
                                                         )
                                                     }
                                                 >
-                                                    🎲 Fill with Random Players
+                                                    Fill with random players
                                                 </button>
                                             </div>
                                         </div>
                                     )}
 
                                 {tournament.status === 'Registration finished!' && (
-                                    <div
-                                        style={{
-                                            padding: '1rem',
-                                            background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
-                                            borderRadius: '8px',
-                                            textAlign: 'center',
-                                            marginTop: '1rem'
-                                        }}
-                                    >
-                                        <p
-                                            style={{
-                                                margin: '0 0 0.5rem 0',
-                                                color: '#1a1a2e',
-                                                fontWeight: 'bold',
-                                                fontSize: '1.1rem'
-                                            }}
-                                        >
-                                            ✅ Tournament is Full!
-                                        </p>
+                                    <div className={classes.fullBanner}>
+                                        <p className={classes.fullBannerTitle}>Tournament is full</p>
                                         {authCtx.isAdmin && tournament.type !== 'league' && (
                                             <button
-                                                className={`${classes.btn} ${classes.btnPrimary}`}
-                                                style={{
-                                                    background: 'linear-gradient(135deg, #4caf50, #45a049)',
-                                                    border: '2px solid #4caf50',
-                                                    fontSize: '1.1rem',
-                                                    padding: '0.75rem 1.5rem'
-                                                }}
+                                                className={`${classes.btn} ${classes.btnSuccess}`}
                                                 onClick={() =>
                                                     showDetailsHandler(
                                                         tournament.status,
@@ -1374,7 +1374,7 @@ const TournamentList = () => {
                                                     )
                                                 }
                                             >
-                                                🎮 Start Tournament
+                                                Start tournament
                                             </button>
                                         )}
                                     </div>
@@ -1382,10 +1382,10 @@ const TournamentList = () => {
 
                                 {!tournament.status.includes('Finished') ? (
                                     <div className={classes.prizePool}>
-                                        <h4>💰 Prize Pool</h4>
+                                        <h4>Prize pool</h4>
                                         {Object.entries(tournament.pricePull).map(([place, prize]) => (
                                             <div key={place} className={classes.prizeItem}>
-                                                <span className={classes.medal}>{getMedalEmoji(place)}</span>
+                                                <span className={classes.placeBadge}>{getPlaceLabel(place)}</span>
                                                 <span className={classes.prizePlace}>{place}:</span>
                                                 <span className={classes.prizeAmount}>
                                                     {tournament.prizeType === 'coins' ? `${prize} coins` : `$${prize}`}
@@ -1396,7 +1396,7 @@ const TournamentList = () => {
                                 ) : (
                                     tournament.winners && (
                                         <div className={classes.winnersSection}>
-                                            <h4>🏆 Tournament Winners</h4>
+                                            <h4>Tournament winners</h4>
                                             {Object.entries(tournament.winners).map(([place, winner]) => {
                                                 // Find prize amount by matching the place key (case-insensitive)
                                                 let prize = null;
@@ -1425,8 +1425,8 @@ const TournamentList = () => {
                                                 }
                                                 return (
                                                     <div key={place} className={classes.winnerItem}>
-                                                        <span className={classes.medalLarge}>
-                                                            {getMedalEmoji(place)}
+                                                        <span className={`${classes.placeBadge} ${classes.placeBadgeLarge}`}>
+                                                            {getPlaceLabel(place)}
                                                         </span>
                                                         <span className={classes.placeLabel}>{place}</span>
                                                         <span className={classes.winnerNameLarge}>
@@ -1455,53 +1455,37 @@ const TournamentList = () => {
         );
 
     return (
-        <div className={classes.tournamentContainer}>
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '1.5rem'
-                }}
-            >
-                <h2 style={{ margin: 0, flex: 1 }} className={classes.tournamentHeader}>
-                    Current Tournaments
-                </h2>
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    style={{
-                        padding: '0.5rem 1rem',
-                        background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05))',
-                        border: '2px solid #00ffff',
-                        borderRadius: '8px',
-                        color: '#00ffff',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        minWidth: '200px',
-                        flexShrink: 0
-                    }}
-                >
-                    <option value="all" style={{ background: '#1a1a2e', color: '#00ffff' }}>
-                        All Tournaments
-                    </option>
-                    <option value="registration" style={{ background: '#1a1a2e', color: '#00ffff' }}>
-                        📝 Registration Open
-                    </option>
-                    <option value="registrationFinished" style={{ background: '#1a1a2e', color: '#00ffff' }}>
-                        ✅ Registration Finished
-                    </option>
-                    <option value="started" style={{ background: '#1a1a2e', color: '#00ffff' }}>
-                        🎮 In Progress
-                    </option>
-                    <option value="live" style={{ background: '#1a1a2e', color: '#00ffff' }}>
-                        🔴 Live Games
-                    </option>
-                    <option value="finished" style={{ background: '#1a1a2e', color: '#00ffff' }}>
-                        🏆 Finished
-                    </option>
-                </select>
+        <div className={`${classes.tournamentContainer} data-page`}>
+            <div className={classes.pageHeader}>
+                <div className={classes.pageTitleBlock}>
+                    <h2 className={classes.tournamentHeader}>Current tournaments</h2>
+                    <p className={classes.pageSubtitle}>Browse cups, register, and open brackets.</p>
+                </div>
+                <div className={classes.headerActions}>
+                    {isLogged && (
+                        <button
+                            type="button"
+                            className={`${classes.addTournamentBtn} ${isAddTournamentDisabled ? classes.addTournamentBtnMuted : ''}`}
+                            onClick={openAddTournament}
+                            onMouseEnter={refreshAddTournamentState}
+                            title={addTournamentHint}
+                        >
+                            Add tournament
+                        </button>
+                    )}
+                    <select
+                        className={classes.statusFilter}
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        {isAdmin && <option value="all">All tournaments</option>}
+                        <option value="registration">Registration open</option>
+                        {isAdmin && <option value="registrationFinished">Registration finished</option>}
+                        <option value="started">In progress</option>
+                        <option value="live">Live games</option>
+                        {isAdmin && <option value="finished">Finished</option>}
+                    </select>
+                </div>
             </div>
             {tournamentList}
             {showDetails && (

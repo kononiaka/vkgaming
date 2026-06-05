@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import StarsComponent from '../../Stars/Stars';
 import classes from './LeagueBracket.module.css';
 import castleImg from '../../../image/castles/castle.jpeg';
@@ -98,15 +99,35 @@ const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team
  *  onSelectPair(idx)  — called when user wants to report / view a match
  *  canViewReportButton(pair) — whether to show the report button for this pair
  */
+const getDefaultDayIndex = (groups) => {
+    if (!groups.length) {
+        return 0;
+    }
+    const firstOpen = groups.findIndex(({ items }) =>
+        items.some(({ pair }) => {
+            if (pair.winner) {
+                return false;
+            }
+            return true;
+        })
+    );
+    if (firstOpen >= 0) {
+        return firstOpen;
+    }
+    return groups.length - 1;
+};
+
 const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, registeredPlayers = [], playersObj = {} }) => {
     const [activeTab, setActiveTab] = useState('schedule');
+    const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
+    const dayNavInitialized = useRef(false);
 
     // Fetch all users once and compute global leaderboard ranks (same as StartingPageContent)
     useEffect(() => {
         const fetchRanks = async () => {
             try {
-                const res = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const res = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 if (!res.ok) {
                     return;
                 }
@@ -240,22 +261,60 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
             .sort((a, b) => Number(a) - Number(b))
             .map((r) => ({ round: Number(r), items: groups[r] }));
     };
-    const roundGroups = computeRoundGroups();
+    const roundGroups = useMemo(() => computeRoundGroups(), [pairs]);
+    const activeRound = roundGroups[activeDayIndex] || null;
+    const dayCount = roundGroups.length;
+
+    useEffect(() => {
+        if (dayCount === 0) {
+            setActiveDayIndex(0);
+            dayNavInitialized.current = false;
+            return;
+        }
+        setActiveDayIndex((prev) => Math.min(prev, dayCount - 1));
+    }, [dayCount]);
+
+    useEffect(() => {
+        if (activeTab !== 'schedule' || dayNavInitialized.current || dayCount === 0) {
+            return;
+        }
+        setActiveDayIndex(getDefaultDayIndex(roundGroups));
+        dayNavInitialized.current = true;
+    }, [activeTab, dayCount, roundGroups]);
+
+    const goToPrevDay = () => setActiveDayIndex((prev) => Math.max(0, prev - 1));
+    const goToNextDay = () => setActiveDayIndex((prev) => Math.min(dayCount - 1, prev + 1));
+
+    const progressPct = total > 0 ? Math.round((finished / total) * 100) : 0;
 
     return (
         <div className={classes.container}>
             <div className={classes.progress}>
-                Matches played: <strong>{finished}</strong> / <strong>{total}</strong>
+                <div className={classes.progressMeta}>
+                    <span className={classes.progressLabel}>Matches played</span>
+                    <span className={classes.progressCount}>
+                        {finished} / {total}
+                    </span>
+                </div>
+                <div className={classes.progressTrack} aria-hidden="true">
+                    <div className={classes.progressFill} style={{ width: `${progressPct}%` }} />
+                </div>
             </div>
 
-            <div className={classes.tabs}>
+            <div className={classes.tabs} role="tablist" aria-label="League views">
                 <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'schedule'}
                     className={`${classes.tab} ${activeTab === 'schedule' ? classes.activeTab : ''}`}
                     onClick={() => setActiveTab('schedule')}
                 >
                     Schedule
                 </button>
                 <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'standings'}
                     className={`${classes.tab} ${activeTab === 'standings' ? classes.activeTab : ''}`}
                     onClick={() => setActiveTab('standings')}
                 >
@@ -264,11 +323,40 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
             </div>
 
             {activeTab === 'schedule' && (
-                <div className={classes.schedule}>
-                    {roundGroups.map(({ round, items }) => (
-                        <div key={round}>
-                            <div className={classes.dayHeader}>Day {round}</div>
-                            {items.map(({ pair, idx }) => {
+                <>
+                    {dayCount > 0 && (
+                        <div className={classes.dayNav}>
+                            <button
+                                type="button"
+                                className={classes.dayNavBtn}
+                                onClick={goToPrevDay}
+                                disabled={activeDayIndex === 0}
+                                aria-label="Previous day"
+                            >
+                                ‹
+                            </button>
+                            <div className={classes.dayNavCenter}>
+                                <span className={classes.dayNavTitle}>Day {activeRound.round}</span>
+                                <span className={classes.dayNavMeta}>
+                                    {activeDayIndex + 1} / {dayCount}
+                                    {' · '}
+                                    {activeRound.items.length}{' '}
+                                    {activeRound.items.length === 1 ? 'match' : 'matches'}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                className={classes.dayNavBtn}
+                                onClick={goToNextDay}
+                                disabled={activeDayIndex >= dayCount - 1}
+                                aria-label="Next day"
+                            >
+                                ›
+                            </button>
+                        </div>
+                    )}
+                    <div className={classes.schedule}>
+                        {activeRound?.items.map(({ pair, idx }) => {
                                 const isFinished = Boolean(pair.winner);
                                 const showBtn = canViewReportButton ? canViewReportButton(pair) : false;
                                 const inProgressGames = !isFinished
@@ -356,7 +444,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                                     onClick={() => onSelectPair(idx)}
                                                     title={isFinished ? 'Re-report result' : 'Report result'}
                                                 >
-                                                    {isFinished ? '✎' : '▶'}
+                                                    {isFinished ? 'Edit' : 'Report'}
                                                 </button>
                                             )}
                                         </div>
@@ -387,7 +475,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                                             />
                                                         )}
                                                         <div className={classes.castleName}>{game.castle1 || '—'}</div>
-                                                        <div className={classes.goldRow}>💰 {game.gold1 ?? 0}</div>
+                                                        <div className={classes.goldRow}>Gold: {game.gold1 ?? 0}</div>
                                                         {renderRestartTokens(game.restart1_111, game.restart1_112)}
                                                     </div>
                                                     <div className={classes.gameDetailCenter}>
@@ -402,7 +490,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                                             />
                                                         )}
                                                         <div className={classes.castleName}>{game.castle2 || '—'}</div>
-                                                        <div className={classes.goldRow}>💰 {game.gold2 ?? 0}</div>
+                                                        <div className={classes.goldRow}>Gold: {game.gold2 ?? 0}</div>
                                                         {renderRestartTokens(game.restart2_111, game.restart2_112)}
                                                     </div>
                                                 </div>
@@ -410,10 +498,9 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                     </div>
                                 );
                             })}
-                        </div>
-                    ))}
-                    {pairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
-                </div>
+                        {pairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
+                    </div>
+                </>
             )}
 
             {activeTab === 'standings' && (

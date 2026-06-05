@@ -1,8 +1,36 @@
+import { FIREBASE_DATABASE_URL } from '../config/firebase';
+import { authFetch } from './authFetch';
+
+export const getTournamentPrizeLabel = (tournament) => {
+    if (!tournament) {
+        return null;
+    }
+    if (tournament.prizeType === 'money' && tournament.totalPrizeUsd) {
+        return `$${Number(tournament.totalPrizeUsd).toLocaleString()} prize pool`;
+    }
+    if (tournament.prizeType === 'coins' && tournament.totalPrizeCoins) {
+        return `${Number(tournament.totalPrizeCoins).toLocaleString()} coins`;
+    }
+    if (tournament.pricePull && typeof tournament.pricePull === 'object') {
+        const total = Object.values(tournament.pricePull).reduce((sum, v) => sum + Number(v || 0), 0);
+        if (total > 0) {
+            return `$${total.toLocaleString()} prize pool`;
+        }
+    }
+    if (tournament.coinPrizePull && typeof tournament.coinPrizePull === 'object') {
+        const total = Object.values(tournament.coinPrizePull).reduce((sum, v) => sum + Number(v || 0), 0);
+        if (total > 0) {
+            return `${total.toLocaleString()} coins`;
+        }
+    }
+    return null;
+};
+
 // Progress tracking for tournament games
 export async function getGameProgress(gameId) {
     try {
         const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${gameId}/progress.json`
+            `${FIREBASE_DATABASE_URL}/games/heroes3/${gameId}/progress.json`
         );
         if (!response.ok) {
             return null;
@@ -16,8 +44,8 @@ export async function getGameProgress(gameId) {
 
 export async function setGameProgress(gameId, progress) {
     try {
-        const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3/${gameId}/progress.json`,
+        const response = await authFetch(
+            `${FIREBASE_DATABASE_URL}/games/heroes3/${gameId}/progress.json`,
             {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -36,7 +64,7 @@ export async function setGameProgress(gameId, progress) {
 export async function getPairProgress(tournamentId, pairId) {
     try {
         const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`
         );
         if (!response.ok) {
             return null;
@@ -50,8 +78,8 @@ export async function getPairProgress(tournamentId, pairId) {
 
 export async function savePairProgress(tournamentId, pairId, data) {
     try {
-        const url = `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
-        const response = await fetch(url, {
+        const url = `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
+        const response = await authFetch(url, {
             method: data === null ? 'DELETE' : 'PUT',
             headers: data === null ? {} : { 'Content-Type': 'application/json' },
             body: data === null ? undefined : JSON.stringify(data)
@@ -66,8 +94,8 @@ export async function savePairProgress(tournamentId, pairId, data) {
 // PATCH a single per-castle key (e.g. 'g0_c1') into the progress document
 export async function updatePairProgressCastle(tournamentId, pairId, castleKey) {
     try {
-        const url = `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
-        const response = await fetch(url, {
+        const url = `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
+        const response = await authFetch(url, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ [castleKey]: true })
@@ -82,8 +110,8 @@ export async function updatePairProgressCastle(tournamentId, pairId, castleKey) 
 // PATCH only the latestStage field without overwriting form data saved by the modal
 export async function updatePairProgressStage(tournamentId, pairId, stage) {
     try {
-        const url = `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
-        const response = await fetch(url, {
+        const url = `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/submitProgress/${encodeURIComponent(pairId)}.json`;
+        const response = await authFetch(url, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ latestStage: stage })
@@ -96,7 +124,7 @@ export async function updatePairProgressStage(tournamentId, pairId, stage) {
 }
 export const fetchLeaderboard = async (player) => {
     try {
-        const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json`);
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
         if (!response.ok) {
             throw new Error('Unable to fetch leaderboard.');
         }
@@ -155,7 +183,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
 
     try {
         const tournamentPlayerResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players/.json`
         );
 
         const tournamentData = await tournamentPlayerResponse.json();
@@ -171,7 +199,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
             tournamentData[result.id].ratings = existingRatings;
 
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 if (!response.ok) {
                     throw new Error('Unable to fetch data from the server.');
                 }
@@ -213,8 +241,8 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 // Skip redundant confirmation - user already confirmed in updatePlayerRatings()
                 // Directly update the database for both winner and loser
                 try {
-                    const userResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                    const userResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
                         {
                             method: 'PATCH',
                             body: JSON.stringify({
@@ -250,8 +278,8 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
 
         // console.log('tournamentData', tournamentData);
 
-        let userResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/players/.json`,
+        let userResponse = await authFetch(
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players/.json`,
             {
                 method: 'PUT',
                 body: JSON.stringify(tournamentData),
@@ -269,14 +297,14 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
 
 export async function addCoinsToUser(userId, coinsToAdd = 1) {
     // Fetch the current user data
-    const userRes = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`);
+    const userRes = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`);
     const userData = await userRes.json();
 
     // Calculate new coins value
     const newCoins = (userData.coins || 0) + coinsToAdd;
 
     // Update the user with the new coins value
-    await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+    await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coins: newCoins })
@@ -294,7 +322,7 @@ export const findByName = (data, nickname, newRating) => {
 };
 
 export const lookForUserId = async (nickname, full) => {
-    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json', {
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`, {
         method: 'GET'
     });
 
@@ -316,7 +344,7 @@ export const lookForUserId = async (nickname, full) => {
 };
 
 export const loadUserById = async (userId) => {
-    const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
         method: 'GET'
     });
 
@@ -327,7 +355,7 @@ export const loadUserById = async (userId) => {
 
 export const lookForUserPrevScore = async (userId) => {
     let results = {};
-    const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
         method: 'GET'
     });
 
@@ -339,7 +367,7 @@ export const lookForUserPrevScore = async (userId) => {
         results.stars = data.stars;
     } else {
         // Add score property with default value if it doesn't exist
-        await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/ratings.json`, {
+        await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}/ratings.json`, {
             method: 'PUT',
             body: JSON.stringify(0)
         });
@@ -348,7 +376,7 @@ export const lookForUserPrevScore = async (userId) => {
         results.games = data.gamesPlayed;
     } else {
         // Add score property with default value if it doesn't exist
-        await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/gamesPlayed.json`, {
+        await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}/gamesPlayed.json`, {
             method: 'PUT',
             body: JSON.stringify({ heroes3: { total: 0, win: 0, lose: 0 } })
         });
@@ -359,7 +387,7 @@ export const lookForUserPrevScore = async (userId) => {
 export const fetchCastlesList = async () => {
     try {
         const response = await fetch(
-            'https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles.json'
+            `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles.json`
         );
         const data = await response.json();
 
@@ -383,7 +411,7 @@ export const fetchCastlesList = async () => {
 export const lookForCastleStats = async (castle, action) => {
     let body;
     const response = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${castle}.json`,
+        `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`,
         {
             method: 'GET'
         }
@@ -409,8 +437,8 @@ export const lookForCastleStats = async (castle, action) => {
     }
 
     try {
-        const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles/${castle}.json`,
+        const response = await authFetch(
+            `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`,
             {
                 method: 'PATCH',
                 body: body,
@@ -429,7 +457,7 @@ export const lookForCastleStats = async (castle, action) => {
 export const getRating = async (opponentId) => {
     let rating;
     const response = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponentId}/gamesPlayed/heroes3.json`,
+        `${FIREBASE_DATABASE_URL}/users/${opponentId}/gamesPlayed/heroes3.json`,
         {
             method: 'GET'
         }
@@ -504,8 +532,8 @@ export const getStarImageFilename = (stars) => {
 
 export const updateRating = async (opponentId, rating, game) => {
     //TODO: make ratings by game
-    const ratingResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponentId}/ratings.json`,
+    const ratingResponse = await authFetch(
+        `${FIREBASE_DATABASE_URL}/users/${opponentId}/ratings.json`,
         {
             method: 'PUT',
             body: rating,
@@ -520,8 +548,8 @@ export const updateRating = async (opponentId, rating, game) => {
     }
 };
 export const updateAvatar = async (userId, avatar) => {
-    const avatarResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/.json`,
+    const avatarResponse = await authFetch(
+        `${FIREBASE_DATABASE_URL}/users/${userId}/.json`,
         {
             method: 'PATCH',
             body: JSON.stringify({ avatar }),
@@ -537,7 +565,7 @@ export const updateAvatar = async (userId, avatar) => {
 };
 
 export const getAvatar = async (userId) => {
-    const response = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/avatar.json`);
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}/avatar.json`);
 
     if (response.ok) {
         const data = await response.json();
@@ -549,8 +577,8 @@ export const getAvatar = async (userId) => {
 
 export const updateStars = async (opponentId, stars) => {
     //TODO: make ratings by game
-    const ratingResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${opponentId}/stars.json`,
+    const ratingResponse = await authFetch(
+        `${FIREBASE_DATABASE_URL}/users/${opponentId}/stars.json`,
         {
             method: 'PUT',
             body: stars,
@@ -567,7 +595,7 @@ export const updateStars = async (opponentId, stars) => {
 
 //IS NOT WORKING DUE TO CORS ISSUE
 export const getAllUsers = async () => {
-    const ratingResponse = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/`, {
+    const ratingResponse = await fetch(`${FIREBASE_DATABASE_URL}/users/`, {
         method: 'GET',
         origin: ['*']
     });
@@ -579,7 +607,7 @@ export const getAllUsers = async () => {
 
 export const lookForTournamentName = async (tournamentId) => {
     const tournamentResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}.json`,
+        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`,
         {
             method: 'GET',
             origin: ['*']
@@ -602,7 +630,7 @@ export const determineTournamentPrizes = (total_prize) => {
 
 export const pullTournamentPrizes = async (tournamentId) => {
     const tournamentResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/pricePull.json`,
+        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/pricePull.json`,
         {
             method: 'GET',
             origin: ['*']
@@ -615,7 +643,7 @@ export const pullTournamentPrizes = async (tournamentId) => {
 
 export const getPlayerPrizeTotal = async (userId) => {
     const userResponse = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/totalPrize.json`
+        `${FIREBASE_DATABASE_URL}/users/${userId}/totalPrize.json`
         // {
         //     method: 'GET',
         //     origin: ['*']
@@ -631,7 +659,7 @@ export const getPlayerPrizeTotal = async (userId) => {
 };
 
 export async function fetchLastGamesForPlayer(playerName, count = 5) {
-    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`);
     if (!response.ok) {
         return [];
     }
@@ -660,7 +688,7 @@ export async function fetchLastGamesForPlayer(playerName, count = 5) {
  * @returns {Promise<{ best: { castle: string, wins: number }, worst: { castle: string, loses: number } }>}
  */
 export async function fetchBestAndWorstCastleForPlayer(playerName) {
-    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`);
     if (!response.ok) {
         return { best: null, worst: null };
     }
@@ -769,7 +797,7 @@ export async function fetchBestAndWorstCastleForPlayer(playerName) {
  * @returns {Promise<Object>} An object like { [castleName]: { wins: number, loses: number } }
  */
 export async function fetchFullCastleStatsForPlayer(playerName) {
-    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`);
     if (!response.ok) {
         return {};
     }
@@ -857,7 +885,7 @@ export async function fetchFullCastleStatsForPlayer(playerName) {
  * @returns {Promise<{ best: { opponent: string, wins: number, loses: number }, worst: { opponent: string, wins: number, loses: number } }>}
  */
 export async function fetchBestAndWorstOpponentForPlayer(playerName) {
-    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`);
     if (!response.ok) {
         return { best: null, worst: null };
     }
@@ -909,7 +937,7 @@ export async function fetchBestAndWorstOpponentForPlayer(playerName) {
 export const snapshotLeaderboardRanks = async () => {
     try {
         // Fetch all users and sort by rating
-        const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
         if (!response.ok) {
             throw new Error('Unable to fetch users for snapshot.');
         }
@@ -945,8 +973,8 @@ export const snapshotLeaderboardRanks = async () => {
             const currentRank = i + 1;
 
             try {
-                const userResponse = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                const userResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/users/${player.id}.json`,
                     {
                         method: 'PATCH',
                         body: JSON.stringify({
@@ -972,7 +1000,7 @@ export const snapshotLeaderboardRanks = async () => {
 
         // Save the snapshot timestamp in meta
         try {
-            await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json', {
+            await authFetch(`${FIREBASE_DATABASE_URL}/meta/lastRankSnapshot.json`, {
                 method: 'PUT',
                 body: JSON.stringify(timestamp),
                 headers: {

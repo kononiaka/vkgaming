@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 // import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../store/auth-context';
@@ -21,7 +22,7 @@ const CartButton = (props) => {
             const fetchUserStats = async () => {
                 try {
                     const userNickName = localStorage.getItem('userName');
-                    const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                    const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                     if (!response.ok) return;
                     const data = await response.json();
 
@@ -87,7 +88,7 @@ const CartButton = (props) => {
                     <div className={classes.modalBackdrop} onClick={() => setShowTransactions(false)}></div>
                     <div className={classes.transactionsModal}>
                         <div className={classes.modalHeader}>
-                            <h3>💰 Coin Transaction History</h3>
+                            <h3>Coin history</h3>
                             <button className={classes.closeButton} onClick={() => setShowTransactions(false)}>
                                 ×
                             </button>
@@ -142,14 +143,12 @@ const CartButton = (props) => {
                 <StarsComponent stars={userStats.stars} />
                 <span className={classes.tooltip}>Rating: {userStats.rating}</span>
             </div>
-            <Link className={classes.iconButton} to="/profile" title="Profile">
-                <span className={classes.icon}>👤</span>
-                <span className={classes.tooltip}>Profile</span>
+            <Link className={classes.textButton} to="/profile">
+                Profile
             </Link>
-            <Link className={classes.iconButton} onClick={logoutHandler} title="Logout">
-                <span className={classes.icon}>🚪</span>
-                <span className={classes.tooltip}>Logout</span>
-            </Link>
+            <button type="button" className={classes.textButton} onClick={logoutHandler}>
+                Logout
+            </button>
         </div>
     );
 

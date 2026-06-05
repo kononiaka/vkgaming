@@ -1,25 +1,103 @@
+/* ── Data page template (matches Leaderboard, Match log) ── */
+
 .tournamentContainer {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem 2.5rem;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+}
+
+.pageHeader {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: var(--border-subtle);
+}
+
+.pageTitleBlock {
+    flex: 1;
+    min-width: 200px;
+    text-align: left;
 }
 
 .tournamentHeader {
-    text-align: center;
-    font-size: 2rem;
-    color: #ffd700;
-    text-shadow:
-        2px 2px 0 #8b4513,
-        4px 4px 0 rgba(0, 0, 0, 0.5),
-        0 0 20px rgba(255, 215, 0, 0.5);
-    letter-spacing: 2px;
-    margin-bottom: 2rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
-    border: 3px solid #ffd700;
-    box-shadow:
-        0 4px 0 0 #0a0a0a,
-        0 8px 16px rgba(0, 0, 0, 0.8);
+    margin: 0 0 0.35rem;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--color-gold);
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+    text-shadow: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    background: none;
+}
+
+.pageSubtitle {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 400;
+}
+
+.headerActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    flex-shrink: 0;
+}
+
+.addTournamentBtn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-gold-dim);
+    background: var(--color-gold);
+    color: var(--color-bg-deep);
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.addTournamentBtn:hover {
+    background: var(--color-gold-bright);
+    border-color: var(--color-gold-bright);
+}
+
+.addTournamentBtnMuted {
+    opacity: 0.65;
+}
+
+.statusFilter {
+    padding: 0.45rem 0.75rem;
+    min-width: 200px;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+    flex-shrink: 0;
+}
+
+.statusFilter:focus {
+    border-color: var(--color-gold-dim);
 }
 
 .tournamentList {
@@ -28,167 +106,180 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .noTournaments {
     text-align: center;
-    color: #00ffff;
-    font-size: 1.2rem;
-    padding: 3rem;
-    background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(22, 33, 62, 0.8));
-    border: 2px solid #00ffff;
-    border-radius: 8px;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    padding: 2.5rem 1.5rem;
+    background: var(--color-bg-deep);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
 }
 
 .bracket {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border: 3px solid #00ffff;
-    border-radius: 8px;
-    padding: 2rem;
-    box-shadow:
-        2px 2px 0 rgba(0, 0, 0, 0.5),
-        0 0 15px rgba(0, 255, 255, 0.3);
-    transition: all 0.3s ease;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1.35rem;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .bracket:hover {
-    border-color: #ffd700;
-    box-shadow:
-        2px 2px 0 rgba(0, 0, 0, 0.5),
-        0 0 20px rgba(255, 215, 0, 0.5);
-    transform: translateY(-2px);
+    border-left-color: var(--color-gold);
+    background: var(--color-bg-elevated);
+    transform: none;
+    box-shadow: none;
 }
 
 .tournamentTitle {
-    color: #ffd700 !important;
-    font-size: 1.5rem !important;
-    margin: 0 0 1rem 0 !important;
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
-    border-bottom: 2px solid #00ffff;
-    padding-bottom: 0.5rem;
+    color: var(--color-text) !important;
+    font-size: 1.05rem !important;
+    font-weight: 600 !important;
+    margin: 0 0 0.65rem 0 !important;
+    text-shadow: none;
+    border-bottom: var(--border-subtle);
+    padding-bottom: 0.65rem;
 }
 
 .statusBadge {
     display: inline-block;
-    padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 128, 255, 0.3));
-    border: 2px solid #00ffff;
-    border-radius: 4px;
-    color: #00ffff;
-    font-weight: bold;
+    padding: 0.25rem 0.55rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 1px;
-    margin: 0.5rem 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.85rem;
 }
 
 .statusBadge.registration {
-    background: linear-gradient(135deg, rgba(50, 205, 50, 0.2), rgba(34, 139, 34, 0.3));
-    border-color: #32cd32;
-    color: #32cd32;
+    border-color: rgba(74, 143, 156, 0.45);
+    color: var(--color-teal);
+    background: rgba(74, 143, 156, 0.1);
 }
 
 .statusBadge.started {
-    background: linear-gradient(135deg, rgba(255, 165, 0, 0.2), rgba(255, 140, 0, 0.3));
-    border-color: #ffa500;
-    color: #ffa500;
+    border-color: rgba(201, 162, 39, 0.45);
+    color: var(--color-gold);
+    background: rgba(201, 162, 39, 0.08);
 }
 
 .statusBadge.finished {
-    background: linear-gradient(135deg, rgba(220, 20, 60, 0.2), rgba(178, 34, 34, 0.3));
-    border-color: #dc143c;
-    color: #dc143c;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--color-text-dim);
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .infoGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin: 1rem 0;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.65rem;
+    margin: 0 0 1rem;
 }
 
 .infoItem {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 1rem;
-    border: 2px solid rgba(0, 255, 255, 0.3);
-    border-radius: 4px;
+    background: var(--color-bg-panel-alt);
+    padding: 0.75rem 0.85rem;
+    border: var(--border-subtle);
+    border-radius: var(--radius-sm);
 }
 
 .infoItem p {
     margin: 0;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
 }
 
 .infoItem strong {
-    color: #ffd700;
-    font-size: 1.1rem;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.infoItemFull {
+    grid-column: 1 / -1;
+}
+
+.infoLabel {
+    font-size: 0.75rem !important;
+    color: var(--color-text-dim) !important;
 }
 
 .playersSection {
-    margin: 1rem 0;
+    margin: 0.75rem 0;
 }
 
 .playersHeader {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
 }
 
 .playersList {
     list-style: none;
     padding: 0;
-    margin: 1rem 0;
+    margin: 0.75rem 0 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.4rem;
 }
 
 .playersList li {
-    background: rgba(0, 255, 255, 0.1);
-    padding: 0.5rem;
-    border: 1px solid #00ffff;
-    border-radius: 4px;
-    color: #00ffff;
+    background: var(--color-bg-panel-alt);
+    padding: 0.4rem 0.55rem;
+    border: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
 }
 
 .actionButtons {
     display: flex;
-    gap: 1rem;
-    margin: 1.5rem 0;
+    gap: 0.5rem;
+    margin: 1rem 0 0.5rem;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .btn {
-    padding: 0.75rem 1.5rem;
-    border: 2px solid #00ffff;
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 128, 255, 0.3));
-    color: #00ffff;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-teal-dim);
+    background: transparent;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
     cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+    border-radius: var(--radius-md);
+    text-transform: none;
 }
 
 .btn:hover {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
-    border-color: #ffd700;
-    color: #ffd700;
-    transform: translateX(4px);
-    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+    background: rgba(74, 143, 156, 0.12);
+    border-color: var(--color-teal);
+    color: var(--color-gold-bright);
+    transform: none;
+    box-shadow: none;
 }
 
 .btn:disabled {
-    opacity: 0.75;
+    opacity: 0.55;
     cursor: not-allowed;
-    transform: none;
 }
 
 .loadingInline {
@@ -200,8 +291,8 @@
 .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(0, 255, 255, 0.35);
-    border-top-color: #00ffff;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--color-teal);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -216,199 +307,297 @@
 }
 
 .btnPrimary {
-    border-color: #ffd700;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.4));
-    color: #ffd700;
+    border-color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.1);
+    color: var(--color-gold);
 }
 
 .btnPrimary:hover {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.5), rgba(255, 165, 0, 0.6));
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    background: rgba(201, 162, 39, 0.18);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+    box-shadow: none;
+}
+
+.btnSuccess {
+    border-color: rgba(76, 175, 106, 0.5);
+    background: rgba(76, 175, 106, 0.1);
+    color: #7ec99a;
+}
+
+.btnSuccess:hover {
+    background: rgba(76, 175, 106, 0.18);
+    border-color: #7ec99a;
+    color: #9eddb3;
+}
+
+.btnDanger {
+    border-color: rgba(199, 92, 92, 0.5);
+    background: rgba(199, 92, 92, 0.08);
+    color: #c97a7a;
+}
+
+.btnDanger:hover {
+    background: rgba(199, 92, 92, 0.15);
+    border-color: #c97a7a;
 }
 
 .btnToggle {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.78rem;
 }
 
 .registeredBadge {
     display: inline-block;
-    padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, rgba(50, 205, 50, 0.3), rgba(34, 139, 34, 0.4));
-    border: 2px solid #32cd32;
-    border-radius: 4px;
-    color: #32cd32;
-    font-weight: bold;
+    padding: 0.35rem 0.65rem;
+    background: rgba(76, 175, 106, 0.1);
+    border: 1px solid rgba(76, 175, 106, 0.45);
+    border-radius: var(--radius-sm);
+    color: #7ec99a;
+    font-weight: 600;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.emptyPlayersNote {
+    color: var(--color-text-dim);
+    font-style: italic;
+    font-size: 0.875rem;
     margin: 0.5rem 0;
 }
 
 .prizePool {
-    margin: 1.5rem 0;
-    padding: 1rem;
-    background: rgba(255, 215, 0, 0.1);
-    border: 2px solid #ffd700;
-    border-radius: 8px;
+    margin: 1rem 0 0;
+    padding: 0.85rem 1rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
 }
 
 .prizePool h4 {
-    color: #ffd700;
-    margin: 0 0 1rem 0;
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
-    font-size: 1.2rem;
+    color: var(--color-gold);
+    margin: 0 0 0.65rem;
+    text-shadow: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .winnersSection {
-    margin: 1.5rem 0;
-    padding: 1rem;
-    background: rgba(255, 215, 0, 0.15);
-    border: 2px solid #ffd700;
-    border-radius: 8px;
+    margin: 1rem 0 0;
+    padding: 0.85rem 1rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
 }
 
 .winnersSection h4 {
-    color: #ffd700;
-    margin: 0 0 1rem 0;
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
-    font-size: 1.2rem;
+    color: var(--color-gold);
+    margin: 0 0 0.65rem;
+    text-shadow: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .inputGroup {
-    margin: 1rem 0;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(0, 255, 255, 0.3);
-    border-radius: 4px;
+    margin: 1rem 0 0;
+    padding: 0.85rem 1rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
 }
 
 .inputGroup label {
     display: block;
-    color: #00ffff;
-    margin-bottom: 0.5rem;
-    font-weight: bold;
+    color: var(--color-text-muted);
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .inputGroup input {
     width: 100%;
-    padding: 0.75rem;
-    background: rgba(0, 0, 0, 0.5);
-    border: 2px solid #00ffff;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 1rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    font-size: 0.9rem;
     margin-bottom: 0.5rem;
+    outline: none;
 }
 
 .inputGroup input:focus {
-    outline: none;
-    border-color: #ffd700;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    border-color: var(--color-gold-dim);
+    box-shadow: none;
 }
 
-.medal {
-    font-size: 1.2rem;
-    margin-right: 0.5rem;
-    display: inline-block;
+.suggestionsList {
+    margin-top: 0.35rem;
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    max-height: 180px;
+    overflow-y: auto;
 }
 
-.medalLarge {
-    font-size: 2rem;
-    margin-right: 1rem;
-    display: inline-block;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+.suggestionItem {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.suggestionItem:hover,
+.suggestionItemActive {
+    background: rgba(74, 143, 156, 0.12);
+    color: var(--color-gold-bright);
+}
+
+.adminActions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.fullBanner {
+    padding: 0.85rem 1rem;
+    background: rgba(201, 162, 39, 0.1);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.fullBannerTitle {
+    margin: 0 0 0.5rem;
+    color: var(--color-gold);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.placeBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    background: rgba(201, 162, 39, 0.1);
+    color: var(--color-gold);
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.placeBadgeLarge {
+    min-width: 2.25rem;
+    font-size: 0.85rem;
 }
 
 .winnersPreview {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.2));
-    border: 2px solid #ffd700;
-    border-radius: 8px;
-    margin-top: 0.5rem;
+    gap: 0.45rem;
 }
 
 .winnerPreviewItem {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    border-left: 3px solid #ffd700;
-}
-
-.winnerPreviewItem .medal {
-    font-size: 1.5rem;
-    flex-shrink: 0;
+    gap: 0.65rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--color-bg-deep);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--color-gold-dim);
 }
 
 .winnerPreviewItem .winnerName {
-    color: #ffd700;
-    font-weight: bold;
-    font-size: 1.1rem;
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-shadow: none;
 }
 
 .winnerItem {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    margin: 0.75rem 0;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.3));
-    border: 2px solid #ffd700;
-    border-radius: 8px;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    margin: 0.4rem 0;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-sm);
 }
 
 .placeLabel {
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: normal;
-    font-size: 0.9rem;
-    min-width: 40px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    font-size: 0.8rem;
+    min-width: 36px;
 }
 
 .winnerNameLarge {
-    color: #ffd700;
-    font-weight: bold;
-    font-size: 1.2rem;
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-shadow: none;
     flex: 1;
 }
 
 .prizeInBrackets {
-    color: #32cd32;
-    font-size: 1rem;
-    font-weight: bold;
-    margin-left: 0.5rem;
+    color: var(--color-teal);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 0.35rem;
 }
 
 .prizeItem {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem;
-    margin: 0.5rem 0;
-    background: rgba(0, 0, 0, 0.3);
-    border-left: 3px solid #ffd700;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1rem;
+    padding: 0.45rem 0;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
 }
 
 .prizePlace {
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: normal;
+    color: var(--color-text-dim);
+    font-weight: 500;
+    min-width: 2.5rem;
 }
 
 .prizeAmount {
-    color: #32cd32;
-    font-weight: bold;
-    font-size: 1.1rem;
+    color: var(--color-gold);
+    font-weight: 600;
+    font-size: 0.9rem;
 }
 
-.prizeWinner {
-    color: #ffd700;
-    font-weight: bold;
-    margin-left: 0.5rem;
-    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
+@media (max-width: 768px) {
+    .tournamentContainer {
+        padding: 1rem;
+    }
+
+    .pageHeader {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .statusFilter {
+        width: 100%;
+    }
 }

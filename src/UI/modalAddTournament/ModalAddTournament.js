@@ -1,3 +1,5 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { authFetch } from '../../api/authFetch';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { determineTournamentPrizes, lookForUserId } from '../../api/api';
 import { deductCoins } from '../../api/coinTransactions';
@@ -145,8 +147,8 @@ const Bracket = (props) => {
             objTournament.stageLabels = setStageLabels(objTournament.maxPlayers);
         }
 
-        const response = await fetch(
-            'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json',
+        const response = await authFetch(
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`,
             {
                 method: 'POST',
                 body: JSON.stringify(objTournament),

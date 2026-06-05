@@ -1,11 +1,7 @@
-.button-block {
-    width: 150px;
-}
-
 .buttonGroup {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     margin-left: auto;
 }
 
@@ -15,185 +11,150 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
-    border: 2px solid #00ffff;
-    border-radius: 8px;
-    padding: 8px 0;
-    width: 80px;
-    height: 40px;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+    min-width: 56px;
+    height: 36px;
     box-sizing: border-box;
-    transition: all 0.3s ease;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .statBox.starsBox {
     justify-content: flex-start;
-    padding-left: 8px;
-    width: auto;
     min-width: 50px;
-    max-width: 160px;
-    padding-right: 8px;
+    max-width: 140px;
 }
 
 .statBox:hover {
-    border-color: #ffd700;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-    transform: translateY(-2px);
+    border-color: var(--color-gold-dim);
+    background: var(--color-bg-elevated);
 }
 
 .statBox:hover .tooltip {
     opacity: 1;
 }
 
-.starsBox {
-    margin-right: 80px;
-}
-
 .coinIcon {
-    width: 20px;
-    height: 20px;
-    background: linear-gradient(
-        135deg,
-        #ffd700 0%,
-        #ffd700 20%,
-        #ffa500 20%,
-        #ffa500 40%,
-        #ffd700 40%,
-        #ffd700 60%,
-        #ffa500 60%,
-        #ffa500 80%,
-        #ffd700 80%,
-        #ffd700 100%
-    );
+    width: 16px;
+    height: 16px;
+    background: var(--color-gold-dim);
     border-radius: 50%;
     position: relative;
-    box-shadow:
-        inset -2px -2px 0 rgba(0, 0, 0, 0.3),
-        inset 2px 2px 0 rgba(255, 255, 255, 0.3),
-        0 0 8px rgba(255, 215, 0, 0.6);
-    image-rendering: pixelated;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: crisp-edges;
+    flex-shrink: 0;
     pointer-events: none;
 }
 
-.coinIcon::before {
+.coinIcon::after {
     content: '';
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
-    background: #b8860b;
+    width: 6px;
+    height: 6px;
+    background: var(--color-gold);
     border-radius: 50%;
-    box-shadow:
-        0 0 0 2px #ffd700,
-        0 0 0 3px #b8860b;
-}
-
-.coinIcon::after {
-    content: '$';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #ffd700;
-    font-size: 12px;
-    font-weight: bold;
-    font-family: 'Courier New', monospace;
-    text-shadow:
-        1px 1px 0 #000,
-        -1px -1px 0 #000,
-        1px -1px 0 #000,
-        -1px 1px 0 #000;
 }
 
 .statValue {
-    color: #ffd700;
-    font-weight: bold;
-    font-size: 1rem;
-    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+    color: var(--color-gold);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
     pointer-events: none;
 }
 
 .button {
-    font: inherit;
+    font-family: var(--font-nav);
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     cursor: pointer;
-    padding: 0.5rem 1.5rem;
-    border-radius: 6px;
-    background-color: transparent;
-    color: #00ffff;
-    border: 1px solid #00ffff;
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-teal-dim);
     text-decoration: none;
-    transition: all 0.3s ease;
+    line-height: 1;
+    transition:
+        color 0.15s ease,
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .button:hover,
 .button:active {
-    background-color: #00ffff;
-    border-color: #ffd700;
-    color: #1a1a2e;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 255, 255, 0.3);
+    color: var(--color-gold-bright);
+    border-color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.08);
 }
 
-.iconButton {
-    position: relative;
+.textButton {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
-    border: 2px solid #00ffff;
+    padding: 0 10px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    color: var(--color-text-muted);
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.3s ease;
+    white-space: nowrap;
+    transition:
+        border-color 0.15s ease,
+        color 0.15s ease,
+        background 0.15s ease;
 }
 
-.iconButton:hover {
-    border-color: #ffd700;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-    transform: translateY(-2px);
-}
-
-.icon {
-    font-size: 1.5rem;
+.textButton:hover {
+    border-color: var(--color-gold-dim);
+    color: var(--color-gold-bright);
+    background: var(--color-bg-elevated);
 }
 
 .tooltip {
     position: absolute;
-    bottom: -35px;
+    bottom: -32px;
     left: 50%;
     transform: translateX(-50%);
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
-    color: #00ffff;
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 2px solid #ffd700;
-    font-size: 0.85rem;
-    font-weight: bold;
+    background: var(--color-bg-elevated);
+    color: var(--color-text-muted);
+    padding: 4px 10px;
+    border-radius: var(--radius-md);
+    border: var(--border-subtle);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
     white-space: nowrap;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.15s ease;
     z-index: 9999;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
-.iconButton:hover .tooltip {
+.iconButton:hover .tooltip,
+.statBox:hover .tooltip {
     opacity: 1;
-    z-index: 9;
 }
-/* Transaction Modal Styles */
+
+/* Transaction modal */
 .modalBackdrop {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.65);
     z-index: 999;
 }
 
@@ -203,12 +164,12 @@
     left: 50%;
     transform: translate(-50%, -50%);
     width: 90%;
-    max-width: 600px;
+    max-width: 560px;
     max-height: 80vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border: 3px solid #00ffff;
-    border-radius: 12px;
-    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -218,124 +179,124 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
-    border-bottom: 2px solid #00ffff;
+    padding: 1rem 1.25rem;
+    border-bottom: var(--border-subtle);
 }
 
 .modalHeader h3 {
     margin: 0;
-    color: #ffd700;
-    font-size: 1.5rem;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    color: var(--color-gold);
+    letter-spacing: 0.06em;
 }
 
 .closeButton {
     background: transparent;
-    border: 2px solid #ffd700;
-    color: #ffd700;
-    font-size: 2rem;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    border: var(--border-subtle);
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition:
+        border-color 0.15s ease,
+        color 0.15s ease;
     line-height: 1;
 }
 
 .closeButton:hover {
-    background: #ffd700;
-    color: #1a1a2e;
-    transform: rotate(90deg);
+    border-color: var(--color-gold-dim);
+    color: var(--color-gold-bright);
 }
 
 .modalBody {
-    padding: 1.5rem;
+    padding: 1rem 1.25rem;
     overflow-y: auto;
-    max-height: calc(80vh - 100px);
+    max-height: calc(80vh - 60px);
 }
 
 .noTransactions {
     text-align: center;
-    color: #00ffff;
-    font-size: 1.2rem;
-    padding: 2rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    padding: 1.5rem;
 }
 
 .transactionsList {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.65rem;
 }
 
 .transactionItem {
-    background: rgba(0, 255, 255, 0.05);
-    border: 2px solid #00ffff;
-    border-radius: 8px;
-    padding: 1rem;
-    transition: all 0.3s ease;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    transition: background 0.15s ease;
 }
 
 .transactionItem:hover {
-    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-    transform: translateX(5px);
+    background: var(--color-bg-elevated);
 }
 
 .transactionItem.positive {
-    border-left: 4px solid #4ade80;
+    border-left: 2px solid #4caf6a;
 }
 
 .transactionItem.negative {
-    border-left: 4px solid #f87171;
+    border-left: 2px solid #c75c5c;
 }
 
 .transactionHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 }
 
 .transactionType {
-    color: #00ffff;
-    font-weight: bold;
+    color: var(--color-text-muted);
+    font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.9rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
 }
 
 .transactionAmount {
-    font-weight: bold;
-    font-size: 1.1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .amountPositive {
-    color: #4ade80;
+    color: #4caf6a;
 }
 
 .amountNegative {
-    color: #f87171;
+    color: #c75c5c;
 }
 
 .transactionDescription {
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 0.5rem;
+    color: var(--color-text);
+    font-size: 0.85rem;
+    margin-bottom: 0.35rem;
 }
 
 .transactionFooter {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.transactionDate {
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75rem;
+    color: var(--color-text-dim);
 }
 
 .transactionBalance {
-    color: #ffd700;
-    font-weight: bold;
+    color: var(--color-gold-dim);
+    font-weight: 600;
 }

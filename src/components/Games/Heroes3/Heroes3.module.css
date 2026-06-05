@@ -1,311 +1,337 @@
 .gamesContainer {
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 20px;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border-radius: 15px;
-    border: 3px solid #FFD700;
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.75rem 1.5rem 2.5rem;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
 }
 
-.header {
-    font-size: 2.5rem;
-    font-weight: bold;
-    color: #FFD700;
-    text-align: center;
-    margin-bottom: 30px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 215, 0, 0.5);
-    border: 4px solid #FFD700;
-    padding: 15px;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 255, 255, 0.1));
-    border-radius: 10px;
+.pageTitle {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--color-gold);
+    text-align: left;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.35rem;
+    line-height: 1.6;
+}
+
+.pageSubtitle {
+    margin: 0 0 1.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.pageSubtitle a {
+    color: var(--color-teal);
+    text-decoration: none;
+}
+
+.pageSubtitle a:hover {
+    color: var(--color-gold-bright);
+    text-decoration: underline;
 }
 
 .loading {
     text-align: center;
-    font-size: 1.5rem;
-    color: #00ffff;
-    padding: 40px;
+    font-size: 0.95rem;
+    color: var(--color-text-muted);
+    padding: 2rem;
 }
 
 .controls {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 30px;
-    margin-bottom: 25px;
-    padding: 20px;
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
-    border: 2px solid #00ffff;
-    border-radius: 10px;
     flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem 1.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: var(--border-subtle);
 }
 
 .searchBox,
 .sortBox {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+}
+
+.combobox {
+    position: relative;
+    min-width: 220px;
+}
+
+.combobox .searchInput {
+    width: 100%;
+}
+
+.suggestionsList {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--color-bg-elevated);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+}
+
+.suggestionItem {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.suggestionItem:hover,
+.suggestionActive {
+    background: rgba(201, 162, 39, 0.1);
+    color: var(--color-gold-bright);
+}
+
+.noResults {
+    margin: 0 0 1rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
 }
 
 .controlLabel {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #00ffff;
-    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-    white-space: nowrap;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.searchInput,
+.sortSelect {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    color: var(--color-text);
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    outline: none;
+    transition: border-color 0.15s ease;
 }
 
 .searchInput {
-    padding: 10px 20px;
-    font-size: 1rem;
-    color: #fff;
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
-    border: 2px solid #FFD700;
-    border-radius: 8px;
-    outline: none;
-    transition: all 0.3s ease;
-    min-width: 250px;
+    min-width: 220px;
 }
 
 .searchInput::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--color-text-dim);
 }
 
-.searchInput:hover {
-    border-color: #00ffff;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-}
-
-.searchInput:focus {
-    border-color: #FFD700;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+.searchInput:focus,
+.sortSelect:focus {
+    border-color: var(--color-gold-dim);
 }
 
 .sortSelect {
-    padding: 10px 20px;
-    font-size: 1rem;
-    font-weight: bold;
-    color: #fff;
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
-    border: 2px solid #FFD700;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    outline: none;
     min-width: 200px;
-}
-
-.sortSelect:hover {
-    border-color: #00ffff;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-    transform: translateY(-2px);
-}
-
-.sortSelect:focus {
-    border-color: #FFD700;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    cursor: pointer;
 }
 
 .sortSelect option {
-    background: #1a1a2e;
-    color: #fff;
+    background: var(--color-bg-panel);
+    color: var(--color-text);
 }
 
 .gamesList {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 20px;
-    max-height: 800px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+    max-height: 70vh;
     overflow-y: auto;
-    padding-right: 10px;
+    padding-right: 4px;
 }
 
-/* Scrollbar styling */
 .gamesList::-webkit-scrollbar {
-    width: 10px;
+    width: 8px;
 }
 
 .gamesList::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
 }
 
 .gamesList::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #00ffff, #FFD700);
-    border-radius: 5px;
-}
-
-.gamesList::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #FFD700, #00ffff);
+    background: var(--color-gold-dim);
+    border-radius: var(--radius-sm);
 }
 
 .gameCard {
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05));
-    border: 2px solid #00ffff;
-    border-radius: 10px;
-    padding: 20px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .gameCard:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0, 255, 255, 0.4), 0 0 20px rgba(255, 215, 0, 0.2);
-    border-color: #FFD700;
+    border-left-color: var(--color-gold);
+    background: var(--color-bg-elevated);
 }
 
 .gameHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.65rem;
+    border-bottom: var(--border-subtle);
 }
 
 .gameDate {
-    font-size: 0.95rem;
-    color: #00ffff;
-    font-weight: bold;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
 }
 
 .gameType {
-    font-size: 0.85rem;
-    color: #FFD700;
-    background: rgba(255, 215, 0, 0.2);
-    padding: 4px 12px;
-    border-radius: 12px;
-    border: 1px solid #FFD700;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-gold-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    border-radius: var(--radius-sm);
 }
 
 .tournamentInfo {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
-    padding: 10px;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 255, 255, 0.1));
-    border-radius: 8px;
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
 }
 
 .tournamentName {
-    font-size: 0.9rem;
-    color: #FFD700;
-    font-weight: bold;
-    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+    color: var(--color-gold);
+    font-weight: 600;
 }
 
 .stage {
-    font-size: 0.85rem;
-    color: #00ffff;
-    background: rgba(0, 255, 255, 0.2);
-    padding: 4px 10px;
-    border-radius: 10px;
-    border: 1px solid #00ffff;
-    font-weight: bold;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .matchup {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-    margin: 20px 0;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin: 0.75rem 0;
 }
 
 .player {
     flex: 1;
     text-align: center;
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(0, 255, 255, 0.3);
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.player:hover {
-    border-color: #00ffff;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    padding: 0.65rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
 }
 
 .winnerPlayer {
-    border-color: #FFD700;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+    border-color: rgba(201, 162, 39, 0.45);
+    background: rgba(201, 162, 39, 0.08);
 }
 
 .playerName {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #fff;
-    margin-bottom: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.35rem;
 }
 
 .winnerPlayer .playerName {
-    color: #FFD700;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    color: var(--color-gold-bright);
 }
 
 .castle {
-    font-size: 0.9rem;
-    color: #00ffff;
-    margin-top: 5px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin-top: 0.25rem;
 }
 
 .vs {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #f44336;
-    background: rgba(244, 67, 54, 0.2);
-    padding: 8px 15px;
-    border-radius: 8px;
-    border: 2px solid #f44336;
-    text-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
+    display: flex;
+    align-items: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--color-text-dim);
+    letter-spacing: 0.08em;
+    padding: 0 0.25rem;
 }
 
 .score {
     text-align: center;
-    font-size: 1rem;
-    color: #fff;
-    margin: 15px 0 10px 0;
-    padding: 8px;
-    background: rgba(0, 255, 255, 0.1);
-    border-radius: 5px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 0.5rem 0 0.35rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .winner {
     text-align: center;
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #FFD700;
-    padding: 10px;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
-    border: 2px solid #FFD700;
-    border-radius: 8px;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-    margin-top: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-gold-dim);
+    padding-top: 0.35rem;
+    border-top: var(--border-subtle);
+    margin-top: 0.35rem;
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
+    .gamesContainer {
+        padding: 1rem;
+    }
+
     .gamesList {
         grid-template-columns: 1fr;
     }
 
     .matchup {
         flex-direction: column;
-        gap: 10px;
     }
 
     .vs {
-        transform: rotate(90deg);
+        justify-content: center;
+        padding: 0.15rem 0;
     }
 
-    .header {
-        font-size: 2rem;
+    .searchInput,
+    .sortSelect {
+        width: 100%;
+        min-width: 0;
     }
 }

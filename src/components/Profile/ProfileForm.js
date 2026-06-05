@@ -1,115 +1,123 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAvatar, updateAvatar } from '../../api/api';
 import { addCoins } from '../../api/coinTransactions';
 import AuthContext from '../../store/auth-context';
+import { authFetch } from '../../api/authFetch';
+import { deleteAccount } from '../../api/deleteAccount';
 
 import classes from './ProfileForm.module.css';
 
-const ProfileForm = () => {
+const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) => {
     const newPasswordInsertedRef = useRef();
     const avatarInputRef = useRef();
 
     const authCtx = useContext(AuthContext);
-    const [userId, setUserId] = useState('');
-    const [playerObj, setPlayerObj] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [userId, setUserId] = useState(userIdProp || '');
+    const [player, setPlayer] = useState(null);
     const [avatarBase64, setAvatarBase64] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [daUsername, setDaUsername] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
     const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
+    const userNickName = authCtx.userNickName || localStorage.getItem('userName');
+    const isOwnProfile = !!player && userNickName === player.enteredNickname;
 
-    let { userNickName } = authCtx;
-    userNickName = localStorage.getItem('userName');
     useEffect(() => {
-        const fetchPlayerScore = async () => {
+        if (userIdProp) {
+            setUserId(userIdProp);
+        }
+    }, [userIdProp]);
+
+    useEffect(() => {
+        if (!userNickName && !userId) {
+            return;
+        }
+
+        const fetchPlayer = async () => {
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
-                if (!response.ok) {
-                    throw new Error('Unable to fetch data from the server.');
-                }
-                const data = await response.json();
-                const playerFromDB = Object.entries(data)
-                    .filter(([, player]) => player.enteredNickname === userNickName)
-                    .map(([id, player]) => {
-                        console.log('id', id);
-                        console.log('player', player);
-                        player.id = id;
-                        setUserId(id);
-                        return player;
-                    });
+                let resolvedId = userIdProp || userId;
+                let playerData = null;
 
-                //TODO: redundunt???
-                let avatar = await getAvatar(playerFromDB[0].id);
-                setAvatarBase64(avatar);
-
-                if (playerFromDB[0]) {
-                    const playerScore = playerFromDB[0].score;
-                    authCtx.score = playerScore;
-                    setPlayerObj(playerFromDB[0]);
-                    setDaUsername(playerFromDB[0].daUsername || '');
-                    setIsLoading(true);
+                if (resolvedId) {
+                    const response = await fetch(`${FIREBASE_DATABASE_URL}/users/${resolvedId}.json`);
+                    if (response.ok) {
+                        playerData = await response.json();
+                    }
                 } else {
-                    setPlayerObj(null);
+                    const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
+                    if (!response.ok) {
+                        throw new Error('Unable to fetch data from the server.');
+                    }
+                    const data = await response.json();
+                    const entry = Object.entries(data).find(([, p]) => p.enteredNickname === userNickName);
+                    if (entry) {
+                        resolvedId = entry[0];
+                        playerData = entry[1];
+                    }
+                }
+
+                if (!resolvedId || !playerData) {
+                    setPlayer(null);
+                    return;
+                }
+
+                setUserId(resolvedId);
+                setPlayer(playerData);
+                setDaUsername(playerData.daUsername || '');
+
+                try {
+                    const avatar = await getAvatar(resolvedId);
+                    setAvatarBase64(avatar);
+                } catch (_) {
+                    setAvatarBase64('');
                 }
             } catch (error) {
                 console.error(error);
             }
         };
-        fetchPlayerScore();
-    }, [authCtx]);
+
+        fetchPlayer();
+    }, [userNickName, userId, userIdProp]);
 
     const navigate = useNavigate();
 
     const handleFileChange = (event) => {
         const selectedFile = event.target.files[0];
-
-        // Check if file size is within the limit
-        if (selectedFile.size <= 200 * 1024) {
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const base64 = reader.result;
-                setAvatarBase64(base64);
-
-                // Only give 1 coin if avatar was missing before
-                const userRes = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
-                );
-                const userData = await userRes.json();
-                const hadNoAvatar = !userData.avatar;
-
-                await updateAvatar(userId, base64);
-
-                if (hadNoAvatar) {
-                    await addCoins(userId, 1, 'avatar_upload', 'First avatar upload bonus');
-                    authCtx.setNotificationShown(
-                        true,
-                        'Congrats! You received 1 coin for avatar upload!',
-                        'success',
-                        5
-                    );
-                } else {
-                    alert('Avatar was already set. No coin!');
-                }
-            };
-            reader.readAsDataURL(selectedFile);
-        } else {
-            // File size exceeds the limit, show an error message or handle accordingly
+        if (!selectedFile || selectedFile.size > 200 * 1024) {
             alert('File size exceeds the limit of 200KB. Please select a smaller file.');
+            return;
         }
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const base64 = reader.result;
+            setAvatarBase64(base64);
+
+            const userRes = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`);
+            const userData = await userRes.json();
+            const hadNoAvatar = !userData.avatar;
+
+            await updateAvatar(userId, base64);
+            onAvatarUpdated?.();
+
+            if (hadNoAvatar) {
+                await addCoins(userId, 1, 'avatar_upload', 'First avatar upload bonus');
+                authCtx.setNotificationShown(true, 'You received 1 coin for your first avatar.', 'success', 5);
+            }
+        };
+        reader.readAsDataURL(selectedFile);
     };
 
     const handleUploadClick = () => {
-        // Trigger the file input click
-        if (avatarInputRef.current) {
-            avatarInputRef.current.click();
-        }
+        avatarInputRef.current?.click();
     };
 
     const handleGenerateAvatar = async () => {
         setIsGenerating(true);
         try {
-            // Map character classes to pixel art styles with different colors
             const avatarStyles = {
                 knight: { style: 'pixel-art', backgroundColor: 'b6e3f4' },
                 elf: { style: 'pixel-art', backgroundColor: 'c0aede' },
@@ -123,42 +131,29 @@ const ProfileForm = () => {
                 demon: { style: 'pixel-art-neutral', backgroundColor: 'dc2626' }
             };
 
-            // Pick random character class
             const characterClasses = Object.keys(avatarStyles);
             const randomClass = characterClasses[Math.floor(Math.random() * characterClasses.length)];
             const config = avatarStyles[randomClass];
-
-            // Generate random seed based on character class and timestamp for uniqueness
             const seed = `${randomClass}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-            // Use DiceBear free API - no API key required!
             const imageUrl = `https://api.dicebear.com/7.x/${config.style}/svg?seed=${seed}&backgroundColor=${config.backgroundColor}&size=256`;
 
-            // Fetch and convert to base64
             const imageResponse = await fetch(imageUrl);
             const svgText = await imageResponse.text();
-
-            // Convert SVG to data URI (UTF-8 safe, no need for base64)
             const base64 = `data:image/svg+xml,${encodeURIComponent(svgText)}`;
             setAvatarBase64(base64);
 
-            // Check if first avatar and save
-            const userRes = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`);
+            const userRes = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`);
             const userData = await userRes.json();
             const hadNoAvatar = !userData.avatar;
 
             await updateAvatar(userId, base64);
+            onAvatarUpdated?.();
 
             if (hadNoAvatar) {
                 await addCoins(userId, 1, 'avatar_upload', 'First avatar (generated) bonus');
-                authCtx.setNotificationShown(
-                    true,
-                    'Congrats! You received 1 coin for your first avatar!',
-                    'success',
-                    5
-                );
+                authCtx.setNotificationShown(true, 'You received 1 coin for your first avatar.', 'success', 5);
             } else {
-                authCtx.setNotificationShown(true, 'Avatar generated successfully!', 'success', 3);
+                authCtx.setNotificationShown(true, 'Avatar updated.', 'success', 3);
             }
         } catch (error) {
             console.error('Generation error:', error);
@@ -170,14 +165,49 @@ const ProfileForm = () => {
 
     const saveDaUsername = async () => {
         try {
-            await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`, {
+            await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
                 method: 'PATCH',
                 body: JSON.stringify({ daUsername: daUsername.trim() }),
                 headers: { 'Content-Type': 'application/json' }
             });
-            authCtx.setNotificationShown(true, 'Donation Alerts username saved!', 'success', 3);
+            authCtx.setNotificationShown(true, 'Donation Alerts username saved.', 'success', 3);
         } catch (err) {
             authCtx.setNotificationShown(true, 'Failed to save DA username.', 'error', 5);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!player?.enteredNickname) {
+            return;
+        }
+
+        if (deleteConfirm !== player.enteredNickname) {
+            authCtx.setNotificationShown(
+                true,
+                'Type your exact konoplay nickname to confirm deletion.',
+                'error',
+                5
+            );
+            return;
+        }
+
+        const confirmed = window.confirm(
+            'Delete your account permanently? This removes your profile, coins, and sign-in. Tournament history may still show your past nickname. This cannot be undone.'
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            await deleteAccount(player.enteredNickname);
+            authCtx.logout();
+            authCtx.setNotificationShown(true, 'Your account has been deleted.', 'success', 5);
+            navigate('/');
+        } catch (error) {
+            authCtx.setNotificationShown(true, error.message || 'Account deletion failed.', 'error', 7);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -192,195 +222,113 @@ const ProfileForm = () => {
                 password: newPasswordValue,
                 returnSecureToken: false
             }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         })
             .then(async (res) => {
                 if (res.ok) {
                     navigate.replace('/');
                     return res.json();
-                } else {
-                    const data = await res.json();
-                    let errorMessage = 'Custom error';
-                    if (data && data.error && data.error.message) {
-                        errorMessage = data.error.message;
-                    }
-                    throw new Error(errorMessage);
                 }
+                const data = await res.json();
+                throw new Error(data?.error?.message || 'Password update failed');
             })
-            .catch((err) => {
-                alert(err.message);
-            });
-        // setAvatar(null);
+            .catch((err) => alert(err.message));
     };
 
+    if (!player) {
+        return <p className={classes.loading}>Loading settings...</p>;
+    }
+
     return (
-        <div className={classes.profileContainer}>
-            {avatarBase64 && (
-                <div className={classes.avatarSection}>
-                    <img src={avatarBase64} alt="Selected Avatar" className={classes.avatar} />
-                </div>
-            )}
-            <div className={classes.uploadSection}>
-                <label htmlFor="avatar" className={classes.uploadLabel}>
-                    📸 Avatar (max 200KB)
-                </label>
-                <input
-                    type="file"
-                    id="avatar"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                    ref={avatarInputRef}
-                />
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button type="button" onClick={handleUploadClick} className={classes.uploadBtn}>
-                        📤 Upload Avatar
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleGenerateAvatar}
-                        disabled={isGenerating}
-                        className={classes.generateBtn}
-                        style={{
-                            background: 'linear-gradient(135deg, #9b59b6, #8e44ad)',
-                            border: '2px solid #9b59b6',
-                            color: 'white',
-                            padding: '0.75rem 1.5rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '1rem',
-                            fontWeight: 'bold',
-                            transition: 'all 0.3s ease',
-                            boxShadow: '0 4px 12px rgba(155, 89, 182, 0.3)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 16px rgba(155, 89, 182, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 4px 12px rgba(155, 89, 182, 0.3)';
-                        }}
-                    >
-                        {isGenerating ? '⏳ Generating...' : '🎨 Generate AI Avatar'}
-                    </button>
-                </div>
-            </div>
-
-            <div className={classes.quickStats}>
-                <div className={classes.statBox}>
-                    <span className={classes.statLabel}>
-                        <span className={classes.coinIcon}></span>
-                        Coins
-                    </span>
-                    <span className={classes.statValue}>{playerObj.coins || 'N/A'}</span>
-                </div>
-                <div className={classes.statBox}>
-                    <span className={classes.statLabel}>⭐ Score</span>
-                    <span className={classes.statValue}>{playerObj.score}</span>
-                </div>
-            </div>
-
-            {isLoading && (
-                <div className={classes.statsSection}>
-                    <h3 className={classes.sectionTitle}>📊 Statistics</h3>
-                    <div className={classes.statsGrid}>
-                        <div className={classes.statItem}>
-                            <span className={classes.label}>🏆 Wins:</span>
-                            <span className={classes.value}>
-                                {(playerObj.gamesPlayed?.heroes3?.total ?? 0) -
-                                    (playerObj.gamesPlayed?.heroes3?.lose ?? 0)}
-                            </span>
+        <div className={`${classes.formRoot} ${embedded ? classes.embedded : ''}`}>
+            {!embedded && (
+                <div className={classes.avatarRow}>
+                    {avatarBase64 ? (
+                        <img src={avatarBase64} alt="Your avatar" className={classes.avatar} />
+                    ) : (
+                        <div className={classes.avatarFallback}>
+                            {player.enteredNickname?.charAt(0).toUpperCase()}
                         </div>
-                        <div className={classes.statItem}>
-                            <span className={classes.label}>❌ Losses:</span>
-                            <span className={classes.value}>{playerObj.gamesPlayed?.heroes3?.lose ?? 0}</span>
+                    )}
+                    <div className={classes.avatarActions}>
+                        <p className={classes.avatarHint}>Avatar (max 200KB). First upload earns 1 coin.</p>
+                        <input
+                            type="file"
+                            id="avatar"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className={classes.hiddenInput}
+                            ref={avatarInputRef}
+                        />
+                        <div className={classes.buttonRow}>
+                            <button type="button" onClick={handleUploadClick} className={classes.secondaryBtn}>
+                                Upload avatar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleGenerateAvatar}
+                                disabled={isGenerating}
+                                className={classes.secondaryBtn}
+                            >
+                                {isGenerating ? 'Generating…' : 'Generate avatar'}
+                            </button>
                         </div>
-                        <div className={classes.statItem}>
-                            <span className={classes.label}>🎮 Total Games:</span>
-                            <span className={classes.value}>{playerObj.gamesPlayed?.heroes3?.total ?? 0}</span>
-                        </div>
-                        <div className={classes.statItem}>
-                            <span className={classes.label}>📈 Rating:</span>
-                            <span className={classes.value}>
-                                {playerObj.ratings
-                                    ? Number(
-                                          playerObj.ratings
-                                              .split(',')
-                                              .map((r) => r.trim())
-                                              .filter(Boolean)
-                                              .pop()
-                                      ).toFixed(2)
-                                    : 'N/A'}
-                            </span>
-                        </div>
-                        <div className={classes.statItem}>
-                            <span className={classes.label}>⭐ Stars:</span>
-                            <span className={classes.value}>{playerObj.stars}</span>
-                        </div>
-                        <div className={classes.statItem}>
-                            <span className={classes.label}>💰 Total Winnings:</span>
-                            <span className={classes.value}>${playerObj.totalPrize || '0'}</span>
-                        </div>
-                    </div>
-
-                    <div className={classes.prizesSection}>
-                        <h3 className={classes.sectionTitle}>🏆 Tournament Prizes</h3>
-                        {Array.isArray(playerObj.prizes) && playerObj.prizes.length > 0 ? (
-                            <ul className={classes.prizesList}>
-                                {[...playerObj.prizes].reverse().map((prize, idx) => (
-                                    <li key={idx} className={classes.prizeItem}>
-                                        <span className={classes.tournamentName}>{prize.tournamentName}</span>
-                                        <span className={classes.prizePlace}>{prize.place} place</span>
-                                        <span className={classes.prizeAmount}>${prize.prizeAmount}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className={classes.noPrizes}>No prizes yet</p>
-                        )}
-                    </div>
-
-                    <div className={classes.socialSection}>
-                        <h3 className={classes.sectionTitle}>🌐 Social Links</h3>
-                        <div className={classes.socialGrid}>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>📺 Twitch:</span>
-                                <span className={classes.socialValue}>{playerObj.twitch || 'N/A'}</span>
-                            </div>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>🎥 Youtube:</span>
-                                <span className={classes.socialValue}>{playerObj.youtube || 'N/A'}</span>
-                            </div>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>💬 Telegram:</span>
-                                <span className={classes.socialValue}>{playerObj.telegram || 'N/A'}</span>
-                            </div>
-                            <div className={classes.socialItem}>
-                                <span className={classes.socialLabel}>🎮 Discord:</span>
-                                <span className={classes.socialValue}>{playerObj.discord || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={classes.infoSection}>
-                        <p className={classes.infoItem}>
-                            <span className={classes.infoLabel}>📅 Last login:</span>
-                            <span className={classes.infoValue}>{playerObj.lastLoginDate || 'N/A'}</span>
-                        </p>
                     </div>
                 </div>
             )}
 
-            <div className={classes.passwordForm}>
-                <h3 className={classes.formTitle}>💜 Donation Alerts Username</h3>
-                <p style={{ marginBottom: '0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
-                    Link your Donation Alerts account so coins are awarded automatically when you donate.
+            {embedded && (
+                <div className={classes.embeddedAvatarActions}>
+                    <p className={classes.avatarHint}>Avatar (max 200KB). First upload earns 1 coin.</p>
+                    <input
+                        type="file"
+                        id="avatar"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className={classes.hiddenInput}
+                        ref={avatarInputRef}
+                    />
+                    <div className={classes.buttonRow}>
+                        <button type="button" onClick={handleUploadClick} className={classes.secondaryBtn}>
+                            Upload avatar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleGenerateAvatar}
+                            disabled={isGenerating}
+                            className={classes.secondaryBtn}
+                        >
+                            {isGenerating ? 'Generating…' : 'Generate avatar'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <p className={classes.lobbyNickHint}>
+                Your konoplay nickname is <strong>{player.enteredNickname}</strong>. It must match your in-game
+                Heroes III lobby name for cups and match reporting.
+            </p>
+
+            {!embedded && (
+                <div className={classes.quickStats}>
+                    <div className={classes.statBox}>
+                        <span className={classes.statLabel}>Coins</span>
+                        <span className={classes.statValue}>{player.coins ?? 0}</span>
+                    </div>
+                    <div className={classes.statBox}>
+                        <span className={classes.statLabel}>Score</span>
+                        <span className={classes.statValue}>{player.score ?? 0}</span>
+                    </div>
+                </div>
+            )}
+
+            <div className={classes.formPanel}>
+                <h4 className={classes.panelTitle}>Donation Alerts</h4>
+                <p className={classes.panelNote}>
+                    Link your Donation Alerts username so coins are awarded automatically when you donate.
                 </p>
                 <div className={classes.formControl}>
-                    <label htmlFor="da-username">DA Username</label>
+                    <label htmlFor="da-username">DA username</label>
                     <input
                         type="text"
                         id="da-username"
@@ -389,17 +337,16 @@ const ProfileForm = () => {
                         placeholder="e.g. CondorAwful"
                     />
                 </div>
-                <div className={classes.formAction}>
-                    <button type="button" onClick={saveDaUsername} className={classes.submitBtn}>
-                        💾 Save DA Username
-                    </button>
-                </div>
+                <button type="button" onClick={saveDaUsername} className={classes.primaryBtn}>
+                    Save DA username
+                </button>
             </div>
 
-            <form className={classes.passwordForm} onSubmit={submitHandler}>
-                <h3 className={classes.formTitle}>🔒 Change Password</h3>
+            <form className={classes.formPanel} onSubmit={submitHandler}>
+                <h4 className={classes.panelTitle}>Password</h4>
+                <p className={classes.panelNote}>Email account only. Twitch logins use Twitch to sign in.</p>
                 <div className={classes.formControl}>
-                    <label htmlFor="new-password">🔑 New Password</label>
+                    <label htmlFor="new-password">New password</label>
                     <input
                         type="password"
                         id="new-password"
@@ -407,12 +354,39 @@ const ProfileForm = () => {
                         placeholder="Enter new password"
                     />
                 </div>
-                <div className={classes.formAction}>
-                    <button type="submit" className={classes.submitBtn}>
-                        🔄 Change Password
+                <button type="submit" className={classes.primaryBtn}>
+                    Change password
+                </button>
+            </form>
+
+            {isOwnProfile && (
+                <div className={classes.dangerPanel}>
+                    <h4 className={classes.dangerTitle}>Delete account</h4>
+                    <p className={classes.panelNote}>
+                        Permanently delete your konoplay account and sign-in. You will be removed from
+                        open tournaments. Finished cup results may still list your past nickname.
+                    </p>
+                    <div className={classes.formControl}>
+                        <label htmlFor="delete-confirm">Type your nickname to confirm</label>
+                        <input
+                            type="text"
+                            id="delete-confirm"
+                            value={deleteConfirm}
+                            onChange={(e) => setDeleteConfirm(e.target.value)}
+                            placeholder={player.enteredNickname}
+                            autoComplete="off"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        disabled={isDeleting || deleteConfirm !== player.enteredNickname}
+                        className={classes.dangerBtn}
+                    >
+                        {isDeleting ? 'Deleting…' : 'Delete my account'}
                     </button>
                 </div>
-            </form>
+            )}
         </div>
     );
 };

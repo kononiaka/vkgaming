@@ -633,3 +633,106 @@ exports.twitchAuth = functions.https.onCall(async (data) => {
         throw new functions.https.HttpsError('internal', err.message || 'Twitch auth failed');
     }
 });
+
+// ---------------------------------------------------------------------------
+// deleteAccount — removes Firebase Auth user + RTDB profile (own account only)
+// Callable with Authorization: Bearer <idToken>
+// Request body: { "data": { "confirmNickname": "exact lobby nick" } }
+// ---------------------------------------------------------------------------
+async function resolveDbUserId(decodedToken) {
+    if (decodedToken.dbUserId) {
+        return decodedToken.dbUserId;
+    }
+
+    const usersSnap = await db.ref('users').once('value');
+    const usersData = usersSnap.val() || {};
+    const uid = decodedToken.uid;
+
+    if (uid.startsWith('twitch:')) {
+        const twitchId = uid.slice('twitch:'.length);
+        for (const [id, user] of Object.entries(usersData)) {
+            if (user?.twitchId === twitchId) {
+                return id;
+            }
+        }
+    }
+
+    const email = decodedToken.email;
+    if (email) {
+        const normalised = email.toLowerCase();
+        for (const [id, user] of Object.entries(usersData)) {
+            if (user?.enteredEmail && user.enteredEmail.toLowerCase() === normalised) {
+                return id;
+            }
+        }
+    }
+
+    return null;
+}
+
+async function removeUserFromOpenTournaments(nickname) {
+    const snap = await db.ref('tournaments/heroes3').once('value');
+    const tournaments = snap.val() || {};
+    const updates = {};
+
+    for (const [tourId, tour] of Object.entries(tournaments)) {
+        const status = tour?.status;
+        if (status === 'finished') {
+            continue;
+        }
+        const players = tour?.players || {};
+        for (const [playerKey, player] of Object.entries(players)) {
+            if (player?.name === nickname) {
+                updates[`tournaments/heroes3/${tourId}/players/${playerKey}`] = null;
+            }
+        }
+    }
+
+    if (Object.keys(updates).length > 0) {
+        await db.ref().update(updates);
+    }
+}
+
+exports.deleteAccount = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+    }
+
+    const confirmNickname = (data?.confirmNickname || '').trim();
+    if (!confirmNickname) {
+        throw new functions.https.HttpsError('invalid-argument', 'confirmNickname is required.');
+    }
+
+    const uid = context.auth.uid;
+    const decodedToken = context.auth.token;
+    const dbUserId = await resolveDbUserId(decodedToken);
+
+    if (!dbUserId) {
+        throw new functions.https.HttpsError('not-found', 'User profile not found.');
+    }
+
+    const userSnap = await db.ref(`users/${dbUserId}`).once('value');
+    const userData = userSnap.val();
+
+    if (!userData) {
+        throw new functions.https.HttpsError('not-found', 'User profile not found.');
+    }
+
+    if (userData.enteredNickname !== confirmNickname) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Nickname confirmation does not match your account.'
+        );
+    }
+
+    try {
+        await removeUserFromOpenTournaments(userData.enteredNickname);
+        await db.ref(`users/${dbUserId}`).remove();
+        await db.ref(`meta/admins/${uid}`).remove();
+        await admin.auth().deleteUser(uid);
+        return { deleted: true };
+    } catch (err) {
+        console.error('deleteAccount failed:', err);
+        throw new functions.https.HttpsError('internal', err.message || 'Account deletion failed.');
+    }
+});

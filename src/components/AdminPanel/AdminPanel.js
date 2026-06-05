@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useEffect, useState } from 'react';
 import classes from './AdminPanel.module.css';
 
@@ -9,7 +10,7 @@ const AdminPanel = () => {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 const data = await response.json();
 
                 const usersList = Object.entries(data || {})
@@ -44,7 +45,7 @@ const AdminPanel = () => {
         try {
             const newStatus = !currentStatus;
             const response = await fetch(
-                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/isAdmin.json`,
+                `${FIREBASE_DATABASE_URL}/users/${userId}/isAdmin.json`,
                 {
                     method: 'PUT',
                     body: JSON.stringify(newStatus),

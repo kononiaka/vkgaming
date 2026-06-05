@@ -19,18 +19,29 @@ const Notification = () => {
     if (!show || !message) return null;
 
     return (
-        <div className={`${classes['notification-box']} ${classes[status]}`}>
+        <div
+            className={`${classes['notification-box']} ${classes[status]}`}
+            role="alert"
+            aria-live="assertive"
+        >
             <div className={classes.iconWrapper}>
-                {status === 'success' && <span className={classes.icon}>✔️</span>}
-                {status === 'error' && <span className={classes.icon}>❌</span>}
-                {status === 'warning' && <span className={classes.icon}>⚠️</span>}
+                {status === 'success' && <span className={classes.icon}>✓</span>}
+                {status === 'error' && <span className={classes.icon}>!</span>}
+                {status === 'warning' && <span className={classes.icon}>!</span>}
             </div>
             <div className={classes.content}>
                 <span className={classes.message}>{message}</span>
-                {countdown > 0 && <span className={classes.countdown}>(closing in {countdown}s)</span>}
+                {countdown > 0 && (
+                    <span className={classes.countdown}>Closes in {countdown}s</span>
+                )}
             </div>
-            <button className={classes['notification-close']} onClick={handleClose}>
-                ✖
+            <button
+                type="button"
+                className={classes['notification-close']}
+                onClick={handleClose}
+                aria-label="Dismiss notification"
+            >
+                ×
             </button>
         </div>
     );

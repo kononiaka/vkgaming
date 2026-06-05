@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { useContext, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { calculateStarsFromRating, getAvatar } from '../../api/api';
+import AuthContext from '../../store/auth-context';
 import StarsComponent from '../Stars/Stars';
 import classes from './Leaderboard.module.css';
 
 const Leaderboard = () => {
+    const authCtx = useContext(AuthContext);
     // const [playerScores, setPlayerScores] = useState([]);
     const [playerRating, setPlayerRating] = useState([]);
     const [avatars, setAvatars] = useState({});
@@ -14,7 +17,7 @@ const Leaderboard = () => {
     useEffect(() => {
         const fetchPlayerScores = async () => {
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 if (!response.ok) {
                     throw new Error('Unable to fetch data from the server.');
                 }
@@ -57,7 +60,7 @@ const Leaderboard = () => {
                 // Fetch last rank snapshot timestamp
                 try {
                     const metaResponse = await fetch(
-                        'https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json'
+                        `${FIREBASE_DATABASE_URL}/meta/lastRankSnapshot.json`
                     );
                     if (metaResponse.ok) {
                         const metaData = await metaResponse.json();
@@ -165,7 +168,7 @@ const Leaderboard = () => {
 
                 try {
                     const userResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`,
+                        `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
                         {
                             method: 'PATCH',
                             body: JSON.stringify({
@@ -219,7 +222,7 @@ const Leaderboard = () => {
 
                 try {
                     const userResponse = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${player.id}.json`,
+                        `${FIREBASE_DATABASE_URL}/users/${player.id}.json`,
                         {
                             method: 'PATCH',
                             body: JSON.stringify({
@@ -247,7 +250,7 @@ const Leaderboard = () => {
 
             // Save the snapshot timestamp in meta
             try {
-                await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/meta/lastRankSnapshot.json', {
+                await fetch(`${FIREBASE_DATABASE_URL}/meta/lastRankSnapshot.json`, {
                     method: 'PUT',
                     body: JSON.stringify(timestamp),
                     headers: {
@@ -347,26 +350,16 @@ const Leaderboard = () => {
             // console.log('getStarImageFilename', getStarImageFilename(stars));
             rows.push(
                 <tr key={i} className={getRankClass(i)}>
-                    <td>{i + 1}</td>
+                    <td className={classes.rankCol}>{i + 1}</td>
                     {/* <td>{enteredNickname}</td> */}
                     <td>
                         {/* Wrap the content in a Link component */}
-                        <NavLink
-                            to={`/players/${playerId}`}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                        >
+                        <NavLink to={`/players/${playerId}`} className={classes.playerLink}>
                             {avatars[playerId] && (
                                 <img
                                     src={avatars[playerId]}
                                     alt={enteredNickname}
-                                    style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '50%',
-                                        border: i < 3 ? '2px solid #ffd700' : '2px solid #00ffff',
-                                        objectFit: 'cover',
-                                        boxShadow: '0 2px 4px rgba(0, 255, 255, 0.3)'
-                                    }}
+                                    className={`${classes.playerAvatar} ${i < 3 ? classes.playerAvatarTop : ''}`}
                                 />
                             )}
                             {enteredNickname}
@@ -385,18 +378,21 @@ const Leaderboard = () => {
     };
 
     return (
-        <div className={classes.leaderboard}>
-            <h2>🏆 Leaderboard</h2>
-            <div
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}
-            >
-                <div>
-                    <button onClick={recalculateStars}>⭐ Recalculate Stars</button>
-                    <button onClick={snapshotCurrentRanks} style={{ marginLeft: '10px' }}>
-                        📸 Snapshot Current Ranks
-                    </button>
-                </div>
-                <div style={{ fontSize: '0.9em', color: '#00ffff' }}>
+        <div className={`${classes.leaderboard} data-page`}>
+            <h2 className={classes.pageTitle}>Leaderboard</h2>
+            <p className={classes.pageSubtitle}>Konoplay rating — top players by tournament performance</p>
+            <div className={classes.toolbar}>
+                {authCtx.isAdmin && (
+                    <div className={classes.toolbarActions}>
+                        <button type="button" className={classes.btnSecondary} onClick={recalculateStars}>
+                            Recalculate stars
+                        </button>
+                        <button type="button" className={classes.btnSecondary} onClick={snapshotCurrentRanks}>
+                            Snapshot ranks
+                        </button>
+                    </div>
+                )}
+                <div className={classes.metaText}>
                     Last rank update: <strong>{formatTimestamp(lastRankSnapshot)}</strong>
                 </div>
             </div>
@@ -457,17 +453,16 @@ const Leaderboard = () => {
                 </div>
             )}
 
-            <table>
+            <table className={classes.dataTable}>
                 <thead>
                     <tr>
-                        <th>Rank</th>
+                        <th>#</th>
                         <th>Player</th>
                         <th>Score</th>
                         <th>Games</th>
-                        <th>Rate</th>
-                        <th>Rank Change</th>
-                        {/* <th>Stars</th> */}
-                        <th>Stars Img</th>
+                        <th>Rating</th>
+                        <th>Change</th>
+                        <th>Stars</th>
                     </tr>
                 </thead>
                 <tbody>{getRows()}</tbody>

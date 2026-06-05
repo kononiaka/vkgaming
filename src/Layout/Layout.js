@@ -1,22 +1,16 @@
+import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import React, { Fragment, useContext, useState, useEffect } from 'react';
-import ModalHelp from '../UI/ModalHelp/modalHelp';
 import ModalAddGame from '../UI/modalAddGame/modalAddGame';
 import ModalAddTournament from '../UI/modalAddTournament/ModalAddTournament';
-import ModalDonate from '../UI/modalDonate/modalDonate';
 import Notification from '../components/Notification/Notification';
 import DonatorsBar from '../components/DonatorsBar/DonatorsBar';
-import GrafBanner from '../components/graf_banner/graf_banner';
-import GrafHelp from '../components/graf_help/graf_help';
 
 import AuthContext from '../store/auth-context';
-import Container from './Container';
+import AddTournamentContext from '../store/add-tournament-context';
 import classes from './Layout.module.css';
 import MainHeader from './MainHeader';
 
 const Layout = (props) => {
-    const [showGraf, setShowGraf] = useState(false);
-    const [showHelp, setShowHelp] = useState(false);
-    const [showDonate, setShowDonate] = useState(false);
     const [showAddGame, showSetAddGame] = useState(false);
     const [showAddTournament, showSetAddTournament] = useState(false);
 
@@ -33,7 +27,7 @@ const Layout = (props) => {
                 return;
             }
             try {
-                const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 const data = await response.json();
                 const user = Object.values(data).find((u) => u.enteredNickname === authCtx.userNickName);
                 const coins = user && user.coins ? user.coins : 0;
@@ -46,24 +40,9 @@ const Layout = (props) => {
         checkUserCoins();
     }, [authCtx.userNickName, authCtx.isAdmin]);
 
-    const helpHandler = () => {
-        setShowHelp(true);
-    };
-
-    const handleGrafClick = () => {
-        setShowGraf(true);
-    };
-
-    const helpCloseHandler = () => {
-        setShowGraf(false);
-        setShowHelp(false);
-        setShowDonate(false);
+    const handleModalClose = () => {
         showSetAddGame(false);
         showSetAddTournament(false);
-    };
-
-    const donateHandler = () => {
-        setShowDonate(true);
     };
 
     const handleAddGame = () => {
@@ -78,7 +57,7 @@ const Layout = (props) => {
             return;
         }
         try {
-            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
             const data = await response.json();
             const user = Object.values(data).find((u) => u.enteredNickname === authCtx.userNickName);
             const coins = user && user.coins ? user.coins : 0;
@@ -93,11 +72,7 @@ const Layout = (props) => {
                     5
                 );
 
-                console.log(`You need at least 5 coins to add a tournament. You have ${coins}.`);
-
-                <Notification />;
-
-                return; // Prevent opening the modal if not enough coins
+                return;
             }
             showSetAddTournament(true);
         } catch (e) {
@@ -114,7 +89,7 @@ const Layout = (props) => {
             return;
         }
         try {
-            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
             const data = await response.json();
             const user = Object.values(data).find((u) => u.enteredNickname === authCtx.userNickName);
             const coins = user && user.coins ? user.coins : 0;
@@ -125,14 +100,36 @@ const Layout = (props) => {
         }
     };
 
-    // console.log('authCtx', JSON.stringify(authCtx));
+    const addTournamentHint = authCtx.isAdmin
+        ? 'Create a new tournament (admin)'
+        : isAddTournamentDisabled
+          ? `Need ${Math.max(0, 5 - (userCoins ?? 0))} more coins`
+          : 'Create a new tournament (5 coins)';
+
+    const addTournamentValue = {
+        openAddTournament: handleAddTournament,
+        refreshAddTournamentState: handleAddTournamentHover,
+        isAddTournamentDisabled,
+        addTournamentHint,
+        userCoins
+    };
+
     return (
+        <AddTournamentContext.Provider value={addTournamentValue}>
         <Fragment>
             <DonatorsBar />
             <MainHeader />
-            <Container>{props.children}</Container>
-            <GrafBanner handleGrafClick={handleGrafClick} onClose={helpCloseHandler}></GrafBanner>
-            {showGraf && <GrafHelp onClose={helpCloseHandler} graf />}
+            <main className={classes.mainContent}>{props.children}</main>
+            <footer className={classes.siteFooter}>
+                Site by{' '}
+                <a
+                    href="https://www.facebook.com/groups/grafwebstudio"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    Graf Studio
+                </a>
+            </footer>
 
             <div
                 className={classes['add-game']}
@@ -142,37 +139,13 @@ const Layout = (props) => {
                 <div className={classes['add-game-icon']}></div>
                 <span className={classes['tooltip']}>Add Game</span>
             </div>
-            <div
-                className={`${classes['add-tournament']} ${isAddTournamentDisabled ? classes['disabled'] : ''}`}
-                onClick={!isAddTournamentDisabled ? handleAddTournament : undefined}
-                onMouseEnter={handleAddTournamentHover}
-                style={{ display: authCtx.isLogged ? 'flex' : 'none' }}
-            >
-                <div className={classes['add-tournament-icon']}></div>
-                <span className={classes['tooltip']}>
-                    {authCtx.isAdmin
-                        ? 'Add Tournament (Admin)'
-                        : isAddTournamentDisabled
-                          ? `Need ${5 - (userCoins ?? 0)} more coins`
-                          : 'Add Tournament'}
-                </span>
-            </div>
-            <div className={classes['help-ico']} onClick={helpHandler}>
-                <div className={classes['help-icon']}></div>
-                <span className={classes['tooltip']}>Need Help?</span>
-            </div>
-            <div className={classes['donate-ico']} onClick={donateHandler}>
-                <div className={classes['donate-coin']}></div>
-                <span className={classes['tooltip-right']}>Donate</span>
-            </div>
             {/* TODO tooltips */}
-            {showHelp && <ModalHelp onClose={helpCloseHandler} />}
-            {showDonate && <ModalDonate onClose={helpCloseHandler} donate />}
-            {showAddGame && <ModalAddGame onClose={helpCloseHandler} addGame />}
-            {showAddTournament && <ModalAddTournament onClose={helpCloseHandler} addTournament />}
+            {showAddGame && <ModalAddGame onClose={handleModalClose} addGame />}
+            {showAddTournament && <ModalAddTournament onClose={handleModalClose} addTournament />}
 
             <Notification />
         </Fragment>
+        </AddTournamentContext.Provider>
     );
 };
 

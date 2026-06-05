@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../../../config/firebase';
 import { useEffect, useState } from 'react';
 import classes from './Heroes3Stats.module.css';
 
@@ -10,7 +11,7 @@ const Heroes3Stats = () => {
         const fetchCastlesList = async () => {
             try {
                 const response = await fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/statistic/heroes3/castles.json'
+                    `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles.json`
                 );
                 const data = await response.json();
 
@@ -35,7 +36,7 @@ const Heroes3Stats = () => {
         const fetchInProgressGames = async () => {
             try {
                 const response = await fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments.json'
+                    `${FIREBASE_DATABASE_URL}/tournaments.json`
                 );
                 const data = await response.json();
                 const castlesInProgress = new Set();

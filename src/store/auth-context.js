@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import React, { useCallback, useEffect, useState } from 'react';
 
 const AuthContext = React.createContext({
@@ -70,7 +71,7 @@ export const AuthContextProvider = (props) => {
         }
 
         try {
-            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+            const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
             const users = await response.json();
 
             let matchedUser = null;

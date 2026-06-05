@@ -210,28 +210,45 @@ const Videos = () => {
 
     const visibleVideos = videos.filter((video) => !hiddenVideoIds.includes(video.videoId));
 
+    const channelUrl = YOUTUBE_CHANNEL_ID
+        ? `https://www.youtube.com/channel/${YOUTUBE_CHANNEL_ID}`
+        : 'https://www.youtube.com/';
+
     if (loading) {
-        return <div className={classes.status}>Loading videos...</div>;
+        return (
+            <section className={`${classes.wrapper} data-page`}>
+                <h2 className={classes.pageTitle}>Latest videos</h2>
+                <p className={classes.emptyText}>Loading videos...</p>
+            </section>
+        );
     }
 
     if (error) {
         return (
-            <div className={classes.statusError}>
-                <p>{error}</p>
+            <section className={`${classes.wrapper} data-page`}>
+                <h2 className={classes.pageTitle}>Latest videos</h2>
+                <p className={classes.errorText}>{error}</p>
                 <p className={classes.helpText}>
                     Set <strong>REACT_APP_YOUTUBE_API_KEY</strong> and either
                     <strong> REACT_APP_YOUTUBE_UPLOADS_PLAYLIST_ID</strong> or
                     <strong> REACT_APP_YOUTUBE_CHANNEL_ID</strong>.
                 </p>
-            </div>
+            </section>
         );
     }
 
     return (
-        <section className={classes.wrapper}>
-            <h2 className={classes.title}>Latest YouTube Videos</h2>
+        <section className={`${classes.wrapper} data-page`}>
+            <h2 className={classes.pageTitle}>Latest videos</h2>
+            <p className={classes.pageSubtitle}>
+                From the konoplay{' '}
+                <a href={channelUrl} target="_blank" rel="noopener noreferrer">
+                    YouTube channel
+                </a>
+                .
+            </p>
 
-            <div className={classes.viewControls}>
+            <div className={classes.toolbar}>
                 <button
                     type="button"
                     className={`${classes.viewButton} ${viewMode === 'grid' ? classes.activeView : ''}`}
@@ -258,7 +275,7 @@ const Videos = () => {
                 )}
             </div>
 
-            {!visibleVideos.length && <p className={classes.status}>No videos found on this channel.</p>}
+            {!visibleVideos.length && <p className={classes.emptyText}>No videos found on this channel.</p>}
 
             <div className={`${classes.grid} ${viewMode === 'list' ? classes.list : ''}`}>
                 {visibleVideos.map((video) => (

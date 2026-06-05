@@ -1,0 +1,76 @@
+{
+    "_comment": "Same as database.rules.json — kept for reference. Client writes must use authFetch (Firebase ID token).",
+    "rules": {
+        "users": {
+            ".read": true,
+            "$uid": {
+                ".write": "auth != null && (auth.uid === $uid || root.child('meta').child('admins').child(auth.uid).val() === true)"
+            }
+        },
+        "tournaments": {
+            ".read": true,
+            "heroes3": {
+                "$tournamentId": {
+                    "players": {
+                        ".write": "auth != null"
+                    },
+                    "bracket": {
+                        ".write": "auth != null"
+                    },
+                    "submitProgress": {
+                        ".write": "auth != null"
+                    },
+                    "status": {
+                        ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                    },
+                    "winners": {
+                        ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                    },
+                    "pricePull": {
+                        ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                    },
+                    "coinPrizePull": {
+                        ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                    },
+                    ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                },
+                ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+            }
+        },
+        "games": {
+            ".read": true,
+            ".write": "auth != null"
+        },
+        "progress": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+        },
+        "statistic": {
+            ".read": true,
+            "heroes3": {
+                "castles": {
+                    "$castle": {
+                        ".write": "auth != null"
+                    }
+                },
+                ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+            }
+        },
+        "meta": {
+            ".read": "auth != null",
+            ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+        },
+        "daTokens": {
+            ".read": false,
+            ".write": false
+        },
+        "processedDonations": {
+            ".read": false,
+            ".write": false
+        },
+        "processedStripe": {
+            ".read": false,
+            ".write": false
+        }
+    }
+}

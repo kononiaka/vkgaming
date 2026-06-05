@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../../../config/firebase';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Line } from 'react-chartjs-2';
@@ -133,7 +134,7 @@ export const PlayerBracket = (props) => {
                 try {
                     // Fetch full user data using userId to get enteredNickname
                     const response = await fetch(
-                        `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+                        `${FIREBASE_DATABASE_URL}/users/${userId}.json`
                     );
                     if (response.ok) {
                         const userData = await response.json();
@@ -264,7 +265,7 @@ export const PlayerBracket = (props) => {
         if (fullRatings.length === 0 && userId) {
             try {
                 const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+                    `${FIREBASE_DATABASE_URL}/users/${userId}.json`
                 );
                 if (response.ok) {
                     const userData = await response.json();

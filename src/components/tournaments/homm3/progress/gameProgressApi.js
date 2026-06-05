@@ -1,3 +1,6 @@
+import { FIREBASE_DATABASE_URL } from '../../../../config/firebase';
+import { authFetch } from '../../../../api/authFetch';
+
 // Move all progress-related fields into a nested .progress object inside the game
 const PROGRESS_KEYS = [
     'latestProcessedStage',
@@ -64,7 +67,7 @@ export function getGameProgressPath(tournamentId, pairId, gameId) {
  */
 export async function saveGameProgressFields(tournamentId, pairId, gameId, progressFields) {
     const path = getGameProgressPath(tournamentId, pairId, gameId);
-    await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com${path}.json`, {
+    await authFetch(`${FIREBASE_DATABASE_URL}${path}.json`, {
         method: 'PUT',
         body: JSON.stringify(progressFields),
         headers: { 'Content-Type': 'application/json' }
@@ -80,7 +83,7 @@ export async function saveGameProgressFields(tournamentId, pairId, gameId, progr
  */
 export async function loadGameProgressFields(tournamentId, pairId, gameId) {
     const path = getGameProgressPath(tournamentId, pairId, gameId);
-    const resp = await fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com${path}.json`);
+    const resp = await authFetch(`${FIREBASE_DATABASE_URL}${path}.json`);
     if (resp.ok) {
         return await resp.json();
     }

@@ -1,0 +1,123 @@
+.wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem 2.5rem;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    color: var(--color-text);
+}
+
+.pageHeader {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: var(--border-subtle);
+}
+
+.pageTitle {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--color-gold);
+    text-align: left;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.35rem;
+    line-height: 1.6;
+}
+
+.pageSubtitle {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.infoPanel {
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.infoLead {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.channelList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.channelItem {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s ease;
+}
+
+.channelItem:hover {
+    border-color: rgba(201, 162, 39, 0.35);
+}
+
+.channelIcon {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    object-fit: contain;
+    opacity: 0.9;
+}
+
+.channelBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.channelName {
+    margin: 0 0 0.25rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.channelDesc {
+    margin: 0 0 0.65rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.channelLink {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-teal);
+    text-decoration: none;
+}
+
+.channelLink:hover {
+    color: var(--color-gold-bright);
+    text-decoration: underline;
+}
+
+@media (max-width: 540px) {
+    .channelItem {
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+}

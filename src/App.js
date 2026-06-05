@@ -10,12 +10,14 @@ import Heroes3Stats from './components/Games/Heroes3/Stats/Heroes3Stats';
 import Leaderboard from './components/Leaderboard/Leaderboard';
 import Players from './components/Players/Players';
 import UserProfile from './components/Profile/UserProfile';
-import Videos from './components/Videos/Videos';
 import TournamentList from './components/tournaments/homm3/Tournaments';
 import TwitchCallback from './components/Auth/TwitchCallback';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
+import SupportPage from './pages/SupportPage';
+import HelpPage from './pages/HelpPage';
+import RulesPage from './pages/RulesPage';
 import AuthContext from './store/auth-context';
 
 import classes from './App.module.css';
@@ -35,10 +37,13 @@ function App() {
                     <Route path="/games/homm3" element={<Heroes3Games />} />
                     <Route path="/tournaments/homm3" element={<TournamentList />} />
                     <Route path="/tournaments/homm3/:tournamentId" element={<TournamentList />} />
-                    <Route path="/videos" element={<Videos />} />
+                    <Route path="/videos" element={<Navigate to="/tournaments/homm3" replace />} />
                     <Route path="/games/homm3/statistics" element={<Heroes3Stats />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />
-                    {/* <Route path="/players" element={<Players />} /> */}
+                    <Route path="/support" element={<SupportPage />} />
+                    <Route path="/help" element={<HelpPage />} />
+                    <Route path="/rules" element={<RulesPage />} />
+                    <Route path="/players" element={<Leaderboard />} />
                     <Route path="/players/:id" element={<Players />} />
                     <Route path="/" element={<HomePage />} />
                     <Route path="/auth/twitch/callback" element={<TwitchCallback />} />

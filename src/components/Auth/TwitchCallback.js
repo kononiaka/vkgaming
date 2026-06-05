@@ -1,7 +1,9 @@
+import { FIREBASE_DATABASE_URL, FIREBASE_FUNCTIONS_BASE } from '../../config/firebase';
+import { authFetch } from '../../api/authFetch';
 import { useContext, useEffect, useRef } from 'react';
 import AuthContext from '../../store/auth-context';
 
-const TWITCH_AUTH_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/twitchAuth';
+const TWITCH_AUTH_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/twitchAuth`;
 const FIREBASE_API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
 
 const TwitchCallback = () => {
@@ -93,19 +95,16 @@ const TwitchCallback = () => {
                 if (dbUserId) {
                     try {
                         const userSnap = await fetch(
-                            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${dbUserId}.json`
+                            `${FIREBASE_DATABASE_URL}/users/${dbUserId}.json`
                         );
                         const userData = await userSnap.json();
                         const today = new Date().toISOString().slice(0, 10);
                         if (userData && userData.lastLoginDate !== today) {
-                            await fetch(
-                                `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${dbUserId}.json`,
-                                {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ lastLoginDate: today })
-                                }
-                            );
+                            await authFetch(`${FIREBASE_DATABASE_URL}/users/${dbUserId}.json`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ lastLoginDate: today })
+                            });
                             const { addCoins } = await import('../../api/coinTransactions');
                             await addCoins(dbUserId, 1, 'daily_login', 'Daily login reward');
                             authCtx.setNotificationShown(
@@ -134,8 +133,16 @@ const TwitchCallback = () => {
     }, [authCtx]);
 
     return (
-        <div style={{ textAlign: 'center', marginTop: '5rem', color: '#00ffff', fontSize: '1.3rem' }}>
-            ⏳ Signing you in with Twitch...
+        <div
+            style={{
+                textAlign: 'center',
+                marginTop: '5rem',
+                color: 'var(--color-text-muted)',
+                fontFamily: 'var(--font-body)',
+                fontSize: '1rem'
+            }}
+        >
+            Signing you in with Twitch...
         </div>
     );
 };

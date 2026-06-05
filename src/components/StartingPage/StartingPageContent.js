@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -16,17 +17,37 @@ import factoryImg from '../../image/castles/factory.jpeg';
 import kronverkImg from '../../image/castles/kronverk.jpeg';
 import redFlagImg from '../../image/flags/red.jpg';
 import blueFlagImg from '../../image/flags/blue.jpg';
+import { getTournamentPrizeLabel } from '../../api/api';
 import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
 import StarsComponent from '../Stars/Stars';
 import classes from './StartingPageContent.module.css';
 
+const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'finished']);
+const MATCH_CENTER_PREVIEW_LIMIT = 5;
+
+const isPlayerVisibleTournament = (tournament) => {
+    const status = tournament?.status;
+    return (
+        status === 'Registration' ||
+        status === 'Registration Started' ||
+        status === 'Started!'
+    );
+};
+
 const StartingPageContent = () => {
     const authCtx = useContext(AuthContext);
-    let { userNickName, isLogged, notificationShown } = authCtx;
+    let { userNickName, isLogged, notificationShown, isAdmin } = authCtx;
     const [activeTournaments, setActiveTournaments] = useState([]);
     const [liveGames, setLiveGames] = useState([]);
+    const [upcomingMatches, setUpcomingMatches] = useState([]);
     const [myGames, setMyGames] = useState([]);
     const [statusFilter, setStatusFilter] = useState('started');
+
+    useEffect(() => {
+        if (!isAdmin && ADMIN_ONLY_TOURNAMENT_FILTERS.has(statusFilter)) {
+            setStatusFilter('started');
+        }
+    }, [isAdmin, statusFilter]);
 
     const parseNumericValue = (value) => {
         if (typeof value === 'string' && value.includes(',')) {
@@ -135,27 +156,23 @@ const StartingPageContent = () => {
         userNickName = localStorage.getItem('userName');
     }
 
-    let greeting = '';
-    if (isLogged && notificationShown) {
-        greeting = `Welcome on Board, ${userNickName} to konoplay!`;
-    } else if (isLogged && !notificationShown) {
-        greeting = `Welcome back, ${userNickName} to konoplay!`;
-    } else {
-        greeting = 'Welcome to konoplay!';
+    let greeting = null;
+    if (isLogged && userNickName) {
+        greeting = notificationShown ? `Welcome aboard, ${userNickName}!` : `Welcome back, ${userNickName}!`;
     }
 
     useEffect(() => {
         const fetchActiveTournaments = async () => {
             try {
                 const response = await fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json'
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`
                 );
                 const data = await response.json();
 
-                const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const usersResponse = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 const usersData = await usersResponse.json();
                 const historyResponse = await fetch(
-                    'https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json'
+                    `${FIREBASE_DATABASE_URL}/games/heroes3.json`
                 );
                 const historyData = await historyResponse.json();
                 const avatarByNickname = {};
@@ -209,7 +226,8 @@ const StartingPageContent = () => {
 
                     setActiveTournaments(tournamentList);
 
-                    const games = [];
+                    const liveGamesList = [];
+                    const upcomingList = [];
                     Object.keys(data).forEach((tournamentId) => {
                         const tournament = data[tournamentId];
                         const tournamentPlayers = Object.values(tournament?.players || {}).filter(Boolean);
@@ -229,25 +247,40 @@ const StartingPageContent = () => {
                                             (player) => player.name === pair.team2
                                         );
 
+                                        const bestOf =
+                                            pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
+                                        const reqWins = Math.floor(bestOf / 2) + 1;
+                                        const ps1 = Number(pair.score1) || 0;
+                                        const ps2 = Number(pair.score2) || 0;
+                                        const seriesDone =
+                                            ps1 >= reqWins ||
+                                            ps2 >= reqWins ||
+                                            pair.winner ||
+                                            pair.gameStatus === 'Processed';
+                                        const team1Ready =
+                                            pair.team1 && pair.team1 !== 'TBD' && pair.team1 !== 'null';
+                                        const team2Ready =
+                                            pair.team2 && pair.team2 !== 'TBD' && pair.team2 !== 'null';
+                                        const pairPrediction = getHeadToHeadPrediction(
+                                            pair.team1,
+                                            pair.team2,
+                                            historyData,
+                                            {
+                                                team1Place: team1Player?.placeInLeaderboard,
+                                                team2Place: team2Player?.placeInLeaderboard,
+                                                team1Rating: pair.ratings1 ?? team1Player?.ratings,
+                                                team2Rating: pair.ratings2 ?? team2Player?.ratings,
+                                                team1Stars: pair.stars1 ?? team1Player?.stars,
+                                                team2Stars: pair.stars2 ?? team2Player?.stars
+                                            }
+                                        );
+
+                                        let mapLiveForPair = false;
                                         if (pair.games && Array.isArray(pair.games)) {
-                                            let pushedForPair = false;
                                             pair.games.forEach((game) => {
                                                 if (game.castle1 && game.castle2 && !game.castleWinner) {
-                                                    const prediction = getHeadToHeadPrediction(
-                                                        pair.team1,
-                                                        pair.team2,
-                                                        historyData,
-                                                        {
-                                                            team1Place: team1Player?.placeInLeaderboard,
-                                                            team2Place: team2Player?.placeInLeaderboard,
-                                                            team1Rating: pair.ratings1 ?? team1Player?.ratings,
-                                                            team2Rating: pair.ratings2 ?? team2Player?.ratings,
-                                                            team1Stars: pair.stars1 ?? team1Player?.stars,
-                                                            team2Stars: pair.stars2 ?? team2Player?.stars
-                                                        }
-                                                    );
-
-                                                    games.push({
+                                                    mapLiveForPair = true;
+                                                    liveGamesList.push({
                                                         tournamentId,
                                                         tournamentName: tournament.name,
                                                         stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
@@ -285,8 +318,8 @@ const StartingPageContent = () => {
                                                         team2Rating: parseNumericValue(
                                                             pair.ratings2 ?? team2Player?.ratings
                                                         ),
-                                                        team1Prediction: prediction.team1,
-                                                        team2Prediction: prediction.team2,
+                                                        team1Prediction: pairPrediction.team1,
+                                                        team2Prediction: pairPrediction.team2,
                                                         gold1: game.gold1 || 0,
                                                         gold2: game.gold2 || 0,
                                                         restart1_111: game.restart1_111 || 0,
@@ -295,92 +328,44 @@ const StartingPageContent = () => {
                                                         restart2_112: game.restart2_112 || 0,
                                                         restartsFinished: Boolean(game.restartsFinished)
                                                     });
-                                                    pushedForPair = true;
                                                 }
                                             });
+                                        }
 
-                                            // Series is ongoing but between games (e.g. BO-5 at 2-1, game 4 not started)
-                                            if (!pushedForPair) {
-                                                const pairBestOf =
-                                                    pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
-                                                const pairReqWins = Math.floor(pairBestOf / 2) + 1;
-                                                const ps1 = Number(pair.score1) || 0;
-                                                const ps2 = Number(pair.score2) || 0;
-                                                if (
-                                                    ps1 + ps2 > 0 &&
-                                                    Math.max(ps1, ps2) < pairReqWins &&
-                                                    pair.gameStatus !== 'Processed'
-                                                ) {
-                                                    const prediction = getHeadToHeadPrediction(
-                                                        pair.team1,
-                                                        pair.team2,
-                                                        historyData,
-                                                        {
-                                                            team1Place: team1Player?.placeInLeaderboard,
-                                                            team2Place: team2Player?.placeInLeaderboard,
-                                                            team1Rating: pair.ratings1 ?? team1Player?.ratings,
-                                                            team2Rating: pair.ratings2 ?? team2Player?.ratings,
-                                                            team1Stars: pair.stars1 ?? team1Player?.stars,
-                                                            team2Stars: pair.stars2 ?? team2Player?.stars
-                                                        }
-                                                    );
-                                                    games.push({
-                                                        tournamentId,
-                                                        tournamentName: tournament.name,
-                                                        stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
-                                                        team1: pair.team1,
-                                                        team2: pair.team2,
-                                                        team1Avatar: avatarByNickname[pair.team1] || null,
-                                                        team2Avatar: avatarByNickname[pair.team2] || null,
-                                                        score1: ps1,
-                                                        score2: ps2,
-                                                        type: pair.type,
-                                                        stageIndex,
-                                                        pairIndex,
-                                                        castle1: '',
-                                                        castle2: '',
-                                                        color1: pair.color1 || 'red',
-                                                        color2: pair.color2 || 'blue',
-                                                        gameNumber: ps1 + ps2 + 1,
-                                                        team1Stars: parseNumericValue(
-                                                            pair.stars1 ?? team1Player?.stars
-                                                        ),
-                                                        team2Stars: parseNumericValue(
-                                                            pair.stars2 ?? team2Player?.stars
-                                                        ),
-                                                        team1Place:
-                                                            rankByNickname[pair.team1] ||
-                                                            team1Player?.placeInLeaderboard ||
-                                                            '-',
-                                                        team2Place:
-                                                            rankByNickname[pair.team2] ||
-                                                            team2Player?.placeInLeaderboard ||
-                                                            '-',
-                                                        team1Rating: parseNumericValue(
-                                                            pair.ratings1 ?? team1Player?.ratings
-                                                        ),
-                                                        team2Rating: parseNumericValue(
-                                                            pair.ratings2 ?? team2Player?.ratings
-                                                        ),
-                                                        team1Prediction: prediction.team1,
-                                                        team2Prediction: prediction.team2,
-                                                        gold1: 0,
-                                                        gold2: 0,
-                                                        restart1_111: 0,
-                                                        restart1_112: 0,
-                                                        restart2_111: 0,
-                                                        restart2_112: 0,
-                                                        restartsFinished: false
-                                                    });
-                                                }
-                                            }
+                                        if (!seriesDone && team1Ready && team2Ready && !mapLiveForPair) {
+                                            upcomingList.push({
+                                                tournamentId,
+                                                tournamentName: tournament.name,
+                                                stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
+                                                team1: pair.team1,
+                                                team2: pair.team2,
+                                                team1Avatar: avatarByNickname[pair.team1] || null,
+                                                team2Avatar: avatarByNickname[pair.team2] || null,
+                                                score1: ps1,
+                                                score2: ps2,
+                                                type: pair.type,
+                                                stageIndex,
+                                                pairIndex,
+                                                team1Place:
+                                                    rankByNickname[pair.team1] ||
+                                                    team1Player?.placeInLeaderboard ||
+                                                    '-',
+                                                team2Place:
+                                                    rankByNickname[pair.team2] ||
+                                                    team2Player?.placeInLeaderboard ||
+                                                    '-',
+                                                team1Prediction: pairPrediction.team1,
+                                                team2Prediction: pairPrediction.team2,
+                                                statusLabel: ps1 + ps2 > 0 ? 'Next map' : 'Upcoming'
+                                            });
                                         }
                                     });
                                 }
                             });
                         }
                     });
-                    setLiveGames(games);
+                    setLiveGames(liveGamesList);
+                    setUpcomingMatches(upcomingList);
 
                     // Compute upcoming/active matches for the logged-in player
                     const playerName =
@@ -454,7 +439,7 @@ const StartingPageContent = () => {
         };
 
         fetchActiveTournaments();
-    }, []);
+    }, [userNickName]);
 
     const hasLiveGames = (tournament) => {
         if (!tournament.bracket || !tournament.bracket.playoffPairs) {
@@ -472,8 +457,11 @@ const StartingPageContent = () => {
     };
 
     const filteredTournaments = activeTournaments.filter((tournament) => {
+        if (!isAdmin && !isPlayerVisibleTournament(tournament)) {
+            return false;
+        }
         if (statusFilter === 'all') {
-            return true;
+            return isAdmin;
         }
         if (statusFilter === 'registration') {
             return tournament.status === 'Registration' || tournament.status === 'Registration Started';
@@ -509,7 +497,6 @@ const StartingPageContent = () => {
     const renderRestartTokens = (restart111Value, restart112Value) => {
         const used111 = Math.max(0, Math.min(2, Number(restart111Value) || 0));
         const used112 = (Number(restart112Value) || 0) >= 1;
-        // If any 111 restart was used, 112 is automatically marked as used
         const show112AsUsed = used112 || used111 >= 1;
 
         return (
@@ -527,14 +514,255 @@ const StartingPageContent = () => {
         );
     };
 
+    const hasActiveCup = activeTournaments.some((t) => t.status === 'Started!');
+    const featuredCup =
+        activeTournaments.find((t) => t.status === 'Started!') ||
+        activeTournaments.find(
+            (t) => t.status === 'Registration' || t.status === 'Registration Started'
+        );
+    const featuredPrizeLabel = featuredCup ? getTournamentPrizeLabel(featuredCup) : null;
+    const previewLiveGames = liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
+    const previewUpcoming = upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
+
+    const renderLiveGameCard = (game, key) => (
+        <Link
+            key={key}
+            to={`/tournaments/homm3/${game.tournamentId}?status=started&stage=${game.stageIndex}&pair=${game.pairIndex}&report=1&game=${game.gameNumber - 1}`}
+            className={classes.liveGameCard}
+        >
+            <div className={classes.liveIndicator}>LIVE</div>
+            <div className={classes.tournamentName}>
+                {game.tournamentName} ({game.stageLabel})
+            </div>
+            <div className={classes.predictionBanner}>
+                Win prediction: {game.team1} {game.team1Prediction}% | {game.team2} {game.team2Prediction}%
+            </div>
+            <div className={classes.matchup}>
+                <div className={classes.player}>
+                    <div className={classes.playerLine}>
+                        <div className={classes.playerVisuals}>
+                            {game.team1Avatar ? (
+                                <img src={game.team1Avatar} alt={game.team1} className={classes.playerAvatar} />
+                            ) : (
+                                <div className={classes.playerAvatarFallback}>
+                                    {String(game.team1 || '?')
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                </div>
+                            )}
+                            <img
+                                src={getFlagImage(game.color1)}
+                                alt={`${game.color1} flag`}
+                                className={classes.playerFlag}
+                            />
+                        </div>
+                        <span className={classes.playerName}>{game.team1}</span>
+                        <span className={classes.playerPlaceInline}>#{game.team1Place}</span>
+                        <div className={classes.playerStarsWrapInline}>
+                            <StarsComponent stars={game.team1Stars} />
+                        </div>
+                    </div>
+                    <span className={classes.score}>{game.score1}</span>
+                </div>
+                <div className={classes.vs}>VS</div>
+                <div className={classes.player}>
+                    <span className={classes.score}>{game.score2}</span>
+                    <div className={classes.playerLineRight}>
+                        <div className={classes.playerStarsWrapInlineRight}>
+                            <StarsComponent stars={game.team2Stars} />
+                        </div>
+                        <span className={classes.playerName}>{game.team2}</span>
+                        <span className={classes.playerPlaceInline}>#{game.team2Place}</span>
+                        <div className={classes.playerVisuals}>
+                            <img
+                                src={getFlagImage(game.color2)}
+                                alt={`${game.color2} flag`}
+                                className={classes.playerFlag}
+                            />
+                            {game.team2Avatar ? (
+                                <img src={game.team2Avatar} alt={game.team2} className={classes.playerAvatar} />
+                            ) : (
+                                <div className={classes.playerAvatarFallback}>
+                                    {String(game.team2 || '?')
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className={classes.duelDetails}>
+                <span>Game {game.gameNumber}</span>
+                <span>
+                    Colors: {game.team1} ({game.color1}) vs {game.team2} ({game.color2})
+                </span>
+                {game.restartsFinished && (
+                    <span className={classes.restartsFinishedBadge}>Restarts finished / main game started</span>
+                )}
+            </div>
+            <div className={classes.castlesRow}>
+                <div className={classes.castleCard}>
+                    {getCastleImage(game.castle1) && (
+                        <img src={getCastleImage(game.castle1)} alt={game.castle1} className={classes.castleImg} />
+                    )}
+                    <div className={classes.castleName}>{game.castle1}</div>
+                    <div className={classes.castleMeta}>Gold: {game.gold1}</div>
+                    <div className={classes.restartsLabel}>Restarts:</div>
+                    {renderRestartTokens(game.restart1_111, game.restart1_112)}
+                </div>
+                <div className={classes.castleCard}>
+                    {getCastleImage(game.castle2) && (
+                        <img src={getCastleImage(game.castle2)} alt={game.castle2} className={classes.castleImg} />
+                    )}
+                    <div className={classes.castleName}>{game.castle2}</div>
+                    <div className={classes.castleMeta}>Gold: {game.gold2}</div>
+                    <div className={classes.restartsLabel}>Restarts:</div>
+                    {renderRestartTokens(game.restart2_111, game.restart2_112)}
+                </div>
+            </div>
+            <div className={classes.gameType}>{game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}</div>
+        </Link>
+    );
+
+    const renderUpcomingCard = (match, key) => (
+        <Link
+            key={key}
+            to={`/tournaments/homm3/${match.tournamentId}?status=started&stage=${match.stageIndex}&pair=${match.pairIndex}`}
+            className={classes.upcomingGameCard}
+        >
+            <div className={classes.upcomingIndicator}>{match.statusLabel}</div>
+            <div className={classes.tournamentName}>
+                {match.tournamentName} ({match.stageLabel})
+            </div>
+            <div className={classes.upcomingMatchup}>
+                <div className={classes.upcomingPlayer}>
+                    {match.team1Avatar ? (
+                        <img src={match.team1Avatar} alt={match.team1} className={classes.playerAvatar} />
+                    ) : (
+                        <div className={classes.playerAvatarFallback}>
+                            {String(match.team1 || '?')
+                                .charAt(0)
+                                .toUpperCase()}
+                        </div>
+                    )}
+                    <span className={classes.upcomingPlayerName}>{match.team1}</span>
+                    <span className={classes.upcomingMeta}>#{match.team1Place}</span>
+                </div>
+                <div className={classes.upcomingScore}>
+                    <span>{match.score1}</span>
+                    <span className={classes.upcomingScoreSep}>:</span>
+                    <span>{match.score2}</span>
+                </div>
+                <div className={classes.upcomingPlayer}>
+                    <span className={classes.upcomingMeta}>#{match.team2Place}</span>
+                    <span className={classes.upcomingPlayerName}>{match.team2}</span>
+                    {match.team2Avatar ? (
+                        <img src={match.team2Avatar} alt={match.team2} className={classes.playerAvatar} />
+                    ) : (
+                        <div className={classes.playerAvatarFallback}>
+                            {String(match.team2 || '?')
+                                .charAt(0)
+                                .toUpperCase()}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className={classes.upcomingPrediction}>
+                {match.team1} {match.team1Prediction}% · {match.team2} {match.team2Prediction}%
+            </div>
+            <div className={classes.gameType}>{match.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}</div>
+        </Link>
+    );
+
     return (
         <section className={classes.starting}>
-            <h1>{greeting}</h1>
-            {authCtx.isAdmin && <DonationLeaderboard />}
+            {hasActiveCup && (
+                <div className={`${classes.matchCenterSection} ${classes.homeSectionFirst}`}>
+                    <div className={classes.sectionHeader}>
+                        <div>
+                            <h2 className={`${classes.sectionTitle} ${classes.matchCenterTitle}`}>Match center</h2>
+                            {greeting && <p className={classes.matchCenterGreeting}>{greeting}</p>}
+                            <p className={classes.matchCenterSubtitle}>
+                                Live cups and bracket fixtures
+                                {featuredPrizeLabel && featuredCup && (
+                                    <>
+                                        {' '}
+                                        ·{' '}
+                                        <Link
+                                            to={`/tournaments/homm3/${featuredCup.id}`}
+                                            className={classes.prizeLink}
+                                        >
+                                            {featuredCup.name}: {featuredPrizeLabel}
+                                        </Link>
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                        <Link to="/tournaments/homm3?status=started" className={classes.viewAllLink}>
+                            View all tournaments
+                        </Link>
+                    </div>
+
+                    <h3 className={classes.matchCenterLabel}>Live now</h3>
+                    {previewLiveGames.length > 0 ? (
+                        <>
+                            <div className={classes.tournamentsList}>
+                                {previewLiveGames.map((game, index) =>
+                                    renderLiveGameCard(game, `live-${game.tournamentId}-${game.stageIndex}-${game.pairIndex}-${index}`)
+                                )}
+                            </div>
+                            {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                <Link to="/tournaments/homm3?status=live" className={classes.viewMoreLink}>
+                                    +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — view all
+                                </Link>
+                            )}
+                        </>
+                    ) : (
+                        <div className={classes.emptyLive}>
+                            <p className={classes.emptyLiveTitle}>No maps in progress</p>
+                            <p className={classes.emptyLiveHint}>
+                                Bracket matches will appear here when players start a map.
+                            </p>
+                        </div>
+                    )}
+
+                    <h3 className={classes.matchCenterLabel}>Upcoming bracket matches</h3>
+                    {previewUpcoming.length > 0 ? (
+                        <>
+                            <div className={classes.upcomingList}>
+                                {previewUpcoming.map((match, index) =>
+                                    renderUpcomingCard(
+                                        match,
+                                        `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                    )
+                                )}
+                            </div>
+                            {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                <Link to="/tournaments/homm3?status=started" className={classes.viewMoreLink}>
+                                    +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming — view
+                                    brackets
+                                </Link>
+                            )}
+                        </>
+                    ) : (
+                        <div className={classes.emptyUpcoming}>
+                            <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
+                            <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {greeting && !hasActiveCup && (
+                <div className={classes.hero}>
+                    <h1 className={classes.heroTitle}>{greeting}</h1>
+                </div>
+            )}
 
             {isLogged && myGames.length > 0 && (
-                <div className={classes.myGamesSection}>
-                    <h2>My Upcoming Matches</h2>
+                <div className={`${classes.myGamesSection} ${classes.homeSection}`}>
+                    <h2 className={classes.sectionTitle}>My upcoming matches</h2>
                     <div className={classes.myGamesList}>
                         {myGames.map((match, index) => (
                             <Link
@@ -593,34 +821,19 @@ const StartingPageContent = () => {
             )}
 
             {activeTournaments.length > 0 && (
-                <div className={classes.tournamentsSection}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '1rem'
-                        }}
-                    >
-                        <h2>Active Tournaments</h2>
+                <div className={`${classes.tournamentsSection} ${classes.homeSection}`}>
+                    <div className={classes.sectionHeader}>
+                        <h2 className={`${classes.sectionTitle} ${classes.sectionTitleLines}`}>Active tournaments</h2>
                         <select
+                            className={classes.statusFilter}
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 215, 0, 0.05))',
-                                border: '2px solid #00ffff',
-                                borderRadius: '8px',
-                                color: '#00ffff',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer'
-                            }}
                         >
-                            <option value="all">All Tournaments</option>
-                            <option value="registration">Registration Open</option>
-                            <option value="started">In Progress</option>
-                            <option value="live">Live Games</option>
-                            <option value="finished">Finished</option>
+                            {isAdmin && <option value="all">All tournaments</option>}
+                            <option value="registration">Registration open</option>
+                            <option value="started">In progress</option>
+                            <option value="live">Live games</option>
+                            {isAdmin && <option value="finished">Finished</option>}
                         </select>
                     </div>
                     <div className={classes.tournamentsList}>
@@ -649,162 +862,18 @@ const StartingPageContent = () => {
                                         : 0}
                                     /{tournament.maxPlayers} Players
                                 </div>
+                                {getTournamentPrizeLabel(tournament) && (
+                                    <div className={classes.tournamentPrize}>
+                                        {getTournamentPrizeLabel(tournament)}
+                                    </div>
+                                )}
                             </Link>
                         ))}
                     </div>
                 </div>
             )}
 
-            {activeTournaments.some((t) => t.status === 'Started!') && (
-                <div className={classes.tournamentsSection}>
-                    <h2>Live Games</h2>
-                    {liveGames.length > 0 ? (
-                        <div className={classes.tournamentsList}>
-                            {liveGames.map((game, index) => (
-                                <Link
-                                    key={index}
-                                    to={`/tournaments/homm3/${game.tournamentId}?status=started&stage=${game.stageIndex}&pair=${game.pairIndex}&report=1&game=${game.gameNumber - 1}`}
-                                    className={classes.liveGameCard}
-                                >
-                                    <div className={classes.liveIndicator}>LIVE</div>
-                                    <div className={classes.tournamentName}>
-                                        {game.tournamentName} ({game.stageLabel})
-                                    </div>
-                                    <div className={classes.predictionBanner}>
-                                        Win prediction: {game.team1} {game.team1Prediction}% | {game.team2}{' '}
-                                        {game.team2Prediction}%
-                                    </div>
-                                    <div className={classes.matchup}>
-                                        <div className={classes.player}>
-                                            <div className={classes.playerLine}>
-                                                <div className={classes.playerVisuals}>
-                                                    {game.team1Avatar ? (
-                                                        <img
-                                                            src={game.team1Avatar}
-                                                            alt={game.team1}
-                                                            className={classes.playerAvatar}
-                                                        />
-                                                    ) : (
-                                                        <div className={classes.playerAvatarFallback}>
-                                                            {String(game.team1 || '?')
-                                                                .charAt(0)
-                                                                .toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                    <img
-                                                        src={getFlagImage(game.color1)}
-                                                        alt={`${game.color1} flag`}
-                                                        className={classes.playerFlag}
-                                                    />
-                                                </div>
-                                                <span className={classes.playerName}>{game.team1}</span>
-                                                <span className={classes.playerPlaceInline}>#{game.team1Place}</span>
-                                                <div className={classes.playerStarsWrapInline}>
-                                                    <StarsComponent stars={game.team1Stars} />
-                                                </div>
-                                            </div>
-                                            <span className={classes.score}>{game.score1}</span>
-                                        </div>
-                                        <div className={classes.vs}>VS</div>
-                                        <div className={classes.player}>
-                                            <span className={classes.score}>{game.score2}</span>
-                                            <div className={classes.playerLineRight}>
-                                                <div className={classes.playerStarsWrapInlineRight}>
-                                                    <StarsComponent stars={game.team2Stars} />
-                                                </div>
-                                                <span className={classes.playerName}>{game.team2}</span>
-                                                <span className={classes.playerPlaceInline}>#{game.team2Place}</span>
-                                                <div className={classes.playerVisuals}>
-                                                    <img
-                                                        src={getFlagImage(game.color2)}
-                                                        alt={`${game.color2} flag`}
-                                                        className={classes.playerFlag}
-                                                    />
-                                                    {game.team2Avatar ? (
-                                                        <img
-                                                            src={game.team2Avatar}
-                                                            alt={game.team2}
-                                                            className={classes.playerAvatar}
-                                                        />
-                                                    ) : (
-                                                        <div className={classes.playerAvatarFallback}>
-                                                            {String(game.team2 || '?')
-                                                                .charAt(0)
-                                                                .toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className={classes.duelDetails}>
-                                        <span>Game {game.gameNumber}</span>
-                                        <span>
-                                            Colors: {game.team1} ({game.color1}) vs {game.team2} ({game.color2})
-                                        </span>
-                                        <span className={classes.winPrediction}>
-                                            Win prediction: {game.team1} {game.team1Prediction}% | {game.team2}{' '}
-                                            {game.team2Prediction}%
-                                        </span>
-                                        {game.restartsFinished && (
-                                            <span className={classes.restartsFinishedBadge}>
-                                                Restarts finished / main game started
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className={classes.castlesRow}>
-                                        <div className={classes.castleCard}>
-                                            {getCastleImage(game.castle1) && (
-                                                <img
-                                                    src={getCastleImage(game.castle1)}
-                                                    alt={game.castle1}
-                                                    className={classes.castleImg}
-                                                />
-                                            )}
-                                            <div className={classes.castleName}>{game.castle1}</div>
-                                            <div className={classes.castleMeta}>Gold: {game.gold1}</div>
-                                            <div className={classes.restartsLabel}>Restarts:</div>
-                                            {renderRestartTokens(game.restart1_111, game.restart1_112)}
-                                        </div>
-                                        <div className={classes.castleCard}>
-                                            {getCastleImage(game.castle2) && (
-                                                <img
-                                                    src={getCastleImage(game.castle2)}
-                                                    alt={game.castle2}
-                                                    className={classes.castleImg}
-                                                />
-                                            )}
-                                            <div className={classes.castleName}>{game.castle2}</div>
-                                            <div className={classes.castleMeta}>Gold: {game.gold2}</div>
-                                            <div className={classes.restartsLabel}>Restarts:</div>
-                                            {renderRestartTokens(game.restart2_111, game.restart2_112)}
-                                        </div>
-                                    </div>
-                                    <div className={classes.gameType}>
-                                        {game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    ) : (
-                        <div
-                            style={{
-                                textAlign: 'center',
-                                padding: '3rem 2rem',
-                                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(255, 215, 0, 0.03))',
-                                border: '2px dashed #00ffff',
-                                borderRadius: '12px',
-                                color: '#FFD700',
-                                fontSize: '1.2rem',
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>No active games</div>
-                            <div>Time to fire one up. 🔥</div>
-                        </div>
-                    )}
-                </div>
-            )}
+            {authCtx.isAdmin && <DonationLeaderboard />}
         </section>
     );
 };

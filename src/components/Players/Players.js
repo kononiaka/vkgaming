@@ -1,7 +1,7 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
-import Chart from 'chart.js/auto';
 import {
     fetchLastGamesForPlayer,
     fetchBestAndWorstCastleForPlayer,
@@ -12,6 +12,7 @@ import {
 } from '../../api/api'; // Make sure this path is correct
 import classes from './Players.module.css';
 import StarsComponent from '../Stars/Stars';
+import GameMechanicsStats from './GameMechanicsStats';
 
 // Import castle images
 import castleImg from '../../image/castles/castle.jpeg';
@@ -27,9 +28,31 @@ import confluxImg from '../../image/castles/conflux.jpeg';
 import coveImg from '../../image/castles/cove.jpeg';
 import kronverkImg from '../../image/castles/kronverk.jpeg';
 
-const PlayerDetails = () => {
+export const ALL_CASTLES = [
+    { name: 'Castle', image: castleImg },
+    { name: 'Rampart', image: rampartImg },
+    { name: 'Tower', image: towerImg },
+    { name: 'Inferno', image: infernoImg },
+    { name: 'Necropolis', image: necropolisImg },
+    { name: 'Dungeon', image: dungeonImg },
+    { name: 'Stronghold', image: strongholdImg },
+    { name: 'Fortress', image: fortressImg },
+    { name: 'Factory', image: factoryImg },
+    { name: 'Conflux', image: confluxImg },
+    { name: 'Cove', image: coveImg },
+    { name: 'Kronverk', image: kronverkImg }
+];
+
+export const PlayerProfileContent = ({
+    playerId,
+    title = 'Player Details',
+    subtitle = 'Public profile with social links, current standing, and season performance.',
+    loadingMessage = 'Loading player details...',
+    settingsSlot = null,
+    avatarRefreshKey = 0,
+    children
+}) => {
     const [player, setPlayer] = useState(null);
-    const { id } = useParams();
     const [leaderboardPlace, setLeaderboardPlace] = useState(null);
     const [streak, setStreak] = useState([]);
     const [bestCastle, setBestCastle] = useState(null);
@@ -45,22 +68,24 @@ const PlayerDetails = () => {
     const [chartData, setChartData] = useState(null);
 
     useEffect(() => {
-        // Fetch player details based on the ID from the database
+        if (!playerId) {
+            setPlayer(null);
+            setAvatarUrl(null);
+            return;
+        }
+
         const fetchPlayerDetails = async () => {
             try {
-                const response = await fetch(
-                    `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${id}.json`
-                );
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/users/${playerId}.json`);
                 if (!response.ok) {
                     throw new Error('Unable to fetch data from the server.');
                 }
                 const data = await response.json();
                 setPlayer(data);
 
-                // Fetch avatar
-                if (data && id) {
+                if (data && playerId) {
                     try {
-                        const avatar = await getAvatar(id);
+                        const avatar = await getAvatar(playerId);
                         setAvatarUrl(avatar);
                     } catch (error) {
                         console.error('Error fetching avatar:', error);
@@ -72,23 +97,40 @@ const PlayerDetails = () => {
         };
 
         fetchPlayerDetails();
-    }, [id]);
+    }, [playerId]);
 
     // Poll for player data updates (e.g., prize updates from tournaments)
     useEffect(() => {
+        if (!playerId) {
+            return undefined;
+        }
+
         const pollPlayerData = setInterval(() => {
-            if (id) {
-                fetch(`https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${id}.json`)
-                    .then((response) => response.json())
-                    .then((data) => {
-                        setPlayer(data);
-                    })
-                    .catch((error) => console.error('Error polling player data:', error));
-            }
-        }, 3000); // Poll every 3 seconds for live updates
+            fetch(`${FIREBASE_DATABASE_URL}/users/${playerId}.json`)
+                .then((response) => response.json())
+                .then((data) => setPlayer(data))
+                .catch((error) => console.error('Error polling player data:', error));
+        }, 3000);
 
         return () => clearInterval(pollPlayerData);
-    }, [id]);
+    }, [playerId]);
+
+    useEffect(() => {
+        if (!playerId || avatarRefreshKey === 0) {
+            return;
+        }
+
+        const refreshAvatar = async () => {
+            try {
+                const avatar = await getAvatar(playerId);
+                setAvatarUrl(avatar);
+            } catch (_) {
+                setAvatarUrl(null);
+            }
+        };
+
+        refreshAvatar();
+    }, [playerId, avatarRefreshKey]);
 
     useEffect(() => {
         // Fetch all users and determine leaderboard place
@@ -143,7 +185,7 @@ const PlayerDetails = () => {
         }
 
         // Create a listener that updates stats whenever games data changes
-        fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json')
+        fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`)
             .then((response) => response.json())
             .then((allGames) => {
                 updateGoldAndRestartStats(allGames, player.enteredNickname);
@@ -156,7 +198,7 @@ const PlayerDetails = () => {
 
         // Also set up a polling interval to check for updates frequently (every 5 seconds)
         const pollInterval = setInterval(() => {
-            fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json')
+            fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`)
                 .then((response) => response.json())
                 .then((allGames) => {
                     updateGoldAndRestartStats(allGames, player.enteredNickname);
@@ -306,18 +348,18 @@ const PlayerDetails = () => {
                         {
                             label: 'Rating Trend',
                             data: ratingsArray,
-                            borderColor: '#FFD700',
-                            backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                            borderWidth: 3,
+                            borderColor: '#c9a227',
+                            backgroundColor: 'rgba(201, 162, 39, 0.08)',
+                            borderWidth: 2,
                             fill: true,
-                            tension: 0.4,
-                            pointRadius: 5,
-                            pointBackgroundColor: '#FFD700',
-                            pointBorderColor: '#FFF',
-                            pointBorderWidth: 2,
-                            pointHoverRadius: 7,
-                            pointHoverBackgroundColor: '#FFF',
-                            pointHoverBorderColor: '#FFD700'
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#c9a227',
+                            pointBorderColor: '#141a24',
+                            pointBorderWidth: 1,
+                            pointHoverRadius: 5,
+                            pointHoverBackgroundColor: '#dbb84a',
+                            pointHoverBorderColor: '#141a24'
                         }
                     ]
                 };
@@ -329,17 +371,17 @@ const PlayerDetails = () => {
                         legend: {
                             display: true,
                             labels: {
-                                color: '#00ffff',
-                                font: { size: 14, weight: 'bold' },
-                                padding: 15
+                                color: '#8b9aab',
+                                font: { size: 12, weight: '500' },
+                                padding: 12
                             }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#FFD700',
-                            bodyColor: '#00ffff',
-                            borderColor: '#FFD700',
-                            borderWidth: 2,
+                            backgroundColor: 'rgba(20, 26, 36, 0.95)',
+                            titleColor: '#dbb84a',
+                            bodyColor: '#e8ecf1',
+                            borderColor: 'rgba(201, 162, 39, 0.35)',
+                            borderWidth: 1,
                             padding: 10,
                             displayColors: false,
                             callbacks: {
@@ -366,23 +408,23 @@ const PlayerDetails = () => {
                             min: Math.max(0, minRating - padding),
                             max: maxRating + padding,
                             ticks: {
-                                color: '#00ffff',
-                                font: { size: 12 }
+                                color: '#8b9aab',
+                                font: { size: 11 }
                             },
                             grid: {
-                                color: 'rgba(0, 255, 255, 0.1)',
+                                color: 'rgba(255, 255, 255, 0.06)',
                                 drawBorder: false
                             }
                         },
                         x: {
                             ticks: {
-                                color: '#00ffff',
-                                font: { size: 11 },
+                                color: '#8b9aab',
+                                font: { size: 10 },
                                 maxRotation: 45,
                                 minRotation: 0
                             },
                             grid: {
-                                color: 'rgba(0, 255, 255, 0.05)',
+                                color: 'rgba(255, 255, 255, 0.04)',
                                 drawBorder: false
                             }
                         }
@@ -404,94 +446,173 @@ const PlayerDetails = () => {
         setShowPopup(true);
     };
 
+    const normalizeSocialUrl = (rawValue, platform) => {
+        if (!rawValue) {
+            return null;
+        }
+
+        const value = String(rawValue).trim();
+        if (!value) {
+            return null;
+        }
+
+        if (/^https?:\/\//i.test(value)) {
+            return value;
+        }
+
+        const cleaned = value.replace(/^@/, '');
+
+        if (platform === 'telegram') {
+            return `https://t.me/${cleaned}`;
+        }
+
+        if (platform === 'twitch') {
+            return `https://www.twitch.tv/${cleaned.replace(/^www\.twitch\.tv\//i, '').replace(/^twitch\.tv\//i, '')}`;
+        }
+
+        if (platform === 'youtube') {
+            if (value.startsWith('@')) {
+                return `https://www.youtube.com/${value}`;
+            }
+            return `https://www.youtube.com/${cleaned}`;
+        }
+
+        return null;
+    };
+
+    const totalGames = player?.gamesPlayed?.heroes3?.total || 0;
+    const losses = player?.gamesPlayed?.heroes3?.lose || 0;
+    const wins = Math.max(totalGames - losses, 0);
+    const latestRating = player?.ratings ? parseFloat(player.ratings.split(',').pop()).toFixed(2) : '0.00';
+    const overallWinRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) : '0.0';
+    const currentLeague = player?.league || player?.currentLeague || 'Not specified';
+
+    const publicLinks = [
+        {
+            label: 'Telegram',
+            value: player?.telegram,
+            href: normalizeSocialUrl(player?.telegram, 'telegram')
+        },
+        {
+            label: 'Twitch',
+            value: player?.twitch,
+            href: normalizeSocialUrl(player?.twitch, 'twitch')
+        },
+        {
+            label: 'YouTube',
+            value: player?.youtube,
+            href: normalizeSocialUrl(player?.youtube, 'youtube')
+        }
+    ].filter((entry) => entry.value && entry.href);
+
     return (
         <div className={classes.playerContainer}>
             {player ? (
                 <>
-                    <h2 className={classes.header}>🎮 Player Details</h2>
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '30px',
-                            marginBottom: '30px',
-                            padding: '20px',
-                            background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(255, 215, 0, 0.05))',
-                            border: '2px solid rgba(0, 255, 255, 0.3)',
-                            borderRadius: '8px'
-                        }}
-                    >
-                        {/* Avatar on the left */}
-                        <div style={{ flexShrink: 0 }}>
-                            {avatarUrl ? (
-                                <img
-                                    src={avatarUrl}
-                                    alt={`${player.enteredNickname}'s avatar`}
-                                    style={{
-                                        width: '140px',
-                                        height: '140px',
-                                        borderRadius: '50%',
-                                        border: '4px solid #ffd700',
-                                        objectFit: 'cover',
-                                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(0, 255, 255, 0.3)'
-                                    }}
-                                />
-                            ) : (
-                                <div
-                                    style={{
-                                        width: '140px',
-                                        height: '140px',
-                                        borderRadius: '50%',
-                                        border: '4px solid #ffd700',
-                                        backgroundColor: '#1a1a2e',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontFamily: '"Press Start 2P", "Courier New", monospace',
-                                        fontSize: '48px',
-                                        fontWeight: 'bold',
-                                        color: '#00ffff',
-                                        textShadow: '2px 2px 4px rgba(0, 255, 255, 0.5)',
-                                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(0, 255, 255, 0.3)',
-                                        imageRendering: 'pixelated'
-                                    }}
-                                >
-                                    {player.enteredNickname.charAt(0).toUpperCase()}
+                    <h2 className={classes.header}>{title}</h2>
+                    <p className={classes.headerSubtitle}>{subtitle}</p>
+
+                    <div className={classes.heroGrid}>
+                        <div className={classes.profileCard}>
+                            <div className={classes.profileMain}>
+                                {avatarUrl ? (
+                                    <img
+                                        src={avatarUrl}
+                                        alt={`${player.enteredNickname}'s avatar`}
+                                        className={classes.avatarImage}
+                                    />
+                                ) : (
+                                    <div className={classes.avatarFallback}>
+                                        {player.enteredNickname.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+
+                                <div className={classes.profileInfo}>
+                                    <div className={classes.profileEyebrow}>
+                                        {settingsSlot ? 'Your profile' : 'Player profile'}
+                                    </div>
+                                    <p className={classes.playerName}>{player.enteredNickname}</p>
+                                    <div className={classes.lobbyNick}>
+                                        <span className={classes.lobbyLabel}>Lobby nickname</span>
+                                        <span className={classes.lobbyValue}>{player.enteredNickname}</span>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
+
+                            <div className={classes.publicLinksBlock}>
+                                <div className={classes.publicLinksTitle}>Public links</div>
+                                {publicLinks.length > 0 ? (
+                                    <div className={classes.publicLinksList}>
+                                        {publicLinks.map((link) => (
+                                            <a
+                                                key={link.label}
+                                                href={link.href}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className={classes.publicLinkItem}
+                                            >
+                                                <span className={classes.publicLinkLabel}>{link.label}</span>
+                                                <span>{link.value}</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className={classes.publicLinksEmpty}>No public links added yet</span>
+                                )}
+                            </div>
+
+                            {settingsSlot && <div className={classes.settingsBlock}>{settingsSlot}</div>}
                         </div>
 
-                        {/* Player info on the right */}
-                        <div style={{ flex: 1 }}>
-                            <p
-                                className={classes.playerName}
-                                style={{ margin: '0 0 15px 0', textAlign: 'left', fontSize: '2.5rem' }}
-                            >
-                                {player.enteredNickname}
-                            </p>
+                        <div className={classes.statusCard}>
+                            <h3 className={classes.statusTitle}>Current status</h3>
+                            <div className={classes.statusList}>
+                                <div className={classes.statusItem}>
+                                    <span className={classes.statusLabel}>League</span>
+                                    <span className={classes.statusValue}>{currentLeague}</span>
+                                </div>
+                                <div className={classes.statusItem}>
+                                    <span className={classes.statusLabel}>Place</span>
+                                    <span className={classes.statusValue}>
+                                        {leaderboardPlace !== null ? `#${leaderboardPlace}` : '-'}
+                                    </span>
+                                </div>
+                                <div className={classes.statusItem}>
+                                    <span className={classes.statusLabel}>Win rate</span>
+                                    <span className={classes.statusValue}>{overallWinRate}%</span>
+                                </div>
+                                {settingsSlot && (
+                                    <>
+                                        <div className={classes.statusItem}>
+                                            <span className={classes.statusLabel}>Coins</span>
+                                            <span className={classes.statusValue}>{player.coins ?? 0}</span>
+                                        </div>
+                                        <div className={classes.statusItem}>
+                                            <span className={classes.statusLabel}>Score</span>
+                                            <span className={classes.statusValue}>{player.score ?? 0}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     <div className={classes.statsGrid}>
                         <div className={classes.statCard}>
                             <div className={classes.statLabel}>Wins</div>
-                            <div className={classes.statValue}>
-                                {player.gamesPlayed.heroes3.total - player.gamesPlayed.heroes3.lose}
-                            </div>
+                            <div className={classes.statValue}>{wins}</div>
                         </div>
                         <div className={classes.statCard}>
                             <div className={classes.statLabel}>Losses</div>
-                            <div className={classes.statValue}>{player.gamesPlayed.heroes3.lose}</div>
+                            <div className={classes.statValue}>{losses}</div>
                         </div>
                         <div className={classes.statCard}>
                             <div className={classes.statLabel}>Total Games</div>
-                            <div className={classes.statValue}>{player.gamesPlayed.heroes3.total}</div>
+                            <div className={classes.statValue}>{totalGames}</div>
                         </div>
                         <div className={classes.statCard}>
                             <div className={classes.statLabel}>Rating</div>
-                            <div className={classes.statValue}>
-                                {parseFloat(player.ratings.split(',').pop()).toFixed(2)}
-                            </div>
+                            <div className={classes.statValue}>{latestRating}</div>
                         </div>
                         <div className={classes.statCard}>
                             <div className={classes.statLabel}>Stars</div>
@@ -511,431 +632,15 @@ const PlayerDetails = () => {
                         </div>
                     </div>
 
-                    {/* Gold and Restart Statistics Section */}
-                    <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>⚔️ Game Mechanics Stats</h3>
-                        <div
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                                gap: '1.5rem',
-                                marginBottom: '1.5rem'
-                            }}
-                        >
-                            {/* Gold Statistics Card */}
-                            <div
-                                style={{
-                                    background:
-                                        'linear-gradient(135deg, rgba(218, 165, 32, 0.1), rgba(255, 215, 0, 0.05))',
-                                    border: '2px solid #FFD700',
-                                    borderRadius: '8px',
-                                    padding: '1.5rem',
-                                    boxShadow: '0 4px 12px rgba(255, 215, 0, 0.15)'
-                                }}
-                            >
-                                <h4
-                                    style={{
-                                        color: '#FFD700',
-                                        fontSize: '1.1rem',
-                                        marginBottom: '1rem',
-                                        textShadow: '0 0 8px rgba(255, 215, 0, 0.3)'
-                                    }}
-                                >
-                                    💰 Gold Statistics
-                                </h4>
-                                {goldStats ? (
-                                    <div style={{ display: 'grid', gap: '0.8rem' }}>
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center'
-                                            }}
-                                        >
-                                            <span style={{ color: '#00ffff' }}>Avg Gold Trade</span>
-                                            <span
-                                                style={{
-                                                    color: goldStats.averageGold >= 0 ? '#4caf50' : '#ff6b6b',
-                                                    fontWeight: 'bold',
-                                                    fontSize: '1.1rem'
-                                                }}
-                                            >
-                                                {goldStats.averageGold >= 0 ? '+' : ''}
-                                                {goldStats.averageGold}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p style={{ color: '#999', textAlign: 'center' }}>No gold data available</p>
-                                )}
-                            </div>
-
-                            {/* Flag Statistics Card */}
-                            <div
-                                style={{
-                                    background:
-                                        'linear-gradient(135deg, rgba(0, 172, 255, 0.1), rgba(255, 107, 107, 0.05))',
-                                    border: '2px solid #00acff',
-                                    borderRadius: '8px',
-                                    padding: '1.5rem',
-                                    boxShadow: '0 4px 12px rgba(0, 172, 255, 0.15)'
-                                }}
-                            >
-                                <h4
-                                    style={{
-                                        color: '#00acff',
-                                        fontSize: '1.1rem',
-                                        marginBottom: '1rem',
-                                        textShadow: '0 0 8px rgba(0, 172, 255, 0.3)'
-                                    }}
-                                >
-                                    🚩 Flag Statistics
-                                </h4>
-                                {goldStats ? (
-                                    <div style={{ display: 'grid', gap: '0.8rem' }}>
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                borderBottom: '1px solid rgba(0, 172, 255, 0.2)',
-                                                paddingBottom: '0.5rem'
-                                            }}
-                                        >
-                                            <span style={{ color: '#00ffff' }}>🔵 Blue Flag Games</span>
-                                            <span style={{ color: '#00acff', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                                                {goldStats.blueGames}
-                                            </span>
-                                        </div>
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center'
-                                            }}
-                                        >
-                                            <span style={{ color: '#00ffff' }}>🔴 Red Flag Games</span>
-                                            <span style={{ color: '#ff6b6b', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                                                {goldStats.redGames}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p style={{ color: '#999', textAlign: 'center' }}>No flag data available</p>
-                                )}
-                            </div>
-
-                            {/* Restart Statistics Card */}
-                            <div
-                                style={{
-                                    background:
-                                        'linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(129, 199, 132, 0.05))',
-                                    border: '2px solid #4caf50',
-                                    borderRadius: '8px',
-                                    padding: '1.5rem',
-                                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)'
-                                }}
-                            >
-                                {restartStats ? (
-                                    <div style={{ display: 'grid', gap: '1rem' }}>
-                                        {/* Restart Coefficient - Clickable Summary */}
-                                        <div
-                                            onClick={() => setShowRestartDetails(!showRestartDetails)}
-                                            style={{
-                                                background: 'rgba(147, 112, 219, 0.15)',
-                                                border: '2px solid #9370db',
-                                                borderRadius: '6px',
-                                                padding: '1.2rem',
-                                                textAlign: 'center',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.3s ease',
-                                                transform: showRestartDetails ? 'scale(1.02)' : 'scale(1)',
-                                                boxShadow: showRestartDetails
-                                                    ? '0 0 20px rgba(147, 112, 219, 0.5)'
-                                                    : '0 0 10px rgba(147, 112, 219, 0.3)'
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    color: '#9370db',
-                                                    fontSize: '0.9rem',
-                                                    marginBottom: '0.5rem',
-                                                    fontWeight: 'bold'
-                                                }}
-                                            >
-                                                AVERAGE RESTART COEFFICIENT {showRestartDetails ? '▼' : '▶'}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    color: '#dda0dd',
-                                                    fontSize: '2.2rem',
-                                                    fontWeight: 'bold',
-                                                    textShadow: '0 0 10px rgba(147, 112, 219, 0.5)'
-                                                }}
-                                            >
-                                                {restartStats.averageCoefficient || '1.00'}
-                                            </div>
-                                            <div style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                                                Range: 1.0 (no restarts) to 2.0 (max restarts)
-                                            </div>
-                                        </div>
-
-                                        {/* Expanded Details - Hidden by default */}
-                                        {showRestartDetails && (
-                                            <>
-                                                {/* x1 1-11 Restart Strategy */}
-                                                <div
-                                                    style={{
-                                                        background: 'rgba(76, 175, 80, 0.1)',
-                                                        border: '1px solid rgba(76, 175, 80, 0.3)',
-                                                        borderRadius: '6px',
-                                                        padding: '1rem'
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <span style={{ color: '#00ffff', fontWeight: 'bold' }}>
-                                                            x1 1-11 Restarts
-                                                        </span>
-                                                        <span
-                                                            style={{
-                                                                color: '#4caf50',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '1.2rem'
-                                                            }}
-                                                        >
-                                                            {restartStats.games111x1}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            width: '100%',
-                                                            height: '6px',
-                                                            background: 'rgba(76, 175, 80, 0.2)',
-                                                            borderRadius: '3px',
-                                                            overflow: 'hidden',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                width: `${restartStats.percent111x1}%`,
-                                                                height: '100%',
-                                                                background: '#4caf50',
-                                                                transition: 'width 0.3s ease'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                                                        {restartStats.percent111x1}% of all games (Coefficient: 1.5)
-                                                    </div>
-                                                </div>
-
-                                                {/* x2 1-11 Restart Strategy */}
-                                                <div
-                                                    style={{
-                                                        background: 'rgba(129, 199, 132, 0.1)',
-                                                        border: '1px solid rgba(76, 175, 80, 0.3)',
-                                                        borderRadius: '6px',
-                                                        padding: '1rem'
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <span style={{ color: '#00ffff', fontWeight: 'bold' }}>
-                                                            x2 1-11 Restarts
-                                                        </span>
-                                                        <span
-                                                            style={{
-                                                                color: '#81c784',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '1.2rem'
-                                                            }}
-                                                        >
-                                                            {restartStats.games111x2}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            width: '100%',
-                                                            height: '6px',
-                                                            background: 'rgba(129, 199, 132, 0.2)',
-                                                            borderRadius: '3px',
-                                                            overflow: 'hidden',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                width: `${restartStats.percent111x2}%`,
-                                                                height: '100%',
-                                                                background: '#81c784',
-                                                                transition: 'width 0.3s ease'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                                                        {restartStats.percent111x2}% of all games (Coefficient: 2.0)
-                                                    </div>
-                                                </div>
-
-                                                {/* x1 1-12 Restart Strategy */}
-                                                <div
-                                                    style={{
-                                                        background: 'rgba(255, 152, 0, 0.1)',
-                                                        border: '1px solid rgba(255, 152, 0, 0.3)',
-                                                        borderRadius: '6px',
-                                                        padding: '1rem'
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <span style={{ color: '#00ffff', fontWeight: 'bold' }}>
-                                                            x1 1-12 Restart
-                                                        </span>
-                                                        <span
-                                                            style={{
-                                                                color: '#ff9800',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '1.2rem'
-                                                            }}
-                                                        >
-                                                            {restartStats.games112}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            width: '100%',
-                                                            height: '6px',
-                                                            background: 'rgba(255, 152, 0, 0.2)',
-                                                            borderRadius: '3px',
-                                                            overflow: 'hidden',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                width: `${restartStats.percent112}%`,
-                                                                height: '100%',
-                                                                background: '#ff9800',
-                                                                transition: 'width 0.3s ease'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                                                        {restartStats.percent112}% of all games (Coefficient: 2.0)
-                                                    </div>
-                                                </div>
-
-                                                {/* No Restarts Strategy */}
-                                                <div
-                                                    style={{
-                                                        background: 'rgba(200, 200, 200, 0.1)',
-                                                        border: '1px solid rgba(200, 200, 200, 0.3)',
-                                                        borderRadius: '6px',
-                                                        padding: '1rem'
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <span style={{ color: '#00ffff', fontWeight: 'bold' }}>
-                                                            No Restarts Used
-                                                        </span>
-                                                        <span
-                                                            style={{
-                                                                color: '#c0c0c0',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '1.2rem'
-                                                            }}
-                                                        >
-                                                            {restartStats.gamesNoRestarts}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            width: '100%',
-                                                            height: '6px',
-                                                            background: 'rgba(200, 200, 200, 0.2)',
-                                                            borderRadius: '3px',
-                                                            overflow: 'hidden',
-                                                            marginBottom: '0.5rem'
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                width: `${restartStats.percentNoRestarts}%`,
-                                                                height: '100%',
-                                                                background: '#c0c0c0',
-                                                                transition: 'width 0.3s ease'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                                                        {restartStats.percentNoRestarts}% of all games (Coefficient:
-                                                        1.0)
-                                                    </div>
-                                                </div>
-
-                                                {/* Summary */}
-                                                <div
-                                                    style={{
-                                                        background: 'rgba(100, 100, 100, 0.1)',
-                                                        border: '1px solid rgba(100, 100, 100, 0.3)',
-                                                        borderRadius: '6px',
-                                                        padding: '1rem',
-                                                        display: 'grid',
-                                                        gap: '0.5rem',
-                                                        textAlign: 'center'
-                                                    }}
-                                                >
-                                                    <div style={{ color: '#00ffff' }}>
-                                                        <strong>Games Analyzed:</strong>{' '}
-                                                        {restartStats.totalAnalyzedGames}
-                                                    </div>
-                                                    <div style={{ color: '#4caf50' }}>
-                                                        <strong>With Restarts:</strong> {restartStats.gamesWithRestarts}
-                                                    </div>
-                                                    <div style={{ color: '#c0c0c0' }}>
-                                                        <strong>Without Restarts:</strong>{' '}
-                                                        {restartStats.gamesNoRestarts}
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <p style={{ color: '#999', textAlign: 'center' }}>No restart data available</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    <GameMechanicsStats
+                        goldStats={goldStats}
+                        restartStats={restartStats}
+                        showRestartDetails={showRestartDetails}
+                        onToggleRestartDetails={() => setShowRestartDetails((open) => !open)}
+                    />
 
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>🏆 Tournament Prizes</h3>
+                        <h3 className={classes.sectionTitle}>Tournament prizes</h3>
                         {Array.isArray(player.prizes) && player.prizes.length > 0 ? (
                             <table className={classes.prizesTable}>
                                 <thead>
@@ -961,10 +666,10 @@ const PlayerDetails = () => {
                     </div>
 
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>🔥 Recent Streak</h3>
+                        <h3 className={classes.sectionTitle}>Recent streak</h3>
                         <div className={classes.streak}>
                             {streak.length === 0 ? (
-                                <span style={{ color: 'rgba(255,255,255,0.5)' }}>No games found</span>
+                                <span className={classes.streakEmpty}>No games found</span>
                             ) : (
                                 streak.map((g, i) => (
                                     <span
@@ -978,10 +683,10 @@ const PlayerDetails = () => {
                     </div>
 
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>🏯 Castle Performance</h3>
+                        <h3 className={classes.sectionTitle}>Castle performance</h3>
                         <div className={classes.castleInfo}>
                             <div className={`${classes.castleCard} ${classes.best}`}>
-                                <div className={classes.castleName}>🏆 Best Castle</div>
+                                <div className={classes.castleName}>Best castle</div>
                                 <div className={classes.castleStats}>
                                     {bestCastle
                                         ? `${bestCastle.castle} (${bestCastle.wins}W - ${bestCastle.loses}L)`
@@ -989,7 +694,7 @@ const PlayerDetails = () => {
                                 </div>
                             </div>
                             <div className={`${classes.castleCard} ${classes.worst}`}>
-                                <div className={classes.castleName}>🚨 Worst Castle</div>
+                                <div className={classes.castleName}>Worst castle</div>
                                 <div className={classes.castleStats}>
                                     {worstCastle
                                         ? `${worstCastle.castle} (${worstCastle.wins}W - ${worstCastle.loses}L)`
@@ -1000,10 +705,10 @@ const PlayerDetails = () => {
                     </div>
 
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>🎯 Opponent Performance</h3>
+                        <h3 className={classes.sectionTitle}>Opponent performance</h3>
                         <div className={classes.castleInfo}>
                             <div className={`${classes.castleCard} ${classes.best}`}>
-                                <div className={classes.castleName}>🏆 Best Record vs</div>
+                                <div className={classes.castleName}>Best record vs</div>
                                 <div className={classes.castleStats}>
                                     {bestOpponent
                                         ? `${bestOpponent.opponent} (${bestOpponent.wins}W - ${bestOpponent.loses}L)`
@@ -1011,7 +716,7 @@ const PlayerDetails = () => {
                                 </div>
                             </div>
                             <div className={`${classes.castleCard} ${classes.worst}`}>
-                                <div className={classes.castleName}>🚨 Worst Record vs</div>
+                                <div className={classes.castleName}>Worst record vs</div>
                                 <div className={classes.castleStats}>
                                     {worstOpponent
                                         ? `${worstOpponent.opponent} (${worstOpponent.wins}W - ${worstOpponent.loses}L)`
@@ -1022,7 +727,7 @@ const PlayerDetails = () => {
                     </div>
 
                     <button className={classes.btn} onClick={handleShowCastleStats}>
-                        📊 Show Full Castle Statistics
+                        Show full castle statistics
                     </button>
                     {showPopup && castleStats && (
                         <>
@@ -1034,24 +739,7 @@ const PlayerDetails = () => {
                                 </div>
                                 <div className={classes.castleStatsGrid}>
                                     {(() => {
-                                        // Define all available castles with their images
-                                        const allCastles = [
-                                            { name: 'Castle', image: castleImg },
-                                            { name: 'Rampart', image: rampartImg },
-                                            { name: 'Tower', image: towerImg },
-                                            { name: 'Inferno', image: infernoImg },
-                                            { name: 'Necropolis', image: necropolisImg },
-                                            { name: 'Dungeon', image: dungeonImg },
-                                            { name: 'Stronghold', image: strongholdImg },
-                                            { name: 'Fortress', image: fortressImg },
-                                            { name: 'Factory', image: factoryImg },
-                                            { name: 'Conflux', image: confluxImg },
-                                            { name: 'Cove', image: coveImg },
-                                            { name: 'Kronverk', image: kronverkImg }
-                                        ];
-
-                                        // Merge actual stats with all castles
-                                        const mergedData = allCastles.map(({ name, image }) => {
+                                        const mergedData = ALL_CASTLES.map(({ name, image }) => {
                                             // Find matching stats (handle both "Castle" and "Castle-Замок" formats)
                                             const statsEntry = Object.entries(castleStats).find(([key]) => {
                                                 const keyName = key.includes('-') ? key.split('-')[0] : key;
@@ -1060,7 +748,7 @@ const PlayerDetails = () => {
 
                                             const stats = statsEntry ? statsEntry[1] : { wins: 0, loses: 0 };
                                             const total = stats.wins + stats.loses;
-                                            const winRate =
+                                            const castleWinRate =
                                                 total > 0 ? ((stats.wins / total) * 100).toFixed(2) : '0.00';
 
                                             return {
@@ -1068,7 +756,7 @@ const PlayerDetails = () => {
                                                 image,
                                                 stats,
                                                 total,
-                                                winRate
+                                                winRate: castleWinRate
                                             };
                                         });
 
@@ -1107,28 +795,33 @@ const PlayerDetails = () => {
                     )}
                     {/* Rating Trend Chart Section */}
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>📈 Rating Trend</h3>
-                        <div
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(0, 255, 255, 0.05))',
-                                border: '2px solid rgba(255, 215, 0, 0.3)',
-                                borderRadius: '8px',
-                                padding: '1.5rem',
-                                boxShadow: '0 4px 12px rgba(255, 215, 0, 0.1)'
-                            }}
-                        >
+                        <h3 className={classes.sectionTitle}>Rating trend</h3>
+                        <div className={classes.chartPanel}>
                             {chartData ? (
                                 <Line data={chartData.data} options={chartData.options} />
                             ) : (
-                                <p style={{ color: '#999', textAlign: 'center' }}>No rating data available</p>
+                                <p className={classes.emptyNote}>No rating data available</p>
                             )}
                         </div>
                     </div>
+
+                    {children}
                 </>
             ) : (
-                <p className={classes.loading}>Loading player details...</p>
+                <p className={classes.loading}>{loadingMessage}</p>
             )}
         </div>
+    );
+};
+
+const PlayerDetails = () => {
+    const { id } = useParams();
+    return (
+        <PlayerProfileContent
+            playerId={id}
+            title="Player Details"
+            subtitle="Public profile with social links, current standing, and season performance."
+        />
     );
 };
 

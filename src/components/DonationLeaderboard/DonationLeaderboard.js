@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useEffect, useState } from 'react';
 import classes from './DonationLeaderboard.module.css';
 
@@ -9,7 +10,7 @@ const DonationLeaderboard = () => {
         const fetchDonationData = async () => {
             try {
                 // Fetch all users and their coin transactions
-                const usersResponse = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/users.json');
+                const usersResponse = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 const users = await usersResponse.json();
 
                 if (!users) {

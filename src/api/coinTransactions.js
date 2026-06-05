@@ -1,3 +1,5 @@
+import { FIREBASE_DATABASE_URL } from '../config/firebase';
+import { authFetch } from './authFetch';
 /**
  * Coin Transaction Management
  *
@@ -29,8 +31,8 @@ export const logCoinTransaction = async (userId, amount, type, description, meta
             time: new Date().toLocaleTimeString()
         };
 
-        const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/coinTransactions.json`,
+        const response = await authFetch(
+            `${FIREBASE_DATABASE_URL}/users/${userId}/coinTransactions.json`,
             {
                 method: 'POST',
                 body: JSON.stringify(transaction),
@@ -68,7 +70,7 @@ export const addCoins = async (userId, amount, type, description, metadata = {})
     try {
         // Get current user data
         const userResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+            `${FIREBASE_DATABASE_URL}/users/${userId}.json`
         );
         const userData = await userResponse.json();
 
@@ -76,8 +78,8 @@ export const addCoins = async (userId, amount, type, description, metadata = {})
         const newCoins = currentCoins + amount;
 
         // Update user's coins
-        const updateResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/coins.json`,
+        const updateResponse = await authFetch(
+            `${FIREBASE_DATABASE_URL}/users/${userId}/coins.json`,
             {
                 method: 'PUT',
                 body: JSON.stringify(newCoins),
@@ -120,7 +122,7 @@ export const deductCoins = async (userId, amount, type, description, metadata = 
     try {
         // Get current user data
         const userResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}.json`
+            `${FIREBASE_DATABASE_URL}/users/${userId}.json`
         );
         const userData = await userResponse.json();
 
@@ -135,8 +137,8 @@ export const deductCoins = async (userId, amount, type, description, metadata = 
         const newCoins = currentCoins - amount;
 
         // Update user's coins
-        const updateResponse = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/coins.json`,
+        const updateResponse = await authFetch(
+            `${FIREBASE_DATABASE_URL}/users/${userId}/coins.json`,
             {
                 method: 'PUT',
                 body: JSON.stringify(newCoins),
@@ -174,7 +176,7 @@ export const deductCoins = async (userId, amount, type, description, metadata = 
 export const getCoinTransactionHistory = async (userId) => {
     try {
         const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/coinTransactions.json`
+            `${FIREBASE_DATABASE_URL}/users/${userId}/coinTransactions.json`
         );
         const data = await response.json();
 
@@ -202,7 +204,7 @@ export const getCoinTransactionHistory = async (userId) => {
 export const getCoinBalance = async (userId) => {
     try {
         const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/users/${userId}/coins.json`
+            `${FIREBASE_DATABASE_URL}/users/${userId}/coins.json`
         );
         const coins = await response.json();
         return coins || 0;

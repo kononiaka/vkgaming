@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import React, { useState, useEffect, useRef } from 'react';
 import StarsComponent from '../Stars/Stars';
 import classes from './SpinningWheel.module.css';
@@ -33,7 +34,7 @@ const SpinningWheel = ({ players, onStartTournament }) => {
             return null;
         }
         try {
-            const response = await fetch('https://test-prod-app-81915-default-rtdb.firebaseio.com/games/heroes3.json');
+            const response = await fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`);
             if (!response.ok) {
                 return null;
             }

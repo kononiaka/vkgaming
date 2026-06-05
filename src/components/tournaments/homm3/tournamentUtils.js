@@ -1,7 +1,8 @@
+import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 export const fetchTournaments = async (param) => {
     try {
         const response = await fetch(
-            'https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3.json'
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`
         );
 
         const data = await response.json();
@@ -32,7 +33,7 @@ export const fetchTournaments = async (param) => {
 export const fetchTournamentGames = async (tournamentId) => {
     let data;
     const response = await fetch(
-        `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/.json`
+        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`
     );
     console.log('response', response);
 
@@ -73,7 +74,7 @@ export const fetchTournamentGames = async (tournamentId) => {
 //     const finalIndex = stages.indexOf('Final');
 
 //     const tournamentData = await fetch(
-//         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/0.json`,
+//         `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/0.json`,
 //         {
 //             method: 'GET'
 //         }
@@ -95,7 +96,7 @@ export const fetchTournamentGames = async (tournamentId) => {
 // export const getTournamentPrizePull = async (tournamentId) => {
 //     console.log('here');
 //     const tournamentPricePullData = await fetch(
-//         `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}/pricePull`,
+//         `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/pricePull`,
 //         {
 //             method: 'GET'
 //         }

@@ -1,0 +1,320 @@
+.wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem 2.5rem;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    color: var(--color-text);
+}
+
+.pageHeader {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: var(--border-subtle);
+}
+
+.pageTitle {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--color-gold);
+    text-align: left;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.35rem;
+    line-height: 1.6;
+}
+
+.pageSubtitle {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.infoPanel {
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.infoLead {
+    margin: 0 0 0.5rem;
+    color: var(--color-text);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.infoLead strong {
+    color: var(--color-gold);
+    font-weight: 600;
+}
+
+.infoDetail {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.accountLine {
+    margin: 0.75rem 0 0;
+    color: var(--color-teal);
+    font-size: 0.9rem;
+}
+
+.accountLine strong {
+    color: var(--color-gold-bright);
+}
+
+.loginHint {
+    margin: 0.75rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.loginHint a,
+.sectionNote a,
+.loginBanner a {
+    color: var(--color-teal);
+    text-decoration: none;
+}
+
+.loginHint a:hover,
+.sectionNote a:hover,
+.loginBanner a:hover {
+    color: var(--color-gold-bright);
+    text-decoration: underline;
+}
+
+.loginBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 0.85rem 1rem;
+    background: rgba(201, 162, 39, 0.08);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font-size: 0.9rem;
+}
+
+.loginBannerClose {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.loginBannerClose:hover {
+    color: var(--color-gold-bright);
+}
+
+.section {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.75rem;
+    border-bottom: var(--border-subtle);
+}
+
+.section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.sectionTitle {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.sectionNote {
+    margin: 0 0 0.75rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.coinTable {
+    margin: 0 0 1rem;
+    padding: 0.65rem 0.85rem;
+    background: var(--color-bg-deep);
+    border-left: 2px solid var(--color-teal-dim);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.actionRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.primaryBtn,
+.secondaryBtn {
+    display: inline-block;
+    padding: 0.55rem 1.25rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+    cursor: pointer;
+}
+
+.primaryBtn {
+    color: var(--color-bg-deep);
+    background: var(--color-gold);
+    border: 1px solid var(--color-gold-dim);
+}
+
+.primaryBtn:hover {
+    background: var(--color-gold-bright);
+    border-color: var(--color-gold-bright);
+}
+
+.secondaryBtn {
+    color: var(--color-text);
+    background: var(--color-bg-elevated);
+    border: var(--border-subtle);
+}
+
+.secondaryBtn:hover {
+    border-color: rgba(201, 162, 39, 0.35);
+    color: var(--color-gold-bright);
+}
+
+.tierGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0.75rem 0 0.5rem;
+}
+
+.tierBtn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+}
+
+.tierBtn:disabled {
+    cursor: wait;
+    opacity: 0.85;
+}
+
+.tierCard {
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition:
+        border-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.tierBtn:hover:not(:disabled) .tierCard {
+    border-color: rgba(201, 162, 39, 0.45);
+    transform: translateY(-2px);
+}
+
+.tierChampion {
+    border-top: 2px solid var(--color-gold-dim);
+}
+
+.tierLegend {
+    border-top: 2px solid var(--color-gold);
+}
+
+.tierHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-deep);
+    border-bottom: var(--border-subtle);
+}
+
+.tierLabel {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    letter-spacing: 0.04em;
+}
+
+.tierAmount {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-gold);
+}
+
+.tierBody {
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.tierCoins {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-gold-bright);
+}
+
+.tierPay {
+    font-size: 0.75rem;
+    color: var(--color-text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.footnote {
+    margin: 0;
+    color: var(--color-text-dim);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.studioCredit {
+    margin: 1.5rem 0 0;
+    padding-top: 1rem;
+    border-top: var(--border-subtle);
+    color: var(--color-text-dim);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.studioCredit a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.studioCredit a:hover {
+    color: var(--color-gold-dim);
+}
+
+@media (max-width: 540px) {
+    .tierGrid {
+        grid-template-columns: 1fr;
+    }
+}

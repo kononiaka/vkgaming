@@ -1,3 +1,4 @@
+import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 export const shuffleArray = (
     _,
     playoffsGames,
@@ -56,7 +57,7 @@ const shufflePlayers = (array) => {
 export async function getTournamentData(tournamentId) {
     try {
         const response = await fetch(
-            `https://test-prod-app-81915-default-rtdb.firebaseio.com/tournaments/heroes3/${tournamentId}.json`
+            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`
         );
 
         if (!response.ok) {
