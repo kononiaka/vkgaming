@@ -12,6 +12,7 @@ import Players from './components/Players/Players';
 import UserProfile from './components/Profile/UserProfile';
 import Videos from './components/Videos/Videos';
 import TournamentList from './components/tournaments/homm3/Tournaments';
+import TwitchCallback from './components/Auth/TwitchCallback';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
@@ -21,6 +22,11 @@ import classes from './App.module.css';
 
 function App() {
     const authCtx = useContext(AuthContext);
+    const isTwitchCallback = window.location.pathname.endsWith('/auth/twitch/callback');
+
+    if (isTwitchCallback) {
+        return <TwitchCallback />;
+    }
 
     return (
         <div className={classes.main}>
@@ -35,6 +41,7 @@ function App() {
                     {/* <Route path="/players" element={<Players />} /> */}
                     <Route path="/players/:id" element={<Players />} />
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
                     {!authCtx.isLogged && <Route path="/auth" element={<AuthPage />} />}
                     <Route path="/profile" element={authCtx.isLogged ? <UserProfile /> : <Navigate to="/auth" />} />
                     <Route path="*" element={<NotFound />} />
