@@ -17,6 +17,8 @@ import StarsComponent from '../Stars/Stars';
 import GameMechanicsStats from './GameMechanicsStats';
 import HotaPlayerStats from './HotaPlayerStats';
 import LobbyNicknameField from '../Profile/LobbyNicknameField';
+import CountryFlag from '../Country/CountryFlag';
+import { resolveCountryCode } from '../../utils/country';
 import {
     deriveBestWorstFaction,
     deriveBestWorstOpponent,
@@ -654,7 +656,16 @@ export const PlayerProfileContent = ({
                                     <div className={classes.profileEyebrow}>
                                         {settingsSlot ? 'Your profile' : 'Player profile'}
                                     </div>
-                                    <p className={classes.playerName}>{player.enteredNickname}</p>
+                                    <p className={classes.playerName}>
+                                        {resolveCountryCode(player) && (
+                                            <CountryFlag
+                                                code={resolveCountryCode(player)}
+                                                size={28}
+                                                className={classes.playerCountryFlag}
+                                            />
+                                        )}
+                                        {player.enteredNickname}
+                                    </p>
                                     {settingsSlot ? (
                                         <LobbyNicknameField
                                             className={classes.lobbyNick}

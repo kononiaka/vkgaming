@@ -144,69 +144,6 @@
     font-size: 1rem;
 }
 
-.add-game {
-    position: fixed;
-    right: 45px;
-    bottom: 220px;
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border-radius: 12px;
-    border: 3px solid #FFD700;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.3s ease;
-    box-shadow: 
-        0 4px 8px rgba(0, 0, 0, 0.5),
-        0 0 20px rgba(255, 215, 0, 0.3);
-}
-
-.add-game:hover {
-    transform: translateY(-5px);
-    border-color: #00ffff;
-    box-shadow: 
-        0 8px 16px rgba(0, 0, 0, 0.6),
-        0 0 35px rgba(0, 255, 255, 0.5);
-}
-
-.add-game:hover .tooltip {
-    opacity: 1;
-    visibility: visible;
-}
-
-.add-game-icon {
-    width: 45px;
-    height: 45px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.add-game-icon::before {
-    content: '';
-    position: absolute;
-    width: 35px;
-    height: 35px;
-    background: linear-gradient(135deg, #4caf50, #2e7d32);
-    border-radius: 6px;
-    box-shadow: 
-        0 0 15px rgba(76, 175, 80, 0.6),
-        inset 0 2px 4px rgba(255, 255, 255, 0.2);
-}
-
-.add-game-icon::after {
-    content: '+';
-    position: absolute;
-    color: #FFD700;
-    font-size: 32px;
-    font-weight: bold;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
-    z-index: 1;
-}
-
 .tooltip {
     position: absolute;
     right: 100%;

@@ -36,7 +36,7 @@ const TournamentList = () => {
         isAddTournamentDisabled,
         addTournamentHint
     } = useAddTournament();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [tournaments, setTournaments] = useState([]);
     const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
@@ -1022,7 +1022,14 @@ const TournamentList = () => {
             setTournamentPlayers(tournament.players || {});
             setShowSpinningWheel(true);
         } else {
-            // Show bracket modal
+            // Manual open — drop stale report deep-link params so View league/bracket
+            // does not immediately pop the report dialog again
+            const next = new URLSearchParams(searchParams);
+            if (next.has('report') || next.has('game')) {
+                next.delete('report');
+                next.delete('game');
+                setSearchParams(next, { replace: true });
+            }
             setShowDetails((prevState) => !prevState);
         }
     };

@@ -1,0 +1,172 @@
+.wrap {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.65rem;
+    font-family: var(--font-body);
+    pointer-events: auto;
+}
+
+.compact .timeLabel {
+    font-size: 0.68rem;
+}
+
+.timeLabel {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.timeLabel strong {
+    color: var(--color-gold);
+    font-weight: 600;
+}
+
+.timeMeta {
+    font-size: 0.68rem;
+    color: var(--color-text-dim);
+}
+
+.missing {
+    font-size: 0.72rem;
+    color: var(--color-text-dim);
+    font-style: italic;
+}
+
+.btn {
+    padding: 0.28rem 0.6rem;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
+    background: rgba(201, 162, 39, 0.08);
+    color: var(--color-gold);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+    background: rgba(201, 162, 39, 0.16);
+    border-color: var(--color-gold-dim);
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btnGhost {
+    border-color: var(--border-subtle);
+    background: transparent;
+    color: var(--color-text-muted);
+}
+
+.editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.picker {
+    min-width: 11.5rem;
+    padding: 0.32rem 0.5rem;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.picker:focus {
+    outline: none;
+    border-color: var(--color-gold-dim);
+    box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.15);
+}
+
+.picker:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 280px;
+}
+
+.formTitle {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.formHint {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+}
+
+.input {
+    width: 100%;
+    padding: 0.55rem 0.65rem;
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--color-gold-dim);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.primaryBtn,
+.secondaryBtn {
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.primaryBtn {
+    border: 1px solid var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.15);
+    color: var(--color-gold-bright);
+}
+
+.primaryBtn:hover:not(:disabled) {
+    background: rgba(201, 162, 39, 0.24);
+}
+
+.secondaryBtn {
+    border: var(--border-subtle);
+    background: transparent;
+    color: var(--color-text-muted);
+}
+
+.primaryBtn:disabled,
+.secondaryBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}

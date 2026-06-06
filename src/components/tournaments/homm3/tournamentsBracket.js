@@ -28,6 +28,7 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
+import MatchScheduleControl from './MatchScheduleControl';
 import AuthContext from '../../../store/auth-context';
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import { authFetch } from '../../../api/authFetch';
@@ -130,21 +131,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
     const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
-    const fixedHeaderRef = useRef(null);
-    const [fixedHeaderHeight, setFixedHeaderHeight] = useState(0);
-
-    useEffect(() => {
-        const el = fixedHeaderRef.current;
-        if (!el) {
-            return;
-        }
-        const observer = new ResizeObserver(() => {
-            setFixedHeaderHeight(el.offsetHeight);
-        });
-        observer.observe(el);
-        setFixedHeaderHeight(el.offsetHeight);
-        return () => observer.disconnect();
-    }, []);
+    const reportDismissedRef = useRef(false);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
@@ -159,8 +146,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedInitialGameId, setSelectedInitialGameId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
     const [displayName, setDisplayName] = useState('');
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const highlightedPairRef = useRef(null);
+    const lastTournamentIdRef = useRef(null);
+
+    useEffect(() => {
+        if (lastTournamentIdRef.current !== tournamentId) {
+            reportDismissedRef.current = false;
+            lastTournamentIdRef.current = tournamentId;
+        }
+        setShowReportGameModal(false);
+        setSelectedStageIndex(null);
+        setSelectedPairIndex(null);
+        setSelectedPairId(null);
+        setSelectedInitialGameId(null);
+    }, [tournamentId]);
 
     // Auto-navigate to the stage+pair indicated by URL params (from "My Upcoming Matches")
     useEffect(() => {
@@ -198,9 +198,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             }
         }, 400);
 
-        // Auto-open ReportGameModal when report=1 param is present
+        // Auto-open ReportGameModal when report=1 param is present (once per visit)
         const reportParam = searchParams.get('report');
-        if (reportParam === '1') {
+        if (reportParam === '1' && !reportDismissedRef.current) {
             const pair = playoffPairs[targetStageIndex]?.[targetPairIndex];
             if (
                 pair &&
@@ -225,7 +225,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
 
         return () => clearTimeout(timer);
-    }, [searchParams, stageLabels, playoffPairs]);
+    }, [searchParams, stageLabels, playoffPairs, tournamentId]);
 
     const normalizeName = (value) =>
         String(value || '')
@@ -258,6 +258,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             return Boolean(authCtx.isAdmin);
         }
 
+        return true;
+    };
+
+    const canSchedulePairForPair = (pair) => {
+        if (!pair || !canViewReportButtonForPair(pair)) {
+            return false;
+        }
+        if (pair.winner || pair.gameStatus === 'Processed') {
+            return false;
+        }
+        if (pair.team1 === 'TBD' || pair.team2 === 'TBD' || !pair.team1 || !pair.team2) {
+            return false;
+        }
         return true;
     };
 
@@ -1990,6 +2003,52 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         setShowReportGameModal(true);
     };
 
+    const handleSaveMatchSchedule = async (stageIdx, pairIdx, scheduledAt) => {
+        const pair = playoffPairs[stageIdx]?.[pairIdx];
+        if (!pair) {
+            return;
+        }
+        if (!canSchedulePairForPair(pair)) {
+            alert('Only match players can set the start time.');
+            return;
+        }
+
+        const base = `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/${stageIdx}/${pairIdx}`;
+        const scheduledBy = scheduledAt ? authCtx.userNickName : null;
+
+        try {
+            if (scheduledAt) {
+                const atRes = await authFetch(`${base}/scheduledAt.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(scheduledAt)
+                });
+                const byRes = await authFetch(`${base}/scheduledBy.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(scheduledBy)
+                });
+                if (!atRes.ok || !byRes.ok) {
+                    throw new Error('Failed to save schedule');
+                }
+            } else {
+                await authFetch(`${base}/scheduledAt.json`, { method: 'DELETE' });
+                await authFetch(`${base}/scheduledBy.json`, { method: 'DELETE' });
+            }
+
+            setPlayoffPairs((prev) => {
+                const next = prev.map((stage) => [...stage]);
+                next[stageIdx] = next[stageIdx].map((item, index) =>
+                    index === pairIdx
+                        ? { ...item, scheduledAt: scheduledAt || null, scheduledBy: scheduledBy || null }
+                        : item
+                );
+                return next;
+            });
+        } catch (error) {
+            console.error('Error saving match schedule:', error);
+            throw error;
+        }
+    };
+
     // Helper function to update player ratings and statistics after a game
     const updatePlayerRatings = async (
         team1,
@@ -3508,68 +3567,99 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             alert('Error reporting game result');
         }
     };
-    return (
-        <div className={`scrollable-list-class brackets-class`} style={{ overflowY: 'auto', maxHeight: '80vh' }}>
+    const selectedReportPair =
+        selectedStageIndex !== null && selectedPairIndex !== null
+            ? playoffPairs[selectedStageIndex]?.[selectedPairIndex]
+            : null;
+    const canShowReportModal =
+        showReportGameModal &&
+        selectedStageIndex !== null &&
+        selectedPairIndex !== null &&
+        selectedReportPair &&
+        selectedReportPair.team1 &&
+        selectedReportPair.team2 &&
+        selectedReportPair.team1 !== 'TBD' &&
+        selectedReportPair.team2 !== 'TBD';
+
+    const clearReportUrlParams = () => {
+        if (!searchParams.get('report') && !searchParams.get('game')) {
+            return;
+        }
+        const next = new URLSearchParams(searchParams);
+        next.delete('report');
+        next.delete('game');
+        setSearchParams(next, { replace: true });
+    };
+
+    const handleCloseReportModal = () => {
+        reportDismissedRef.current = true;
+        setShowReportGameModal(false);
+        clearReportUrlParams();
+    };
+
+    const renderMatchScheduleControl = (pair, stageIndex, pairIndex) => {
+        const canSchedule = canSchedulePairForPair(pair);
+        if (!pair?.scheduledAt && !canSchedule) {
+            return null;
+        }
+
+        return (
             <div
-                ref={fixedHeaderRef}
-                className={classes.brackets}
                 style={{
-                    position: 'fixed',
-                    top: 0,
-                    backgroundColor: 'rgb(62, 32, 192)', // Match the modal background
-                    color: 'yellow',
-                    padding: '1rem',
-                    zIndex: 1000,
-                    textAlign: 'center',
-                    borderBottom: '1px solid white',
-                    width: '100%',
-                    left: 0
+                    position: 'relative',
+                    zIndex: 4,
+                    marginBottom: '0.65rem',
+                    padding: '0 0.5rem',
+                    pointerEvents: 'auto'
                 }}
             >
+                <MatchScheduleControl
+                    scheduledAt={pair.scheduledAt}
+                    scheduledBy={pair.scheduledBy}
+                    canEdit={canSchedule}
+                    onSave={(iso) => handleSaveMatchSchedule(stageIndex, pairIndex, iso)}
+                    showMissingHint={canSchedule}
+                />
+            </div>
+        );
+    };
+
+    return (
+        <div
+            className={`scrollable-list-class brackets-class ${classes.bracketShell}`}
+            style={{ overflowY: 'auto', maxHeight: '80vh' }}
+        >
+            <div className={classes.fixedHeader}>
                 {!startTournament && (
-                    <div
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}
-                    >
-                        {/* Left: admin action button (or spacer) */}
-                        <div style={{ minWidth: '180px', flexShrink: 0 }}>
+                    <div className={classes.headerBar}>
+                        <div className={classes.headerSide}>
                             {authCtx.isAdmin && isUpdateButtonVisible && !isLeague && (
                                 <button
                                     id="update-tournament"
                                     onClick={() => updateTournament()}
                                     className={classes.actionButton}
-                                    style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', width: '100%' }}
                                 >
                                     Update Tournament
                                 </button>
                             )}
                         </div>
 
-                        {/* Center: always show tournament name + winners */}
-                        <div style={{ flex: 1, textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
-                                {tournamentName}
-                            </div>
+                        <div className={classes.headerCenter}>
+                            <div className={classes.headerTitle}>{tournamentName}</div>
                             {tournamentWinners && (
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        gap: '2rem',
-                                        fontSize: '1.1rem',
-                                        fontWeight: 'bold',
-                                        flexWrap: 'wrap'
-                                    }}
-                                >
+                                <div className={classes.headerWinners}>
                                     {tournamentWinners['1st place'] && (
-                                        <span style={{ color: 'gold' }}>🥇 Gold: {tournamentWinners['1st place']}</span>
+                                        <span className={classes.headerWinnerGold}>
+                                            🥇 Gold: {tournamentWinners['1st place']}
+                                        </span>
                                     )}
                                     {tournamentWinners['2nd place'] && (
-                                        <span style={{ color: 'silver' }}>
+                                        <span className={classes.headerWinnerSilver}>
                                             🥈 Silver: {tournamentWinners['2nd place']}
                                         </span>
                                     )}
                                     {tournamentWinners['3rd place'] && (
-                                        <span style={{ color: '#CD7F32' }}>
+                                        <span className={classes.headerWinnerBronze}>
                                             🥉 Bronze: {tournamentWinners['3rd place']}
                                         </span>
                                     )}
@@ -3577,22 +3667,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             )}
                         </div>
 
-                        {/* Right: admin action button (or spacer) */}
-                        <div
-                            style={{
-                                minWidth: '180px',
-                                flexShrink: 0,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '0.5rem',
-                                alignItems: 'flex-end'
-                            }}
-                        >
+                        <div className={`${classes.headerSide} ${classes.headerSideEnd}`}>
                             {authCtx.isAdmin && (
                                 <button
                                     onClick={() => handleGetAvailableCastles()}
                                     className={classes.actionButton}
-                                    style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', width: '100%' }}
                                 >
                                     Get Available Castles
                                 </button>
@@ -3616,15 +3695,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                             alert('Error recalculating stars: ' + error.message);
                                         }
                                     }}
-                                    className={classes.actionButton}
-                                    style={{
-                                        padding: '0.6rem 1.2rem',
-                                        fontSize: '0.95rem',
-                                        width: '100%',
-                                        background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)'
-                                    }}
+                                    className={`${classes.actionButton} ${classes.actionButtonSecondary}`}
                                 >
-                                    ⭐ Recalculate Stars Now
+                                    Recalculate stars
                                 </button>
                             )}
                         </div>
@@ -3845,7 +3918,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             {stageLabels.length === 0 && !isLeague ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : isLeague ? (
-                <div style={{ paddingTop: `${fixedHeaderHeight + 16}px` }}>
+                <div className={classes.bracketBody}>
                     <LeagueBracket
                         pairs={playoffPairs[0] || []}
                         registeredPlayers={registeredPlayerNames}
@@ -3857,6 +3930,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             }
                         }}
                         canViewReportButton={canViewReportButtonForPair}
+                        canSchedulePair={canSchedulePairForPair}
+                        onSaveSchedule={(pairIdx, iso) => handleSaveMatchSchedule(0, pairIdx, iso)}
                     />
                     {authCtx.isAdmin &&
                         tournamentStatus !== 'Tournament Finished' &&
@@ -3910,7 +3985,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         (((getRightBlockTop(i) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
 
                     return (
-                        <div style={{ paddingTop: `${fixedHeaderHeight + 16}px`, width: '100%' }}>
+                        <div className={classes.bracketBody} style={{ width: '100%' }}>
                             {/* Stage navigation */}
                             <div
                                 style={{
@@ -4071,6 +4146,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             })
                                                         }}
                                                     >
+                                                        {renderMatchScheduleControl(pair, stageIndex, pairIndex)}
                                                         <div
                                                             style={{
                                                                 display: 'grid',
@@ -4217,6 +4293,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 })
                                                             }}
                                                         >
+                                                            {renderMatchScheduleControl(pair, thirdPlaceIndex, pairIndex)}
                                                             <div
                                                                 style={{
                                                                     display: 'grid',
@@ -4362,17 +4439,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         className={classes['game-block']}
                                                         style={{
                                                             position: 'relative',
-                                                            height: '180px',
+                                                            minHeight: '180px',
                                                             marginBottom: 0,
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            justifyContent: 'center',
+                                                            justifyContent: 'flex-start',
+                                                            gap: '0.5rem',
                                                             ...(isOtherHighlighted && {
                                                                 outline: '3px solid #ffd700',
                                                                 boxShadow: '0 0 18px rgba(255,215,0,0.55)'
                                                             })
                                                         }}
                                                     >
+                                                        {renderMatchScheduleControl(pair, stageIndex, pairIndex)}
                                                         <div
                                                             style={{
                                                                 position: 'absolute',
@@ -4618,6 +4697,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 })
                                                             }}
                                                         >
+                                                            {renderMatchScheduleControl(pair, nextStageIndex, pairIndex)}
                                                             <div
                                                                 style={{
                                                                     display: 'grid',
@@ -4820,6 +4900,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     })
                                                                 }}
                                                             >
+                                                                {renderMatchScheduleControl(pair, thirdPlaceIndex, pairIndex)}
                                                                 <div
                                                                     style={{
                                                                         display: 'grid',
@@ -5205,12 +5286,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             {showStats && stats && <StatsPopup stats={stats} onClose={handleCloseStats} />}
 
             {/* Report Game Modal */}
-            {showReportGameModal && selectedStageIndex !== null && selectedPairIndex !== null && (
+            {canShowReportModal && (
                 <ReportGameModal
-                    pair={playoffPairs[selectedStageIndex]?.[selectedPairIndex]}
+                    pair={selectedReportPair}
                     pairId={selectedPairId}
                     tournamentId={tournamentId}
-                    onClose={() => setShowReportGameModal(false)}
+                    onClose={handleCloseReportModal}
                     onSubmit={handleSubmitGameReport}
                     playoffPairs={playoffPairs}
                     initialGameId={selectedInitialGameId}

@@ -1,8 +1,15 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import classes from './DonationLeaderboard.module.css';
 
-const DonationLeaderboard = () => {
+const DonationLeaderboard = ({
+    title = 'Top supporters',
+    limit = 10,
+    variant = 'embedded',
+    showFooter = true,
+    supportLink = false
+}) => {
     const [donors, setDonors] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -33,8 +40,13 @@ const DonationLeaderboard = () => {
                             const totalDonated = donationTransactions.reduce((sum, t) => sum + t.amount, 0);
                             const totalCoinsEarned = donationTransactions.reduce((sum, t) => sum + t.coins, 0);
 
+                            const nickname = userData.enteredNickname || userData.name;
+                            if (!nickname) {
+                                continue;
+                            }
+
                             donorStats.push({
-                                nickname: userData.enteredNickname,
+                                nickname,
                                 totalDonated,
                                 totalCoinsEarned,
                                 donationCount: donationTransactions.length,
@@ -46,7 +58,7 @@ const DonationLeaderboard = () => {
 
                 // Sort by total donated (descending)
                 donorStats.sort((a, b) => b.totalDonated - a.totalDonated);
-                setDonors(donorStats.slice(0, 10)); // Top 10 donors
+                setDonors(donorStats.slice(0, limit));
             } catch (error) {
                 console.error('Error fetching donation data:', error);
             } finally {
@@ -55,22 +67,25 @@ const DonationLeaderboard = () => {
         };
 
         fetchDonationData();
-    }, []);
+    }, [limit]);
+
+    const rootClass =
+        variant === 'panel' ? `${classes.leaderboard} ${classes.leaderboardPanel}` : classes.leaderboard;
 
     if (loading) {
         return (
-            <div className={classes.leaderboard}>
-                <h3>🏆 Top Donors</h3>
-                <div className={classes.loading}>Loading donation data... ⏳</div>
+            <div className={rootClass}>
+                <h3 className={classes.title}>{title}</h3>
+                <div className={classes.loading}>Loading supporters…</div>
             </div>
         );
     }
 
     return (
-        <div className={classes.leaderboard}>
-            <h3>🏆 Top Donors</h3>
+        <div className={rootClass}>
+            <h3 className={classes.title}>{title}</h3>
             {donors.length === 0 ? (
-                <p className={classes.noDonors}>No donations yet. Be the first to support! 💝</p>
+                <p className={classes.noDonors}>No donations yet. Be the first to support.</p>
             ) : (
                 <div className={classes.donorList}>
                     {donors.map((donor, index) => (
@@ -83,8 +98,8 @@ const DonationLeaderboard = () => {
                             </div>
                             <div className={classes.donorInfo}>
                                 <span className={classes.nickname}>{donor.nickname}</span>
-                                <span className={classes.amount}>💰 {donor.totalDonated} UAH</span>
-                                <span className={classes.coins}>🪙 +{donor.totalCoinsEarned} coins</span>
+                                <span className={classes.amount}>{donor.totalDonated} UAH donated</span>
+                                <span className={classes.coins}>+{donor.totalCoinsEarned} coins earned</span>
                             </div>
                             <div className={classes.donationCount}>
                                 {donor.donationCount} {donor.donationCount === 1 ? 'donation' : 'donations'}
@@ -93,9 +108,19 @@ const DonationLeaderboard = () => {
                     ))}
                 </div>
             )}
-            <div className={classes.footer}>
-                <p>Support the platform and earn coins! 🎮💎</p>
-            </div>
+            {showFooter && (
+                <div className={classes.footer}>
+                    {supportLink ? (
+                        <p>
+                            <Link to="/support" className={classes.footerLink}>
+                                Support the platform and see all ways to donate →
+                            </Link>
+                        </p>
+                    ) : (
+                        <p>Thank you for backing the cups and prize pools.</p>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

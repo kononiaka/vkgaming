@@ -1,0 +1,819 @@
+.card {
+
+    position: relative;
+
+    display: block;
+
+    overflow: hidden;
+
+    border-radius: 14px;
+
+    text-decoration: none;
+
+    color: #f8f4ea;
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+
+    transition:
+
+        transform 0.18s ease,
+
+        box-shadow 0.18s ease,
+
+        border-color 0.18s ease;
+
+}
+
+
+
+.card:hover {
+
+    transform: translateY(-2px);
+
+    border-color: rgba(245, 196, 0, 0.45);
+
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.55);
+
+}
+
+
+
+.featured {
+
+    margin-bottom: 1rem;
+
+}
+
+
+
+.plainBackdrop {
+
+    position: absolute;
+
+    inset: 0;
+
+    background: var(--color-bg-panel);
+
+}
+
+
+
+.plain .frame {
+
+    color: var(--color-text);
+
+}
+
+
+
+.plain .caption,
+
+.plain .centerTournament,
+
+.plain .centerStage {
+
+    color: var(--color-text-muted);
+
+}
+
+
+
+.plain .connector {
+
+    border-color: rgba(201, 162, 39, 0.35);
+
+}
+
+
+
+.backdropSplitLeft,
+
+.backdropSplitRight {
+
+    position: absolute;
+
+    top: 0;
+
+    bottom: 0;
+
+    width: 50%;
+
+    background-position: center;
+
+    background-size: cover;
+
+    background-repeat: no-repeat;
+
+    transform: scale(1.05);
+
+}
+
+
+
+.backdropSplitLeft {
+
+    left: 0;
+
+}
+
+
+
+.backdropSplitRight {
+
+    right: 0;
+
+}
+
+
+
+.overlay {
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+
+        linear-gradient(180deg, rgba(8, 12, 20, 0.25) 0%, rgba(8, 12, 20, 0.78) 100%),
+
+        radial-gradient(circle at 50% 42%, transparent 18%, rgba(0, 0, 0, 0.35) 100%);
+
+}
+
+
+
+.frame {
+
+    position: relative;
+
+    z-index: 1;
+
+    padding: 1.35rem 1.1rem 1rem;
+
+    min-height: 280px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 0.85rem;
+
+}
+
+
+
+.connector {
+
+    position: absolute;
+
+    inset: 18% 8% 22%;
+
+    border: 1px solid rgba(255, 255, 255, 0.55);
+
+    transform: rotate(45deg);
+
+    border-radius: 2px;
+
+    pointer-events: none;
+
+}
+
+
+
+.dateBadge {
+
+    position: relative;
+
+    z-index: 2;
+
+    min-width: 220px;
+
+    padding: 0.55rem 1.1rem;
+
+    border-radius: 10px;
+
+    background: linear-gradient(180deg, #ffd95a 0%, #f5c400 100%);
+
+    color: #1a1200;
+
+    font-size: 0.82rem;
+
+    font-weight: 800;
+
+    letter-spacing: 0.06em;
+
+    text-align: center;
+
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+
+}
+
+
+
+.liveBadge {
+
+    position: absolute;
+
+    top: 0.85rem;
+
+    left: 0.85rem;
+
+    z-index: 3;
+
+    padding: 0.3rem 0.65rem;
+
+    border-radius: 6px;
+
+    background: linear-gradient(180deg, #ff7b7b 0%, #e23b3b 100%);
+
+    color: #fff;
+
+    font-size: 0.68rem;
+
+    font-weight: 800;
+
+    letter-spacing: 0.14em;
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+
+}
+
+
+
+.portraitWrap {
+
+    position: relative;
+
+    flex-shrink: 0;
+
+}
+
+
+
+.starsOnPortrait {
+
+    position: absolute;
+
+    left: 50%;
+
+    bottom: -5px;
+
+    transform: translateX(-50%);
+
+    z-index: 2;
+
+    display: flex;
+
+    justify-content: center;
+
+    pointer-events: none;
+
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+
+}
+
+
+
+.starsOnPortrait img {
+
+    height: 20px !important;
+
+    width: auto;
+
+    display: block;
+
+}
+
+
+
+.predictionEmbed {
+
+    display: grid;
+
+    grid-template-columns: 1fr auto 1fr;
+
+    align-items: center;
+
+    gap: 0.35rem;
+
+    width: 100%;
+
+    max-width: 132px;
+
+    padding: 0.35rem 0.5rem;
+
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+
+}
+
+
+
+.plain .predictionEmbed {
+
+    border-color: rgba(201, 162, 39, 0.28);
+
+}
+
+
+
+.predictionPct {
+
+    font-size: 0.72rem;
+
+    font-weight: 800;
+
+    letter-spacing: 0.04em;
+
+    color: #f5c400;
+
+    text-align: center;
+
+}
+
+
+
+.predictionLabel {
+
+    font-size: 0.58rem;
+
+    font-weight: 700;
+
+    letter-spacing: 0.1em;
+
+    text-transform: uppercase;
+
+    color: rgba(248, 244, 234, 0.72);
+
+    white-space: nowrap;
+
+}
+
+
+
+.plain .predictionLabel {
+
+    color: var(--color-text-dim);
+
+}
+
+
+
+.plain .predictionPct {
+
+    color: var(--color-gold);
+
+}
+
+
+
+.timeBadge {
+
+    min-width: 110px;
+
+    font-size: 1.05rem;
+
+}
+
+
+
+.timeBadgeLive {
+
+    background: linear-gradient(180deg, #ff7b7b 0%, #e23b3b 100%);
+
+    color: #fff;
+
+    letter-spacing: 0.08em;
+
+}
+
+
+
+.matchRow {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns: minmax(0, 1fr) 132px minmax(0, 1fr);
+
+    align-items: center;
+
+    gap: 0.65rem;
+
+}
+
+
+
+.playerSide {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 0.45rem;
+
+    min-width: 0;
+
+    overflow: hidden;
+
+}
+
+
+
+.playerSideRight {
+
+    justify-content: flex-end;
+
+}
+
+
+
+.playerSideUpcoming {
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 0.25rem;
+
+    overflow: visible;
+
+}
+
+
+
+.playerSideUpcoming .portraitWrap {
+
+    margin-bottom: 4px;
+
+}
+
+
+
+.playerSideUpcoming .playerLabelUnder {
+
+    margin-top: 0.15rem;
+
+}
+
+
+
+.playerLabelUnder {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 0.3rem;
+
+    max-width: 108px;
+
+    min-width: 0;
+
+}
+
+
+
+.playerNameUnder {
+
+    font-size: 0.72rem;
+
+    font-weight: 700;
+
+    letter-spacing: 0.04em;
+
+    text-transform: uppercase;
+
+    color: #f8f4ea;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+}
+
+
+
+.plain .playerNameUnder {
+
+    color: var(--color-text);
+
+}
+
+
+
+.portraitImage,
+
+.portraitFallback {
+
+    width: 58px;
+
+    height: 58px;
+
+    border-radius: 8px;
+
+    border: 2px solid rgba(255, 255, 255, 0.75);
+
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+
+    flex-shrink: 0;
+
+    object-fit: cover;
+
+    background: rgba(18, 28, 44, 0.9);
+
+}
+
+
+
+.portraitFallback {
+
+    display: grid;
+
+    place-items: center;
+
+    font-size: 1.35rem;
+
+    font-weight: 800;
+
+    color: #f5c400;
+
+}
+
+
+
+.playerPanel {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.45rem;
+
+    min-width: 0;
+
+    max-width: 100%;
+
+    padding: 0.7rem 0.95rem;
+
+    background: linear-gradient(180deg, #f7f0df 0%, #e8dcc4 100%);
+
+    color: #102033;
+
+    clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+
+    flex-shrink: 1;
+
+}
+
+
+
+.playerSideRight .playerPanel {
+
+    clip-path: polygon(0 0, 92% 0, 100% 100%, 8% 100%);
+
+    justify-content: flex-end;
+
+}
+
+
+
+.playerName {
+
+    font-size: 0.95rem;
+
+    font-weight: 800;
+
+    letter-spacing: 0.04em;
+
+    text-transform: uppercase;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+}
+
+
+
+.centerBadge {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 0.45rem;
+
+    width: 132px;
+
+    flex-shrink: 0;
+
+}
+
+
+
+.centerDiamond {
+
+    width: 88px;
+
+    height: 88px;
+
+    transform: rotate(45deg);
+
+    border: 2px solid rgba(255, 255, 255, 0.7);
+
+    border-radius: 10px;
+
+    overflow: hidden;
+
+    background: radial-gradient(circle at 30% 20%, #ffb347 0%, #4a1508 42%, #12060a 100%);
+
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+
+}
+
+
+
+.plain .centerDiamond {
+
+    border-color: rgba(201, 162, 39, 0.45);
+
+}
+
+
+
+.centerLogo {
+
+    width: 100%;
+
+    height: 100%;
+
+    transform: rotate(-45deg) scale(1.15);
+
+    object-fit: contain;
+
+    padding: 10px;
+
+}
+
+
+
+.centerMeta {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 0.15rem;
+
+    text-align: center;
+
+}
+
+
+
+.centerTournament,
+
+.centerStage,
+
+.centerFormat {
+
+    font-size: 0.62rem;
+
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
+
+    color: rgba(248, 244, 234, 0.92);
+
+    line-height: 1.3;
+
+    max-width: 130px;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+}
+
+
+
+.centerFormat {
+
+    color: #f5c400;
+
+}
+
+
+
+.caption {
+
+    position: relative;
+
+    z-index: 2;
+
+    margin: 0.15rem 0 0;
+
+    font-size: 0.72rem;
+
+    letter-spacing: 0.03em;
+
+    color: rgba(248, 244, 234, 0.88);
+
+    text-align: center;
+
+}
+
+
+
+@media (max-width: 720px) {
+
+    .matchRow {
+
+        grid-template-columns: 1fr;
+
+        gap: 0.75rem;
+
+    }
+
+
+
+    .playerSide,
+
+    .playerSideRight {
+
+        justify-content: center;
+
+    }
+
+
+
+    .playerSideUpcoming {
+
+        flex-direction: column;
+
+        align-items: center;
+
+    }
+
+
+
+    .connector {
+
+        display: none;
+
+    }
+
+
+
+    .centerBadge {
+
+        order: -1;
+
+        width: 100%;
+
+    }
+
+
+
+    .playerPanel {
+
+        clip-path: none;
+
+        border-radius: 8px;
+
+        max-width: 180px;
+
+    }
+
+}
+
+

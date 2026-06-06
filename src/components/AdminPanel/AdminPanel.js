@@ -1,8 +1,19 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { authFetch } from '../../api/authFetch';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAddGame } from '../../store/add-game-context';
 import classes from './AdminPanel.module.css';
 
+const getFirebaseUidForUser = (userId, userData) => {
+    if (userData?.twitchId) {
+        return `twitch:${userData.twitchId}`;
+    }
+    return null;
+};
+
 const AdminPanel = () => {
+    const { openAddGame } = useAddGame();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -18,7 +29,8 @@ const AdminPanel = () => {
                         userId,
                         nickname: userData.enteredNickname || userData.name || 'Unknown',
                         isAdmin: userData.isAdmin === true,
-                        email: userData.email || 'N/A'
+                        email: userData.email || 'N/A',
+                        firebaseUid: getFirebaseUidForUser(userId, userData)
                     }))
                     .sort((a, b) => {
                         if (a.isAdmin && !b.isAdmin) {
@@ -44,24 +56,39 @@ const AdminPanel = () => {
     const toggleAdminStatus = async (userId, currentStatus) => {
         try {
             const newStatus = !currentStatus;
-            const response = await fetch(
-                `${FIREBASE_DATABASE_URL}/users/${userId}/isAdmin.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(newStatus),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            const targetUser = users.find((u) => u.userId === userId);
+            const response = await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}/isAdmin.json`, {
+                method: 'PUT',
+                body: JSON.stringify(newStatus),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
-            if (response.ok) {
-                // Update local state
-                setUsers(users.map((u) => (u.userId === userId ? { ...u, isAdmin: newStatus } : u)));
-                alert(
-                    `Admin status ${newStatus ? 'granted' : 'revoked'} for ${users.find((u) => u.userId === userId).nickname}`
-                );
-            } else {
+            if (!response.ok) {
                 alert('Failed to update admin status');
+                return;
             }
+
+            if (targetUser?.firebaseUid) {
+                const metaPath = `${FIREBASE_DATABASE_URL}/meta/admins/${encodeURIComponent(targetUser.firebaseUid)}.json`;
+                const metaResponse = newStatus
+                    ? await authFetch(metaPath, {
+                          method: 'PUT',
+                          body: JSON.stringify(true),
+                          headers: { 'Content-Type': 'application/json' }
+                      })
+                    : await authFetch(metaPath, { method: 'DELETE' });
+
+                if (!metaResponse.ok) {
+                    alert(
+                        'Profile admin flag updated, but meta/admins sync failed. Re-login may be required for full permissions.'
+                    );
+                }
+            }
+
+            setUsers(users.map((u) => (u.userId === userId ? { ...u, isAdmin: newStatus } : u)));
+            alert(
+                `Admin status ${newStatus ? 'granted' : 'revoked'} for ${targetUser?.nickname || 'user'}`
+            );
         } catch (error) {
             console.error('Error updating admin status:', error);
             alert('Error updating admin status: ' + error.message);
@@ -90,6 +117,23 @@ const AdminPanel = () => {
         <div className={classes.container}>
             <h1>👑 Admin Panel</h1>
             <p className={classes.subtitle}>Manage user permissions and admin roles</p>
+
+            <section className={classes.adminTools}>
+                <h2 className={classes.adminToolsTitle}>Quick actions</h2>
+                <div className={classes.adminToolsActions}>
+                    <button
+                        type="button"
+                        className={classes.addGameBtn}
+                        onClick={openAddGame}
+                        title="Manually add a tournament match"
+                    >
+                        Add game
+                    </button>
+                    <Link to="/games/homm3" className={classes.matchLogLink}>
+                        Open match log
+                    </Link>
+                </div>
+            </section>
 
             <div className={classes.filterButtons}>
                 <button

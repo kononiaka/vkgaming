@@ -1,8 +1,86 @@
 .brackets {
-    color: gold;
-    font-weight: bold;
-    font-size: 1.5rem;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    color: var(--color-gold);
+    font-weight: 600;
+    font-size: 1rem;
+    text-shadow: none;
+}
+
+.bracketShell {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.fixedHeader {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 0.85rem 1.25rem;
+    background: var(--color-bg-panel);
+    border-bottom: var(--border-panel);
+    box-shadow: var(--shadow-panel);
+    color: var(--color-text);
+    font-family: var(--font-body);
+}
+
+.bracketBody {
+    padding-top: 0.75rem;
+}
+
+.headerBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+}
+
+.headerSide {
+    min-width: 11rem;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    align-items: stretch;
+}
+
+.headerSideEnd {
+    align-items: flex-end;
+}
+
+.headerCenter {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+}
+
+.headerTitle {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    line-height: 1.6;
+    color: var(--color-gold);
+    letter-spacing: 0.06em;
+    margin-bottom: 0.25rem;
+}
+
+.headerWinners {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.headerWinnerGold {
+    color: var(--color-gold-bright);
+}
+
+.headerWinnerSilver {
+    color: var(--color-text-muted);
+}
+
+.headerWinnerBronze {
+    color: #c98a5a;
 }
 
 .scrollable-list {
@@ -142,29 +220,42 @@
 }
 
 .actionButton {
-    padding: 0.875rem 2rem;
-    background: linear-gradient(135deg, gold 0%, #ffd700 100%);
-    border: 2px solid gold;
-    border-radius: 8px;
-    color: rgb(62, 32, 192);
-    font-weight: bold;
-    font-size: 1rem;
+    padding: 0.5rem 0.9rem;
+    background: var(--color-gold);
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    color: var(--color-bg-deep);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.8125rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+    white-space: nowrap;
+    width: 100%;
 }
 
 .actionButton:hover {
-    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+    background: var(--color-gold-bright);
+    border-color: var(--color-gold-bright);
 }
 
 .actionButton:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    transform: none;
+}
+
+.actionButtonSecondary {
+    background: transparent;
+    color: var(--color-teal);
+    border-color: var(--color-teal-dim);
+}
+
+.actionButtonSecondary:hover {
+    background: rgba(74, 143, 156, 0.12);
+    border-color: var(--color-teal);
+    color: var(--color-gold-bright);
 }
 
 .liveIndicator {
@@ -194,5 +285,23 @@
     50%,
     100% {
         opacity: 0.3;
+    }
+}
+
+@media (max-width: 768px) {
+    .fixedHeader {
+        padding: 0.65rem 0.85rem;
+    }
+
+    .headerBar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+    }
+
+    .headerSide,
+    .headerSideEnd {
+        min-width: 0;
+        align-items: stretch;
     }
 }

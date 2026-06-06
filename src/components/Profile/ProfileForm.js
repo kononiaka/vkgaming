@@ -7,6 +7,7 @@ import AuthContext from '../../store/auth-context';
 import { authFetch } from '../../api/authFetch';
 import { deleteAccount } from '../../api/deleteAccount';
 import LobbyNicknameField from './LobbyNicknameField';
+import CountryField from './CountryField';
 
 import classes from './ProfileForm.module.css';
 
@@ -288,14 +289,34 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                             setPlayer((prev) => (prev ? { ...prev, enteredNickname: nextNickname } : prev))
                         }
                     />
+                    <CountryField
+                        userId={userId}
+                        countryCode={player.countryCode}
+                        countryCodeSource={player.countryCodeSource}
+                        onSaved={(countryUpdate) =>
+                            setPlayer((prev) => (prev ? { ...prev, ...countryUpdate } : prev))
+                        }
+                    />
                 </div>
             )}
 
             {embedded && isOwnProfile && (
-                <p className={classes.lobbyNickHint}>
-                    Edit your lobby nickname in the profile card above. It must match your in-game Heroes III lobby
-                    name for cups and match reporting.
-                </p>
+                <>
+                    <p className={classes.lobbyNickHint}>
+                        Edit your lobby nickname in the profile card above. It must match your in-game Heroes III lobby
+                        name for cups and match reporting.
+                    </p>
+                    <div className={classes.formPanel}>
+                        <CountryField
+                            userId={userId}
+                            countryCode={player.countryCode}
+                            countryCodeSource={player.countryCodeSource}
+                            onSaved={(countryUpdate) =>
+                                setPlayer((prev) => (prev ? { ...prev, ...countryUpdate } : prev))
+                            }
+                        />
+                    </div>
+                </>
             )}
 
             {!embedded && (

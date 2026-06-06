@@ -342,6 +342,16 @@
     font-weight: 600;
 }
 
+.scheduleControl {
+    position: relative;
+    z-index: 4;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 0.15rem;
+    pointer-events: auto;
+}
+
 .centerBlock {
     display: flex;
     flex-direction: column;

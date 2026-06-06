@@ -9,6 +9,7 @@ import Heroes3Games from './components/Games/Heroes3/Heroes3';
 import Heroes3Stats from './components/Games/Heroes3/Stats/Heroes3Stats';
 import Leaderboard from './components/Leaderboard/Leaderboard';
 import Players from './components/Players/Players';
+import PlayersList from './components/Players/PlayersList';
 import UserProfile from './components/Profile/UserProfile';
 import TournamentList from './components/tournaments/homm3/Tournaments';
 import TwitchCallback from './components/Auth/TwitchCallback';
@@ -43,7 +44,7 @@ function App() {
                     <Route path="/support" element={<SupportPage />} />
                     <Route path="/help" element={<HelpPage />} />
                     <Route path="/rules" element={<RulesPage />} />
-                    <Route path="/players" element={<Leaderboard />} />
+                    <Route path="/players" element={<PlayersList />} />
                     <Route path="/players/:id" element={<Players />} />
                     <Route path="/" element={<HomePage />} />
                     <Route path="/auth/twitch/callback" element={<TwitchCallback />} />

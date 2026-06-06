@@ -1,9 +1,13 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 
+import AuthContext from '../../../store/auth-context';
+import { useAddGame } from '../../../store/add-game-context';
 import classes from './Heroes3.module.css';
 
 const Heroes3Games = () => {
+    const authCtx = useContext(AuthContext);
+    const { openAddGame } = useAddGame();
     let [games, setGames] = useState([]);
     const [sortBy, setSortBy] = useState('date-desc');
     const [searchPlayer, setSearchPlayer] = useState('');
@@ -125,14 +129,28 @@ const Heroes3Games = () => {
 
     return (
         <div className={`${classes.gamesContainer} data-page`}>
-            <h2 className={classes.pageTitle}>Tournament match log</h2>
-            <p className={classes.pageSubtitle}>
-                Cup and bracket matches reported on konoplay. For ranked lobby history and meta stats, see{' '}
-                <a href="https://hotameta.com/" target="_blank" rel="noopener noreferrer">
-                    HotA Meta
-                </a>
-                .
-            </p>
+            <div className={classes.pageHeader}>
+                <div>
+                    <h2 className={classes.pageTitle}>Tournament match log</h2>
+                    <p className={classes.pageSubtitle}>
+                        Cup and bracket matches reported on konoplay. For ranked lobby history and meta stats, see{' '}
+                        <a href="https://hotameta.com/" target="_blank" rel="noopener noreferrer">
+                            HotA Meta
+                        </a>
+                        .
+                    </p>
+                </div>
+                {authCtx.isAdmin && (
+                    <button
+                        type="button"
+                        className={classes.addGameBtn}
+                        onClick={openAddGame}
+                        title="Manually add a tournament match (admin)"
+                    >
+                        Add game
+                    </button>
+                )}
+            </div>
             {!isLoaded ? (
                 <p className={classes.loading}>Loading matches...</p>
             ) : tournamentGames.length === 0 ? (

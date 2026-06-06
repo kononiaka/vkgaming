@@ -4,12 +4,12 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(4, 8, 14, 0.72);
     z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
     animation: fadeIn 0.2s ease;
     overflow: hidden;
 }
@@ -25,200 +25,645 @@
 
 .modal {
     position: relative;
-    background: linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%);
-    border: 3px solid gold;
-    border-radius: 16px;
-    box-shadow:
-        0 12px 48px rgba(0, 0, 0, 0.7),
-        0 0 30px rgba(255, 215, 0, 0.3);
-    padding: 0.5rem 2rem 2rem 2rem;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    padding: 0.5rem 1.5rem 1.5rem;
     min-width: 700px;
     max-width: 960px;
     width: 90vw;
     max-height: 90vh;
     overflow-y: auto;
     overflow-x: hidden;
-    color: white;
-    animation: slideIn 0.3s ease-out;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    animation: slideIn 0.25s ease-out;
     scroll-behavior: smooth;
 }
 
 @keyframes slideIn {
     from {
         opacity: 0;
-        transform: translateY(-30px) scale(0.9);
+        transform: translateY(-16px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
     }
 }
 
 .closeButton {
     position: absolute;
-    top: 3px;
-    right: 8px;
-    background: rgba(255, 215, 0, 0.9);
-    border: 2px solid gold;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 28px;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-sm);
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.25rem;
     cursor: pointer;
-    color: rgb(62, 32, 192);
+    color: var(--color-gold);
     display: flex;
     align-items: center;
     justify-content: center;
     transition:
-        background 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
     line-height: 1;
     padding: 0;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .closeButton:hover {
-    background: gold;
-    color: rgb(45, 20, 150);
-    transform: rotate(90deg);
+    background: rgba(201, 162, 39, 0.12);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
 }
 
-.closeButton:focus {
-    outline: none;
-}
-
+.closeButton:focus,
 .closeButton:active {
     outline: none;
-    transform: rotate(90deg);
 }
 
-.title {
-    color: gold;
-    text-align: center;
-    font-size: 1.8rem;
-    margin: 0 0 1rem 0;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    padding-right: 2rem;
+.matchHeader {
+    position: sticky;
+    top: 0;
+    background: var(--color-bg-panel-alt);
+    border-bottom: var(--border-panel);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    z-index: 100;
+    min-width: 0;
+    margin: -0.5rem -1.5rem 1rem;
 }
 
-.matchup {
-    text-align: center;
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: white;
-    margin-bottom: 0.5rem;
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+.matchHeaderPlayer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
 }
 
-.gameType {
-    text-align: center;
-    color: gold;
+.matchHeaderPlayerEnd {
+    justify-content: flex-end;
+}
+
+.avatar {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    background: var(--color-bg-elevated);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
+    color: var(--color-gold);
+    border: 2px solid var(--color-gold-dim);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.avatarSm {
+    width: 3rem;
+    height: 3rem;
     font-size: 0.9rem;
+}
+
+.avatarImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.playerName {
+    color: var(--color-text);
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.matchHeaderCenter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.matchType {
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 1px;
+}
+
+.matchScoreRow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.matchScore {
+    color: var(--color-gold);
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    line-height: 1;
+}
+
+.matchScoreDash {
+    color: var(--color-text-dim);
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    margin-top: 2rem;
+    margin-top: 0.5rem;
+}
+
+.layered {
+    position: relative;
+    z-index: 2;
 }
 
 .gameSection {
-    background: rgba(255, 255, 255, 0.08);
-    padding: 1.5rem;
-    border-radius: 12px;
-    border: 2px solid rgba(255, 215, 0, 0.4);
-    margin-bottom: 1.5rem;
-    box-shadow:
-        0 4px 16px rgba(0, 0, 0, 0.3),
-        inset 0 1px 2px rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    backdrop-filter: blur(5px);
+    position: relative;
+    overflow: hidden;
+    background: var(--color-bg-panel-alt);
+    padding: 1.25rem;
+    border-radius: var(--radius-md);
+    border: var(--border-subtle);
+    margin-bottom: 1.25rem;
+    transition: border-color 0.15s ease;
 }
 
 .gameSection:hover {
-    border-color: rgba(255, 215, 0, 0.6);
-    box-shadow:
-        0 6px 20px rgba(0, 0, 0, 0.4),
-        0 0 15px rgba(255, 215, 0, 0.2),
-        inset 0 1px 2px rgba(255, 255, 255, 0.1);
-    transform: translateY(-2px);
+    border-color: rgba(201, 162, 39, 0.28);
+}
+
+.gameBgLeft,
+.gameBgRight {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    opacity: 0.65;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.gameBgLeft {
+    left: 0;
+}
+
+.gameBgRight {
+    right: 0;
+}
+
+.gameDivider {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(201, 162, 39, 0.45),
+        transparent
+    );
+    z-index: 1;
+    pointer-events: none;
 }
 
 .gameTitle {
-    color: gold;
-    font-size: 1.3rem;
-    margin: 0 0 1.25rem 0;
+    color: var(--color-gold);
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    margin: 0 0 1rem;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    text-shadow:
-        0 0 10px rgba(255, 215, 0, 0.6),
-        0 2px 4px rgba(0, 0, 0, 0.5);
-    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-weight: 400;
+    line-height: 1.6;
 }
 
 .formGroup {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
 }
 
 .formGroup label {
-    color: rgba(255, 255, 255, 0.95);
-    font-weight: 700;
-    font-size: 1rem;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+}
+
+.centerLabel {
+    text-align: center;
+    display: block;
 }
 
 .formGroup select,
-.formGroup input {
-    padding: 0.75rem;
-    border: 2px solid rgba(255, 215, 0, 0.4);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    font-size: 1rem;
-    transition: all 0.2s ease;
+.formGroup input:not([type='checkbox']) {
+    padding: 0.55rem 0.7rem;
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .formGroup select:focus,
-.formGroup input:focus {
+.formGroup input:not([type='checkbox']):focus {
     outline: none;
-    border-color: gold;
-    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--color-gold-dim);
+    background: var(--color-bg-elevated);
 }
 
 .formGroup select option {
-    background: rgb(45, 20, 150);
-    color: white;
+    background: var(--color-bg-deep);
+    color: var(--color-text);
+}
+
+.scoreBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: var(--border-panel);
+    background: var(--color-bg-elevated);
+}
+
+.scoreBarRedLead {
+    background: linear-gradient(
+        to right,
+        rgba(160, 48, 48, 0.22) 0%,
+        rgba(20, 26, 36, 0.55) 45%,
+        rgba(48, 72, 120, 0.18) 100%
+    );
+}
+
+.scoreBarBlueLead {
+    background: linear-gradient(
+        to right,
+        rgba(48, 72, 120, 0.22) 0%,
+        rgba(20, 26, 36, 0.55) 45%,
+        rgba(160, 48, 48, 0.18) 100%
+    );
+}
+
+.playerRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.playerRowEnd {
+    justify-content: flex-end;
+}
+
+.flagToggle {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+    display: flex;
+    align-items: center;
+}
+
+.flagToggle:hover {
+    opacity: 0.85;
+}
+
+.flagImg {
+    width: 2.4rem;
+    height: 2.4rem;
+    object-fit: contain;
+}
+
+.flagImgRed {
+    filter: drop-shadow(0 0 2px rgba(200, 60, 60, 0.5));
+}
+
+.flagImgBlue {
+    filter: drop-shadow(0 0 2px rgba(60, 100, 180, 0.5));
+}
+
+.winnerPick {
+    cursor: pointer;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    opacity: 0.65;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        opacity 0.15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 10rem;
+}
+
+.winnerPick:hover {
+    opacity: 0.9;
+}
+
+.winnerPickSelected {
+    border-color: var(--color-gold);
+    background: rgba(201, 162, 39, 0.14);
+    opacity: 1;
+}
+
+.winnerPickDisabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.scoreRow {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+.scoreValue {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-gold);
+    font-family: var(--font-display);
+    line-height: 1;
+}
+
+.scoreDivider {
+    color: var(--color-text-dim);
+    font-size: 1rem;
+}
+
+.goldRow {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.goldIcon {
+    width: 2.6rem;
+    height: 2rem;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+}
+
+.goldInput {
+    width: 7rem;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    color: var(--color-gold);
+    font-weight: 600;
+    font-family: var(--font-body);
+}
+
+.goldInput:focus {
+    outline: none;
+    border-color: var(--color-gold-dim);
+}
+
+.goldInput:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.goldPositive {
+    color: #6fcf8f;
+}
+
+.goldNegative {
+    color: #e07070;
+}
+
+.goldPlayerLabel {
+    margin-bottom: 0.4rem;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
 }
 
 .scoreDisplay {
-    background: rgba(255, 215, 0, 0.15);
-    border: 2px solid gold;
-    border-radius: 8px;
-    padding: 1rem;
+    background: rgba(201, 162, 39, 0.1);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    padding: 0.85rem;
     text-align: center;
-    font-size: 1.2rem;
-    color: gold;
-    margin: 1rem 0;
+    font-size: 1rem;
+    color: var(--color-gold);
+    margin: 0.75rem 0;
+}
+
+.dualRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem 2rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.playerColumn {
+    text-align: center;
+    min-width: 0;
+}
+
+.restartGroup {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.restartBox {
+    position: relative;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.restartBoxIdle {
+    background: var(--color-bg-deep);
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.restartBoxIdle:hover {
+    border-color: var(--color-gold);
+    opacity: 1;
+}
+
+.restartBoxUsed {
+    background: rgba(201, 162, 39, 0.16);
+    border-color: var(--color-gold);
+    opacity: 1;
+    cursor: pointer;
+}
+
+.restartBoxDisabled {
+    background: var(--color-bg-deep);
+    border-color: rgba(255, 255, 255, 0.1);
+    opacity: 0.38;
+    cursor: not-allowed;
+}
+
+.restartCode {
+    color: var(--color-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.restartMark {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e07070;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+
+.castleDualRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem 2rem;
+    justify-content: center;
+}
+
+.castleGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    max-width: 22rem;
+    justify-items: center;
+}
+
+.castleTile {
+    position: relative;
+    width: 6.5rem;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.castleTileDisabled {
+    cursor: not-allowed;
+}
+
+.castleImg {
+    width: 100%;
+    height: 100%;
+    border: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    object-fit: cover;
+    transition:
+        opacity 0.15s ease,
+        filter 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.castleImgSelected {
+    opacity: 1;
+    filter: none;
+}
+
+.castleImgDimmed {
+    opacity: 0.35;
+    filter: grayscale(65%);
+}
+
+.castleImgRestricted {
+    opacity: 0.45;
+}
+
+.castleBadge {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.35rem;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-bg-deep);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+}
+
+.castleBadgePick {
+    background: #6fcf8f;
+}
+
+.castleBadgeBan {
+    background: #e07070;
+    color: #fff;
 }
 
 .buttonGroup {
     display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: var(--border-subtle);
 }
 
 .restartConfirmationRow {
@@ -230,141 +675,112 @@
 .restartConfirmationLabel {
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
-    color: #ffd700;
-    font-weight: 700;
-    font-size: 0.95rem;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 215, 0, 0.45);
-    border-radius: 8px;
-    padding: 0.55rem 0.8rem;
+    gap: 0.55rem;
+    color: var(--color-gold);
+    font-weight: 600;
+    font-size: 0.875rem;
+    background: var(--color-bg-elevated);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
     transition:
-        background 0.3s,
-        border-color 0.3s,
-        box-shadow 0.3s;
+        background 0.2s ease,
+        border-color 0.2s ease;
 }
 
 .restartConfirmationLabel:has(input:not(:checked)) {
-    background: rgba(255, 160, 0, 0.18);
-    border-color: #ffa500;
-    box-shadow: 0 0 8px 2px rgba(255, 165, 0, 0.55);
-    animation: restartPulse 1.8s ease-in-out infinite;
+    background: rgba(201, 120, 40, 0.12);
+    border-color: rgba(201, 120, 40, 0.45);
 }
 
 .restartConfirmationLabel:has(input:checked) {
-    background: rgba(0, 180, 80, 0.18);
-    border-color: rgba(0, 220, 100, 0.7);
-    box-shadow: 0 0 6px 1px rgba(0, 220, 100, 0.35);
-    animation: none;
-}
-
-@keyframes restartPulse {
-    0%,
-    100% {
-        box-shadow: 0 0 6px 1px rgba(255, 165, 0, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 14px 4px rgba(255, 165, 0, 0.75);
-    }
+    background: rgba(74, 143, 156, 0.12);
+    border-color: rgba(74, 143, 156, 0.45);
 }
 
 .restartConfirmationLabel input {
-    width: 16px;
-    height: 16px;
-    accent-color: #ffd700;
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-gold);
     cursor: pointer;
 }
 
 .submitButton,
 .cancelButton {
     flex: 1;
-    padding: 0.875rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: bold;
+    padding: 0.7rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
 }
 
 .submitButton {
-    background: linear-gradient(135deg, #ffd700, #ffa500);
-    color: rgb(62, 32, 192);
-    border: 2px solid gold;
-    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    background: var(--color-gold);
+    color: var(--color-bg-deep);
+    border: 1px solid var(--color-gold-dim);
 }
 
 .submitButton:hover {
-    background: linear-gradient(135deg, #ffa500, #ffd700);
-    transform: translateY(-3px);
-    box-shadow:
-        0 6px 20px rgba(255, 215, 0, 0.6),
-        0 0 15px rgba(255, 215, 0, 0.4);
-}
-
-.submitButton:active {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+    background: var(--color-gold-bright);
+    border-color: var(--color-gold-bright);
 }
 
 .cancelButton {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    background: transparent;
+    color: var(--color-text-muted);
+    border: var(--border-subtle);
 }
 
 .cancelButton:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.8);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
+    border-color: rgba(255, 255, 255, 0.14);
 }
 
-.cancelButton:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-/* Scrollbar styling */
 .modal::-webkit-scrollbar {
-    width: 10px;
+    width: 8px;
 }
 
 .modal::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 10px;
-    margin: 8px 0;
+    background: var(--color-bg-deep);
+    border-radius: var(--radius-md);
 }
 
 .modal::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(255, 215, 0, 0.7), rgba(255, 165, 0, 0.7));
-    border-radius: 10px;
-    border: 2px solid rgba(62, 32, 192, 0.5);
-    transition: all 0.3s ease;
+    background: rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
 }
 
 .modal::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #ffd700, #ffa500);
-    border-color: rgba(62, 32, 192, 0.8);
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    background: rgba(201, 162, 39, 0.55);
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
     .modal {
-        min-width: 90vw;
-        padding: 1.5rem;
+        min-width: 0;
+        width: 94vw;
+        padding: 0.5rem 1rem 1.25rem;
     }
 
-    .title {
-        font-size: 1.4rem;
+    .matchHeader {
+        margin: -0.5rem -1rem 1rem;
+        padding: 0.65rem 0.85rem;
+        gap: 0.75rem;
     }
 
-    .matchup {
-        font-size: 1.1rem;
+    .playerName {
+        font-size: 0.875rem;
+        max-width: 5.5rem;
+    }
+
+    .matchScore {
+        font-size: 1.2rem;
     }
 
     .buttonGroup {
@@ -373,5 +789,9 @@
 
     .gameSection {
         padding: 1rem;
+    }
+
+    .winnerPick {
+        max-width: 6rem;
     }
 }

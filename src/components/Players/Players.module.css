@@ -108,11 +108,19 @@
 }
 
 .playerName {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.65rem;
     text-align: left;
     font-size: clamp(1.85rem, 3.8vw, 2.7rem);
     color: #f7f2e6;
     margin: 0;
     overflow-wrap: anywhere;
+}
+
+.playerCountryFlag {
+    align-self: center;
 }
 
 .lobbyNick {

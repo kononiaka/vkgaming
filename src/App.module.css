@@ -1,6 +1,6 @@
 .main {
     background: transparent;
     width: 100%;
-    min-height: calc(100vh - var(--header-height) - var(--donators-bar-height));
-    padding-top: calc(var(--header-height) + var(--donators-bar-height));
+    min-height: calc(100vh - var(--header-height));
+    padding-top: var(--header-height);
 }

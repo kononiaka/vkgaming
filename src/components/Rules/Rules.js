@@ -35,6 +35,14 @@ const rules = [
     {
         title: 'Streams',
         body: 'Streaming is encouraged. VOD links may be added to match reports in a future update.'
+    },
+    {
+        title: 'Country flags',
+        body: 'Registered players may show a country flag on profiles and player lists. On Twitch sign-in, Konoplay detects your country from your connection IP and stores only the two-letter country code (for example PL or UA), not your IP address. You can change or override the flag in your profile settings. VPNs and mobile networks may show the wrong country — pick your country manually if needed.'
+    },
+    {
+        title: 'Privacy',
+        body: 'Konoplay stores account data needed to run cups: nickname, ratings, tournament history, optional social links, and country code for display flags. We do not publish or store raw IP addresses on player profiles. Contact the organizer via Help if you want your account removed.'
     }
 ];
 

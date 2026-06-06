@@ -1,115 +1,155 @@
 .leaderboard {
-    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9), rgba(22, 33, 62, 0.9));
-    border: 2px solid #ffd700;
-    border-radius: 12px;
-    padding: 20px;
-    margin: 20px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    text-align: left;
+    border-top: 1px solid rgba(201, 162, 39, 0.22);
 }
 
-.leaderboard h3 {
-    color: #ffd700;
-    text-align: center;
-    margin: 0 0 20px 0;
-    font-size: 1.3rem;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+.leaderboardPanel {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.leaderboardPanel .title {
+    color: var(--color-gold);
+    font-size: 0.8rem;
+}
+
+.title {
+    margin: 0 0 1rem;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
 }
 
 .loading,
 .noDonors {
+    margin: 0;
+    padding: 1rem 0;
     text-align: center;
-    color: #00ffff;
-    font-style: italic;
-    padding: 20px;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-style: normal;
 }
 
 .donorList {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.5rem;
 }
 
 .donorItem {
     display: flex;
     align-items: center;
-    background: rgba(0, 255, 255, 0.05);
-    border: 1px solid rgba(0, 255, 255, 0.3);
-    border-radius: 8px;
-    padding: 12px;
-    transition: all 0.3s ease;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 
 .donorItem:hover {
-    background: rgba(0, 255, 255, 0.1);
-    transform: translateX(5px);
+    background: var(--color-bg-elevated);
+    border-color: rgba(201, 162, 39, 0.28);
+}
+
+.donorItem:nth-child(1) {
+    border-color: rgba(201, 162, 39, 0.45);
+    background: rgba(201, 162, 39, 0.06);
+}
+
+.donorItem:nth-child(2) {
+    border-color: rgba(201, 162, 39, 0.28);
+}
+
+.donorItem:nth-child(3) {
+    border-color: rgba(201, 162, 39, 0.2);
 }
 
 .rank {
-    font-size: 1.2rem;
-    font-weight: bold;
-    margin-right: 15px;
-    min-width: 30px;
+    flex-shrink: 0;
+    min-width: 2rem;
+    font-size: 1rem;
+    font-weight: 700;
     text-align: center;
+    color: var(--color-gold);
 }
 
 .donorInfo {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.15rem;
+    min-width: 0;
 }
 
 .nickname {
-    color: #00ffff;
-    font-weight: bold;
-    font-size: 1rem;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .amount {
-    color: #ffd700;
-    font-size: 0.9rem;
-    font-weight: bold;
+    color: var(--color-gold);
+    font-size: 0.82rem;
+    font-weight: 600;
 }
 
 .coins {
-    color: #4caf50;
-    font-size: 0.8rem;
+    color: var(--color-teal);
+    font-size: 0.78rem;
 }
 
 .donationCount {
-    color: #999;
-    font-size: 0.8rem;
+    flex-shrink: 0;
+    color: var(--color-text-dim);
+    font-size: 0.75rem;
     text-align: right;
-    min-width: 80px;
+    min-width: 4.5rem;
 }
 
 .footer {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: var(--border-subtle);
     text-align: center;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid rgba(255, 215, 0, 0.3);
 }
 
 .footer p {
-    color: #00ffff;
-    font-size: 0.9rem;
     margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
 }
 
-/* Responsive design */
+.footerLink {
+    color: var(--color-teal);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.footerLink:hover {
+    color: var(--color-gold-bright);
+}
+
 @media (max-width: 768px) {
     .donorItem {
-        flex-direction: column;
+        flex-wrap: wrap;
         align-items: flex-start;
-        gap: 8px;
-    }
-
-    .rank {
-        align-self: flex-start;
     }
 
     .donationCount {
-        align-self: flex-end;
-        text-align: right;
+        width: 100%;
+        text-align: left;
+        min-width: 0;
     }
 }

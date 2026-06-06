@@ -6,6 +6,7 @@ import Notification from '../components/Notification/Notification';
 import DonatorsBar from '../components/DonatorsBar/DonatorsBar';
 
 import AuthContext from '../store/auth-context';
+import AddGameContext from '../store/add-game-context';
 import AddTournamentContext from '../store/add-tournament-context';
 import classes from './Layout.module.css';
 import MainHeader from './MainHeader';
@@ -114,7 +115,12 @@ const Layout = (props) => {
         userCoins
     };
 
+    const addGameValue = {
+        openAddGame: handleAddGame
+    };
+
     return (
+        <AddGameContext.Provider value={addGameValue}>
         <AddTournamentContext.Provider value={addTournamentValue}>
         <Fragment>
             <DonatorsBar />
@@ -131,21 +137,13 @@ const Layout = (props) => {
                 </a>
             </footer>
 
-            <div
-                className={classes['add-game']}
-                onClick={handleAddGame}
-                style={{ display: authCtx.isAdmin ? 'flex' : 'none' }}
-            >
-                <div className={classes['add-game-icon']}></div>
-                <span className={classes['tooltip']}>Add Game</span>
-            </div>
-            {/* TODO tooltips */}
             {showAddGame && <ModalAddGame onClose={handleModalClose} addGame />}
             {showAddTournament && <ModalAddTournament onClose={handleModalClose} addTournament />}
 
             <Notification />
         </Fragment>
         </AddTournamentContext.Provider>
+        </AddGameContext.Provider>
     );
 };
 

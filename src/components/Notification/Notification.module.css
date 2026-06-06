@@ -1,6 +1,6 @@
 .notification-box {
     position: fixed;
-    top: calc(var(--donators-bar-height) + var(--header-height) + 1rem);
+    top: calc(var(--header-height) + 1rem);
     right: 1.25rem;
     min-width: 300px;
     max-width: 420px;
@@ -131,7 +131,7 @@
 
 @media (max-width: 768px) {
     .notification-box {
-        top: calc(var(--donators-bar-height) + var(--header-height) + 0.5rem);
+        top: calc(var(--header-height) + 0.5rem);
         right: 0.75rem;
         left: 0.75rem;
         min-width: auto;

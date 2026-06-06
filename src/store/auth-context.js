@@ -1,4 +1,5 @@
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
+import { authFetch, getAuthToken } from '../api/authFetch';
 import React, { useCallback, useEffect, useState } from 'react';
 
 const AuthContext = React.createContext({
@@ -16,6 +17,28 @@ const AuthContext = React.createContext({
     isAdmin: false,
     setIsAdmin: () => {}
 });
+
+const getFirebaseUidFromToken = (token) => {
+    if (!token) {
+        return null;
+    }
+
+    try {
+        const payload = token.split('.')[1];
+        if (!payload) {
+            return null;
+        }
+
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = JSON.parse(atob(normalized));
+        return decoded.user_id || decoded.sub || null;
+    } catch (error) {
+        return null;
+    }
+};
+
+const resolveFirebaseUid = (explicitUid, token) =>
+    explicitUid || localStorage.getItem('firebaseUid') || getFirebaseUidFromToken(token);
 
 const calculateRemainingTime = (expirationTime) => {
     const currentTime = new Date().getTime();
@@ -63,31 +86,63 @@ export const AuthContextProvider = (props) => {
     const [countdown, setCountdown] = useState(0);
     const [isAdmin, setIsAdmin] = useState(localStorage.getItem('isAdmin') === 'true');
 
-    const fetchAdminStatusByNickname = useCallback(async (nickname) => {
-        if (!nickname) {
-            setIsAdmin(false);
-            localStorage.setItem('isAdmin', 'false');
-            return;
-        }
+    const applyAdminStatus = useCallback((adminValue) => {
+        setIsAdmin(adminValue);
+        localStorage.setItem('isAdmin', adminValue ? 'true' : 'false');
+    }, []);
 
-        try {
-            const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
-            const users = await response.json();
+    const fetchAdminStatus = useCallback(
+        async (nickname, firebaseUid, authToken = getAuthToken()) => {
+            const normalizedNickname = (nickname || '').trim().toLowerCase();
+            const resolvedUid = resolveFirebaseUid(firebaseUid, authToken);
 
-            let matchedUser = null;
-            if (users) {
-                matchedUser = Object.values(users).find((userData) => userData.enteredNickname === nickname);
+            if (resolvedUid) {
+                localStorage.setItem('firebaseUid', resolvedUid);
             }
 
-            const adminValue = matchedUser?.isAdmin === true;
-            setIsAdmin(adminValue);
-            localStorage.setItem('isAdmin', adminValue ? 'true' : 'false');
-        } catch (error) {
-            console.error('Error fetching admin status:', error);
-            setIsAdmin(false);
-            localStorage.setItem('isAdmin', 'false');
-        }
-    }, []);
+            if (resolvedUid) {
+                try {
+                    const metaResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/meta/admins/${encodeURIComponent(resolvedUid)}.json`
+                    );
+                    if (metaResponse.ok) {
+                        const isMetaAdmin = await metaResponse.json();
+                        if (isMetaAdmin === true) {
+                            applyAdminStatus(true);
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching meta admin status:', error);
+                }
+            }
+
+            if (!normalizedNickname) {
+                applyAdminStatus(false);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
+                const users = await response.json();
+
+                const matchedUser = users
+                    ? Object.values(users).find(
+                          (userData) =>
+                              String(userData?.enteredNickname || '')
+                                  .trim()
+                                  .toLowerCase() === normalizedNickname
+                      )
+                    : null;
+
+                applyAdminStatus(matchedUser?.isAdmin === true);
+            } catch (error) {
+                console.error('Error fetching admin status:', error);
+                applyAdminStatus(false);
+            }
+        },
+        [applyAdminStatus]
+    );
 
     const logoutHandler = useCallback(() => {
         setToken(null);
@@ -97,19 +152,23 @@ export const AuthContextProvider = (props) => {
         localStorage.removeItem('userName');
         localStorage.removeItem('expirationTime');
         localStorage.removeItem('isAdmin');
+        localStorage.removeItem('firebaseUid');
 
         if (logoutTimer) {
             clearTimeout(logoutTimer);
         }
     }, []);
 
-    const loginHandler = (tokenId, expirationTime, userName) => {
+    const loginHandler = (tokenId, expirationTime, userName, firebaseUid = null) => {
         setToken(tokenId);
         setUserNickName(userName);
         localStorage.setItem('token', tokenId);
         localStorage.setItem('expirationTime', expirationTime);
         localStorage.setItem('userName', userName);
-        fetchAdminStatusByNickname(userName);
+        if (firebaseUid) {
+            localStorage.setItem('firebaseUid', firebaseUid);
+        }
+        fetchAdminStatus(userName, firebaseUid, tokenId);
 
         const remainingTime = calculateRemainingTime(expirationTime);
 
@@ -121,9 +180,9 @@ export const AuthContextProvider = (props) => {
             const trimmed = (userName || '').trim();
             setUserNickName(trimmed);
             localStorage.setItem('userName', trimmed);
-            fetchAdminStatusByNickname(trimmed);
+            fetchAdminStatus(trimmed, null, token);
         },
-        [fetchAdminStatusByNickname]
+        [fetchAdminStatus]
     );
 
     useEffect(() => {
@@ -134,9 +193,9 @@ export const AuthContextProvider = (props) => {
 
     useEffect(() => {
         if (userIsLoggedIn && userNickName) {
-            fetchAdminStatusByNickname(userNickName);
+            fetchAdminStatus(userNickName, null, token);
         }
-    }, [userIsLoggedIn, userNickName, fetchAdminStatusByNickname]);
+    }, [userIsLoggedIn, userNickName, fetchAdminStatus]);
 
     // Enhanced notification handler with countdown
     const setNotificationShownHandler = (value, message, status, duration = 5) => {

@@ -15,11 +15,11 @@ import confluxImg from '../../image/castles/conflux.jpeg';
 import coveImg from '../../image/castles/cove.jpeg';
 import factoryImg from '../../image/castles/factory.jpeg';
 import kronverkImg from '../../image/castles/kronverk.jpeg';
-import redFlagImg from '../../image/flags/red.jpg';
-import blueFlagImg from '../../image/flags/blue.jpg';
 import { getTournamentPrizeLabel } from '../../api/api';
 import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
-import StarsComponent from '../Stars/Stars';
+import MatchAnnouncementCard from '../MatchAnnouncement/MatchAnnouncementCard';
+import { formatMatchSchedule } from '../tournaments/homm3/matchScheduleUtils';
+import { resolveCountryCode } from '../../utils/country';
 import classes from './StartingPageContent.module.css';
 
 const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'finished']);
@@ -79,8 +79,6 @@ const StartingPageContent = () => {
 
         return castleImageMap[normalizedName] || null;
     };
-
-    const getFlagImage = (color) => (String(color || '').toLowerCase() === 'red' ? redFlagImg : blueFlagImg);
 
     const getHeadToHeadPrediction = (team1, team2, gamesHistory, playerContext = {}) => {
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -176,6 +174,7 @@ const StartingPageContent = () => {
                 );
                 const historyData = await historyResponse.json();
                 const avatarByNickname = {};
+                const countryByNickname = {};
                 const rankByNickname = {};
 
                 const getLatestRating = (u) => {
@@ -197,6 +196,7 @@ const StartingPageContent = () => {
                 Object.values(usersData || {}).forEach((user) => {
                     if (user?.enteredNickname) {
                         avatarByNickname[user.enteredNickname] = user.avatar || null;
+                        countryByNickname[user.enteredNickname] = resolveCountryCode(user);
                     }
                 });
 
@@ -283,11 +283,14 @@ const StartingPageContent = () => {
                                                     liveGamesList.push({
                                                         tournamentId,
                                                         tournamentName: tournament.name,
+                                                        tournamentDate: tournament.date || null,
                                                         stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
                                                         team1: pair.team1,
                                                         team2: pair.team2,
                                                         team1Avatar: avatarByNickname[pair.team1] || null,
                                                         team2Avatar: avatarByNickname[pair.team2] || null,
+                                                        team1CountryCode: countryByNickname[pair.team1] || null,
+                                                        team2CountryCode: countryByNickname[pair.team2] || null,
                                                         score1: pair.score1 || 0,
                                                         score2: pair.score2 || 0,
                                                         type: pair.type,
@@ -336,13 +339,17 @@ const StartingPageContent = () => {
                                             upcomingList.push({
                                                 tournamentId,
                                                 tournamentName: tournament.name,
+                                                tournamentDate: pair.scheduledAt || tournament.date || null,
                                                 stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
                                                 team1: pair.team1,
                                                 team2: pair.team2,
                                                 team1Avatar: avatarByNickname[pair.team1] || null,
                                                 team2Avatar: avatarByNickname[pair.team2] || null,
+                                                team1CountryCode: countryByNickname[pair.team1] || null,
+                                                team2CountryCode: countryByNickname[pair.team2] || null,
                                                 score1: ps1,
                                                 score2: ps2,
+                                                scheduledAt: pair.scheduledAt || null,
                                                 type: pair.type,
                                                 stageIndex,
                                                 pairIndex,
@@ -356,6 +363,8 @@ const StartingPageContent = () => {
                                                     '-',
                                                 team1Prediction: pairPrediction.team1,
                                                 team2Prediction: pairPrediction.team2,
+                                                team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
+                                                team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
                                                 statusLabel: ps1 + ps2 > 0 ? 'Next map' : 'Upcoming'
                                             });
                                         }
@@ -414,6 +423,7 @@ const StartingPageContent = () => {
                                         stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
                                         stageIndex,
                                         pairIndex,
+                                        scheduledAt: pair.scheduledAt || null,
                                         opponent,
                                         opponentAvatar,
                                         myAvatar,
@@ -494,26 +504,6 @@ const StartingPageContent = () => {
         return 'all';
     };
 
-    const renderRestartTokens = (restart111Value, restart112Value) => {
-        const used111 = Math.max(0, Math.min(2, Number(restart111Value) || 0));
-        const used112 = (Number(restart112Value) || 0) >= 1;
-        const show112AsUsed = used112 || used111 >= 1;
-
-        return (
-            <div className={classes.restartsRow}>
-                {[0, 1].map((idx) => (
-                    <span
-                        key={`111-${idx}`}
-                        className={`${classes.restartTag} ${idx < used111 ? classes.restartUsed : ''}`}
-                    >
-                        111
-                    </span>
-                ))}
-                <span className={`${classes.restartTag} ${show112AsUsed ? classes.restartUsed : ''}`}>112</span>
-            </div>
-        );
-    };
-
     const hasActiveCup = activeTournaments.some((t) => t.status === 'Started!');
     const featuredCup =
         activeTournaments.find((t) => t.status === 'Started!') ||
@@ -521,158 +511,50 @@ const StartingPageContent = () => {
             (t) => t.status === 'Registration' || t.status === 'Registration Started'
         );
     const featuredPrizeLabel = featuredCup ? getTournamentPrizeLabel(featuredCup) : null;
-    const previewLiveGames = liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
     const previewUpcoming = upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
+    const featuredMatch = liveGames[0] ? { ...liveGames[0], variant: 'live' } : null;
+    const remainingUpcoming = previewUpcoming;
 
-    const renderLiveGameCard = (game, key) => (
-        <Link
-            key={key}
-            to={`/tournaments/homm3/${game.tournamentId}?status=started&stage=${game.stageIndex}&pair=${game.pairIndex}&report=1&game=${game.gameNumber - 1}`}
-            className={classes.liveGameCard}
-        >
-            <div className={classes.liveIndicator}>LIVE</div>
-            <div className={classes.tournamentName}>
-                {game.tournamentName} ({game.stageLabel})
-            </div>
-            <div className={classes.predictionBanner}>
-                Win prediction: {game.team1} {game.team1Prediction}% | {game.team2} {game.team2Prediction}%
-            </div>
-            <div className={classes.matchup}>
-                <div className={classes.player}>
-                    <div className={classes.playerLine}>
-                        <div className={classes.playerVisuals}>
-                            {game.team1Avatar ? (
-                                <img src={game.team1Avatar} alt={game.team1} className={classes.playerAvatar} />
-                            ) : (
-                                <div className={classes.playerAvatarFallback}>
-                                    {String(game.team1 || '?')
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                </div>
-                            )}
-                            <img
-                                src={getFlagImage(game.color1)}
-                                alt={`${game.color1} flag`}
-                                className={classes.playerFlag}
-                            />
-                        </div>
-                        <span className={classes.playerName}>{game.team1}</span>
-                        <span className={classes.playerPlaceInline}>#{game.team1Place}</span>
-                        <div className={classes.playerStarsWrapInline}>
-                            <StarsComponent stars={game.team1Stars} />
-                        </div>
-                    </div>
-                    <span className={classes.score}>{game.score1}</span>
-                </div>
-                <div className={classes.vs}>VS</div>
-                <div className={classes.player}>
-                    <span className={classes.score}>{game.score2}</span>
-                    <div className={classes.playerLineRight}>
-                        <div className={classes.playerStarsWrapInlineRight}>
-                            <StarsComponent stars={game.team2Stars} />
-                        </div>
-                        <span className={classes.playerName}>{game.team2}</span>
-                        <span className={classes.playerPlaceInline}>#{game.team2Place}</span>
-                        <div className={classes.playerVisuals}>
-                            <img
-                                src={getFlagImage(game.color2)}
-                                alt={`${game.color2} flag`}
-                                className={classes.playerFlag}
-                            />
-                            {game.team2Avatar ? (
-                                <img src={game.team2Avatar} alt={game.team2} className={classes.playerAvatar} />
-                            ) : (
-                                <div className={classes.playerAvatarFallback}>
-                                    {String(game.team2 || '?')
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div className={classes.duelDetails}>
-                <span>Game {game.gameNumber}</span>
-                <span>
-                    Colors: {game.team1} ({game.color1}) vs {game.team2} ({game.color2})
-                </span>
-                {game.restartsFinished && (
-                    <span className={classes.restartsFinishedBadge}>Restarts finished / main game started</span>
-                )}
-            </div>
-            <div className={classes.castlesRow}>
-                <div className={classes.castleCard}>
-                    {getCastleImage(game.castle1) && (
-                        <img src={getCastleImage(game.castle1)} alt={game.castle1} className={classes.castleImg} />
-                    )}
-                    <div className={classes.castleName}>{game.castle1}</div>
-                    <div className={classes.castleMeta}>Gold: {game.gold1}</div>
-                    <div className={classes.restartsLabel}>Restarts:</div>
-                    {renderRestartTokens(game.restart1_111, game.restart1_112)}
-                </div>
-                <div className={classes.castleCard}>
-                    {getCastleImage(game.castle2) && (
-                        <img src={getCastleImage(game.castle2)} alt={game.castle2} className={classes.castleImg} />
-                    )}
-                    <div className={classes.castleName}>{game.castle2}</div>
-                    <div className={classes.castleMeta}>Gold: {game.gold2}</div>
-                    <div className={classes.restartsLabel}>Restarts:</div>
-                    {renderRestartTokens(game.restart2_111, game.restart2_112)}
-                </div>
-            </div>
-            <div className={classes.gameType}>{game.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}</div>
-        </Link>
-    );
+    const getBracketLink = (match, { report = false, gameNumber = 1 } = {}) => {
+        const base = `/tournaments/homm3/${match.tournamentId}?status=started&stage=${match.stageIndex}&pair=${match.pairIndex}`;
+        if (!report) {
+            return base;
+        }
 
-    const renderUpcomingCard = (match, key) => (
-        <Link
+        return `${base}&report=1&game=${gameNumber - 1}`;
+    };
+
+    const renderAnnouncementCard = (match, key, { featured = false } = {}) => (
+        <MatchAnnouncementCard
             key={key}
-            to={`/tournaments/homm3/${match.tournamentId}?status=started&stage=${match.stageIndex}&pair=${match.pairIndex}`}
-            className={classes.upcomingGameCard}
-        >
-            <div className={classes.upcomingIndicator}>{match.statusLabel}</div>
-            <div className={classes.tournamentName}>
-                {match.tournamentName} ({match.stageLabel})
-            </div>
-            <div className={classes.upcomingMatchup}>
-                <div className={classes.upcomingPlayer}>
-                    {match.team1Avatar ? (
-                        <img src={match.team1Avatar} alt={match.team1} className={classes.playerAvatar} />
-                    ) : (
-                        <div className={classes.playerAvatarFallback}>
-                            {String(match.team1 || '?')
-                                .charAt(0)
-                                .toUpperCase()}
-                        </div>
-                    )}
-                    <span className={classes.upcomingPlayerName}>{match.team1}</span>
-                    <span className={classes.upcomingMeta}>#{match.team1Place}</span>
-                </div>
-                <div className={classes.upcomingScore}>
-                    <span>{match.score1}</span>
-                    <span className={classes.upcomingScoreSep}>:</span>
-                    <span>{match.score2}</span>
-                </div>
-                <div className={classes.upcomingPlayer}>
-                    <span className={classes.upcomingMeta}>#{match.team2Place}</span>
-                    <span className={classes.upcomingPlayerName}>{match.team2}</span>
-                    {match.team2Avatar ? (
-                        <img src={match.team2Avatar} alt={match.team2} className={classes.playerAvatar} />
-                    ) : (
-                        <div className={classes.playerAvatarFallback}>
-                            {String(match.team2 || '?')
-                                .charAt(0)
-                                .toUpperCase()}
-                        </div>
-                    )}
-                </div>
-            </div>
-            <div className={classes.upcomingPrediction}>
-                {match.team1} {match.team1Prediction}% · {match.team2} {match.team2Prediction}%
-            </div>
-            <div className={classes.gameType}>{match.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}</div>
-        </Link>
+            to={
+                match.variant === 'live'
+                    ? getBracketLink(match, { report: true, gameNumber: match.gameNumber || 1 })
+                    : getBracketLink(match)
+            }
+            team1={match.team1}
+            team2={match.team2}
+            team1Avatar={match.team1Avatar}
+            team2Avatar={match.team2Avatar}
+            team1CountryCode={match.team1CountryCode}
+            team2CountryCode={match.team2CountryCode}
+            score1={match.variant === 'live' ? 0 : match.score1}
+            score2={match.variant === 'live' ? 0 : match.score2}
+            tournamentName={match.tournamentName}
+            stageLabel={match.stageLabel}
+            tournamentDate={match.tournamentDate}
+            variant={match.variant || 'upcoming'}
+            statusLabel={match.statusLabel}
+            type={match.type}
+            featured={featured}
+            castle1Image={getCastleImage(match.castle1)}
+            castle2Image={getCastleImage(match.castle2)}
+            gameNumber={match.gameNumber}
+            team1Stars={match.team1Stars}
+            team2Stars={match.team2Stars}
+            team1Prediction={match.team1Prediction}
+            team2Prediction={match.team2Prediction}
+        />
     );
 
     return (
@@ -704,20 +586,15 @@ const StartingPageContent = () => {
                         </Link>
                     </div>
 
-                    <h3 className={classes.matchCenterLabel}>Live now</h3>
-                    {previewLiveGames.length > 0 ? (
-                        <>
-                            <div className={classes.tournamentsList}>
-                                {previewLiveGames.map((game, index) =>
-                                    renderLiveGameCard(game, `live-${game.tournamentId}-${game.stageIndex}-${game.pairIndex}-${index}`)
-                                )}
-                            </div>
-                            {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                    {featuredMatch ? (
+                        <div className={classes.featuredAnnouncement}>
+                            {renderAnnouncementCard(featuredMatch, 'featured-match', { featured: true })}
+                            {liveGames.length > 1 && (
                                 <Link to="/tournaments/homm3?status=live" className={classes.viewMoreLink}>
-                                    +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — view all
+                                    +{liveGames.length - 1} more live — view all
                                 </Link>
                             )}
-                        </>
+                        </div>
                     ) : (
                         <div className={classes.emptyLive}>
                             <p className={classes.emptyLiveTitle}>No maps in progress</p>
@@ -728,23 +605,25 @@ const StartingPageContent = () => {
                     )}
 
                     <h3 className={classes.matchCenterLabel}>Upcoming bracket matches</h3>
-                    {previewUpcoming.length > 0 ? (
-                        <>
-                            <div className={classes.upcomingList}>
-                                {previewUpcoming.map((match, index) =>
-                                    renderUpcomingCard(
-                                        match,
-                                        `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
-                                    )
+                    {upcomingMatches.length > 0 ? (
+                        remainingUpcoming.length > 0 ? (
+                            <>
+                                <div className={classes.announcementList}>
+                                    {remainingUpcoming.map((match, index) =>
+                                        renderAnnouncementCard(
+                                            { ...match, variant: 'upcoming' },
+                                            `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                        )
+                                    )}
+                                </div>
+                                {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                    <Link to="/tournaments/homm3?status=started" className={classes.viewMoreLink}>
+                                        +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming — view
+                                        brackets
+                                    </Link>
                                 )}
-                            </div>
-                            {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                <Link to="/tournaments/homm3?status=started" className={classes.viewMoreLink}>
-                                    +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming — view
-                                    brackets
-                                </Link>
-                            )}
-                        </>
+                            </>
+                        ) : null
                     ) : (
                         <div className={classes.emptyUpcoming}>
                             <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
@@ -777,6 +656,11 @@ const StartingPageContent = () => {
                                 )}
                                 <div className={classes.tournamentName}>{match.tournamentName}</div>
                                 <div className={classes.myGameStage}>{match.stageLabel}</div>
+                                {match.scheduledAt && (
+                                    <div className={classes.myGameSchedule}>
+                                        Starts {formatMatchSchedule(match.scheduledAt)}
+                                    </div>
+                                )}
                                 <div className={classes.myGameMatchup}>
                                     <div className={classes.myGamePlayer}>
                                         {match.myAvatar ? (
@@ -873,7 +757,10 @@ const StartingPageContent = () => {
                 </div>
             )}
 
-            {authCtx.isAdmin && <DonationLeaderboard />}
+            <div className={classes.homeSection}>
+                <DonationLeaderboard limit={5} supportLink />
+            </div>
+
         </section>
     );
 };

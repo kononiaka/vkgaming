@@ -443,6 +443,87 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Country detection from login IP (ISO 3166-1 alpha-2 only; IP is not stored)
+// ---------------------------------------------------------------------------
+
+function getRequestIp(context) {
+    const req = context?.rawRequest;
+    if (!req) {
+        return null;
+    }
+
+    const forwarded = req.headers?.['x-forwarded-for'];
+    if (forwarded) {
+        return String(forwarded).split(',')[0].trim();
+    }
+
+    return req.socket?.remoteAddress || req.connection?.remoteAddress || null;
+}
+
+function isPrivateIp(ip) {
+    if (!ip) {
+        return true;
+    }
+
+    if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
+        return true;
+    }
+
+    if (ip.startsWith('10.') || ip.startsWith('192.168.')) {
+        return true;
+    }
+
+    const match = /^172\.(\d+)\./.exec(ip);
+    if (match) {
+        const secondOctet = Number(match[1]);
+        if (secondOctet >= 16 && secondOctet <= 31) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+async function resolveCountryFromIp(ip) {
+    if (isPrivateIp(ip)) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(
+            `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode`,
+            { signal: AbortSignal.timeout(4000) }
+        );
+        const data = await response.json();
+
+        if (data.status === 'success' && data.countryCode) {
+            return String(data.countryCode).toUpperCase();
+        }
+    } catch (error) {
+        console.warn('Country lookup failed:', error.message);
+    }
+
+    return null;
+}
+
+async function applyCountryFromLogin(dbUserId, existingUser, context) {
+    if (existingUser?.countryCodeSource === 'manual') {
+        return;
+    }
+
+    const detected = await resolveCountryFromIp(getRequestIp(context));
+    if (!detected) {
+        return;
+    }
+
+    await db.ref(`users/${dbUserId}`).update({
+        countryCode: detected,
+        countryCodeSource: 'ip',
+        countryCodeUpdatedAt: new Date().toISOString()
+    });
+}
+
+// ---------------------------------------------------------------------------
 // twitchAuth — exchanges a Twitch OAuth authorization code for a Firebase
 // custom token. Called from the React frontend after Twitch redirects back.
 // ---------------------------------------------------------------------------
@@ -536,7 +617,7 @@ exports.hotaLeaderboard = functions.https.onCall(async (data) => {
 // Response:     { "result": { "customToken": "...", "displayName": "...",
 //                             "profileImageUrl": "...", "dbUserId": "..." } }
 // ---------------------------------------------------------------------------
-exports.twitchAuth = functions.https.onCall(async (data) => {
+exports.twitchAuth = functions.https.onCall(async (data, context) => {
     try {
         const { code, redirectUri } = data;
 
@@ -619,9 +700,10 @@ exports.twitchAuth = functions.https.onCall(async (data) => {
             const nickname = nameTaken ? `${displayName}_twitch` : displayName;
 
             const now = new Date();
+            const detectedCountry = await resolveCountryFromIp(getRequestIp(context));
             const newUserRef = db.ref('users').push();
             dbUserId = newUserRef.key;
-            await newUserRef.set({
+            const newUser = {
                 enteredNickname: nickname,
                 enteredEmail: email,
                 twitchId,
@@ -637,7 +719,15 @@ exports.twitchAuth = functions.https.onCall(async (data) => {
                 avatar: profileImageUrl || null,
                 totalPrize: 0,
                 registeredAt: now.toISOString()
-            });
+            };
+
+            if (detectedCountry) {
+                newUser.countryCode = detectedCountry;
+                newUser.countryCodeSource = 'ip';
+                newUser.countryCodeUpdatedAt = now.toISOString();
+            }
+
+            await newUserRef.set(newUser);
             // Registration coin transaction
             const txKey = db.ref(`users/${dbUserId}/coinTransactions`).push().key;
             await db.ref(`users/${dbUserId}/coinTransactions/${txKey}`).set({
@@ -661,6 +751,7 @@ exports.twitchAuth = functions.https.onCall(async (data) => {
                 updates.avatar = profileImageUrl;
             }
             await db.ref(`users/${dbUserId}`).update(updates);
+            await applyCountryFromLogin(dbUserId, existingUser, context);
         }
 
         // Fetch the stored nickname (may differ from displayName for existing users)

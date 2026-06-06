@@ -18,6 +18,8 @@ import {
 } from '../../api/hotaMeta';
 import AuthContext from '../../store/auth-context';
 import StarsComponent from '../Stars/Stars';
+import CountryFlag from '../Country/CountryFlag';
+import { resolveCountryCode } from '../../utils/country';
 import classes from './Leaderboard.module.css';
 
 const HOTA_FETCH_LIMIT = 500;
@@ -34,6 +36,7 @@ const buildKonoplayIndex = (usersData) => {
         byNickname[user.enteredNickname.toLowerCase()] = {
             id,
             enteredNickname: user.enteredNickname,
+            countryCode: resolveCountryCode(user),
             stars: user.stars,
             ratings: user.ratings,
             games: user.gamesPlayed?.heroes3?.total ?? 0,
@@ -54,6 +57,7 @@ const buildKonoplayLeaderboard = (usersData) =>
             return {
                 id,
                 enteredNickname: user.enteredNickname,
+                countryCode: resolveCountryCode(user),
                 ratings,
                 games,
                 stars: user.stars,
@@ -96,6 +100,7 @@ const enrichHotaLeaderboard = (hotaEntries, konoplayByNickname) =>
             winrate: entry.winrate,
             mainFaction: entry.main_faction_name,
             siteUserId: siteUser?.id || null,
+            countryCode: siteUser?.countryCode || null,
             isRegistered: Boolean(siteUser)
         };
     });
@@ -127,6 +132,7 @@ const buildOffLeaderboardRegisteredPlayers = async (konoplayByNickname, hotaUser
                     winrate: summary?.winRate ?? null,
                     mainFaction: null,
                     siteUserId: siteUser.id,
+                    countryCode: siteUser.countryCode || null,
                     isRegistered: true
                 };
             } catch (error) {
@@ -298,6 +304,7 @@ const Leaderboard = () => {
             winrate: null,
             mainFaction: null,
             siteUserId: player.id,
+            countryCode: player.countryCode,
             siteStars: player.stars,
             previousRank: player.previousRank
         }));
@@ -500,6 +507,7 @@ const Leaderboard = () => {
         if (player.siteUserId) {
             return (
                 <NavLink to={`/players/${player.siteUserId}`} className={classes.playerLink}>
+                    <CountryFlag code={player.countryCode} />
                     {avatars[player.siteUserId] && (
                         <img
                             src={avatars[player.siteUserId]}

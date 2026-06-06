@@ -2,6 +2,7 @@ import { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../store/auth-context';
 
+import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
 import classes from './Support.module.css';
 
 import { FIREBASE_FUNCTIONS_BASE } from '../../config/firebase';
@@ -120,6 +121,10 @@ const Support = () => {
                     </button>
                 </div>
             )}
+
+            <section className={classes.section}>
+                <DonationLeaderboard variant="panel" limit={10} showFooter={false} />
+            </section>
 
             <section className={classes.section}>
                 <h2 className={classes.sectionTitle}>Donation Alerts</h2>

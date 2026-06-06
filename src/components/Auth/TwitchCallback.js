@@ -88,8 +88,8 @@ const TwitchCallback = () => {
                     new Date().getTime() + Number(signInData.expiresIn) * 1000
                 ).toISOString();
 
-                // 3. Store login in auth context
-                authCtx.login(signInData.idToken, expirationTime, displayName);
+                // 3. Store login in auth context (localId = Firebase auth uid, e.g. twitch:12345)
+                authCtx.login(signInData.idToken, expirationTime, displayName, signInData.localId);
 
                 // 4. Award daily login coin if applicable
                 if (dbUserId) {

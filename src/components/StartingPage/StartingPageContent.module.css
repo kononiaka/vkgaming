@@ -120,10 +120,15 @@
     margin-top: 0.75rem;
 }
 
+.featuredAnnouncement {
+    margin-bottom: 1.25rem;
+}
+
+.announcementList,
 .upcomingList {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
 }
 
 .upcomingGameCard {
@@ -745,6 +750,13 @@
     color: rgba(255, 255, 255, 0.6);
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.myGameSchedule {
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--color-gold);
+    font-weight: 600;
 }
 
 .myGameMatchup {

@@ -1,6 +1,7 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import StarsComponent from '../../Stars/Stars';
+import MatchScheduleControl from './MatchScheduleControl';
 import classes from './LeagueBracket.module.css';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -98,6 +99,8 @@ const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team
  *  pairs              — flat array of all league match objects (playoffPairs[0])
  *  onSelectPair(idx)  — called when user wants to report / view a match
  *  canViewReportButton(pair) — whether to show the report button for this pair
+ *  canSchedulePair(pair)     — whether the user can set match start time
+ *  onSaveSchedule(idx, iso)  — persist scheduledAt for pair index
  */
 const getDefaultDayIndex = (groups) => {
     if (!groups.length) {
@@ -117,7 +120,15 @@ const getDefaultDayIndex = (groups) => {
     return groups.length - 1;
 };
 
-const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, registeredPlayers = [], playersObj = {} }) => {
+const LeagueBracket = ({
+    pairs = [],
+    onSelectPair,
+    canViewReportButton,
+    canSchedulePair,
+    onSaveSchedule,
+    registeredPlayers = [],
+    playersObj = {}
+}) => {
     const [activeTab, setActiveTab] = useState('schedule');
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
@@ -359,6 +370,7 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                         {activeRound?.items.map(({ pair, idx }) => {
                                 const isFinished = Boolean(pair.winner);
                                 const showBtn = canViewReportButton ? canViewReportButton(pair) : false;
+                                const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
                                 const inProgressGames = !isFinished
                                     ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
                                     : [];
@@ -446,6 +458,18 @@ const LeagueBracket = ({ pairs = [], onSelectPair, canViewReportButton, register
                                                 >
                                                     {isFinished ? 'Edit' : 'Report'}
                                                 </button>
+                                            )}
+                                            {(pair.scheduledAt || canSchedule) && onSaveSchedule && (
+                                                <div className={classes.scheduleControl}>
+                                                    <MatchScheduleControl
+                                                        scheduledAt={pair.scheduledAt}
+                                                        scheduledBy={pair.scheduledBy}
+                                                        canEdit={canSchedule}
+                                                        onSave={(iso) => onSaveSchedule(idx, iso)}
+                                                        compact
+                                                        showMissingHint={canSchedule}
+                                                    />
+                                                </div>
                                             )}
                                         </div>
 
