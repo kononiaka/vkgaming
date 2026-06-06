@@ -127,12 +127,25 @@ const LeagueBracket = ({
     canSchedulePair,
     onSaveSchedule,
     registeredPlayers = [],
-    playersObj = {}
+    playersObj = {},
+    roundLabel = 'Day',
+    scheduleTitle = 'League views',
+    groupLabels = []
 }) => {
     const [activeTab, setActiveTab] = useState('schedule');
+    const [activeGroup, setActiveGroup] = useState(groupLabels[0] || '');
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
     const dayNavInitialized = useRef(false);
+    const hasGroups = groupLabels.length > 0;
+    const scopedPairs = hasGroups ? pairs.filter((pair) => pair.group === activeGroup) : pairs;
+    const scopedRegisteredPlayers = hasGroups
+        ? [
+              ...new Set(
+                  scopedPairs.flatMap((pair) => [pair.team1, pair.team2]).filter((name) => name && name !== 'TBD')
+              )
+          ]
+        : registeredPlayers;
 
     // Fetch all users once and compute global leaderboard ranks (same as StartingPageContent)
     useEffect(() => {
@@ -192,14 +205,20 @@ const LeagueBracket = ({
     };
 
     // Compute standings from settled pairs, seeding all registered players at zero
+    useEffect(() => {
+        if (groupLabels.length > 0 && !groupLabels.includes(activeGroup)) {
+            setActiveGroup(groupLabels[0]);
+        }
+    }, [groupLabels, activeGroup]);
+
     const computeStandings = () => {
         const map = {};
-        registeredPlayers.forEach((name) => {
+        scopedRegisteredPlayers.forEach((name) => {
             if (name) {
                 map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
         });
-        pairs.forEach((pair) => {
+        scopedPairs.forEach((pair) => {
             if (pair.team1 && pair.team1 !== 'TBD' && !map[pair.team1]) {
                 map[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
@@ -207,6 +226,13 @@ const LeagueBracket = ({
                 map[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
             if (pair.winner && pair.winner !== 'TBD') {
+                if (pair.isBye || pair.team2 === 'BYE') {
+                    map[pair.team1].played++;
+                    map[pair.team1].wins++;
+                    map[pair.team1].points += 3;
+                    return;
+                }
+
                 map[pair.team1].played++;
                 map[pair.team2].played++;
                 if (pair.winner === 'draw') {
@@ -235,18 +261,21 @@ const LeagueBracket = ({
     };
 
     const standings = computeStandings();
-    const hasBo2 = pairs.some((p) => p.type === 'bo-2');
-    const finished = pairs.filter((p) => p.winner).length;
-    const total = pairs.length;
+    const hasBo2 = scopedPairs.some((p) => p.type === 'bo-2');
+    const finished = scopedPairs.filter((p) => p.winner).length;
+    const total = scopedPairs.length;
 
     // Group matches into days using pair.round if available, else compute via circle method
     const computeRoundGroups = () => {
-        if (pairs.length === 0) {
+        if (scopedPairs.length === 0) {
             return [];
         }
-        if (pairs[0]?.round != null) {
+        if (scopedPairs[0]?.round != null) {
             const groups = {};
             pairs.forEach((pair, idx) => {
+                if (hasGroups && pair.group !== activeGroup) {
+                    return;
+                }
                 const r = pair.round;
                 if (!groups[r]) {
                     groups[r] = [];
@@ -258,10 +287,15 @@ const LeagueBracket = ({
                 .map((r) => ({ round: Number(r), items: groups[r] }));
         }
         // Fallback: derive rounds from team names using circle method
-        const playerNames = [...new Set(pairs.flatMap((p) => [p.team1, p.team2]).filter((n) => n && n !== 'TBD'))];
+        const playerNames = [
+            ...new Set(scopedPairs.flatMap((p) => [p.team1, p.team2]).filter((n) => n && n !== 'TBD'))
+        ];
         const roundMap = buildRoundMap(playerNames);
         const groups = {};
         pairs.forEach((pair, idx) => {
+            if (hasGroups && pair.group !== activeGroup) {
+                return;
+            }
             const r = roundMap[`${pair.team1}|${pair.team2}`] || 1;
             if (!groups[r]) {
                 groups[r] = [];
@@ -272,7 +306,7 @@ const LeagueBracket = ({
             .sort((a, b) => Number(a) - Number(b))
             .map((r) => ({ round: Number(r), items: groups[r] }));
     };
-    const roundGroups = useMemo(() => computeRoundGroups(), [pairs]);
+    const roundGroups = useMemo(() => computeRoundGroups(), [pairs, activeGroup, hasGroups]);
     const activeRound = roundGroups[activeDayIndex] || null;
     const dayCount = roundGroups.length;
 
@@ -312,7 +346,27 @@ const LeagueBracket = ({
                 </div>
             </div>
 
-            <div className={classes.tabs} role="tablist" aria-label="League views">
+            {hasGroups && (
+                <div className={classes.tabs} role="tablist" aria-label="Group stage">
+                    {groupLabels.map((groupLabel) => (
+                        <button
+                            key={groupLabel}
+                            type="button"
+                            role="tab"
+                            aria-selected={activeGroup === groupLabel}
+                            className={`${classes.tab} ${activeGroup === groupLabel ? classes.activeTab : ''}`}
+                            onClick={() => {
+                                setActiveGroup(groupLabel);
+                                dayNavInitialized.current = false;
+                            }}
+                        >
+                            Group {groupLabel}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <div className={classes.tabs} role="tablist" aria-label={scheduleTitle}>
                 <button
                     type="button"
                     role="tab"
@@ -347,7 +401,9 @@ const LeagueBracket = ({
                                 ‹
                             </button>
                             <div className={classes.dayNavCenter}>
-                                <span className={classes.dayNavTitle}>Day {activeRound.round}</span>
+                                <span className={classes.dayNavTitle}>
+                                    {roundLabel} {activeRound.round}
+                                </span>
                                 <span className={classes.dayNavMeta}>
                                     {activeDayIndex + 1} / {dayCount}
                                     {' · '}
@@ -368,8 +424,10 @@ const LeagueBracket = ({
                     )}
                     <div className={classes.schedule}>
                         {activeRound?.items.map(({ pair, idx }) => {
+                                const isBye = pair.isBye || pair.team2 === 'BYE';
                                 const isFinished = Boolean(pair.winner);
-                                const showBtn = canViewReportButton ? canViewReportButton(pair) : false;
+                                const showBtn =
+                                    !isBye && canViewReportButton ? canViewReportButton(pair) : false;
                                 const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
                                 const inProgressGames = !isFinished
                                     ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
@@ -436,7 +494,9 @@ const LeagueBracket = ({
                                         </div>
 
                                         <div className={classes.centerBlock}>
-                                            {isFinished ? (
+                                            {isBye ? (
+                                                <span className={classes.vs}>BYE</span>
+                                            ) : isFinished ? (
                                                 <span className={classes.score}>
                                                     {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
                                                 </span>
@@ -445,7 +505,7 @@ const LeagueBracket = ({
                                             ) : (
                                                 <span className={classes.vs}>vs</span>
                                             )}
-                                            {!isFinished && (
+                                            {!isFinished && !isBye && (
                                                 <span className={classes.predictionRow}>
                                                     {prediction.team1}% / {prediction.team2}%
                                                 </span>
@@ -522,7 +582,7 @@ const LeagueBracket = ({
                                     </div>
                                 );
                             })}
-                        {pairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
+                        {scopedPairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
                     </div>
                 </>
             )}
@@ -563,9 +623,11 @@ const LeagueBracket = ({
                         </tbody>
                     </table>
                     <p className={classes.pointsNote}>
-                        {hasBo2
-                            ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts'
-                            : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
+                        {hasGroups
+                            ? `Top 2 in each group advance to the knockout stage.`
+                            : hasBo2
+                              ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts'
+                              : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
                     </p>
                 </div>
             )}

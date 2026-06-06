@@ -1,40 +1,38 @@
 import React, { Fragment } from 'react';
 
-// import { useMediaQuery } from 'react-responsive';
-
 import classes from './Modal.module.css';
 
-const Modal = (props) => {
-    const Backdrop = () => <div className={classes.backdrop} onClick={props.onClick}></div>;
+const Backdrop = ({ onClick }) => <div className={classes.backdrop} onClick={onClick}></div>;
 
-    const ModalOverlay = (propsOverlay) => {
-        if (propsOverlay.graf) {
-            return <div className={classes.modal_graf}>{propsOverlay.children}</div>;
-        }
-        if (propsOverlay.donate) {
-            return <div className={classes.modal_donate}>{propsOverlay.children}</div>;
-        }
-        if (propsOverlay.addGame || propsOverlay.addTournament) {
-            return <div className={classes.modal_addGame}>{propsOverlay.children}</div>;
-        }
-        return <div className={classes.modal}>{propsOverlay.children}</div>;
-    };
-
-    return (
-        <Fragment>
-            <Backdrop />
-            <ModalOverlay
-                // onSubmit={props.onSubmit} onEnroll={props.onEnroll}
-                graf={props.graf}
-                onCongrats={props.onCongrats}
-                donate={props.donate}
-                addGame={props.addGame}
-                addTournament={props.addTournament}
-            >
-                {props.children}
-            </ModalOverlay>
-        </Fragment>
-    );
+const ModalOverlay = ({ children, graf, donate, addTournament, addGame }) => {
+    if (graf) {
+        return <div className={classes.modal_graf}>{children}</div>;
+    }
+    if (donate) {
+        return <div className={classes.modal_donate}>{children}</div>;
+    }
+    if (addTournament) {
+        return <div className={classes.modal_addTournament}>{children}</div>;
+    }
+    if (addGame) {
+        return <div className={classes.modal_addGame}>{children}</div>;
+    }
+    return <div className={classes.modal}>{children}</div>;
 };
+
+const Modal = (props) => (
+    <Fragment>
+        <Backdrop onClick={props.onClick} />
+        <ModalOverlay
+            graf={props.graf}
+            onCongrats={props.onCongrats}
+            donate={props.donate}
+            addGame={props.addGame}
+            addTournament={props.addTournament}
+        >
+            {props.children}
+        </ModalOverlay>
+    </Fragment>
+);
 
 export default Modal;

@@ -20,19 +20,11 @@ import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
 import MatchAnnouncementCard from '../MatchAnnouncement/MatchAnnouncementCard';
 import { formatMatchSchedule } from '../tournaments/homm3/matchScheduleUtils';
 import { resolveCountryCode } from '../../utils/country';
+import { isPlayerVisibleTournament, isPublicTournament } from '../../utils/tournamentVisibility';
 import classes from './StartingPageContent.module.css';
 
 const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'finished']);
 const MATCH_CENTER_PREVIEW_LIMIT = 5;
-
-const isPlayerVisibleTournament = (tournament) => {
-    const status = tournament?.status;
-    return (
-        status === 'Registration' ||
-        status === 'Registration Started' ||
-        status === 'Started!'
-    );
-};
 
 const StartingPageContent = () => {
     const authCtx = useContext(AuthContext);
@@ -209,10 +201,11 @@ const StartingPageContent = () => {
                         .filter(Boolean)
                         .filter(
                             (t) =>
-                                t.status === 'Registration' ||
-                                t.status === 'Registration Started' ||
-                                t.status === 'Started!' ||
-                                t.status === 'Tournament Finished'
+                                isPublicTournament(t) &&
+                                (t.status === 'Registration' ||
+                                    t.status === 'Registration Started' ||
+                                    t.status === 'Started!' ||
+                                    t.status === 'Tournament Finished')
                         )
                         .sort((a, b) => {
                             const statusOrder = {
@@ -233,6 +226,7 @@ const StartingPageContent = () => {
                         const tournamentPlayers = Object.values(tournament?.players || {}).filter(Boolean);
                         if (
                             tournament &&
+                            isPublicTournament(tournament) &&
                             tournament.status === 'Started!' &&
                             tournament.bracket &&
                             tournament.bracket.playoffPairs
@@ -384,7 +378,12 @@ const StartingPageContent = () => {
                         const playerMatches = [];
                         Object.keys(data).forEach((tournamentId) => {
                             const tournament = data[tournamentId];
-                            if (!tournament || tournament.status !== 'Started!' || !tournament.bracket?.playoffPairs) {
+                            if (
+                                !tournament ||
+                                !isPublicTournament(tournament) ||
+                                tournament.status !== 'Started!' ||
+                                !tournament.bracket?.playoffPairs
+                            ) {
                                 return;
                             }
 

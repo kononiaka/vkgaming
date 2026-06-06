@@ -1,4 +1,5 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { authFetch } from '../../api/authFetch';
 export const shuffleArray = (
     _,
     playoffsGames,
@@ -53,6 +54,12 @@ const shufflePlayers = (array) => {
 
     return shuffledArray;
 };
+
+export async function deleteTournament(tournamentId) {
+    return authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`, {
+        method: 'DELETE'
+    });
+}
 
 export async function getTournamentData(tournamentId) {
     try {

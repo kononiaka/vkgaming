@@ -179,6 +179,26 @@
     background: rgba(0, 0, 0, 0.2);
 }
 
+.statusBadge.draft {
+    border-color: rgba(168, 92, 92, 0.4);
+    color: #d8a0a0;
+    background: rgba(168, 92, 92, 0.1);
+}
+
+.privateTag {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #d8a0a0;
+    border: 1px solid rgba(168, 92, 92, 0.45);
+    vertical-align: middle;
+}
+
 .infoGrid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

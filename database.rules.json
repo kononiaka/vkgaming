@@ -31,9 +31,9 @@
                     "coinPrizePull": {
                         ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
                     },
-                    ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                    ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('createdByUid').val() === auth.uid))"
                 },
-                ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+                ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid))"
             }
         },
         "games": {

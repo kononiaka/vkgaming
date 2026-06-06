@@ -28,6 +28,24 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
+import {
+    generateNextSwissRoundPairings,
+    isSwissRoundComplete,
+    normalizeGameType
+} from './swissUtils';
+import {
+    dropLoserToBracket,
+    getDoubleElimStageLabels,
+    promoteLoserBracketWinner
+} from './loserBracketUtils';
+import {
+    generateKnockoutBracketStages,
+    getGroupLabels,
+    getKnockoutPlayerCount,
+    getQualifiedPlayers,
+    isChampionsLeagueGroupStageComplete
+} from './championsLeagueUtils';
+import { setStageLabels as computeStageLabels } from '../../tournaments/tournament_api';
 import MatchScheduleControl from './MatchScheduleControl';
 import AuthContext from '../../../store/auth-context';
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
@@ -138,6 +156,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [stats, setStats] = useState(null);
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
     const [isLeague, setIsLeague] = useState(false);
+    const [isSwiss, setIsSwiss] = useState(false);
+    const [hasLoserBracket, setHasLoserBracket] = useState(false);
+    const [isChampionsLeague, setIsChampionsLeague] = useState(false);
+    const [championsLeaguePhase, setChampionsLeaguePhase] = useState('group');
+    const [championsGroups, setChampionsGroups] = useState({});
+    const [championsGroupLabels, setChampionsGroupLabels] = useState([]);
+    const [swissCurrentRound, setSwissCurrentRound] = useState(1);
+    const [swissTotalRounds, setSwissTotalRounds] = useState(0);
     const [registeredPlayerNames, setRegisteredPlayerNames] = useState([]);
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
@@ -172,11 +198,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         const targetStageIndex = Number(stageParam);
         const targetPairIndex = Number(pairParam);
+        const clKnockoutOffset =
+            isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+        const labelStageIndex = targetStageIndex - clKnockoutOffset;
 
         // Map playoffPairs stageIndex → displayStages index
         const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
         const displayStages = allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
-        const stageLabel = stageLabels[targetStageIndex];
+        const stageLabel = stageLabels[labelStageIndex];
         // Final is the right column of the last page; Third Place also lives there
         if (stageLabel === 'Final' || stageLabel === 'Third Place') {
             setActiveBracketStage(displayStages.length - 1);
@@ -225,7 +254,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
 
         return () => clearTimeout(timer);
-    }, [searchParams, stageLabels, playoffPairs, tournamentId]);
+    }, [searchParams, stageLabels, playoffPairs, tournamentId, isChampionsLeague, championsLeaguePhase]);
 
     const normalizeName = (value) =>
         String(value || '')
@@ -337,17 +366,43 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         fetchData();
 
-        if (+maxPlayers === 4) {
-            labels = ['Semi-final', 'Third Place', 'Final'];
-        } else if (+maxPlayers === 8) {
-            labels = ['Quarter-final', 'Semi-final', 'Third Place', 'Final'];
-        } else if (+maxPlayers === 16) {
-            labels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
-        } else if (+maxPlayers === 32) {
-            labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
-        }
+        const loadStageLabels = async () => {
+            try {
+                const [loserBracketRes, stageLabelsRes] = await Promise.all([
+                    authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/loserBracket.json`),
+                    authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/stageLabels.json`)
+                ]);
 
-        setStageLabels(labels);
+                if (loserBracketRes.ok) {
+                    const loserBracketEnabled = await loserBracketRes.json();
+                    setHasLoserBracket(loserBracketEnabled === true);
+                }
+
+                if (stageLabelsRes.ok) {
+                    const storedLabels = await stageLabelsRes.json();
+                    if (Array.isArray(storedLabels) && storedLabels.length > 0) {
+                        setStageLabels(storedLabels);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load tournament stage labels:', error);
+            }
+
+            if (+maxPlayers === 4) {
+                labels = ['Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 8) {
+                labels = ['Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 16) {
+                labels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 32) {
+                labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            }
+
+            setStageLabels(labels);
+        };
+
+        loadStageLabels();
 
         if (tournamentStatus === 'Tournament Finished') {
             setUpdateButtonVisible(false);
@@ -363,6 +418,59 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     const typeData = await typeResponse.json();
                     if (typeData === 'league') {
                         setIsLeague(true);
+                    }
+                    if (typeData === 'champions-league') {
+                        setIsChampionsLeague(true);
+
+                        const [phaseRes, groupsRes] = await Promise.all([
+                            authFetch(
+                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`
+                            ),
+                            authFetch(
+                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`
+                            )
+                        ]);
+
+                        if (phaseRes.ok) {
+                            const phase = await phaseRes.json();
+                            if (phase === 'group' || phase === 'knockout') {
+                                setChampionsLeaguePhase(phase);
+                            }
+                        }
+
+                        if (groupsRes.ok) {
+                            const groups = await groupsRes.json();
+                            if (groups && typeof groups === 'object') {
+                                setChampionsGroups(groups);
+                                setChampionsGroupLabels(getGroupLabels(Object.keys(groups).length));
+                            }
+                        }
+                    }
+                    if (typeData === 'swiss') {
+                        setIsSwiss(true);
+
+                        const [currentRoundRes, totalRoundsRes] = await Promise.all([
+                            authFetch(
+                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissCurrentRound.json`
+                            ),
+                            authFetch(
+                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissTotalRounds.json`
+                            )
+                        ]);
+
+                        if (currentRoundRes.ok) {
+                            const currentRound = await currentRoundRes.json();
+                            if (Number.isFinite(Number(currentRound))) {
+                                setSwissCurrentRound(Number(currentRound));
+                            }
+                        }
+
+                        if (totalRoundsRes.ok) {
+                            const totalRounds = await totalRoundsRes.json();
+                            if (Number.isFinite(Number(totalRounds))) {
+                                setSwissTotalRounds(Number(totalRounds));
+                            }
+                        }
                     }
                 }
 
@@ -575,7 +683,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             console.log('Tournament data:', data);
             // const playoffsGames = data.tournamentPlayoffGames;
             // const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
-            const randomBrackets = data.type === 'league' ? false : data.randomBracket;
+            const randomBrackets =
+                data.type === 'league' || data.type === 'swiss' ? false : data.randomBracket;
             playersObj = data.players;
             console.log('playersObj:', playersObj);
             // let tournamentData = {};
@@ -1882,8 +1991,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             })
             .join('\n');
 
+        const finishLabel = isSwiss ? 'Swiss tournament' : 'league';
         const confirmed = window.confirm(
-            `Final Standings:\n\n${standingsSummary}\n\nDistribute prizes and mark league as finished?`
+            `Final Standings:\n\n${standingsSummary}\n\nDistribute prizes and mark ${finishLabel} as finished?`
         );
         if (!confirmed) {
             return;
@@ -1978,7 +2088,162 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
     };
 
+    const handleGenerateNextSwissRound = async () => {
+        const pairs = playoffPairs[0] || [];
+        if (!isSwissRoundComplete(pairs, swissCurrentRound)) {
+            alert(`Round ${swissCurrentRound} is not complete yet.`);
+            return;
+        }
+
+        if (swissCurrentRound >= swissTotalRounds) {
+            alert('All Swiss rounds have already been generated.');
+            return;
+        }
+
+        const nextRound = swissCurrentRound + 1;
+        const confirmed = window.confirm(`Generate pairings for round ${nextRound} of ${swissTotalRounds}?`);
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const tournamentResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`
+            );
+            if (!tournamentResponse.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await tournamentResponse.json();
+            const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
+            const playerList = Object.values(tournamentData.players || {}).filter(
+                (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+            );
+
+            const nextPairs = generateNextSwissRoundPairings(playerList, pairs, nextRound, gameType);
+            const updatedPairs = [...pairs, ...nextPairs];
+
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify([updatedPairs]),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save Swiss pairings');
+            }
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissCurrentRound.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(nextRound),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            setPlayoffPairs([updatedPairs]);
+            setSwissCurrentRound(nextRound);
+            alert(`Round ${nextRound} generated (${nextPairs.length} matches).`);
+        } catch (error) {
+            console.error('Error generating Swiss round:', error);
+            alert('Error generating Swiss round: ' + error.message);
+        }
+    };
+
+    const handleStartChampionsKnockout = async () => {
+        const groupPairs = playoffPairs[0] || [];
+        if (!isChampionsLeagueGroupStageComplete(groupPairs)) {
+            alert('Group stage is not complete yet.');
+            return;
+        }
+
+        const summary = Object.entries(championsGroups)
+            .map(([groupLabel]) => {
+                const qualified = getQualifiedPlayers(championsGroups, groupPairs).filter(
+                    (player) => player.group === groupLabel
+                );
+                return `Group ${groupLabel}: ${qualified.map((player) => `${player.place}. ${player.name}`).join(', ')}`;
+            })
+            .join('\n');
+
+        const confirmed = window.confirm(
+            `Start knockout stage with these qualifiers?\n\n${summary}\n\nGenerate knockout bracket?`
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const tournamentResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`
+            );
+            if (!tournamentResponse.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await tournamentResponse.json();
+            const qualifiers = getQualifiedPlayers(championsGroups, groupPairs);
+            const knockoutSize = getKnockoutPlayerCount(tournamentData.maxPlayers);
+            const gameType = tournamentData.tournamentPlayoffGames || '1';
+            const finalGameType = tournamentData.tournamentPlayoffGamesFinal || gameType;
+            const thirdPlaceGameType = tournamentData.tournamentPlayoffGamesThirdPlace || gameType;
+            const knockoutStages = generateKnockoutBracketStages(
+                qualifiers,
+                knockoutSize,
+                gameType,
+                finalGameType,
+                thirdPlaceGameType
+            );
+            const updatedPairs = [groupPairs, ...knockoutStages];
+            const knockoutLabels = computeStageLabels(knockoutSize);
+
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedPairs),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save knockout bracket');
+            }
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('knockout'),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/stageLabels.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(knockoutLabels),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            setPlayoffPairs(updatedPairs);
+            setStageLabels(knockoutLabels);
+            setChampionsLeaguePhase('knockout');
+            alert('Knockout stage started!');
+        } catch (error) {
+            console.error('Error starting Champions League knockout:', error);
+            alert('Error starting knockout: ' + error.message);
+        }
+    };
+
     const handleOpenReportGame = (pair, stageIdx, pairIdx) => {
+        if (pair.isBye || pair.team2 === 'BYE') {
+            return;
+        }
         if (pair.team1 === 'TBD' || pair.team2 === 'TBD' || !pair.team1 || !pair.team2) {
             alert('Cannot report game until both players are assigned.');
             return;
@@ -2637,8 +2902,10 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             );
                         } else if (currentStage === 'Final' || currentStage === 'Third Place') {
                             lines.push(`  • No promotion (${currentStage} is the final stage)`);
-                        } else if (isLeague) {
-                            lines.push('  • Promotion: N/A (league format)');
+                        } else if (isLeague || isSwiss || isChampionsLeague) {
+                            lines.push(
+                                `  • Promotion: N/A (${isSwiss ? 'Swiss' : isChampionsLeague ? 'Champions League group' : 'league'} format)`
+                            );
                         } else {
                             lines.push(`  • Promote: ${winner} → next stage`);
                         }
@@ -3484,6 +3751,44 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         }
                     }
 
+                    if (hasLoserBracket && reportData.winner) {
+                        const loserRating = winner === pair.team1 ? team2NewRating : team1NewRating;
+                        const loserStars = winner === pair.team1 ? pair.stars2 : pair.stars1;
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const winnerStars = winner === pair.team1 ? pair.stars1 : pair.stars2;
+
+                        if (
+                            !currentStage.startsWith('LB') &&
+                            currentStage !== 'Grand Final' &&
+                            loser &&
+                            loser !== 'TBD'
+                        ) {
+                            dropLoserToBracket({
+                                updatedPairs,
+                                stageLabels,
+                                currentStage,
+                                pairIndex: selectedPairIndex,
+                                loser,
+                                loserRating,
+                                loserStars,
+                                maxPlayers
+                            });
+                        }
+
+                        if (currentStage.startsWith('LB') || currentStage === 'LB Final') {
+                            promoteLoserBracketWinner({
+                                updatedPairs,
+                                stageLabels,
+                                currentStage,
+                                pairIndex: selectedPairIndex,
+                                winner,
+                                winnerRating,
+                                winnerStars,
+                                maxPlayers
+                            });
+                        }
+                    }
+
                     // Update the local state with promoted players
                     setPlayoffPairs(updatedPairs);
                     setDetailedProgressStage('Finished');
@@ -3633,7 +3938,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 {!startTournament && (
                     <div className={classes.headerBar}>
                         <div className={classes.headerSide}>
-                            {authCtx.isAdmin && isUpdateButtonVisible && !isLeague && (
+                            {authCtx.isAdmin &&
+                                isUpdateButtonVisible &&
+                                !isLeague &&
+                                !isSwiss &&
+                                !(isChampionsLeague && championsLeaguePhase === 'group') && (
                                 <button
                                     id="update-tournament"
                                     onClick={() => updateTournament()}
@@ -3904,7 +4213,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 </div>
             )}
 
-            {!startTournament && tournamentStatus === 'Registration finished!' && !isLeague && (
+            {!startTournament &&
+                tournamentStatus === 'Registration finished!' &&
+                !isLeague &&
+                !isSwiss &&
+                !isChampionsLeague && (
                 <button onClick={handleStartTournament} className={classes.actionButton}>
                     Start Tournament
                 </button>
@@ -3915,14 +4228,33 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 </button>
             )}
 
-            {stageLabels.length === 0 && !isLeague ? (
+            {stageLabels.length === 0 && !isLeague && !isSwiss && !isChampionsLeague ? (
                 <h6>Tournament registration hasn't started</h6>
-            ) : isLeague ? (
+            ) : (isLeague || isSwiss) || (isChampionsLeague && championsLeaguePhase === 'group') ? (
                 <div className={classes.bracketBody}>
+                    {isChampionsLeague && (
+                        <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
+                            Group stage — top 2 from each group advance to knockout
+                        </p>
+                    )}
+                    {isSwiss && swissTotalRounds > 0 && (
+                        <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
+                            Swiss round {swissCurrentRound} of {swissTotalRounds}
+                        </p>
+                    )}
                     <LeagueBracket
                         pairs={playoffPairs[0] || []}
                         registeredPlayers={registeredPlayerNames}
                         playersObj={playersObj}
+                        roundLabel={isSwiss ? 'Round' : 'Matchday'}
+                        scheduleTitle={
+                            isChampionsLeague
+                                ? 'Champions League groups'
+                                : isSwiss
+                                  ? 'Swiss views'
+                                  : 'League views'
+                        }
+                        groupLabels={isChampionsLeague ? championsGroupLabels : []}
                         onSelectPair={(pairIdx) => {
                             const pair = playoffPairs[0]?.[pairIdx];
                             if (pair) {
@@ -3934,22 +4266,55 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         onSaveSchedule={(pairIdx, iso) => handleSaveMatchSchedule(0, pairIdx, iso)}
                     />
                     {authCtx.isAdmin &&
+                        isChampionsLeague &&
+                        championsLeaguePhase === 'group' &&
+                        tournamentStatus !== 'Tournament Finished' &&
+                        isChampionsLeagueGroupStageComplete(playoffPairs[0] || []) && (
+                            <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
+                                <button className={classes.actionButton} onClick={handleStartChampionsKnockout}>
+                                    Start knockout stage
+                                </button>
+                            </div>
+                        )}
+                    {authCtx.isAdmin &&
+                        isSwiss &&
+                        tournamentStatus !== 'Tournament Finished' &&
+                        swissCurrentRound < swissTotalRounds &&
+                        isSwissRoundComplete(playoffPairs[0] || [], swissCurrentRound) && (
+                            <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
+                                <button
+                                    className={classes.actionButton}
+                                    onClick={handleGenerateNextSwissRound}
+                                >
+                                    Generate round {swissCurrentRound + 1}
+                                </button>
+                            </div>
+                        )}
+                    {authCtx.isAdmin &&
+                        (isLeague || isSwiss) &&
                         tournamentStatus !== 'Tournament Finished' &&
                         (playoffPairs[0] || []).length > 0 &&
-                        (playoffPairs[0] || []).every((p) => p.winner) && (
+                        (playoffPairs[0] || []).every((p) => p.winner) &&
+                        (!isSwiss || swissCurrentRound >= swissTotalRounds) && (
                             <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
                                 <button
                                     className={classes.actionButton}
                                     style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)' }}
                                     onClick={handleFinishLeague}
                                 >
-                                    🏆 Finish League
+                                    {isSwiss ? '🏆 Finish Swiss' : '🏆 Finish League'}
                                 </button>
                             </div>
                         )}
                 </div>
             ) : (
                 (() => {
+                    const clKnockoutOffset =
+                        isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+                    const bracketPairs =
+                        clKnockoutOffset > 0 ? playoffPairs.slice(clKnockoutOffset) : playoffPairs;
+                    const storageStage = (labelIndex) => labelIndex + clKnockoutOffset;
+
                     const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
                     // When there are multiple stages, the last one (Final) is already shown
                     // as the right column of the previous page — no need for a dedicated page.
@@ -3970,8 +4335,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     // Shared bracket layout constants
                     const BLOCK_H = 180;
                     const BLOCK_GAP = 16;
-                    const leftMatchCount = playoffPairs[stageIndex]?.length ?? 0;
-                    const rightMatchCount = nextStageIndex !== -1 ? (playoffPairs[nextStageIndex]?.length ?? 0) : 0;
+                    const leftMatchCount = bracketPairs[stageIndex]?.length ?? 0;
+                    const rightMatchCount = nextStageIndex !== -1 ? (bracketPairs[nextStageIndex]?.length ?? 0) : 0;
                     const leftColHeight = leftMatchCount * BLOCK_H + Math.max(0, leftMatchCount - 1) * BLOCK_GAP;
                     const bracketRatio = rightMatchCount > 0 ? leftMatchCount / rightMatchCount : 2;
                     // Pixel distance from top of right column to top of right block i
@@ -3986,6 +4351,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                     return (
                         <div className={classes.bracketBody} style={{ width: '100%' }}>
+                            {clKnockoutOffset > 0 && (
+                                <p
+                                    style={{
+                                        textAlign: 'center',
+                                        margin: '0 0 1rem',
+                                        color: 'var(--color-text-muted)'
+                                    }}
+                                >
+                                    Knockout stage — group winners vs runners-up from other groups
+                                </p>
+                            )}
                             {/* Stage navigation */}
                             <div
                                 style={{
@@ -4126,17 +4502,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     {currentDisplayStage === 'Final' ? (
                                         /* === FINAL + THIRD PLACE === */
                                         <div>
-                                            {(playoffPairs[stageIndex] || []).map((pair, pairIndex) => {
+                                            {(bracketPairs[stageIndex] || []).map((pair, pairIndex) => {
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                 const isFinalHighlighted =
-                                                    highlightedPairRef.current?.stageIndex === stageIndex &&
+                                                    highlightedPairRef.current?.stageIndex === storageStage(stageIndex) &&
                                                     highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
                                                         key={`final-${pairIndex}`}
-                                                        id={`pair-s${stageIndex}-p${pairIndex}`}
+                                                        id={`pair-s${storageStage(stageIndex)}-p${pairIndex}`}
                                                         className={classes['game-block']}
                                                         style={{
                                                             position: 'relative',
@@ -4146,7 +4522,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             })
                                                         }}
                                                     >
-                                                        {renderMatchScheduleControl(pair, stageIndex, pairIndex)}
+                                                        {renderMatchScheduleControl(pair, storageStage(stageIndex), pairIndex)}
                                                         <div
                                                             style={{
                                                                 display: 'grid',
@@ -4169,7 +4545,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     team={'team1'}
                                                                     pairIndex={pairIndex}
                                                                     hasTruthyPlayers={hasTruthyPlayers}
-                                                                    stageIndex={stageIndex}
+                                                                    stageIndex={storageStage(stageIndex)}
                                                                     setPlayoffPairs={setPlayoffPairs}
                                                                     handleCastleChange={handleCastleChange}
                                                                     handleScoreChange={handleScoreChange}
@@ -4186,7 +4562,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     team={'team2'}
                                                                     pairIndex={pairIndex}
                                                                     hasTruthyPlayers={hasTruthyPlayers}
-                                                                    stageIndex={stageIndex}
+                                                                    stageIndex={storageStage(stageIndex)}
                                                                     setPlayoffPairs={setPlayoffPairs}
                                                                     handleCastleChange={handleCastleChange}
                                                                     handleScoreChange={handleScoreChange}
@@ -4216,7 +4592,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         onClick={() =>
                                                                             handleOpenReportGame(
                                                                                 pair,
-                                                                                stageIndex,
+                                                                                storageStage(stageIndex),
                                                                                 pairIndex
                                                                             )
                                                                         }
@@ -4273,17 +4649,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                 Third Place
                                             </h3>
                                             {thirdPlaceIndex !== -1 &&
-                                                (playoffPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
+                                                (bracketPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                     const isThirdHighlighted =
-                                                        highlightedPairRef.current?.stageIndex === thirdPlaceIndex &&
+                                                        highlightedPairRef.current?.stageIndex === storageStage(thirdPlaceIndex) &&
                                                         highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
                                                             key={`thirdplace-${pairIndex}`}
-                                                            id={`pair-s${thirdPlaceIndex}-p${pairIndex}`}
+                                                            id={`pair-s${storageStage(thirdPlaceIndex)}-p${pairIndex}`}
                                                             className={classes['game-block']}
                                                             style={{
                                                                 position: 'relative',
@@ -4293,7 +4669,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 })
                                                             }}
                                                         >
-                                                            {renderMatchScheduleControl(pair, thirdPlaceIndex, pairIndex)}
+                                                            {renderMatchScheduleControl(pair, storageStage(thirdPlaceIndex), pairIndex)}
                                                             <div
                                                                 style={{
                                                                     display: 'grid',
@@ -4316,7 +4692,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         team={'team1'}
                                                                         pairIndex={pairIndex}
                                                                         hasTruthyPlayers={hasTruthyPlayers}
-                                                                        stageIndex={thirdPlaceIndex}
+                                                                        stageIndex={storageStage(thirdPlaceIndex)}
                                                                         setPlayoffPairs={setPlayoffPairs}
                                                                         handleCastleChange={handleCastleChange}
                                                                         handleScoreChange={handleScoreChange}
@@ -4328,7 +4704,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
                                                                         sourcePair={
-                                                                            playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                            bracketPairs[thirdPlaceIndex - 1]?.[
                                                                                 pairIndex * 2
                                                                             ]
                                                                         }
@@ -4339,7 +4715,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         team={'team2'}
                                                                         pairIndex={pairIndex}
                                                                         hasTruthyPlayers={hasTruthyPlayers}
-                                                                        stageIndex={thirdPlaceIndex}
+                                                                        stageIndex={storageStage(thirdPlaceIndex)}
                                                                         setPlayoffPairs={setPlayoffPairs}
                                                                         handleCastleChange={handleCastleChange}
                                                                         handleScoreChange={handleScoreChange}
@@ -4352,7 +4728,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
                                                                         sourcePair={
-                                                                            playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                            bracketPairs[thirdPlaceIndex - 1]?.[
                                                                                 pairIndex * 2 + 1
                                                                             ]
                                                                         }
@@ -4376,7 +4752,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             onClick={() =>
                                                                                 handleOpenReportGame(
                                                                                     pair,
-                                                                                    thirdPlaceIndex,
+                                                                                    storageStage(thirdPlaceIndex),
                                                                                     pairIndex
                                                                                 )
                                                                             }
@@ -4425,17 +4801,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     ) : (
                                         /* === OTHER STAGES === */
                                         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '1rem' }}>
-                                            {playoffPairs[stageIndex]?.map((pair, pairIndex) => {
+                                            {bracketPairs[stageIndex]?.map((pair, pairIndex) => {
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                 const isOtherHighlighted =
-                                                    highlightedPairRef.current?.stageIndex === stageIndex &&
+                                                    highlightedPairRef.current?.stageIndex === storageStage(stageIndex) &&
                                                     highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
                                                         key={pairIndex}
-                                                        id={`pair-s${stageIndex}-p${pairIndex}`}
+                                                        id={`pair-s${storageStage(stageIndex)}-p${pairIndex}`}
                                                         className={classes['game-block']}
                                                         style={{
                                                             position: 'relative',
@@ -4451,7 +4827,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                             })
                                                         }}
                                                     >
-                                                        {renderMatchScheduleControl(pair, stageIndex, pairIndex)}
+                                                        {renderMatchScheduleControl(pair, storageStage(stageIndex), pairIndex)}
                                                         <div
                                                             style={{
                                                                 position: 'absolute',
@@ -4488,7 +4864,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     team={'team1'}
                                                                     pairIndex={pairIndex}
                                                                     hasTruthyPlayers={hasTruthyPlayers}
-                                                                    stageIndex={stageIndex}
+                                                                    stageIndex={storageStage(stageIndex)}
                                                                     setPlayoffPairs={setPlayoffPairs}
                                                                     handleCastleChange={handleCastleChange}
                                                                     handleScoreChange={handleScoreChange}
@@ -4500,7 +4876,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     clickedRadioButton={clickedRadioButton}
                                                                     sourcePair={
                                                                         stageIndex > 0
-                                                                            ? playoffPairs[stageIndex - 1]?.[
+                                                                            ? bracketPairs[stageIndex - 1]?.[
                                                                                   pairIndex * 2
                                                                               ]
                                                                             : undefined
@@ -4511,7 +4887,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     team={'team2'}
                                                                     pairIndex={pairIndex}
                                                                     hasTruthyPlayers={hasTruthyPlayers}
-                                                                    stageIndex={stageIndex}
+                                                                    stageIndex={storageStage(stageIndex)}
                                                                     setPlayoffPairs={setPlayoffPairs}
                                                                     handleCastleChange={handleCastleChange}
                                                                     handleScoreChange={handleScoreChange}
@@ -4524,7 +4900,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     clickedRadioButton={clickedRadioButton}
                                                                     sourcePair={
                                                                         stageIndex > 0
-                                                                            ? playoffPairs[stageIndex - 1]?.[
+                                                                            ? bracketPairs[stageIndex - 1]?.[
                                                                                   pairIndex * 2 + 1
                                                                               ]
                                                                             : undefined
@@ -4546,7 +4922,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         onClick={() =>
                                                                             handleOpenReportGame(
                                                                                 pair,
-                                                                                stageIndex,
+                                                                                storageStage(stageIndex),
                                                                                 pairIndex
                                                                             )
                                                                         }
@@ -4677,17 +5053,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         {nextDisplayStage === 'Final' ? (
                                             /* === FINAL + THIRD PLACE === */
                                             <div>
-                                                {(playoffPairs[nextStageIndex] || []).map((pair, pairIndex) => {
+                                                {(bracketPairs[nextStageIndex] || []).map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                     const isFinalNextHighlighted =
-                                                        highlightedPairRef.current?.stageIndex === nextStageIndex &&
+                                                        highlightedPairRef.current?.stageIndex === storageStage(nextStageIndex) &&
                                                         highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
                                                             key={`final-next-${pairIndex}`}
-                                                            id={`pair-s${nextStageIndex}-p${pairIndex}`}
+                                                            id={`pair-s${storageStage(nextStageIndex)}-p${pairIndex}`}
                                                             className={classes['game-block']}
                                                             style={{
                                                                 position: 'relative',
@@ -4697,7 +5073,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                 })
                                                             }}
                                                         >
-                                                            {renderMatchScheduleControl(pair, nextStageIndex, pairIndex)}
+                                                            {renderMatchScheduleControl(pair, storageStage(nextStageIndex), pairIndex)}
                                                             <div
                                                                 style={{
                                                                     display: 'grid',
@@ -4720,7 +5096,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         team={'team1'}
                                                                         pairIndex={pairIndex}
                                                                         hasTruthyPlayers={hasTruthyPlayers}
-                                                                        stageIndex={nextStageIndex}
+                                                                        stageIndex={storageStage(nextStageIndex)}
                                                                         setPlayoffPairs={setPlayoffPairs}
                                                                         handleCastleChange={handleCastleChange}
                                                                         handleScoreChange={handleScoreChange}
@@ -4732,7 +5108,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
                                                                         sourcePair={
-                                                                            playoffPairs[stageIndex]?.[pairIndex * 2]
+                                                                            bracketPairs[stageIndex]?.[pairIndex * 2]
                                                                         }
                                                                     />
                                                                     <PlayerBracket
@@ -4740,7 +5116,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         team={'team2'}
                                                                         pairIndex={pairIndex}
                                                                         hasTruthyPlayers={hasTruthyPlayers}
-                                                                        stageIndex={nextStageIndex}
+                                                                        stageIndex={storageStage(nextStageIndex)}
                                                                         setPlayoffPairs={setPlayoffPairs}
                                                                         handleCastleChange={handleCastleChange}
                                                                         handleScoreChange={handleScoreChange}
@@ -4753,7 +5129,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         playersObj={playersObj}
                                                                         sourcePair={
-                                                                            playoffPairs[stageIndex]?.[
+                                                                            bracketPairs[stageIndex]?.[
                                                                                 pairIndex * 2 + 1
                                                                             ]
                                                                         }
@@ -4776,7 +5152,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             onClick={() =>
                                                                                 handleOpenReportGame(
                                                                                     pair,
-                                                                                    nextStageIndex,
+                                                                                    storageStage(nextStageIndex),
                                                                                     pairIndex
                                                                                 )
                                                                             }
@@ -4879,18 +5255,18 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     Third Place
                                                 </h3>
                                                 {thirdPlaceIndex !== -1 &&
-                                                    (playoffPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
+                                                    (bracketPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
                                                         const { team1, team2 } = pair;
                                                         const hasTruthyPlayers =
                                                             (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                         const isThirdNextHighlighted =
                                                             highlightedPairRef.current?.stageIndex ===
-                                                                thirdPlaceIndex &&
+                                                                storageStage(thirdPlaceIndex) &&
                                                             highlightedPairRef.current?.pairIndex === pairIndex;
                                                         return (
                                                             <div
                                                                 key={`thirdplace-next-${pairIndex}`}
-                                                                id={`pair-s${thirdPlaceIndex}-p${pairIndex}`}
+                                                                id={`pair-s${storageStage(thirdPlaceIndex)}-p${pairIndex}`}
                                                                 className={classes['game-block']}
                                                                 style={{
                                                                     position: 'relative',
@@ -4900,7 +5276,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                     })
                                                                 }}
                                                             >
-                                                                {renderMatchScheduleControl(pair, thirdPlaceIndex, pairIndex)}
+                                                                {renderMatchScheduleControl(pair, storageStage(thirdPlaceIndex), pairIndex)}
                                                                 <div
                                                                     style={{
                                                                         display: 'grid',
@@ -4923,7 +5299,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             team={'team1'}
                                                                             pairIndex={pairIndex}
                                                                             hasTruthyPlayers={hasTruthyPlayers}
-                                                                            stageIndex={thirdPlaceIndex}
+                                                                            stageIndex={storageStage(thirdPlaceIndex)}
                                                                             setPlayoffPairs={setPlayoffPairs}
                                                                             handleCastleChange={handleCastleChange}
                                                                             handleScoreChange={handleScoreChange}
@@ -4935,7 +5311,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             clickedRadioButton={clickedRadioButton}
                                                                             playersObj={playersObj}
                                                                             sourcePair={
-                                                                                playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                bracketPairs[thirdPlaceIndex - 1]?.[
                                                                                     pairIndex * 2
                                                                                 ]
                                                                             }
@@ -4946,7 +5322,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             team={'team2'}
                                                                             pairIndex={pairIndex}
                                                                             hasTruthyPlayers={hasTruthyPlayers}
-                                                                            stageIndex={thirdPlaceIndex}
+                                                                            stageIndex={storageStage(thirdPlaceIndex)}
                                                                             setPlayoffPairs={setPlayoffPairs}
                                                                             handleCastleChange={handleCastleChange}
                                                                             handleScoreChange={handleScoreChange}
@@ -4959,7 +5335,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             clickedRadioButton={clickedRadioButton}
                                                                             playersObj={playersObj}
                                                                             sourcePair={
-                                                                                playoffPairs[thirdPlaceIndex - 1]?.[
+                                                                                bracketPairs[thirdPlaceIndex - 1]?.[
                                                                                     pairIndex * 2 + 1
                                                                                 ]
                                                                             }
@@ -4983,7 +5359,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                                 onClick={() =>
                                                                                     handleOpenReportGame(
                                                                                         pair,
-                                                                                        thirdPlaceIndex,
+                                                                                        storageStage(thirdPlaceIndex),
                                                                                         pairIndex
                                                                                     )
                                                                                 }
@@ -5086,7 +5462,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     height: `${leftColHeight}px`
                                                 }}
                                             >
-                                                {playoffPairs[nextStageIndex]?.map((pair, pairIndex) => {
+                                                {bracketPairs[nextStageIndex]?.map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
@@ -5188,7 +5564,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         team={'team1'}
                                                                         pairIndex={pairIndex}
                                                                         hasTruthyPlayers={hasTruthyPlayers}
-                                                                        stageIndex={nextStageIndex}
+                                                                        stageIndex={storageStage(nextStageIndex)}
                                                                         setPlayoffPairs={setPlayoffPairs}
                                                                         handleCastleChange={handleCastleChange}
                                                                         handleScoreChange={handleScoreChange}
@@ -5199,7 +5575,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         getWinner={getWinner}
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         sourcePair={
-                                                                            playoffPairs[stageIndex]?.[pairIndex * 2]
+                                                                            bracketPairs[stageIndex]?.[pairIndex * 2]
                                                                         }
                                                                     />
                                                                     <PlayerBracket
@@ -5207,7 +5583,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         team={'team2'}
                                                                         pairIndex={pairIndex}
                                                                         hasTruthyPlayers={hasTruthyPlayers}
-                                                                        stageIndex={nextStageIndex}
+                                                                        stageIndex={storageStage(nextStageIndex)}
                                                                         setPlayoffPairs={setPlayoffPairs}
                                                                         handleCastleChange={handleCastleChange}
                                                                         handleScoreChange={handleScoreChange}
@@ -5219,7 +5595,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                         isManualScore={isManualScore}
                                                                         clickedRadioButton={clickedRadioButton}
                                                                         sourcePair={
-                                                                            playoffPairs[stageIndex]?.[
+                                                                            bracketPairs[stageIndex]?.[
                                                                                 pairIndex * 2 + 1
                                                                             ]
                                                                         }
@@ -5241,7 +5617,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                                             onClick={() =>
                                                                                 handleOpenReportGame(
                                                                                     pair,
-                                                                                    nextStageIndex,
+                                                                                    storageStage(nextStageIndex),
                                                                                     pairIndex
                                                                                 )
                                                                             }

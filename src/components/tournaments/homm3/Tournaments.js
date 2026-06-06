@@ -11,22 +11,52 @@ import {
 import { addCoins } from '../../../api/coinTransactions';
 import AuthContext from '../../../store/auth-context';
 import { useAddTournament } from '../../../store/add-tournament-context';
-import { getTournamentData } from '../../tournaments/tournament_api';
+import { deleteTournament, getTournamentData } from '../../tournaments/tournament_api';
 import Modal from '../../Modal/Modal';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
+import {
+    canDeleteTournament,
+    isPlayerVisibleTournament,
+    isPublicTournament,
+    isTournamentDeleteBlocked
+} from '../../../utils/tournamentVisibility';
+import {
+    calculateSwissTotalRounds,
+    generateSwissRound1Pairings,
+    MIN_SWISS_PLAYERS,
+    normalizeGameType
+} from './swissUtils';
+import {
+    createDoubleElimPlayoffPairs,
+    getDoubleElimStageLabels
+} from './loserBracketUtils';
+import {
+    assignPlayersToGroups,
+    generateChampionsLeagueGroupPairs,
+    getGroupLabels,
+    getKnockoutPlayerCount,
+    validateChampionsLeagueRegistration
+} from './championsLeagueUtils';
 
-const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished']);
+const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished', 'draft']);
 
-const isPlayerVisibleTournament = (tournament) => {
-    const status = tournament?.status;
-    return (
-        status === 'Registration' ||
-        status === 'Registration Started' ||
-        status === 'Started!'
-    );
+const getTournamentViewLabel = (type) => {
+    if (type === 'league') {
+        return 'View league';
+    }
+    if (type === 'swiss') {
+        return 'View Swiss';
+    }
+    if (type === 'champions-league') {
+        return 'View Champions League';
+    }
+    return 'View bracket';
 };
+
+const isScheduleTournamentType = (type) =>
+    type === 'league' || type === 'swiss' || type === 'champions-league';
 
 const TournamentList = () => {
     const { tournamentId } = useParams();
@@ -48,7 +78,7 @@ const TournamentList = () => {
         // Pre-initialise from URL so the fetch-based default respects it
         const params = new URLSearchParams(window.location.search);
         const param = params.get('status');
-        const allowed = ['all', 'registration', 'registrationFinished', 'started', 'live', 'finished'];
+        const allowed = ['all', 'registration', 'registrationFinished', 'started', 'live', 'finished', 'draft'];
         return param && allowed.includes(param) ? param : null;
     });
     const [showSpinningWheel, setShowSpinningWheel] = useState(false);
@@ -58,6 +88,7 @@ const TournamentList = () => {
     const [nicknameSuggestions, setNicknameSuggestions] = useState([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const [addingPlayerTournamentId, setAddingPlayerTournamentId] = useState(null);
+    const [deletingTournamentId, setDeletingTournamentId] = useState(null);
     const authCtx = useContext(AuthContext);
     let { userNickName, isLogged, isAdmin } = authCtx;
 
@@ -238,7 +269,7 @@ const TournamentList = () => {
 
     useEffect(() => {
         const statusParam = searchParams.get('status');
-        const allowed = ['all', 'registration', 'registrationFinished', 'started', 'live', 'finished'];
+        const allowed = ['all', 'registration', 'registrationFinished', 'started', 'live', 'finished', 'draft'];
         if (statusParam && allowed.includes(statusParam)) {
             setStatusFilter(statusParam);
         }
@@ -327,6 +358,19 @@ const TournamentList = () => {
             };
 
             let tournamentData = await getTournamentData(tourId);
+            const registeredCount = Object.values(currentTournamentPlayers || {}).filter(
+                (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+            ).length;
+
+            if (tournamentData?.type === 'champions-league' && registeredCount >= Number(maxPlayers)) {
+                authCtx.setNotificationShown(
+                    true,
+                    `Champions League is full (${maxPlayers}/${maxPlayers} players).`,
+                    'warning',
+                    5
+                );
+                return;
+            }
 
             if (tournamentData.preparedBracket) {
                 substituteTBDPlayer(user, tourId, userStars, userRatings);
@@ -562,6 +606,77 @@ const TournamentList = () => {
         // setSelectedTournament(null);
     };
 
+    const handleDeleteTournament = async (tournament) => {
+        if (isTournamentDeleteBlocked(tournament)) {
+            return;
+        }
+
+        const registeredCount = Object.values(tournament.players || {}).filter(
+            (player) => player?.name && player.name.trim() !== ''
+        ).length;
+
+        let confirmMessage = `Delete "${tournament.name}" permanently? This cannot be undone.`;
+
+        if (registeredCount > 0) {
+            confirmMessage += `\n\n${registeredCount} registered player(s) will be removed.`;
+        }
+
+        if (!window.confirm(confirmMessage)) {
+            return;
+        }
+
+        setDeletingTournamentId(tournament.id);
+
+        try {
+            const response = await deleteTournament(tournament.id);
+
+            if (!response.ok) {
+                throw new Error('Delete failed');
+            }
+
+            const prizeCoins = Number(tournament.totalPrizeCoins) || 0;
+            const shouldRefund =
+                prizeCoins > 0 &&
+                tournament.status !== 'Tournament Finished' &&
+                tournament.createdBy;
+
+            if (shouldRefund) {
+                try {
+                    const creatorId = await lookForUserId(tournament.createdBy);
+                    if (creatorId) {
+                        await addCoins(
+                            creatorId,
+                            prizeCoins,
+                            'tournament_delete_refund',
+                            `Prize pool refund — deleted tournament: ${tournament.name}`,
+                            { tournamentId: tournament.id, tournamentName: tournament.name }
+                        );
+                    }
+                } catch (refundError) {
+                    console.error('Prize pool refund failed after delete:', refundError);
+                }
+            }
+
+            if (clickedId === tournament.id) {
+                closeModalHandler();
+                setClickedId([]);
+            }
+
+            await fetchTournaments();
+            authCtx.setNotificationShown(
+                true,
+                `Tournament "${tournament.name}" deleted.`,
+                'success',
+                4
+            );
+        } catch (error) {
+            console.error('Error deleting tournament:', error);
+            authCtx.setNotificationShown(true, 'Failed to delete tournament.', 'error', 5);
+        } finally {
+            setDeletingTournamentId(null);
+        }
+    };
+
     const handleStartLeague = async (leagueTournamentId) => {
         if (!window.confirm('Generate league schedule and start the tournament?')) return;
         try {
@@ -689,6 +804,170 @@ const TournamentList = () => {
         }
     };
 
+    const handleStartSwiss = async (swissTournamentId) => {
+        if (!window.confirm('Generate Swiss round 1 and start the tournament?')) {
+            return;
+        }
+
+        try {
+            const response = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/.json`
+            );
+            if (!response.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await response.json();
+            const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
+            const playerList = Object.values(tournamentData.players || {}).filter(
+                (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+            );
+
+            if (playerList.length < MIN_SWISS_PLAYERS) {
+                alert(`Not enough players to start Swiss (minimum ${MIN_SWISS_PLAYERS}).`);
+                return;
+            }
+
+            const swissPairs = generateSwissRound1Pairings(playerList, gameType);
+            const totalRounds = calculateSwissTotalRounds(playerList.length);
+
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify([swissPairs]),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save Swiss pairings');
+            }
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissCurrentRound.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(1),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissTotalRounds.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(totalRounds),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/status.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            alert(`Swiss started! Round 1 of ${totalRounds} — ${swissPairs.length} matches.`);
+            window.location.reload();
+        } catch (error) {
+            console.error('Error starting Swiss tournament:', error);
+            alert('Error starting Swiss: ' + error.message);
+        }
+    };
+
+    const handleStartChampionsLeague = async (championsTournamentId) => {
+        if (!window.confirm('Draw groups and start the Champions League group stage?')) {
+            return;
+        }
+
+        try {
+            const response = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/.json`
+            );
+            if (!response.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await response.json();
+            const playerList = Object.values(tournamentData.players || {}).filter(
+                (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+            );
+
+            const validation = validateChampionsLeagueRegistration(
+                playerList.length,
+                tournamentData.maxPlayers
+            );
+            if (!validation.valid) {
+                alert(validation.message);
+                return;
+            }
+
+            const rawGameType = tournamentData.tournamentPlayoffGames || 'bo-1';
+            const gameType =
+                rawGameType === '5' || rawGameType === 'bo-5'
+                    ? 'bo-5'
+                    : rawGameType === '3' || rawGameType === 'bo-3'
+                      ? 'bo-3'
+                      : rawGameType === '2' || rawGameType === 'bo-2'
+                        ? 'bo-2'
+                        : 'bo-1';
+
+            const groups = assignPlayersToGroups(playerList);
+            const groupPairs = generateChampionsLeagueGroupPairs(groups, gameType);
+            const groupCount = Object.keys(groups).length;
+
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify([groupPairs]),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save group stage matches');
+            }
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/groups.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(groups),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/championsLeaguePhase.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('group'),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/status.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            alert(
+                `Champions League started! ${groupCount} groups of 4 — ${groupPairs.length} group matches. Top 2 per group advance.`
+            );
+            window.location.reload();
+        } catch (error) {
+            console.error('Error starting Champions League:', error);
+            alert('Error starting Champions League: ' + error.message);
+        }
+    };
+
     const handleStartTournament = async (preBracketPairs) => {
         // This will be called when spinning wheel completes
 
@@ -715,6 +994,7 @@ const TournamentList = () => {
 
             const tournamentData = await tournamentResponseGET.json();
             const maxPlayers = tournamentData.maxPlayers;
+            const useLoserBracket = tournamentData.loserBracket === true;
             const tournamentPlayoffGamesRaw = tournamentData.tournamentPlayoffGames || 'bo-1';
             const gameType = normalizeMatchType(tournamentPlayoffGamesRaw);
             const gameTypeFinal = normalizeMatchType(
@@ -735,6 +1015,67 @@ const TournamentList = () => {
                 }
                 return gameType;
             };
+
+            if (useLoserBracket) {
+                const orderedPlayers = preBracketPairs.flat().map((playerName) => {
+                    const player = Object.values(players).find((entry) => entry.name === playerName);
+                    return (
+                        player || {
+                            name: playerName,
+                            ratings: '0',
+                            stars: 0
+                        }
+                    );
+                });
+
+                const fullBracketStructure = createDoubleElimPlayoffPairs(
+                    tournamentData.tournamentPlayoffGames || '1',
+                    tournamentData.tournamentPlayoffGamesFinal || tournamentData.tournamentPlayoffGames || '1',
+                    orderedPlayers,
+                    maxPlayers
+                );
+
+                const bracketResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/bracket/playoffPairs.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(fullBracketStructure),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (!bracketResponse.ok) {
+                    throw new Error('Failed to update tournament bracket');
+                }
+
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/stageLabels.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(getDoubleElimStageLabels(maxPlayers)),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+
+                const statusResponse = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Started!'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+
+                if (!statusResponse.ok) {
+                    throw new Error('Failed to update tournament status');
+                }
+
+                closeModalHandler();
+                window.location.reload();
+                return;
+            }
 
             // Calculate stage labels based on maxPlayers
             let currentStageLabels = [];
@@ -1016,7 +1357,7 @@ const TournamentList = () => {
             currentTournamentStatus === 'Registration finished!' &&
             tournament &&
             tournament.randomBracket &&
-            tournament.type !== 'league'
+            !isScheduleTournamentType(tournament.type)
         ) {
             // Show spinning wheel directly
             setTournamentPlayers(tournament.players || {});
@@ -1075,6 +1416,9 @@ const TournamentList = () => {
         if (statusFilter === 'live') {
             return hasLiveGames(tournament);
         }
+        if (statusFilter === 'draft') {
+            return isAdmin && !isPublicTournament(tournament);
+        }
         return true;
     });
 
@@ -1099,6 +1443,9 @@ const TournamentList = () => {
                         maxTournamnetPlayers = tournament.maxPlayers;
 
                         const getStatusClass = (status) => {
+                            if (status === 'Draft') {
+                                return 'draft';
+                            }
                             if (status === 'Registration' || status.includes('Registration')) {
                                 return 'registration';
                             }
@@ -1126,7 +1473,18 @@ const TournamentList = () => {
 
                         return (
                             <li key={tournament.id} className={classes.bracket}>
-                                <h3 className={classes.tournamentTitle}>{`${tournament.name} (${tournament.date})`}</h3>
+                                <h3 className={classes.tournamentTitle}>
+                                    {`${tournament.name} (${tournament.date})`}
+                                    {isAdmin && !isPublicTournament(tournament) ? (
+                                        <span className={classes.privateTag}>Private</span>
+                                    ) : null}
+                                    {tournament.loserBracket ? (
+                                        <span className={classes.privateTag}>Double elim</span>
+                                    ) : null}
+                                    {tournament.type === 'champions-league' ? (
+                                        <span className={classes.privateTag}>Champions League</span>
+                                    ) : null}
+                                </h3>
                                 <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
                                     {tournament.status}
                                 </div>
@@ -1207,8 +1565,27 @@ const TournamentList = () => {
                                             )
                                         }
                                     >
-                                        {tournament.type === 'league' ? 'View league' : 'View bracket'}
+                                        {getTournamentViewLabel(tournament.type)}
                                     </button>
+
+                                    {canDeleteTournament(tournament, { isAdmin, userNickName }) && (
+                                        <button
+                                            type="button"
+                                            className={`${classes.btn} ${classes.btnDanger}`}
+                                            disabled={
+                                                deletingTournamentId === tournament.id ||
+                                                isTournamentDeleteBlocked(tournament)
+                                            }
+                                            title={
+                                                isTournamentDeleteBlocked(tournament)
+                                                    ? 'Cannot delete after the tournament has started'
+                                                    : undefined
+                                            }
+                                            onClick={() => handleDeleteTournament(tournament)}
+                                        >
+                                            {deletingTournamentId === tournament.id ? 'Deleting…' : 'Delete'}
+                                        </button>
+                                    )}
 
                                     {authCtx.isAdmin &&
                                         tournament.type === 'league' &&
@@ -1218,6 +1595,28 @@ const TournamentList = () => {
                                                 onClick={() => handleStartLeague(tournament.id)}
                                             >
                                                 Start league
+                                            </button>
+                                        )}
+
+                                    {authCtx.isAdmin &&
+                                        tournament.type === 'swiss' &&
+                                        tournament.status === 'Registration finished!' && (
+                                            <button
+                                                className={`${classes.btn} ${classes.btnSuccess}`}
+                                                onClick={() => handleStartSwiss(tournament.id)}
+                                            >
+                                                Start Swiss
+                                            </button>
+                                        )}
+
+                                    {authCtx.isAdmin &&
+                                        tournament.type === 'champions-league' &&
+                                        tournament.status === 'Registration finished!' && (
+                                            <button
+                                                className={`${classes.btn} ${classes.btnSuccess}`}
+                                                onClick={() => handleStartChampionsLeague(tournament.id)}
+                                            >
+                                                Start group stage
                                             </button>
                                         )}
 
@@ -1369,7 +1768,7 @@ const TournamentList = () => {
                                 {tournament.status === 'Registration finished!' && (
                                     <div className={classes.fullBanner}>
                                         <p className={classes.fullBannerTitle}>Tournament is full</p>
-                                        {authCtx.isAdmin && tournament.type !== 'league' && (
+                                        {authCtx.isAdmin && !isScheduleTournamentType(tournament.type) && (
                                             <button
                                                 className={`${classes.btn} ${classes.btnSuccess}`}
                                                 onClick={() =>
@@ -1491,6 +1890,7 @@ const TournamentList = () => {
                         <option value="started">In progress</option>
                         <option value="live">Live games</option>
                         {isAdmin && <option value="finished">Finished</option>}
+                        {isAdmin && <option value="draft">Private drafts</option>}
                     </select>
                 </div>
             </div>

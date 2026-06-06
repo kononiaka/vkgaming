@@ -878,3 +878,6 @@ exports.deleteAccount = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', err.message || 'Account deletion failed.');
     }
 });
+
+// Telegram channel notifications (@vkgamingplay) — see telegramNotifications.js
+Object.assign(exports, require('./telegramNotifications'));

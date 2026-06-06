@@ -6,6 +6,8 @@ import discordIcon from '../../UI/ModalHelp/discord.png';
 import telegramIcon from '../../UI/ModalHelp/tg_bcg.png';
 import youtubeIcon from '../../UI/ModalHelp/youtube.png';
 
+const TELEGRAM_URL = process.env.REACT_APP_TELEGRAM_URL || 'https://t.me/vkgamingplay';
+
 const channels = [
     {
         name: 'Discord',
@@ -16,9 +18,9 @@ const channels = [
     },
     {
         name: 'Telegram',
-        description: 'Announcements and direct messages with the team.',
-        href: 'https://t.me/vkgamingplay',
-        label: 'Message us on Telegram',
+        description: 'Match announcements, tournament updates, and direct messages with the team.',
+        href: TELEGRAM_URL,
+        label: 'Join @vkgamingplay',
         icon: telegramIcon
     },
     {
