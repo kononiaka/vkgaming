@@ -1,5 +1,4 @@
 {
-    "_warning": "Deploy with: firebase deploy --only database. Requires meta/admins/{firebaseAuthUid}=true (e.g. twitch:1351514287).",
     "rules": {
         "users": {
             ".read": true,
