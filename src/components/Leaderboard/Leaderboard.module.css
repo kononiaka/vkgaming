@@ -27,6 +27,61 @@
     font-weight: 400;
 }
 
+.starsLegend {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(201, 162, 39, 0.25);
+    background: rgba(201, 162, 39, 0.06);
+}
+
+.starsLegendText {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.starsLegendText strong {
+    color: var(--color-gold);
+}
+
+.columnHint {
+    font-weight: 400;
+    color: var(--color-text-dim);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.68rem;
+}
+
+.sourceBadge {
+    display: inline-flex;
+    align-items: center;
+    margin: -0.75rem 0 1.25rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(120, 200, 160, 0.45);
+    background: rgba(40, 90, 70, 0.35);
+    color: #b8e8d0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.loading,
+.loadError {
+    margin: 0 0 1rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.loadError {
+    color: #f0a8a8;
+}
+
 .toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -276,6 +331,32 @@
 .currentPlayerRow td {
     background: rgba(201, 162, 39, 0.12) !important;
     font-weight: 600;
+}
+
+.sectionHeader {
+    margin: 1.5rem 0 0.75rem;
+}
+
+.sectionTitle {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    color: var(--color-gold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.sectionNote {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.bottomSection {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: var(--border-subtle);
 }
 
 @media (max-width: 768px) {

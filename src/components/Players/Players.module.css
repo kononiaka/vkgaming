@@ -23,6 +23,28 @@
     font-size: 0.98rem;
 }
 
+.sourceBadge {
+    display: inline-flex;
+    align-items: center;
+    margin: -1rem 0 1.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(120, 200, 160, 0.45);
+    background: rgba(40, 90, 70, 0.35);
+    color: #b8e8d0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.sectionNote {
+    margin: -0.5rem 0 1rem;
+    color: rgba(228, 226, 214, 0.65);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
 .heroGrid {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
@@ -239,6 +261,13 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 0.32rem;
+}
+
+.statHint {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.68rem;
+    color: rgba(189, 201, 221, 0.55);
 }
 
 .statValue {

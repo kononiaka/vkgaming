@@ -1,0 +1,321 @@
+.section {
+    margin: 1.5rem 0 0;
+    padding: 1.25rem 0 0;
+    border-top: 1px solid rgba(182, 160, 125, 0.28);
+}
+
+.header {
+    margin-bottom: 1rem;
+}
+
+.title {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.link,
+.suggestionLink,
+.profileLink {
+    color: var(--color-teal);
+    text-decoration: none;
+}
+
+.link:hover,
+.suggestionLink:hover,
+.profileLink:hover {
+    color: var(--color-gold-bright);
+    text-decoration: underline;
+}
+
+.message,
+.error {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.message {
+    color: var(--color-text-muted);
+}
+
+.error {
+    color: #fca5a5;
+}
+
+.messageBox {
+    padding: 0.85rem 1rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.messageBox .message {
+    margin: 0;
+}
+
+.message strong {
+    color: var(--color-gold-bright);
+}
+
+.suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    margin-top: 0.75rem;
+    align-items: center;
+}
+
+.suggestionsLabel {
+    font-size: 0.78rem;
+    color: var(--color-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.summaryCard {
+    padding: 0.75rem 0.9rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.summaryLabel {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+}
+
+.summaryValue {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-gold-bright);
+    font-variant-numeric: tabular-nums;
+}
+
+.tableWrap {
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    color: var(--color-text);
+}
+
+.table thead {
+    background: var(--color-bg-elevated);
+    border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+.table th {
+    padding: 0.6rem 0.85rem;
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.table td {
+    padding: 0.6rem 0.85rem;
+    border-top: var(--border-subtle);
+}
+
+.table tbody tr:nth-child(even) td {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.profileLink {
+    display: inline-block;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.subsection {
+    margin-bottom: 1.25rem;
+}
+
+.subsectionTitle {
+    margin: 0 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.subsectionNote {
+    margin: 0 0 0.75rem;
+    font-size: 0.82rem;
+    color: var(--color-text-dim);
+}
+
+.formRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.formDot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.formWin {
+    background: #6dbf8a;
+}
+
+.formLoss {
+    background: #c97a7a;
+}
+
+.tradeSummary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.85rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: var(--radius-md);
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+}
+
+.tradeLabel {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-dim);
+}
+
+.tradeValue {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.tradePositive {
+    color: #8fd4a8;
+}
+
+.tradeNegative {
+    color: #e07a7a;
+}
+
+.tradeHint {
+    font-size: 0.78rem;
+    color: var(--color-text-dim);
+}
+
+.colorGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.colorCard {
+    padding: 0.75rem 0.9rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: 0.15rem;
+}
+
+.colorName {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.colorRate {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-gold-bright);
+}
+
+.colorGames {
+    font-size: 0.82rem;
+    color: var(--color-text-dim);
+}
+
+.matchesHeader {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.filterLabel {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.filterSelect {
+    min-width: 180px;
+    padding: 0.45rem 0.65rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--color-text);
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.positive {
+    color: #8fd4a8;
+    font-weight: 600;
+}
+
+.negative {
+    color: #e07a7a;
+    font-weight: 600;
+}
+
+.vsCell {
+    color: var(--color-text-dim);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.matchesTable {
+    min-width: 920px;
+}

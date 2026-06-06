@@ -1,0 +1,35 @@
+.field {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.label {
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    color: rgba(191, 205, 229, 0.72);
+}
+
+.input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f0e8d6;
+    background: rgba(10, 16, 28, 0.85);
+    border: 1px solid rgba(112, 133, 170, 0.45);
+    border-radius: var(--radius-md);
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.input:focus {
+    border-color: rgba(201, 162, 39, 0.55);
+}
+
+.hint {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--color-text-dim);
+}

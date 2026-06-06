@@ -3,16 +3,28 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
 import {
+    SITE_STARS_MAX,
+    computeSiteStarsFromRank,
     fetchLastGamesForPlayer,
     fetchBestAndWorstCastleForPlayer,
     fetchFullCastleStatsForPlayer,
     fetchLeaderboard,
     fetchBestAndWorstOpponentForPlayer,
     getAvatar
-} from '../../api/api'; // Make sure this path is correct
+} from '../../api/api';
 import classes from './Players.module.css';
 import StarsComponent from '../Stars/Stars';
 import GameMechanicsStats from './GameMechanicsStats';
+import HotaPlayerStats from './HotaPlayerStats';
+import LobbyNicknameField from '../Profile/LobbyNicknameField';
+import {
+    deriveBestWorstFaction,
+    deriveBestWorstOpponent,
+    deriveHotaPlayerSummary,
+    fetchHotaLeaderboard,
+    fetchHotaPlayerByLobbyNickname,
+    findHotaLeaderboardRank
+} from '../../api/hotaMeta';
 
 // Import castle images
 import castleImg from '../../image/castles/castle.jpeg';
@@ -66,6 +78,41 @@ export const PlayerProfileContent = ({
     const [restartStats, setRestartStats] = useState(null);
     const [showRestartDetails, setShowRestartDetails] = useState(false);
     const [chartData, setChartData] = useState(null);
+    const [hotaData, setHotaData] = useState({ status: 'idle' });
+    const [profileSiteStars, setProfileSiteStars] = useState(null);
+
+    useEffect(() => {
+        if (!player?.enteredNickname) {
+            setHotaData({ status: 'idle' });
+            return;
+        }
+
+        let cancelled = false;
+        setHotaData({ status: 'loading' });
+
+        fetchHotaPlayerByLobbyNickname(player.enteredNickname)
+            .then((result) => {
+                if (!cancelled) {
+                    setHotaData(result);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setHotaData({ status: 'error' });
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [player?.enteredNickname]);
+
+    const hotaIsSource = hotaData.status === 'ok';
+    const showKonoplayPerformance = !hotaIsSource && hotaData.status !== 'loading';
+    const hotaProfile = hotaIsSource ? hotaData.profile : null;
+    const hotaDerived = hotaProfile ? deriveHotaPlayerSummary(hotaProfile) : null;
+    const hotaFactions = hotaProfile ? deriveBestWorstFaction(hotaProfile) : { best: null, worst: null };
+    const hotaOpponents = hotaProfile ? deriveBestWorstOpponent(hotaProfile) : { best: null, worst: null };
 
     useEffect(() => {
         if (!playerId) {
@@ -133,18 +180,44 @@ export const PlayerProfileContent = ({
     }, [playerId, avatarRefreshKey]);
 
     useEffect(() => {
-        // Fetch all users and determine leaderboard place
-        if (player) {
-            fetchLeaderboard(player).then((place) => {
-                if (place !== null) {
-                    setLeaderboardPlace(place);
-                }
-            });
+        if (!player?.enteredNickname) {
+            setLeaderboardPlace(null);
+            setProfileSiteStars(null);
+            return;
         }
-    }, [player]);
 
-    // Fetch streak (last 10 games)
+        if (hotaIsSource) {
+            fetchHotaLeaderboard({ limit: 500 })
+                .then((leaderboard) => {
+                    const rank = findHotaLeaderboardRank(player.enteredNickname, leaderboard);
+                    setLeaderboardPlace(rank);
+                    setProfileSiteStars(rank != null ? computeSiteStarsFromRank(rank) : null);
+                })
+                .catch(() => {
+                    setLeaderboardPlace(null);
+                    setProfileSiteStars(null);
+                });
+            return;
+        }
+
+        setProfileSiteStars(null);
+
+        if (hotaData.status === 'loading') {
+            return;
+        }
+
+        fetchLeaderboard(player).then((place) => {
+            setLeaderboardPlace(place);
+        });
+    }, [player, hotaIsSource, hotaData.status]);
+
+    // Fetch streak (last 10 games) — konoplay fallback only
     useEffect(() => {
+        if (hotaIsSource) {
+            setStreak([]);
+            return;
+        }
+
         const fetchStreak = async () => {
             if (player && player.enteredNickname) {
                 const games = await fetchLastGamesForPlayer(player.enteredNickname, 10);
@@ -152,10 +225,16 @@ export const PlayerProfileContent = ({
             }
         };
         fetchStreak();
-    }, [player]);
+    }, [player, hotaIsSource]);
 
-    // Fetch best and worst castle
+    // Fetch best and worst castle — konoplay fallback only
     useEffect(() => {
+        if (hotaIsSource) {
+            setBestCastle(null);
+            setWorstCastle(null);
+            return;
+        }
+
         const fetchBestAndWorstCastle = async () => {
             if (player && player.enteredNickname) {
                 const { best, worst } = await fetchBestAndWorstCastleForPlayer(player.enteredNickname);
@@ -164,10 +243,16 @@ export const PlayerProfileContent = ({
             }
         };
         fetchBestAndWorstCastle();
-    }, [player]);
+    }, [player, hotaIsSource]);
 
-    // Fetch best and worst opponent
+    // Fetch best and worst opponent — konoplay fallback only
     useEffect(() => {
+        if (hotaIsSource) {
+            setBestOpponent(null);
+            setWorstOpponent(null);
+            return;
+        }
+
         const fetchBestAndWorstOpponent = async () => {
             if (player && player.enteredNickname) {
                 const { best, worst } = await fetchBestAndWorstOpponentForPlayer(player.enteredNickname);
@@ -176,10 +261,16 @@ export const PlayerProfileContent = ({
             }
         };
         fetchBestAndWorstOpponent();
-    }, [player]);
+    }, [player, hotaIsSource]);
 
-    // Fetch and calculate gold and restart statistics
+    // Fetch gold/restart from Konoplay cup games only (not needed when HotA is primary)
     useEffect(() => {
+        if (hotaIsSource) {
+            setGoldStats(null);
+            setRestartStats(null);
+            return;
+        }
+
         if (!player || !player.enteredNickname) {
             return;
         }
@@ -207,7 +298,7 @@ export const PlayerProfileContent = ({
         }, 5000); // Update every 5 seconds
 
         return () => clearInterval(pollInterval);
-    }, [player]);
+    }, [player, hotaIsSource]);
 
     const updateGoldAndRestartStats = (allGames, playerName) => {
         if (!allGames) {
@@ -327,8 +418,13 @@ export const PlayerProfileContent = ({
         });
     };
 
-    // Prepare rating trend chart data
+    // Prepare rating trend chart data — konoplay fallback only
     useEffect(() => {
+        if (hotaIsSource) {
+            setChartData(null);
+            return;
+        }
+
         if (player && player.ratings) {
             const ratingsString = player.ratings;
             const ratingsArray = ratingsString
@@ -434,7 +530,7 @@ export const PlayerProfileContent = ({
                 setChartData({ data, options });
             }
         }
-    }, [player]);
+    }, [player, hotaIsSource]);
 
     const handleShowCastleStats = async () => {
         if (showPopup) {
@@ -480,12 +576,32 @@ export const PlayerProfileContent = ({
         return null;
     };
 
-    const totalGames = player?.gamesPlayed?.heroes3?.total || 0;
-    const losses = player?.gamesPlayed?.heroes3?.lose || 0;
-    const wins = Math.max(totalGames - losses, 0);
-    const latestRating = player?.ratings ? parseFloat(player.ratings.split(',').pop()).toFixed(2) : '0.00';
-    const overallWinRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) : '0.0';
+    const konoplayTotalGames = player?.gamesPlayed?.heroes3?.total || 0;
+    const konoplayLosses = player?.gamesPlayed?.heroes3?.lose || 0;
+    const konoplayWins = Math.max(konoplayTotalGames - konoplayLosses, 0);
+    const konoplayRating = player?.ratings
+        ? parseFloat(player.ratings.split(',').pop()).toFixed(2)
+        : '0.00';
+    const konoplayWinRate =
+        konoplayTotalGames > 0 ? ((konoplayWins / konoplayTotalGames) * 100).toFixed(1) : '0.0';
+
+    const totalGames = hotaDerived?.totalGames ?? konoplayTotalGames;
+    const losses = hotaDerived?.losses ?? konoplayLosses;
+    const wins = hotaDerived?.wins ?? konoplayWins;
+    const latestRating =
+        hotaDerived?.rating != null ? Number(hotaDerived.rating).toFixed(2) : konoplayRating;
+    const peakRating =
+        hotaDerived?.peakRating != null ? Number(hotaDerived.peakRating).toFixed(2) : null;
+    const overallWinRate =
+        hotaDerived?.winRate != null
+            ? Number(hotaDerived.winRate).toFixed(1)
+            : konoplayWinRate;
     const currentLeague = player?.league || player?.currentLeague || 'Not specified';
+
+    const displayBestCastle = hotaIsSource ? hotaFactions.best : bestCastle;
+    const displayWorstCastle = hotaIsSource ? hotaFactions.worst : worstCastle;
+    const displayBestOpponent = hotaIsSource ? hotaOpponents.best : bestOpponent;
+    const displayWorstOpponent = hotaIsSource ? hotaOpponents.worst : worstOpponent;
 
     const publicLinks = [
         {
@@ -510,7 +626,14 @@ export const PlayerProfileContent = ({
             {player ? (
                 <>
                     <h2 className={classes.header}>{title}</h2>
-                    <p className={classes.headerSubtitle}>{subtitle}</p>
+                    <p className={classes.headerSubtitle}>
+                        {hotaIsSource
+                            ? 'Ranked stats from HotA Meta. Konoplay sections below cover cups, prizes, and site rewards.'
+                            : subtitle}
+                    </p>
+                    {hotaIsSource && (
+                        <div className={classes.sourceBadge}>Stats synced from HotA Meta</div>
+                    )}
 
                     <div className={classes.heroGrid}>
                         <div className={classes.profileCard}>
@@ -532,10 +655,23 @@ export const PlayerProfileContent = ({
                                         {settingsSlot ? 'Your profile' : 'Player profile'}
                                     </div>
                                     <p className={classes.playerName}>{player.enteredNickname}</p>
-                                    <div className={classes.lobbyNick}>
-                                        <span className={classes.lobbyLabel}>Lobby nickname</span>
-                                        <span className={classes.lobbyValue}>{player.enteredNickname}</span>
-                                    </div>
+                                    {settingsSlot ? (
+                                        <LobbyNicknameField
+                                            className={classes.lobbyNick}
+                                            userId={playerId}
+                                            nickname={player.enteredNickname}
+                                            onSaved={(nextNickname) =>
+                                                setPlayer((prev) =>
+                                                    prev ? { ...prev, enteredNickname: nextNickname } : prev
+                                                )
+                                            }
+                                        />
+                                    ) : (
+                                        <div className={classes.lobbyNick}>
+                                            <span className={classes.lobbyLabel}>Lobby nickname</span>
+                                            <span className={classes.lobbyValue}>{player.enteredNickname}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -567,29 +703,48 @@ export const PlayerProfileContent = ({
                         <div className={classes.statusCard}>
                             <h3 className={classes.statusTitle}>Current status</h3>
                             <div className={classes.statusList}>
+                                {hotaIsSource ? (
+                                    <>
+                                        <div className={classes.statusItem}>
+                                            <span className={classes.statusLabel}>HotA rating</span>
+                                            <span className={classes.statusValue}>{latestRating}</span>
+                                        </div>
+                                        {peakRating && (
+                                            <div className={classes.statusItem}>
+                                                <span className={classes.statusLabel}>Peak rating</span>
+                                                <span className={classes.statusValue}>{peakRating}</span>
+                                            </div>
+                                        )}
+                                        <div className={classes.statusItem}>
+                                            <span className={classes.statusLabel}>Ranked win rate</span>
+                                            <span className={classes.statusValue}>{overallWinRate}%</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className={classes.statusItem}>
+                                        <span className={classes.statusLabel}>League</span>
+                                        <span className={classes.statusValue}>{currentLeague}</span>
+                                    </div>
+                                )}
                                 <div className={classes.statusItem}>
-                                    <span className={classes.statusLabel}>League</span>
-                                    <span className={classes.statusValue}>{currentLeague}</span>
-                                </div>
-                                <div className={classes.statusItem}>
-                                    <span className={classes.statusLabel}>Place</span>
+                                    <span className={classes.statusLabel}>
+                                        {hotaIsSource ? 'HotA rank' : 'Place'}
+                                    </span>
                                     <span className={classes.statusValue}>
                                         {leaderboardPlace !== null ? `#${leaderboardPlace}` : '-'}
                                     </span>
                                 </div>
-                                <div className={classes.statusItem}>
-                                    <span className={classes.statusLabel}>Win rate</span>
-                                    <span className={classes.statusValue}>{overallWinRate}%</span>
-                                </div>
+                                {!hotaIsSource && (
+                                    <div className={classes.statusItem}>
+                                        <span className={classes.statusLabel}>Win rate</span>
+                                        <span className={classes.statusValue}>{overallWinRate}%</span>
+                                    </div>
+                                )}
                                 {settingsSlot && (
                                     <>
                                         <div className={classes.statusItem}>
                                             <span className={classes.statusLabel}>Coins</span>
                                             <span className={classes.statusValue}>{player.coins ?? 0}</span>
-                                        </div>
-                                        <div className={classes.statusItem}>
-                                            <span className={classes.statusLabel}>Score</span>
-                                            <span className={classes.statusValue}>{player.score ?? 0}</span>
                                         </div>
                                     </>
                                 )}
@@ -597,50 +752,84 @@ export const PlayerProfileContent = ({
                         </div>
                     </div>
 
-                    <div className={classes.statsGrid}>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Wins</div>
-                            <div className={classes.statValue}>{wins}</div>
-                        </div>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Losses</div>
-                            <div className={classes.statValue}>{losses}</div>
-                        </div>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Total Games</div>
-                            <div className={classes.statValue}>{totalGames}</div>
-                        </div>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Rating</div>
-                            <div className={classes.statValue}>{latestRating}</div>
-                        </div>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Stars</div>
-                            <div className={classes.statValue}>
-                                <StarsComponent stars={player.stars} />
+                    {hotaIsSource ? (
+                        <div className={classes.statsGrid}>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>
+                                    Site stars
+                                    <span className={classes.statHint}> (max {SITE_STARS_MAX})</span>
+                                </div>
+                                <div className={classes.statValue}>
+                                    <StarsComponent stars={profileSiteStars ?? player.stars} />
+                                </div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Cup winnings</div>
+                                <div className={classes.statValue}>${(player.totalPrize || 0).toFixed(2)}</div>
                             </div>
                         </div>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Total Winnings</div>
-                            <div className={classes.statValue}>${(player.totalPrize || 0).toFixed(2)}</div>
-                        </div>
-                        <div className={classes.statCard}>
-                            <div className={classes.statLabel}>Leaderboard Rank</div>
-                            <div className={classes.statValue}>
-                                #{leaderboardPlace !== null ? leaderboardPlace : '...'}
+                    ) : (
+                        <div className={classes.statsGrid}>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Wins</div>
+                                <div className={classes.statValue}>{wins}</div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Losses</div>
+                                <div className={classes.statValue}>{losses}</div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Total Games</div>
+                                <div className={classes.statValue}>{totalGames}</div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Rating</div>
+                                <div className={classes.statValue}>{latestRating}</div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Site stars</div>
+                                <div className={classes.statValue}>
+                                    <StarsComponent stars={player.stars} />
+                                </div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Cup winnings</div>
+                                <div className={classes.statValue}>${(player.totalPrize || 0).toFixed(2)}</div>
+                            </div>
+                            <div className={classes.statCard}>
+                                <div className={classes.statLabel}>Konoplay rank</div>
+                                <div className={classes.statValue}>
+                                    #{leaderboardPlace !== null ? leaderboardPlace : '...'}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    <GameMechanicsStats
-                        goldStats={goldStats}
-                        restartStats={restartStats}
-                        showRestartDetails={showRestartDetails}
-                        onToggleRestartDetails={() => setShowRestartDetails((open) => !open)}
+                    <HotaPlayerStats
+                        lobbyNickname={player.enteredNickname}
+                        hotaData={hotaData}
+                        isPrimarySource={hotaIsSource}
                     />
 
+                    {!hotaIsSource && (
+                        <GameMechanicsStats
+                            goldStats={goldStats}
+                            restartStats={restartStats}
+                            showRestartDetails={showRestartDetails}
+                            onToggleRestartDetails={() => setShowRestartDetails((open) => !open)}
+                        />
+                    )}
+
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>Tournament prizes</h3>
+                        <h3 className={classes.sectionTitle}>
+                            {hotaIsSource ? 'Konoplay cups' : 'Tournament prizes'}
+                        </h3>
+                        {hotaIsSource && (
+                            <p className={classes.sectionNote}>
+                                Prize money from tournaments on this site. Ranked stats, colors, and gold trade are
+                                from HotA Meta above.
+                            </p>
+                        )}
                         {Array.isArray(player.prizes) && player.prizes.length > 0 ? (
                             <table className={classes.prizesTable}>
                                 <thead>
@@ -665,70 +854,74 @@ export const PlayerProfileContent = ({
                         )}
                     </div>
 
-                    <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>Recent streak</h3>
-                        <div className={classes.streak}>
-                            {streak.length === 0 ? (
-                                <span className={classes.streakEmpty}>No games found</span>
-                            ) : (
-                                streak.map((g, i) => (
-                                    <span
-                                        key={i}
-                                        title={`vs ${g.opponent}`}
-                                        className={`${classes.streakDot} ${g.result === 'Win' ? classes.win : classes.lose}`}
-                                    ></span>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                    {showKonoplayPerformance && (
+                        <>
+                            <div className={classes.section}>
+                                <h3 className={classes.sectionTitle}>Recent streak</h3>
+                                <div className={classes.streak}>
+                                    {streak.length === 0 ? (
+                                        <span className={classes.streakEmpty}>No games found</span>
+                                    ) : (
+                                        streak.map((g, i) => (
+                                            <span
+                                                key={i}
+                                                title={`vs ${g.opponent}`}
+                                                className={`${classes.streakDot} ${g.result === 'Win' ? classes.win : classes.lose}`}
+                                            ></span>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
 
-                    <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>Castle performance</h3>
-                        <div className={classes.castleInfo}>
-                            <div className={`${classes.castleCard} ${classes.best}`}>
-                                <div className={classes.castleName}>Best castle</div>
-                                <div className={classes.castleStats}>
-                                    {bestCastle
-                                        ? `${bestCastle.castle} (${bestCastle.wins}W - ${bestCastle.loses}L)`
-                                        : 'N/A'}
+                            <div className={classes.section}>
+                                <h3 className={classes.sectionTitle}>Castle performance</h3>
+                                <div className={classes.castleInfo}>
+                                    <div className={`${classes.castleCard} ${classes.best}`}>
+                                        <div className={classes.castleName}>Best castle</div>
+                                        <div className={classes.castleStats}>
+                                            {displayBestCastle
+                                                ? `${displayBestCastle.castle} (${displayBestCastle.wins}W - ${displayBestCastle.loses}L)`
+                                                : 'N/A'}
+                                        </div>
+                                    </div>
+                                    <div className={`${classes.castleCard} ${classes.worst}`}>
+                                        <div className={classes.castleName}>Worst castle</div>
+                                        <div className={classes.castleStats}>
+                                            {displayWorstCastle
+                                                ? `${displayWorstCastle.castle} (${displayWorstCastle.wins}W - ${displayWorstCastle.loses}L)`
+                                                : 'N/A'}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className={`${classes.castleCard} ${classes.worst}`}>
-                                <div className={classes.castleName}>Worst castle</div>
-                                <div className={classes.castleStats}>
-                                    {worstCastle
-                                        ? `${worstCastle.castle} (${worstCastle.wins}W - ${worstCastle.loses}L)`
-                                        : 'N/A'}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>Opponent performance</h3>
-                        <div className={classes.castleInfo}>
-                            <div className={`${classes.castleCard} ${classes.best}`}>
-                                <div className={classes.castleName}>Best record vs</div>
-                                <div className={classes.castleStats}>
-                                    {bestOpponent
-                                        ? `${bestOpponent.opponent} (${bestOpponent.wins}W - ${bestOpponent.loses}L)`
-                                        : 'N/A'}
+                            <div className={classes.section}>
+                                <h3 className={classes.sectionTitle}>Opponent performance</h3>
+                                <div className={classes.castleInfo}>
+                                    <div className={`${classes.castleCard} ${classes.best}`}>
+                                        <div className={classes.castleName}>Best record vs</div>
+                                        <div className={classes.castleStats}>
+                                            {displayBestOpponent
+                                                ? `${displayBestOpponent.opponent} (${displayBestOpponent.wins}W - ${displayBestOpponent.loses}L)`
+                                                : 'N/A'}
+                                        </div>
+                                    </div>
+                                    <div className={`${classes.castleCard} ${classes.worst}`}>
+                                        <div className={classes.castleName}>Worst record vs</div>
+                                        <div className={classes.castleStats}>
+                                            {displayWorstOpponent
+                                                ? `${displayWorstOpponent.opponent} (${displayWorstOpponent.wins}W - ${displayWorstOpponent.loses}L)`
+                                                : 'N/A'}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className={`${classes.castleCard} ${classes.worst}`}>
-                                <div className={classes.castleName}>Worst record vs</div>
-                                <div className={classes.castleStats}>
-                                    {worstOpponent
-                                        ? `${worstOpponent.opponent} (${worstOpponent.wins}W - ${worstOpponent.loses}L)`
-                                        : 'N/A'}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <button className={classes.btn} onClick={handleShowCastleStats}>
-                        Show full castle statistics
-                    </button>
+                            <button className={classes.btn} onClick={handleShowCastleStats}>
+                                Show full castle statistics
+                            </button>
+                        </>
+                    )}
                     {showPopup && castleStats && (
                         <>
                             <div className={classes.popupOverlay} onClick={() => setShowPopup(false)}></div>
@@ -793,17 +986,18 @@ export const PlayerProfileContent = ({
                             </div>
                         </>
                     )}
-                    {/* Rating Trend Chart Section */}
-                    <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>Rating trend</h3>
-                        <div className={classes.chartPanel}>
-                            {chartData ? (
-                                <Line data={chartData.data} options={chartData.options} />
-                            ) : (
-                                <p className={classes.emptyNote}>No rating data available</p>
-                            )}
+                    {showKonoplayPerformance && (
+                        <div className={classes.section}>
+                            <h3 className={classes.sectionTitle}>Rating trend</h3>
+                            <div className={classes.chartPanel}>
+                                {chartData ? (
+                                    <Line data={chartData.data} options={chartData.options} />
+                                ) : (
+                                    <p className={classes.emptyNote}>No rating data available</p>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {children}
                 </>

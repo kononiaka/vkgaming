@@ -446,15 +446,12 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
 // twitchAuth — exchanges a Twitch OAuth authorization code for a Firebase
 // custom token. Called from the React frontend after Twitch redirects back.
 // ---------------------------------------------------------------------------
-// hotaSearch — proxy to hotameta.com/api/search (no CORS on their end)
+// hotameta.com proxies (no CORS on their API)
 // ---------------------------------------------------------------------------
-exports.hotaSearch = functions.https.onCall(async (data) => {
-    const { query } = data;
-    if (!query || typeof query !== 'string' || query.trim().length < 2) {
-        throw new functions.https.HttpsError('invalid-argument', 'query must be at least 2 characters');
-    }
-    const https = require('https');
-    const url = `https://hotameta.com/api/search?q=${encodeURIComponent(query.trim())}`;
+const https = require('https');
+
+function fetchHotametaJson(path) {
+    const url = `https://hotameta.com/api/${path}`;
     return new Promise((resolve, reject) => {
         https
             .get(url, (res) => {
@@ -464,9 +461,11 @@ exports.hotaSearch = functions.https.onCall(async (data) => {
                 });
                 res.on('end', () => {
                     try {
-                        resolve({ results: JSON.parse(body) });
+                        resolve(JSON.parse(body));
                     } catch (e) {
-                        reject(new functions.https.HttpsError('internal', 'Failed to parse hotameta response'));
+                        reject(
+                            new functions.https.HttpsError('internal', 'Failed to parse hotameta response')
+                        );
                     }
                 });
             })
@@ -474,6 +473,59 @@ exports.hotaSearch = functions.https.onCall(async (data) => {
                 reject(new functions.https.HttpsError('internal', err.message));
             });
     });
+}
+
+exports.hotaSearch = functions.https.onCall(async (data) => {
+    const { query } = data;
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+        throw new functions.https.HttpsError('invalid-argument', 'query must be at least 2 characters');
+    }
+    const results = await fetchHotametaJson(`search?q=${encodeURIComponent(query.trim())}`);
+    return { results };
+});
+
+exports.hotaSummary = functions.https.onCall(async () => {
+    const summary = await fetchHotametaJson('summary');
+    return { summary };
+});
+
+exports.hotaFactions = functions.https.onCall(async () => {
+    const factions = await Promise.all(
+        Array.from({ length: 12 }, (_, id) => fetchHotametaJson(`faction/${id}`))
+    );
+    return { factions };
+});
+
+exports.hotaPlayer = functions.https.onCall(async (data) => {
+    const playerId = Number(data?.playerId);
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+        throw new functions.https.HttpsError('invalid-argument', 'playerId must be a positive integer');
+    }
+    const player = await fetchHotametaJson(`player/${playerId}`);
+    return { player };
+});
+
+exports.hotaPlayerMatches = functions.https.onCall(async (data) => {
+    const playerId = Number(data?.playerId);
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+        throw new functions.https.HttpsError('invalid-argument', 'playerId must be a positive integer');
+    }
+
+    const limit = Math.min(Math.max(Number(data?.limit) || 50, 1), 100);
+    let path = `player/${playerId}/matches?limit=${limit}`;
+
+    if (data?.heroId != null && Number.isInteger(Number(data.heroId))) {
+        path += `&hero_id=${Number(data.heroId)}`;
+    }
+
+    const matches = await fetchHotametaJson(path);
+    return { matches: Array.isArray(matches) ? matches : [] };
+});
+
+exports.hotaLeaderboard = functions.https.onCall(async (data) => {
+    const limit = Math.min(Math.max(Number(data?.limit) || 100, 1), 500);
+    const leaderboard = await fetchHotametaJson(`leaderboard?limit=${limit}`);
+    return { leaderboard: Array.isArray(leaderboard) ? leaderboard : [] };
 });
 
 //
@@ -584,7 +636,6 @@ exports.twitchAuth = functions.https.onCall(async (data) => {
                 stars: 0.5,
                 avatar: profileImageUrl || null,
                 totalPrize: 0,
-                score: 0,
                 registeredAt: now.toISOString()
             });
             // Registration coin transaction

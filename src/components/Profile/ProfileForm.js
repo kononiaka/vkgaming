@@ -6,11 +6,11 @@ import { addCoins } from '../../api/coinTransactions';
 import AuthContext from '../../store/auth-context';
 import { authFetch } from '../../api/authFetch';
 import { deleteAccount } from '../../api/deleteAccount';
+import LobbyNicknameField from './LobbyNicknameField';
 
 import classes from './ProfileForm.module.css';
 
 const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) => {
-    const newPasswordInsertedRef = useRef();
     const avatarInputRef = useRef();
 
     const authCtx = useContext(AuthContext);
@@ -21,7 +21,6 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
     const [daUsername, setDaUsername] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
-    const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
     const userNickName = authCtx.userNickName || localStorage.getItem('userName');
     const isOwnProfile = !!player && userNickName === player.enteredNickname;
 
@@ -211,30 +210,6 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
         }
     };
 
-    const submitHandler = (event) => {
-        event.preventDefault();
-        const newPasswordValue = newPasswordInsertedRef.current.value;
-
-        fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
-            method: 'POST',
-            body: JSON.stringify({
-                idToken: authCtx.token,
-                password: newPasswordValue,
-                returnSecureToken: false
-            }),
-            headers: { 'Content-Type': 'application/json' }
-        })
-            .then(async (res) => {
-                if (res.ok) {
-                    navigate.replace('/');
-                    return res.json();
-                }
-                const data = await res.json();
-                throw new Error(data?.error?.message || 'Password update failed');
-            })
-            .catch((err) => alert(err.message));
-    };
-
     if (!player) {
         return <p className={classes.loading}>Loading settings...</p>;
     }
@@ -304,20 +279,30 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 </div>
             )}
 
-            <p className={classes.lobbyNickHint}>
-                Your konoplay nickname is <strong>{player.enteredNickname}</strong>. It must match your in-game
-                Heroes III lobby name for cups and match reporting.
-            </p>
+            {isOwnProfile && !embedded && (
+                <div className={classes.formPanel}>
+                    <LobbyNicknameField
+                        userId={userId}
+                        nickname={player.enteredNickname}
+                        onSaved={(nextNickname) =>
+                            setPlayer((prev) => (prev ? { ...prev, enteredNickname: nextNickname } : prev))
+                        }
+                    />
+                </div>
+            )}
+
+            {embedded && isOwnProfile && (
+                <p className={classes.lobbyNickHint}>
+                    Edit your lobby nickname in the profile card above. It must match your in-game Heroes III lobby
+                    name for cups and match reporting.
+                </p>
+            )}
 
             {!embedded && (
                 <div className={classes.quickStats}>
                     <div className={classes.statBox}>
                         <span className={classes.statLabel}>Coins</span>
                         <span className={classes.statValue}>{player.coins ?? 0}</span>
-                    </div>
-                    <div className={classes.statBox}>
-                        <span className={classes.statLabel}>Score</span>
-                        <span className={classes.statValue}>{player.score ?? 0}</span>
                     </div>
                 </div>
             )}
@@ -341,23 +326,6 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                     Save DA username
                 </button>
             </div>
-
-            <form className={classes.formPanel} onSubmit={submitHandler}>
-                <h4 className={classes.panelTitle}>Password</h4>
-                <p className={classes.panelNote}>Email account only. Twitch logins use Twitch to sign in.</p>
-                <div className={classes.formControl}>
-                    <label htmlFor="new-password">New password</label>
-                    <input
-                        type="password"
-                        id="new-password"
-                        ref={newPasswordInsertedRef}
-                        placeholder="Enter new password"
-                    />
-                </div>
-                <button type="submit" className={classes.primaryBtn}>
-                    Change password
-                </button>
-            </form>
 
             {isOwnProfile && (
                 <div className={classes.dangerPanel}>

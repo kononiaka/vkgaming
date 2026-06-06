@@ -1,5 +1,6 @@
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { authFetch } from './authFetch';
+import { fetchHotaLeaderboard, findHotaLeaderboardRank } from './hotaMeta';
 
 export const getTournamentPrizeLabel = (tournament) => {
     if (!tournament) {
@@ -122,35 +123,52 @@ export async function updatePairProgressStage(tournamentId, pairId, stage) {
         return false;
     }
 }
-export const fetchLeaderboard = async (player) => {
+export const getKonoplayLatestRating = (user) => {
+    const rating = user?.ratings;
+    if (typeof rating === 'string' && rating.includes(',')) {
+        return parseFloat(rating.split(',').at(-1)) || 0;
+    }
+    return parseFloat(rating) || 0;
+};
+
+export const fetchKonoplayLeaderboardRank = async (player) => {
     try {
         const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
         if (!response.ok) {
             throw new Error('Unable to fetch leaderboard.');
         }
         const data = await response.json();
-        if (!data || !player) {
+        if (!data || !player?.enteredNickname) {
             return null;
         }
 
-        // Convert users object to array and sort by ratings descending (matches Leaderboard)
-        const getLatestRating = (u) => {
-            const r = u.ratings;
-            if (typeof r === 'string' && r.includes(',')) {
-                return parseFloat(r.split(',').at(-1)) || 0;
-            }
-            return parseFloat(r) || 0;
-        };
-        const usersArray = Object.values(data).filter((u) => u && u.ratings !== undefined);
-        usersArray.sort((a, b) => getLatestRating(b) - getLatestRating(a));
+        const usersArray = Object.values(data).filter((user) => user && user.ratings !== undefined);
+        usersArray.sort((a, b) => getKonoplayLatestRating(b) - getKonoplayLatestRating(a));
 
-        // Find the index of the current player
-        const place = usersArray.findIndex((u) => u.enteredNickname === player.enteredNickname) + 1;
-        return place;
+        const place = usersArray.findIndex((user) => user.enteredNickname === player.enteredNickname) + 1;
+        return place > 0 ? place : null;
     } catch (error) {
-        console.error('Error fetching leaderboard:', error);
+        console.error('Error fetching Konoplay leaderboard rank:', error);
         return null;
     }
+};
+
+export const fetchLeaderboard = async (player) => {
+    if (!player?.enteredNickname) {
+        return null;
+    }
+
+    try {
+        const hotaLeaderboard = await fetchHotaLeaderboard({ limit: 500 });
+        const hotaRank = findHotaLeaderboardRank(player.enteredNickname, hotaLeaderboard);
+        if (hotaRank != null) {
+            return hotaRank;
+        }
+    } catch (error) {
+        console.error('HotA leaderboard rank lookup failed, using Konoplay fallback:', error);
+    }
+
+    return fetchKonoplayLeaderboardRank(player);
 };
 
 export const confirmWindow = (message) => {
@@ -174,7 +192,7 @@ const enforceMinPlayerRating = (ratingValue) => {
 };
 
 export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamentId, team) => {
-    const { score, games, ratings, stars } = data;
+    const { games, ratings } = data;
     const safeScoreToAdd = enforceMinPlayerRating(scoreToAdd);
 
     let updatedRatings = ratings + `, ${safeScoreToAdd.toFixed(2)}`;
@@ -209,14 +227,11 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                     .map(([id, player]) => ({
                         id,
                         enteredNickname: player.enteredNickname,
-                        score: player.score,
                         ratings: player.ratings ? parseFloat(player.ratings).toFixed(2) : '0.00',
                         games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
                         stars: player.stars
                     }))
                     .sort((a, b) => parseFloat(b.ratings) - parseFloat(a.ratings));
-
-                //TODO: refactor this when the max score is 10 and the lowest score is 5 e.g.
                 const highestRating = playerObj[0].ratings;
                 const lowestRating = Math.min(
                     ...playerObj
@@ -362,11 +377,10 @@ export const lookForUserPrevScore = async (userId) => {
     const data = await response.json();
 
     if (data && !!data.ratings) {
-        results.ratings = data.ratings; // Return the score of the user object
+        results.ratings = data.ratings;
         results.games = data.gamesPlayed;
         results.stars = data.stars;
     } else {
-        // Add score property with default value if it doesn't exist
         await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}/ratings.json`, {
             method: 'PUT',
             body: JSON.stringify(0)
@@ -375,7 +389,6 @@ export const lookForUserPrevScore = async (userId) => {
     if (data && data.gamesPlayed) {
         results.games = data.gamesPlayed;
     } else {
-        // Add score property with default value if it doesn't exist
         await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}/gamesPlayed.json`, {
             method: 'PUT',
             body: JSON.stringify({ heroes3: { total: 0, win: 0, lose: 0 } })
@@ -496,10 +509,78 @@ export const getNewRating = (playerRating, opponentRating, didWin, kFactor = 1) 
     return enforceMinPlayerRating(playerRating + ratingChange);
 };
 
-export const calculateStarsFromRating = (rating, highestRating, lowestRating, minStars = 0.5) => {
+export const SITE_STARS_MAX = 5;
+export const SITE_STARS_MIN = 0.5;
+export const SITE_STARS_TOP50_COUNT = 50;
+export const SITE_STARS_TOP50_MIN = 4;
+
+export const roundSiteStars = (value) => {
+    const clamped = Math.max(SITE_STARS_MIN, Math.min(SITE_STARS_MAX, value));
+    return Math.round(clamped * 2) / 2;
+};
+
+export const computeSiteStarsFromRank = (rank, { topCount = SITE_STARS_TOP50_COUNT } = {}) => {
+    if (rank == null || rank <= 0) {
+        return SITE_STARS_MIN;
+    }
+
+    if (rank <= topCount) {
+        const progress = (rank - 1) / Math.max(topCount - 1, 1);
+        return roundSiteStars(SITE_STARS_MAX - progress * (SITE_STARS_MAX - SITE_STARS_TOP50_MIN));
+    }
+
+    if (rank <= 150) {
+        const progress = (rank - topCount) / (150 - topCount);
+        return roundSiteStars(SITE_STARS_TOP50_MIN - progress * 1);
+    }
+
+    if (rank <= 500) {
+        const progress = (rank - 150) / (500 - 150);
+        return roundSiteStars(3 - progress * 1.5);
+    }
+
+    return SITE_STARS_MIN;
+};
+
+export const applySiteStarsFromRank = (players) =>
+    players.map((player) => ({
+        ...player,
+        siteStars: computeSiteStarsFromRank(player.rank)
+    }));
+
+export const getSiteStarBounds = (players, ratingKey = 'rating') => {
+    const ratings = players
+        .map((player) => Number(player?.[ratingKey]))
+        .filter((rating) => Number.isFinite(rating) && rating > 0);
+
+    if (!ratings.length) {
+        return { highest: 0, lowest: 0 };
+    }
+
+    return {
+        highest: Math.max(...ratings),
+        lowest: Math.min(...ratings)
+    };
+};
+
+export const computeSiteStars = (rating, bounds, minStars = SITE_STARS_MIN) => {
+    if (!bounds || (!bounds.highest && !bounds.lowest)) {
+        return minStars;
+    }
+
+    return calculateStarsFromRating(Number(rating) || 0, bounds.highest, bounds.lowest, minStars);
+};
+
+export const applySiteStarsToPlayers = (players, bounds, ratingKey = 'rating') =>
+    players.map((player) => ({
+        ...player,
+        siteStars: computeSiteStars(player?.[ratingKey], bounds)
+    }));
+
+export const calculateStarsFromRating = (rating, highestRating, lowestRating, minStars = SITE_STARS_MIN) => {
     let cappedStars;
     if (rating > 0) {
-        const totalStars = 5;
+        const totalStars = SITE_STARS_MAX;
         const range = highestRating - lowestRating;
 
         // Linear distribution from 0.5 to 5.0 stars

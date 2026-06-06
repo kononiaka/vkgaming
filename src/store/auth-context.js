@@ -4,9 +4,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 const AuthContext = React.createContext({
     token: '',
     isLogged: false,
-    score: null,
     login: (token) => {},
     logout: () => {},
+    updateUserNickName: () => {},
     notificationShown: false,
     message: '',
     notificationStatus: '',
@@ -116,6 +116,16 @@ export const AuthContextProvider = (props) => {
         logoutTimer = setTimeout(logoutHandler, remainingTime);
     };
 
+    const updateUserNickNameHandler = useCallback(
+        (userName) => {
+            const trimmed = (userName || '').trim();
+            setUserNickName(trimmed);
+            localStorage.setItem('userName', trimmed);
+            fetchAdminStatusByNickname(trimmed);
+        },
+        [fetchAdminStatusByNickname]
+    );
+
     useEffect(() => {
         if (tokenData) {
             logoutTimer = setTimeout(logoutHandler, tokenData.duration);
@@ -155,6 +165,7 @@ export const AuthContextProvider = (props) => {
         isLogged: userIsLoggedIn,
         login: loginHandler,
         logout: logoutHandler,
+        updateUserNickName: updateUserNickNameHandler,
         userNickName: userNickName,
         notificationShown: notificationShown,
         message: notificationMessage,
