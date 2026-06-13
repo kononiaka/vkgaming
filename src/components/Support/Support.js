@@ -8,18 +8,26 @@ import classes from './Support.module.css';
 import { FIREBASE_FUNCTIONS_BASE } from '../../config/firebase';
 
 const STRIPE_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/createStripeCheckout`;
-
-const donationTiers = [
-    { amount: 5, coins: 10, label: 'Champion', tierClass: 'tierChampion' },
-    { amount: 10, coins: 25, label: 'Legend', tierClass: 'tierLegend' }
-];
+const MIN_STRIPE_DONATION_USD = 5;
 
 const Support = () => {
     const authCtx = useContext(AuthContext);
-    const [stripeLoading, setStripeLoading] = useState(null);
+    const [stripeAmount, setStripeAmount] = useState('10');
+    const [stripeLoading, setStripeLoading] = useState(false);
     const [loginPrompt, setLoginPrompt] = useState(false);
 
     const handleStripe = async (amount) => {
+        const parsedAmount = Number(amount);
+        if (!Number.isFinite(parsedAmount) || parsedAmount < MIN_STRIPE_DONATION_USD) {
+            authCtx.setNotificationShown(
+                true,
+                `Minimum card donation is $${MIN_STRIPE_DONATION_USD}. Use Donation Alerts for smaller amounts.`,
+                'warning',
+                5
+            );
+            return;
+        }
+
         if (!authCtx.isLogged) {
             setLoginPrompt(true);
             return;
@@ -38,14 +46,14 @@ const Support = () => {
             return;
         }
 
-        setStripeLoading(amount);
+        setStripeLoading(true);
         const stripeWindow = window.open('', '_blank');
         try {
             const res = await fetch(STRIPE_FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount,
+                    amount: parsedAmount,
                     userId,
                     nickname: authCtx.userNickName,
                     origin: window.location.origin
@@ -64,8 +72,13 @@ const Support = () => {
             console.error('Stripe error:', err);
             alert('Failed to open payment. Please try again.');
         } finally {
-            setStripeLoading(null);
+            setStripeLoading(false);
         }
+    };
+
+    const handleStripeSubmit = (event) => {
+        event.preventDefault();
+        handleStripe(stripeAmount);
     };
 
     const requireLogin = (event) => {
@@ -81,18 +94,18 @@ const Support = () => {
                 <div>
                     <h1 className={classes.pageTitle}>Support</h1>
                     <p className={classes.pageSubtitle}>
-                        Back the project, fund prize pools, and earn coins for your account.
+                        Back the project and fund live tournament prize pools.
                     </p>
                 </div>
             </header>
 
             <section className={classes.infoPanel}>
                 <p className={classes.infoLead}>
-                    <strong>80%</strong> of donations go to tournament prize pools.{' '}
-                    <strong>20%</strong> supports platform development.
+                    <strong>90%</strong> of donations go to tournament prize pools.{' '}
+                    <strong>10%</strong> supports platform development.
                 </p>
                 <p className={classes.infoDetail}>
-                    Coins are credited automatically after payment via both providers.
+                    Donations are tracked on your account after payment via both providers.
                 </p>
                 {authCtx.isLogged && authCtx.userNickName && (
                     <p className={classes.accountLine}>
@@ -109,7 +122,7 @@ const Support = () => {
             {loginPrompt && (
                 <div className={classes.loginBanner} role="alert">
                     <span>
-                        Please <Link to="/auth">log in</Link> first to donate and receive coins.
+                        Please <Link to="/auth">log in</Link> first to donate.
                     </span>
                     <button
                         type="button"
@@ -129,11 +142,8 @@ const Support = () => {
             <section className={classes.section}>
                 <h2 className={classes.sectionTitle}>Donation Alerts</h2>
                 <p className={classes.sectionNote}>
-                    Donate any amount — coins are matched by your Donation Alerts username set in your{' '}
+                    Donate any amount — matched by your Donation Alerts username set in your{' '}
                     <Link to="/profile">Profile</Link>.
-                </p>
-                <p className={classes.coinTable}>
-                    Coin conversion: $1 = 2 coins · $3 = 5 coins · $5 = 10 coins · $10 = 25 coins
                 </p>
                 <div className={classes.actionRow}>
                     <a
@@ -151,42 +161,38 @@ const Support = () => {
             <section className={classes.section}>
                 <h2 className={classes.sectionTitle}>Card (Stripe)</h2>
                 <p className={classes.sectionNote}>
-                    Visa, Mastercard, Apple Pay, Google Pay, and BLIK. Minimum $5 via card.
+                    Visa, Mastercard, Apple Pay, Google Pay, and BLIK. Enter any amount — minimum $
+                    {MIN_STRIPE_DONATION_USD} via card.
                 </p>
-                <div className={classes.tierGrid}>
-                    {donationTiers.map((tier) => (
-                        <button
-                            key={tier.amount}
-                            type="button"
-                            className={classes.tierBtn}
-                            onClick={() => handleStripe(tier.amount)}
-                            disabled={stripeLoading !== null}
-                        >
-                            <div className={`${classes.tierCard} ${classes[tier.tierClass]}`}>
-                                <div className={classes.tierHeader}>
-                                    <span className={classes.tierLabel}>{tier.label}</span>
-                                    <span className={classes.tierAmount}>${tier.amount}</span>
-                                </div>
-                                <div className={classes.tierBody}>
-                                    <span className={classes.tierCoins}>
-                                        {stripeLoading === tier.amount
-                                            ? 'Opening checkout…'
-                                            : `+${tier.coins} coins`}
-                                    </span>
-                                    {stripeLoading !== tier.amount && (
-                                        <span className={classes.tierPay}>Pay with card</span>
-                                    )}
-                                </div>
-                            </div>
+                <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
+                    <label className={classes.amountLabel} htmlFor="stripeDonationAmount">
+                        Amount (USD)
+                    </label>
+                    <div className={classes.stripeRow}>
+                        <div className={classes.amountField}>
+                            <span className={classes.amountPrefix}>$</span>
+                            <input
+                                id="stripeDonationAmount"
+                                className={classes.amountInput}
+                                type="number"
+                                min={MIN_STRIPE_DONATION_USD}
+                                step="1"
+                                value={stripeAmount}
+                                onChange={(event) => setStripeAmount(event.target.value)}
+                                disabled={stripeLoading}
+                            />
+                        </div>
+                        <button type="submit" className={classes.primaryBtn} disabled={stripeLoading}>
+                            {stripeLoading ? 'Opening checkout…' : 'Pay with card'}
                         </button>
-                    ))}
-                </div>
+                    </div>
+                </form>
                 <p className={classes.footnote}>For smaller amounts, use Donation Alerts.</p>
             </section>
 
             <section className={classes.section}>
                 <h2 className={classes.sectionTitle}>Other</h2>
-                <p className={classes.sectionNote}>Direct transfer — no coins are awarded.</p>
+                <p className={classes.sectionNote}>Direct transfer via MonoBank.</p>
                 <div className={classes.actionRow}>
                     <a
                         href="https://send.monobank.ua/jar/834ApdUfdC"

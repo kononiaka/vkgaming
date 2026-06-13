@@ -78,8 +78,10 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.2rem 0.65rem;
+    padding: 0 0.65rem;
     margin: 0 0.5rem;
+    height: 100%;
+    max-height: 100%;
     background: var(--color-bg-deep);
     border: var(--border-subtle);
     border-radius: var(--radius-sm);

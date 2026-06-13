@@ -296,6 +296,12 @@
     border-top: 1px solid rgba(182, 160, 125, 0.28);
 }
 
+.upcomingMatchesSection {
+    margin: 1.5rem 0 0;
+    padding: 1.25rem 0 0;
+    border-top: 1px solid rgba(182, 160, 125, 0.28);
+}
+
 .sectionTitle {
     margin: 0 0 1rem;
     font-family: var(--font-body);

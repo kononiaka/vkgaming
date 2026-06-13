@@ -194,6 +194,11 @@
     background: rgba(60, 20, 25, 0.15);
 }
 
+.matchHighlighted {
+    outline: 3px solid #ffd700;
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.55);
+}
+
 .matchPending {
     border-left: 2px solid transparent;
 }
@@ -302,6 +307,69 @@
     align-items: flex-start;
     gap: 0.15rem;
     min-width: 0;
+    width: 100%;
+}
+
+.schedulePlayerCell {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    width: 100%;
+}
+
+.schedulePlayerCellRight {
+    flex-direction: row-reverse;
+}
+
+.schedulePlayerAvatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.schedulePlayerAvatarFallback {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.schedulePlayerFlag {
+    flex-shrink: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.schedulePlayerStars {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.schedulePlayerName {
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--color-text);
 }
 
 .teamCellRight {
@@ -465,6 +533,59 @@
     font-weight: 600;
 }
 
+.standingsPlayer {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.standingsPlayerAvatar {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.standingsPlayerAvatarFallback {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.standingsPlayerName {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.standingsPlayerStars {
+    flex-shrink: 0;
+    display: inline-flex;
+    font-size: 0.72rem;
+    line-height: 1;
+}
+
+.leader .standingsPlayerName {
+    color: var(--color-gold);
+}
+
+.qualifierRow .standingsPlayerName {
+    color: #9eddb3;
+}
+
 .pointsCell {
     font-weight: 700;
     color: var(--color-gold) !important;
@@ -482,6 +603,43 @@
 .leader td:first-child {
     color: var(--color-gold);
     font-weight: 700;
+}
+
+.qualifierRow td {
+    background: rgba(76, 175, 106, 0.1) !important;
+    border-top-color: rgba(76, 175, 106, 0.22);
+}
+
+.qualifierRow:hover td {
+    background: rgba(76, 175, 106, 0.16) !important;
+}
+
+.qualifierRow td:first-child {
+    color: #7ec99a;
+    font-weight: 700;
+}
+
+.qualifierRow .playerCell {
+    color: #9eddb3;
+}
+
+.qualifierRow .pointsCell {
+    color: #9eddb3 !important;
+}
+
+.qualifierBadge {
+    display: inline-block;
+    margin-left: 0.45rem;
+    padding: 0.08rem 0.35rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #7ec99a;
+    background: rgba(76, 175, 106, 0.14);
+    border: 1px solid rgba(76, 175, 106, 0.4);
+    border-radius: var(--radius-sm);
+    vertical-align: middle;
 }
 
 .emptyNote {

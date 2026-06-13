@@ -53,6 +53,36 @@ export const resolveCountryCode = (user) => {
     return /^[A-Z]{2}$/.test(normalized) ? normalized : null;
 };
 
+export const buildCountryLookup = (usersData = {}) => {
+    const byLowerNickname = {};
+
+    Object.values(usersData).forEach((user) => {
+        if (!user?.enteredNickname) {
+            return;
+        }
+
+        const code = resolveCountryCode(user);
+        if (code) {
+            byLowerNickname[user.enteredNickname.trim().toLowerCase()] = code;
+        }
+    });
+
+    return byLowerNickname;
+};
+
+export const lookupCountryCode = (nickname, lookup, playerRecord = null) => {
+    const fromPlayer = resolveCountryCode(playerRecord);
+    if (fromPlayer) {
+        return fromPlayer;
+    }
+
+    if (!nickname) {
+        return null;
+    }
+
+    return lookup[nickname.trim().toLowerCase()] || null;
+};
+
 export const getCountryLabel = (code) => {
     const normalized = resolveCountryCode({ countryCode: code });
     if (!normalized) {

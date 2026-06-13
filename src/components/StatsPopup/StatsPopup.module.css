@@ -1,152 +1,294 @@
 .backdrop {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    inset: 0;
     z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
-    overflow: hidden;
+    padding: 1rem;
+    background: rgba(4, 8, 14, 0.72);
+    backdrop-filter: blur(6px);
+    animation: statsFadeIn 0.2s ease;
+}
+
+@keyframes statsFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .popup {
     position: relative;
-    background: linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%);
-    border: 2px solid gold;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    padding: 2rem;
-    min-width: 400px;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    color: white;
-    animation: slideIn 0.3s ease-out;
+    width: min(100%, 34rem);
+    max-height: 82vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    animation: statsSlideIn 0.25s ease-out;
 }
 
-@keyframes slideIn {
+@keyframes statsSlideIn {
     from {
         opacity: 0;
-        transform: translateY(-20px) scale(0.95);
+        transform: translateY(-12px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
     }
 }
 
-.popup h3 {
-    color: gold;
-    text-align: center;
-    font-size: 1.5rem;
-    margin: 0 0 1.5rem 0;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+.header {
+    padding: 1.15rem 1.35rem 0.9rem;
+    border-bottom: var(--border-subtle);
+}
+
+.title {
+    margin: 0;
     padding-right: 2rem;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    line-height: 1.7;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.subtitle {
+    margin: 0.45rem 0 0;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--color-text-dim);
+}
+
+.sourceBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.4rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    background: rgba(201, 162, 39, 0.1);
+    color: var(--color-gold);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.body {
+    padding: 0.85rem 1rem 1rem;
+    overflow-y: auto;
+    min-height: 10rem;
+}
+
+.loadingState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-height: 10rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+}
+
+.spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    border-top-color: var(--color-gold);
+    border-radius: 50%;
+    animation: statsSpin 0.8s linear infinite;
+}
+
+@keyframes statsSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loadingText {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.loadingHint {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--color-text-dim);
 }
 
 .closeButton {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: rgba(255, 215, 0, 0.2);
-    border: 2px solid gold;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    font-size: 24px;
-    cursor: pointer;
-    color: gold;
+    top: 0.65rem;
+    right: 0.65rem;
+    width: 2rem;
+    height: 2rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-    line-height: 1;
     padding: 0;
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-gold);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
 }
 
 .closeButton:hover {
-    background: gold;
-    color: rgb(62, 32, 192);
-    transform: rotate(90deg);
+    background: rgba(201, 162, 39, 0.12);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+}
+
+.section {
+    margin-bottom: 0.85rem;
+}
+
+.section:last-child {
+    margin-bottom: 0;
+}
+
+.sectionTitle {
+    margin: 0 0 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-teal);
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+.statCard {
+    padding: 0.65rem 0.75rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 3px solid rgba(201, 162, 39, 0.45);
+    border-radius: var(--radius-md);
+}
+
+.statCardWide {
+    grid-column: 1 / -1;
+}
+
+.statLabel {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--color-text-dim);
+    margin-bottom: 0.2rem;
+}
+
+.statValue {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-gold-bright);
+    font-variant-numeric: tabular-nums;
 }
 
 .statsList {
     list-style: none;
     padding: 0;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
 }
 
 .statsList li {
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    border-left: 3px solid rgba(255, 215, 0, 0.5);
-    transition: all 0.2s ease;
+    padding: 0.65rem 0.75rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 3px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
+    font-size: 0.84rem;
+    color: var(--color-text-muted);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 
 .statsList li:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-left-color: gold;
-    transform: translateX(4px);
+    background: var(--color-bg-panel-alt);
+    border-left-color: var(--color-gold);
 }
 
 .statsList li b {
-    color: gold;
+    color: var(--color-text);
     font-weight: 600;
 }
 
-.lastGames {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 2px solid rgba(255, 215, 0, 0.3);
+.statsList li em {
+    color: var(--color-gold-bright);
+    font-style: normal;
+    font-weight: 700;
 }
 
-.lastGames > b {
-    display: block;
-    color: gold;
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.historyLink {
+    color: var(--color-teal);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s ease;
 }
 
-/* Scrollbar styling */
-.popup::-webkit-scrollbar {
+.historyLink:hover {
+    color: var(--color-gold-bright);
+}
+
+.body::-webkit-scrollbar {
     width: 8px;
 }
 
-.popup::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+.body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
     border-radius: 4px;
 }
 
-.popup::-webkit-scrollbar-thumb {
-    background: rgba(255, 215, 0, 0.5);
+.body::-webkit-scrollbar-thumb {
+    background: rgba(201, 162, 39, 0.35);
     border-radius: 4px;
 }
 
-.popup::-webkit-scrollbar-thumb:hover {
-    background: gold;
+.body::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 162, 39, 0.55);
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
     .popup {
-        min-width: 90vw;
-        padding: 1.5rem;
+        width: min(100%, 100%);
     }
 
-    .popup h3 {
-        font-size: 1.2rem;
+    .statsGrid {
+        grid-template-columns: 1fr;
     }
 
-    .statsList li {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.9rem;
+    .statCardWide {
+        grid-column: auto;
     }
 }

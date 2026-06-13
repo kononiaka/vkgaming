@@ -11,9 +11,20 @@
     min-height: 0;
 }
 
+.bracketShellFull {
+    min-height: calc(100vh - var(--layout-top-offset) - 7rem);
+    max-height: none;
+    overflow: visible;
+}
+
+.bracketShellFull .bracketBody {
+    flex: 1;
+    min-height: 0;
+}
+
 .fixedHeader {
     position: sticky;
-    top: 0;
+    top: var(--layout-top-offset);
     z-index: 5;
     padding: 0.85rem 1.25rem;
     background: var(--color-bg-panel);
@@ -118,23 +129,12 @@
 }
 
 .bracket-stages-container {
-    color: #ffffff;
+    color: var(--color-text);
     display: flex;
     gap: 3rem;
     padding: 2rem 0;
     position: relative;
     z-index: 1;
-}
-
-.bracket-stage-single {
-    color: #ffffff;
-    flex: 1;
-    min-width: 0;
-    padding: 0 1.5rem 2rem;
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
 }
 
 .bracket-stages-container:has(.bracket-stages-column:last-child) {
@@ -189,26 +189,309 @@
 }
 
 .game-block {
-    background: linear-gradient(135deg, rgba(62, 32, 192, 0.5) 0%, rgba(45, 20, 150, 0.5) 100%);
-    border: 2px solid rgba(255, 215, 0, 0.5);
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
-    padding: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
+    background: var(--color-bg-panel);
+    border: var(--border-subtle);
+    border-left: 3px solid rgba(201, 162, 39, 0.45);
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    padding: 1rem 1.1rem 1.15rem;
+    box-shadow: var(--shadow-panel);
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
     width: 100%;
     position: relative;
     z-index: 1;
 }
 
 .game-block:hover {
-    border-color: gold;
-    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
-    transform: translateY(-2px);
+    border-color: rgba(201, 162, 39, 0.28);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.game-blockHighlighted {
+    outline: 2px solid rgba(201, 162, 39, 0.65);
+    box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.25), 0 0 24px rgba(201, 162, 39, 0.18);
 }
 
 .game-block:last-child {
     margin-bottom: 0;
+}
+
+.knockoutBanner {
+    text-align: center;
+    margin: 0 0 1.25rem;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+}
+
+.knockoutNav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 0;
+}
+
+.knockoutNavBtn {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    border: 1px solid rgba(201, 162, 39, 0.45);
+    background: rgba(201, 162, 39, 0.12);
+    color: var(--color-gold);
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+.knockoutNavBtn:hover:not(:disabled) {
+    background: rgba(201, 162, 39, 0.22);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+}
+
+.knockoutNavBtn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.knockoutNavCenter {
+    text-align: center;
+    min-width: 16rem;
+}
+
+.knockoutStageTitle {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    line-height: 1.7;
+    color: var(--color-gold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.knockoutStageMeta {
+    color: var(--color-text-dim);
+    font-size: 0.78rem;
+    margin-top: 0.35rem;
+}
+
+.knockoutDots {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.75rem;
+}
+
+.knockoutDot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: rgba(201, 162, 39, 0.2);
+    border: 1px solid rgba(201, 162, 39, 0.45);
+    padding: 0;
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        background 0.15s ease;
+}
+
+.knockoutDotActive {
+    background: var(--color-gold);
+    transform: scale(1.25);
+}
+
+.knockoutColumns {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.knockoutColumnTitle {
+    color: var(--color-gold);
+    text-align: center;
+    font-size: 0.72rem;
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.85rem;
+}
+
+.knockoutSubTitle {
+    color: var(--color-teal);
+    text-align: center;
+    font-size: 0.72rem;
+    font-family: var(--font-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 2rem 0 0.85rem;
+}
+
+.knockoutMatchLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+}
+
+.knockoutPlayersStack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.knockoutMatchActions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.knockoutReportBtn {
+    padding: 0.45rem 0.85rem;
+    background: var(--color-gold);
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    color: var(--color-bg-deep);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.78rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.knockoutReportBtn:hover {
+    background: var(--color-gold-bright);
+    border-color: var(--color-gold-bright);
+}
+
+.knockoutReportBtnMuted {
+    background: var(--color-bg-elevated);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--color-text-muted);
+}
+
+.knockoutReportBtnMuted:hover {
+    background: var(--color-bg-panel-alt);
+    color: var(--color-text);
+}
+
+.knockoutScheduleWrap {
+    position: relative;
+    z-index: 4;
+    margin-bottom: 0.65rem;
+    padding: 0 0.25rem;
+    pointer-events: auto;
+}
+
+.matchFormatBadge {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-sm);
+    padding: 0.1rem 0.45rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--color-gold);
+    letter-spacing: 0.08em;
+    z-index: 2;
+    text-transform: uppercase;
+}
+
+.matchFormatBadgeBo3 {
+    border-color: rgba(201, 138, 90, 0.45);
+    color: #e8b88a;
+}
+
+.matchFormatBadgeBo5 {
+    border-color: rgba(160, 120, 200, 0.45);
+    color: #c9a8e8;
+}
+
+.knockoutConnector {
+    width: 3.5rem;
+    flex-shrink: 0;
+    align-self: stretch;
+}
+
+.knockoutConnector path {
+    stroke: rgba(201, 162, 39, 0.35);
+    stroke-width: 2;
+    fill: none;
+}
+
+.bracket-stage-single {
+    color: var(--color-text);
+    flex: 1;
+    min-width: 0;
+    padding: 0 0.75rem 1.5rem;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.knockoutStatsBtn {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid rgba(201, 162, 39, 0.45);
+    color: var(--color-gold);
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.knockoutStatsBtn:hover {
+    background: rgba(201, 162, 39, 0.22);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+    transform: scale(1.05);
+}
+
+.knockoutMatchFooter {
+    position: absolute;
+    bottom: 0.55rem;
+    right: 0.55rem;
+    z-index: 2;
+}
+
+.knockoutMatchFooterTop {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 2;
 }
 
 /* Button Styles */
@@ -286,6 +569,262 @@
     100% {
         opacity: 0.3;
     }
+}
+
+/* Available Castles modal */
+.castlesModalBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(4, 8, 14, 0.72);
+    backdrop-filter: blur(6px);
+    animation: castlesFadeIn 0.2s ease;
+}
+
+@keyframes castlesFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.castlesModal {
+    position: relative;
+    width: min(100%, 34rem);
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    animation: castlesSlideIn 0.25s ease-out;
+}
+
+@keyframes castlesSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.castlesModalClose {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-gold);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.castlesModalClose:hover {
+    background: rgba(201, 162, 39, 0.12);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+}
+
+.castlesModalHeader {
+    padding: 1.25rem 1.5rem 0.85rem;
+    border-bottom: var(--border-subtle);
+}
+
+.castlesModalTitle {
+    margin: 0;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.castlesModalLegend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 0.85rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.72rem;
+    color: var(--color-text-dim);
+}
+
+.castlesModalLegendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.castlesModalLegendSwatch {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.castlesModalLegendLow {
+    background: rgba(76, 175, 106, 0.85);
+}
+
+.castlesModalLegendHigh {
+    background: rgba(201, 122, 122, 0.9);
+}
+
+.castlesModalLegendLive {
+    background: #c98a5a;
+}
+
+.castlesModalList {
+    list-style: none;
+    margin: 0;
+    padding: 0.85rem 1rem 1rem;
+    overflow-y: auto;
+}
+
+.castlesModalRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 0.45rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 3px solid rgba(201, 162, 39, 0.45);
+    border-radius: var(--radius-md);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.castlesModalRow:last-child {
+    margin-bottom: 0;
+}
+
+.castlesModalRow:hover {
+    background: var(--color-bg-panel-alt);
+    transform: translateX(2px);
+}
+
+.castlesModalRowLow {
+    border-left-color: #7ec99a;
+}
+
+.castlesModalRowLow .castlesModalName {
+    color: #9eddb3;
+}
+
+.castlesModalRowHigh {
+    border-left-color: #c97a7a;
+}
+
+.castlesModalRowHigh .castlesModalName {
+    color: #e0a0a0;
+}
+
+.castlesModalRowLive {
+    background: rgba(201, 138, 90, 0.08);
+    border-color: rgba(201, 138, 90, 0.28);
+    border-left-color: #c98a5a;
+}
+
+.castlesModalMain {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.castlesModalThumb {
+    width: 2.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.castlesModalThumbFallback {
+    width: 2.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    background: rgba(201, 162, 39, 0.08);
+    border: 1px dashed rgba(201, 162, 39, 0.25);
+}
+
+.castlesModalName {
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.castlesModalLiveBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.45rem;
+    padding: 0.12rem 0.4rem;
+    border-radius: var(--radius-sm);
+    background: rgba(201, 138, 90, 0.18);
+    border: 1px solid rgba(201, 138, 90, 0.45);
+    color: #e8b88a;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.castlesModalStats {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+}
+
+.castlesModalLiveCount {
+    margin-left: 0.25rem;
+    color: #e8b88a;
+    font-weight: 700;
+}
+
+.castlesModalFooter {
+    padding: 0 1rem 1rem;
+}
+
+.castlesModalFooterBtn {
+    width: 100%;
 }
 
 @media (max-width: 768px) {

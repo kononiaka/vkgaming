@@ -78,6 +78,16 @@ const MainHeader = () => {
 
                 <li className={classes['navLink-item']}>
 
+                    <Link to="/live" className={classes['navLink-link']}>
+
+                        Live Arena
+
+                    </Link>
+
+                </li>
+
+                <li className={classes['navLink-item']}>
+
                     <Link to="/leaderboard" className={classes['navLink-link']}>
 
                         Leaderboard

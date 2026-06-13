@@ -19,6 +19,7 @@ import NotFound from './pages/NotFound';
 import SupportPage from './pages/SupportPage';
 import HelpPage from './pages/HelpPage';
 import RulesPage from './pages/RulesPage';
+import LiveArenaPage from './pages/LiveArenaPage';
 import AuthContext from './store/auth-context';
 
 import classes from './App.module.css';
@@ -47,6 +48,7 @@ function App() {
                     <Route path="/players" element={<PlayersList />} />
                     <Route path="/players/:id" element={<Players />} />
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/live" element={<LiveArenaPage />} />
                     <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
                     {!authCtx.isLogged && <Route path="/auth" element={<AuthPage />} />}
                     <Route path="/profile" element={authCtx.isLogged ? <UserProfile /> : <Navigate to="/auth" />} />

@@ -38,6 +38,22 @@
     opacity: 1;
 }
 
+.silverIcon {
+    background: #8b9aab;
+}
+
+.silverIcon::after {
+    background: #c5d0dc;
+}
+
+.goldIcon {
+    background: var(--color-gold-dim);
+}
+
+.goldIcon::after {
+    background: var(--color-gold);
+}
+
 .coinIcon {
     width: 16px;
     height: 16px;

@@ -6,6 +6,8 @@ import 'chart.js/auto';
 import { NavLink } from 'react-router-dom';
 import StarsComponent from '../../../Stars/Stars';
 import { fetchLastGamesForPlayer, getAvatar, lookForUserId, fetchLeaderboard } from '../../../../api/api';
+import CountryFlag from '../../../Country/CountryFlag';
+import { resolveCountryCode } from '../../../../utils/country';
 import classes from './PlayerBracket.module.css';
 
 // Import local castle images
@@ -94,6 +96,7 @@ export const PlayerBracket = (props) => {
     const [streak, setStreak] = useState([]);
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [userId, setUserId] = useState(null);
+    const [countryCode, setCountryCode] = useState(null);
     const [leaderboardPosition, setLeaderboardPosition] = useState(null);
     const tooltipTimeout = useRef(null);
     const cancelledRef = useRef(false);
@@ -113,15 +116,24 @@ export const PlayerBracket = (props) => {
                         setUserId(uid);
                         const avatar = await getAvatar(uid);
                         setAvatarUrl(avatar);
+                        const userResponse = await fetch(`${FIREBASE_DATABASE_URL}/users/${uid}.json`);
+                        if (userResponse.ok) {
+                            const userData = await userResponse.json();
+                            setCountryCode(resolveCountryCode(userData));
+                        }
+                    } else {
+                        setCountryCode(null);
                     }
                 } catch (error) {
                     console.error('Error fetching avatar:', error);
                     setAvatarUrl(null);
                     setUserId(null);
+                    setCountryCode(null);
                 }
             } else {
                 setAvatarUrl(null);
                 setUserId(null);
+                setCountryCode(null);
             }
         };
         fetchAvatar();
@@ -296,93 +308,128 @@ export const PlayerBracket = (props) => {
         sourcePair.team2 &&
         sourcePair.team2 !== 'TBD';
 
+    const tournamentPlayer =
+        playersObj && teamPlayer && teamPlayer !== 'TBD'
+            ? Object.values(playersObj).find((p) => p && p.name === teamPlayer)
+            : null;
+    const displayCountryCode = countryCode || resolveCountryCode(tournamentPlayer);
+    const statusClass =
+        teamPlayer === winner
+            ? classes.statusWon
+            : !winner || winner === 'Tie'
+              ? classes.statusPending
+              : classes.statusLost;
+
+    const renderRatingTooltip = () => {
+        if (team === 'team1') {
+            let ratingsArray;
+            if (pair.ratings1?.includes(',')) {
+                ratingsArray = pair.ratings1.split(',').map((rating) => parseFloat(rating.trim()));
+            } else {
+                ratingsArray = [parseFloat(String(pair.ratings1 || '0').trim())];
+            }
+            const lastRating = ratingsArray.at(-1).toFixed(2);
+            if (stageIndex === 0) {
+                return `${lastRating}`;
+            }
+            const previousRating = ratingsArray.length > 1 ? ratingsArray.at(-2).toFixed(2) : '0.00';
+            const difference = (lastRating - previousRating).toFixed(2);
+            return (
+                <>
+                    {lastRating}{' '}
+                    <span style={{ color: difference >= 0 ? 'green' : 'red' }}>
+                        ({difference >= 0 ? '+' : ''}
+                        {difference})
+                    </span>
+                </>
+            );
+        }
+
+        const ratingsArray = String(pair.ratings2 || '0')
+            .split(',')
+            .map((rating) => parseFloat(rating.trim()));
+        const lastRating = ratingsArray.at(-1).toFixed(2);
+        if (stageIndex === 0) {
+            return `${lastRating}`;
+        }
+        const previousRating = ratingsArray.length > 1 ? ratingsArray.at(-2).toFixed(2) : '0.00';
+        const difference = (lastRating - previousRating).toFixed(2);
+        return (
+            <>
+                {lastRating}
+                <span style={{ color: difference >= 0 ? 'green' : 'red' }}>
+                    ({difference >= 0 ? '+' : ''}
+                    {difference})
+                </span>
+            </>
+        );
+    };
+
+    const renderPlayerStars = () => {
+        if (isSourcePairHint || !playerStars || playerStars === 'TBD') {
+            return null;
+        }
+
+        return (
+            <span className={classes.playerStarsBracket}>
+                <span className={classes.playerStarsBracketParen}>(</span>
+                <span className={classes.playerStars}>
+                    <div className={classes.stars_wrapper}>
+                        <StarsComponent stars={playerStars} />
+                        <div className={classes.stars_details}>
+                            Ratings: {renderRatingTooltip()}
+                        </div>
+                    </div>
+                </span>
+                <span className={classes.playerStarsBracketParen}>)</span>
+            </span>
+        );
+    };
+
     return (
         <div
-            className={classes.player_bracket}
-            style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap' }}
+            className={`${classes.player_bracket} ${teamPlayer === winner ? classes.playerWinner : ''} ${winner && teamPlayer !== winner && teamPlayer !== 'TBD' ? classes.playerLoser : ''}`}
         >
-            <div
-                className={classes.playerInfoColumn}
-                style={isSourcePairHint ? { flex: '1 1 auto', maxWidth: 'none', overflow: 'visible' } : undefined}
-            >
+            <div className={classes.playerRow}>
                 <label
                     htmlFor={`score-${team}-${pairIndex}`}
+                    className={classes.statusLabel}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     onClick={handleStreakClick}
-                    style={{ cursor: 'pointer' }}
                 >
-                    {teamPlayer === winner ? (
-                        <div className={classes['green-indicator']}></div>
-                    ) : !winner || winner === 'Tie' ? (
-                        <div className={classes['grey-indicator']}></div>
-                    ) : (
-                        <div className={classes['red-indicator']}></div>
-                    )}
+                    <span className={statusClass} aria-hidden="true" />
                 </label>
 
-                {avatarUrl && (
-                    <img
-                        src={avatarUrl}
-                        alt={teamPlayer}
-                        style={{
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            marginRight: '8px',
-                            border: '2px solid #00ffff',
-                            objectFit: 'cover',
-                            boxShadow: '0 2px 4px rgba(0, 255, 255, 0.3)'
-                        }}
-                    />
-                )}
+                {!isSourcePairHint && displayCountryCode ? (
+                    <span className={classes.playerFlag}>
+                        <CountryFlag code={displayCountryCode} size={16} />
+                    </span>
+                ) : null}
 
-                {/* Color Indicator Badge - REMOVED */}
-                {false && playerColor && (
-                    <div
-                        style={{
-                            width: '20px',
-                            height: '20px',
-                            borderRadius: '4px',
-                            background:
-                                playerColor === 'red'
-                                    ? 'linear-gradient(135deg, #8B0000, #FF0000, #DC143C)'
-                                    : 'linear-gradient(135deg, #00008B, #0000FF, #4169E1)',
-                            border: '2px solid #FFD700',
-                            marginRight: '6px',
-                            boxShadow:
-                                playerColor === 'red'
-                                    ? '0 0 8px rgba(255, 0, 0, 0.6), inset 0 0 6px rgba(255, 255, 255, 0.2)'
-                                    : '0 0 8px rgba(0, 0, 255, 0.6), inset 0 0 6px rgba(255, 255, 255, 0.2)',
-                            flexShrink: 0
-                        }}
-                        title={`Playing as ${playerColor}`}
-                    />
-                )}
+                {!isSourcePairHint && teamPlayer !== 'TBD' ? (
+                    avatarUrl ? (
+                        <img src={avatarUrl} alt={teamPlayer} className={classes.playerAvatar} />
+                    ) : (
+                        <div className={classes.playerAvatarFallback} aria-hidden="true">
+                            {String(teamPlayer || '?').charAt(0).toUpperCase()}
+                        </div>
+                    )
+                ) : null}
 
                 {userId && teamPlayer !== 'TBD' ? (
-                    <NavLink
-                        to={`/players/${userId}`}
-                        className={classes.playerName}
-                        style={{
-                            color: '#00ffff',
-                            textDecoration: 'none',
-                            fontWeight: 'bold',
-                            transition: 'color 0.2s'
-                        }}
-                        onMouseEnter={(e) => (e.target.style.color = '#00cccc')}
-                        onMouseLeave={(e) => (e.target.style.color = '#00ffff')}
-                    >
-                        <span className={classes.leaderboardPlace}>({leaderboardPosition || '...'})</span>
+                    <NavLink to={`/players/${userId}`} className={classes.playerName}>
+                        {!isSourcePairHint && (
+                            <span className={classes.leaderboardPlace}>#{leaderboardPosition || '…'}</span>
+                        )}
                         <span>{teamPlayer}</span>
                     </NavLink>
                 ) : (
                     <span
-                        className={classes.playerName}
-                        style={isSourcePairHint ? { whiteSpace: 'normal', overflow: 'visible' } : undefined}
+                        className={`${classes.playerName} ${isSourcePairHint ? classes.playerNameHint : ''}`}
                     >
                         {!isSourcePairHint && (
-                            <span className={classes.leaderboardPlace}>({leaderboardPosition || '...'})</span>
+                            <span className={classes.leaderboardPlace}>#{leaderboardPosition || '…'}</span>
                         )}
                         <span>
                             {isSourcePairHint ? (
@@ -395,6 +442,9 @@ export const PlayerBracket = (props) => {
                         </span>
                     </span>
                 )}
+
+                {renderPlayerStars()}
+
                 {showTooltip && teamPlayer !== 'TBD' && (
                     <div
                         style={{
@@ -469,7 +519,6 @@ export const PlayerBracket = (props) => {
                 )}
             </div>
 
-            {/* Detailed streak panel — opened on click, rendered via portal to escape stacking contexts */}
             {showDetailedStreak &&
                 teamPlayer !== 'TBD' &&
                 ReactDOM.createPortal(
@@ -817,80 +866,9 @@ export const PlayerBracket = (props) => {
                     document.body
                 )}
 
-            {/* TODO: add the stars image when the tournament just started */}
-            <div className={classes.playerMiddleRow} style={isSourcePairHint ? { display: 'none' } : undefined}>
-                <div className={classes.starsContainer}>
-                    {playerStars && playerStars !== 'TBD' && (
-                        <div className={classes.stars_wrapper} style={{ cursor: 'pointer' }}>
-                            <StarsComponent stars={playerStars} />
-                            <div className={classes.stars_details}>
-                                Ratings:
-                                {team === 'team1'
-                                    ? (() => {
-                                          let ratingsArray;
-
-                                          if (pair.ratings1.includes(',')) {
-                                              // It's a comma-separated list → split into an array of floats
-                                              ratingsArray = pair.ratings1
-                                                  .split(',')
-                                                  .map((rating) => parseFloat(rating.trim()));
-                                          } else {
-                                              // It's a single rating → just wrap it in an array as a float
-                                              ratingsArray = [parseFloat(pair.ratings1.trim())];
-                                          }
-
-                                          const lastRating = ratingsArray.at(-1).toFixed(2);
-                                          if (stageIndex === 0) {
-                                              return `${lastRating}`;
-                                          }
-                                          const previousRating =
-                                              ratingsArray.length > 1 ? ratingsArray.at(-2).toFixed(2) : '0.00';
-                                          const difference = (lastRating - previousRating).toFixed(2);
-                                          return (
-                                              <>
-                                                  {lastRating}{' '}
-                                                  <span
-                                                      style={{
-                                                          color: difference >= 0 ? 'green' : 'red'
-                                                      }}
-                                                  >
-                                                      ({difference >= 0 ? '+' : ''}
-                                                      {difference})
-                                                  </span>
-                                              </>
-                                          );
-                                      })()
-                                    : (() => {
-                                          const ratingsArray = pair.ratings2
-                                              .split(',')
-                                              .map((rating) => parseFloat(rating.trim()));
-                                          const lastRating = ratingsArray.at(-1).toFixed(2);
-                                          if (stageIndex === 0) {
-                                              return `${lastRating}`;
-                                          }
-                                          const previousRating =
-                                              ratingsArray.length > 1 ? ratingsArray.at(-2).toFixed(2) : '0.00';
-                                          const difference = (lastRating - previousRating).toFixed(2);
-                                          return (
-                                              <>
-                                                  {lastRating}
-                                                  <span
-                                                      style={{
-                                                          color: difference >= 0 ? 'green' : 'red'
-                                                      }}
-                                                  >
-                                                      ({difference >= 0 ? '+' : ''}
-                                                      {difference})
-                                                  </span>
-                                              </>
-                                          );
-                                      })()}
-                            </div>
-                        </div>
-                    )}
-                </div>
+            {!isSourcePairHint && (
                 <div
-                    className={`${classes.gamesStrip} ${isMultiGameLayout ? classes.gamesStripBo3 : ''}`}
+                    className={`${classes.playerCastles} ${isMultiGameLayout ? classes.playerCastlesBo3 : ''}`}
                     style={{ minWidth: hasTruthyPlayers ? gamesStripMinWidth : '52px' }}
                 >
                     {hasTruthyPlayers &&
@@ -1105,26 +1083,8 @@ export const PlayerBracket = (props) => {
                             );
                         })}
                 </div>
-            </div>
-            <div
-                id={`score-${team}-${pairIndex}`}
-                style={{
-                    width: '3rem',
-                    padding: '0.5rem 0.5rem',
-                    textAlign: 'center',
-                    border: '2px solid rgba(255, 215, 0, 0.5)',
-                    borderRadius: '6px',
-                    background: 'linear-gradient(135deg, rgba(62, 32, 192, 0.3), rgba(45, 20, 150, 0.3))',
-                    color: '#FFD700',
-                    margin: '0.5rem 0',
-                    marginLeft: 'auto',
-                    fontWeight: 'bold',
-                    fontSize: '1.1rem',
-                    boxShadow: '0 2px 8px rgba(62, 32, 192, 0.3), inset 0 1px 2px rgba(255, 215, 0, 0.1)',
-                    cursor: 'default',
-                    userSelect: 'none'
-                }}
-            >
+            )}
+            <div id={`score-${team}-${pairIndex}`} className={classes.scoreBox}>
                 {playerScore || 0}
             </div>
         </div>

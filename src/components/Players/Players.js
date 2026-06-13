@@ -16,6 +16,8 @@ import classes from './Players.module.css';
 import StarsComponent from '../Stars/Stars';
 import GameMechanicsStats from './GameMechanicsStats';
 import HotaPlayerStats from './HotaPlayerStats';
+import MyUpcomingMatchesSection from '../MyUpcomingMatches/MyUpcomingMatchesSection';
+import { fetchMyUpcomingMatches } from '../../utils/myUpcomingMatches';
 import LobbyNicknameField from '../Profile/LobbyNicknameField';
 import CountryFlag from '../Country/CountryFlag';
 import { resolveCountryCode } from '../../utils/country';
@@ -64,6 +66,7 @@ export const PlayerProfileContent = ({
     loadingMessage = 'Loading player details...',
     settingsSlot = null,
     avatarRefreshKey = 0,
+    upcomingMatchesTitle = 'Upcoming matches',
     children
 }) => {
     const [player, setPlayer] = useState(null);
@@ -82,6 +85,7 @@ export const PlayerProfileContent = ({
     const [chartData, setChartData] = useState(null);
     const [hotaData, setHotaData] = useState({ status: 'idle' });
     const [profileSiteStars, setProfileSiteStars] = useState(null);
+    const [upcomingMatches, setUpcomingMatches] = useState([]);
 
     useEffect(() => {
         if (!player?.enteredNickname) {
@@ -101,6 +105,32 @@ export const PlayerProfileContent = ({
             .catch(() => {
                 if (!cancelled) {
                     setHotaData({ status: 'error' });
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [player?.enteredNickname]);
+
+    useEffect(() => {
+        if (!player?.enteredNickname) {
+            setUpcomingMatches([]);
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        fetchMyUpcomingMatches(player.enteredNickname)
+            .then((matches) => {
+                if (!cancelled) {
+                    setUpcomingMatches(matches);
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching upcoming matches:', error);
+                if (!cancelled) {
+                    setUpcomingMatches([]);
                 }
             });
 
@@ -751,14 +781,6 @@ export const PlayerProfileContent = ({
                                         <span className={classes.statusValue}>{overallWinRate}%</span>
                                     </div>
                                 )}
-                                {settingsSlot && (
-                                    <>
-                                        <div className={classes.statusItem}>
-                                            <span className={classes.statusLabel}>Coins</span>
-                                            <span className={classes.statusValue}>{player.coins ?? 0}</span>
-                                        </div>
-                                    </>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -1009,6 +1031,12 @@ export const PlayerProfileContent = ({
                             </div>
                         </div>
                     )}
+
+                    <MyUpcomingMatchesSection
+                        matches={upcomingMatches}
+                        title={upcomingMatchesTitle}
+                        className={classes.upcomingMatchesSection}
+                    />
 
                     {children}
                 </>

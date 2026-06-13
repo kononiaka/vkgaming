@@ -9,24 +9,310 @@ admin.initializeApp({
 const db = admin.database();
 const DA_CLIENT_ID = '17904';
 const OAUTH_CALLBACK_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/oauthCallback';
-// ---------------------------------------------------------------------------
-// Coin tiers — must mirror the UI in modalDonate.js
-// ---------------------------------------------------------------------------
-const DONATION_TIERS = [
-    { minAmount: 10, coins: 25, label: 'Legend' },
-    { minAmount: 5, coins: 10, label: 'Champion' },
-    { minAmount: 3, coins: 5, label: 'Contributor' },
-    { minAmount: 1, coins: 2, label: 'Supporter' }
-];
+const UAH_TO_USD = 1 / 41;
+const PUBLIC_DONATION_POOL_SHARE = 0.9;
+const HOST_SEED_POOL_SHARE = 0.95;
+const MIN_STRIPE_DONATION_USD = 5;
 
-function coinsForAmount(amount) {
-    for (const tier of DONATION_TIERS) {
-        if (amount >= tier.minAmount) {
-            return { coins: tier.coins, label: tier.label };
-        }
+function normalizeDonationToUsd(amount, currency = 'USD') {
+    const value = parseFloat(amount || 0);
+    if (value <= 0) {
+        return 0;
     }
-    const coins = Math.floor(amount / 0.5);
-    return { coins, label: 'Custom' };
+
+    const code = String(currency || 'USD').toUpperCase();
+    if (code === 'UAH') {
+        return value * UAH_TO_USD;
+    }
+    if (code === 'RUB') {
+        return value / 90;
+    }
+    return value;
+}
+
+const FUNDABLE_TOURNAMENT_STATUSES = new Set(['Registration', 'Registration Started', 'Started!']);
+
+function hasSecuredPoolFunding(tournament) {
+    if (tournament?.poolFunded === true) {
+        return true;
+    }
+    const collected = Number(tournament?.communityFundingUsd) || 0;
+    return collected > 0;
+}
+
+function isFundableTournament(tournament) {
+    return (
+        tournament?.isPublic !== false &&
+        FUNDABLE_TOURNAMENT_STATUSES.has(tournament?.status) &&
+        hasSecuredPoolFunding(tournament)
+    );
+}
+
+async function recordPlatformShare(amountUsd) {
+    const share = Number(amountUsd) || 0;
+    if (share <= 0) {
+        return;
+    }
+    await db.ref('prizePoolFunding/platform').transaction((current) => (current || 0) + share);
+}
+
+async function allocateDonationToLivePrizePools(amount, currency) {
+    const usdAmount = normalizeDonationToUsd(amount, currency);
+    const prizeShare = usdAmount * PUBLIC_DONATION_POOL_SHARE;
+    const platformShare = usdAmount - prizeShare;
+    if (prizeShare <= 0) {
+        return;
+    }
+
+    const tournamentsSnap = await db.ref('tournaments/heroes3').once('value');
+    const tournaments = tournamentsSnap.val() || {};
+    const liveIds = Object.entries(tournaments)
+        .filter(([, tournament]) => isFundableTournament(tournament))
+        .map(([id]) => id);
+
+    if (liveIds.length === 0) {
+        await db.ref('prizePoolFunding/unallocated').transaction((current) => (current || 0) + prizeShare);
+        await recordPlatformShare(platformShare);
+        console.log(
+            `No open cups — stored $${prizeShare.toFixed(2)} in unallocated prize pool funding; platform $${platformShare.toFixed(2)}`
+        );
+        return;
+    }
+
+    const sharePerTournament = prizeShare / liveIds.length;
+    const updates = {};
+    for (const id of liveIds) {
+        updates[`tournaments/heroes3/${id}/communityFundingUsd`] = admin.database.ServerValue.increment(
+            sharePerTournament
+        );
+    }
+    await db.ref().update(updates);
+    await recordPlatformShare(platformShare);
+    console.log(
+        `Allocated $${prizeShare.toFixed(2)} across ${liveIds.length} live cup(s) ($${sharePerTournament.toFixed(2)} each); platform $${platformShare.toFixed(2)}`
+    );
+}
+
+const OPEN_REGISTRATION_STATUSES = new Set(['Registration', 'Registration Started']);
+
+function isRegistrationOpenStatus(status) {
+    return OPEN_REGISTRATION_STATUSES.has(status);
+}
+
+function isPlayerRegisteredInTournament(tournament, nickname) {
+    const normalized = String(nickname || '').trim().toLowerCase();
+    if (!normalized) {
+        return false;
+    }
+
+    return Object.values(tournament?.players || {}).some(
+        (player) => player?.name && String(player.name).trim().toLowerCase() === normalized
+    );
+}
+
+async function findDbUserIdByNickname(nickname) {
+    const usersSnap = await db.ref('users').once('value');
+    const usersData = usersSnap.val() || {};
+    const normalized = String(nickname || '').trim().toLowerCase();
+    const matchedEntry = Object.entries(usersData).find(
+        ([, user]) => user?.enteredNickname && String(user.enteredNickname).trim().toLowerCase() === normalized
+    );
+    return matchedEntry ? matchedEntry[0] : null;
+}
+
+async function processTournamentAttendancePayment(session, metadata) {
+    const processedRef = db.ref(`processedStripe/${session.id}`);
+    if ((await processedRef.once('value')).exists()) {
+        return;
+    }
+
+    const { userId, nickname, amount, tournamentId } = metadata;
+    if (!userId || !nickname || !tournamentId) {
+        console.error('Missing attendance payment metadata');
+        await processedRef.set({
+            reason: 'missing_metadata',
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    const tournamentSnap = await db.ref(`tournaments/heroes3/${tournamentId}`).once('value');
+    const tournament = tournamentSnap.val();
+    if (!tournament) {
+        console.error(`Attendance payment for missing tournament ${tournamentId}`);
+        await processedRef.set({
+            reason: 'tournament_not_found',
+            tournamentId,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    const configuredFee = Number(tournament.attendanceFeeUsd) || 0;
+    const paidAmount = parseFloat(amount || 0);
+    if (configuredFee <= 0 || Math.abs(paidAmount - configuredFee) > 0.001) {
+        console.error(`Attendance amount mismatch for tournament ${tournamentId}`);
+        await processedRef.set({
+            reason: 'amount_mismatch',
+            tournamentId,
+            paidAmount,
+            configuredFee,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    if (!isRegistrationOpenStatus(tournament.status)) {
+        console.error(`Attendance payment after registration closed for ${tournamentId}`);
+        await processedRef.set({
+            reason: 'registration_closed',
+            tournamentId,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    if (isPlayerRegisteredInTournament(tournament, nickname)) {
+        await processedRef.set({
+            reason: 'already_registered',
+            tournamentId,
+            nickname,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    const paidRef = db.ref(`tournaments/heroes3/${tournamentId}/attendancePaid/${userId}`);
+    if ((await paidRef.once('value')).exists()) {
+        await processedRef.set({
+            reason: 'already_paid',
+            tournamentId,
+            userId,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    await db.ref(`tournaments/heroes3/${tournamentId}`).update({
+        communityFundingUsd: admin.database.ServerValue.increment(paidAmount)
+    });
+
+    await paidRef.set({
+        nickname,
+        amount: paidAmount,
+        stripeSessionId: session.id,
+        paidAt: new Date().toISOString()
+    });
+
+    try {
+        const dbUserId = await findDbUserIdByNickname(nickname);
+        if (dbUserId) {
+            await recordDonorContribution(dbUserId, paidAmount, 'USD');
+        }
+    } catch (statsError) {
+        console.error(`Attendance donor stats update failed for session ${session.id}:`, statsError.message);
+    }
+
+    await processedRef.set({
+        purpose: 'tournament_attendance',
+        tournamentId,
+        userId,
+        nickname,
+        amount: paidAmount,
+        processedAt: new Date().toISOString()
+    });
+
+    console.log(`Attendance fee $${paidAmount} recorded for ${nickname} in tournament ${tournamentId}`);
+}
+
+async function processTournamentHostSeedPayment(session, metadata) {
+    const processedRef = db.ref(`processedStripe/${session.id}`);
+    if ((await processedRef.once('value')).exists()) {
+        return;
+    }
+
+    const { userId, nickname, amount, tournamentId } = metadata;
+    if (!userId || !nickname || !tournamentId) {
+        console.error('Missing host seed payment metadata');
+        await processedRef.set({
+            reason: 'missing_metadata',
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    const tournamentSnap = await db.ref(`tournaments/heroes3/${tournamentId}`).once('value');
+    const tournament = tournamentSnap.val();
+    if (!tournament) {
+        console.error(`Host seed payment for missing tournament ${tournamentId}`);
+        await processedRef.set({
+            reason: 'tournament_not_found',
+            tournamentId,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    if (tournament.poolFunded) {
+        await processedRef.set({
+            reason: 'already_funded',
+            tournamentId,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    if (tournament.status !== 'Pending funding') {
+        console.error(`Host seed payment for tournament ${tournamentId} in status ${tournament.status}`);
+        await processedRef.set({
+            reason: 'invalid_status',
+            tournamentId,
+            status: tournament.status,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    const goalUsd = Number(tournament.fundingGoalUsd) || 0;
+    const paidAmount = parseFloat(amount || 0);
+    if (goalUsd <= 0 || Math.abs(paidAmount - goalUsd) > 0.001) {
+        console.error(`Host seed amount mismatch for tournament ${tournamentId}`);
+        await processedRef.set({
+            reason: 'amount_mismatch',
+            tournamentId,
+            paidAmount,
+            goalUsd,
+            processedAt: new Date().toISOString()
+        });
+        return;
+    }
+
+    const poolUsd = Math.round(paidAmount * HOST_SEED_POOL_SHARE * 100) / 100;
+    const platformUsd = Math.round((paidAmount - poolUsd) * 100) / 100;
+
+    await db.ref(`tournaments/heroes3/${tournamentId}`).update({
+        communityFundingUsd: poolUsd,
+        poolFunded: true,
+        poolFundedAt: new Date().toISOString(),
+        hostSeedPaidUsd: paidAmount,
+        status: tournament.isPublic !== false ? 'Registration Started' : 'Draft'
+    });
+    await recordPlatformShare(platformUsd);
+
+    await processedRef.set({
+        purpose: 'tournament_host_seed',
+        tournamentId,
+        userId,
+        nickname,
+        amount: paidAmount,
+        poolUsd,
+        platformUsd,
+        processedAt: new Date().toISOString()
+    });
+
+    console.log(
+        `Host seed $${paidAmount} for ${tournamentId}: $${poolUsd} to pool, $${platformUsd} platform`
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +358,19 @@ async function getValidAccessToken() {
     return refreshed.access_token;
 }
 
+async function recordDonorContribution(userId, amount, currency) {
+    const usdAmount = normalizeDonationToUsd(amount, currency);
+    if (usdAmount <= 0) {
+        return;
+    }
+
+    await db.ref(`users/${userId}`).update({
+        totalDonatedUsd: admin.database.ServerValue.increment(usdAmount),
+        donationCount: admin.database.ServerValue.increment(1),
+        lastDonationAt: new Date().toISOString()
+    });
+}
+
 async function processDonation(donation, usersData) {
     const donationId = String(donation.id);
     const processedRef = db.ref(`processedDonations/${donationId}`);
@@ -85,11 +384,16 @@ async function processDonation(donation, usersData) {
         await processedRef.set({
             donorUsername,
             amount,
-            awardedCoins: 0,
             reason: 'invalid_amount',
             processedAt: new Date().toISOString()
         });
         return;
+    }
+
+    try {
+        await allocateDonationToLivePrizePools(amount, currency);
+    } catch (allocationError) {
+        console.error(`Prize pool allocation failed for donation ${donationId}:`, allocationError.message);
     }
 
     const normalisedUsername = donorUsername.toLowerCase();
@@ -102,7 +406,7 @@ async function processDonation(donation, usersData) {
         await processedRef.set({
             donorUsername,
             amount,
-            awardedCoins: 0,
+            currency,
             reason: 'da_username_not_linked',
             processedAt: new Date().toISOString()
         });
@@ -110,60 +414,21 @@ async function processDonation(donation, usersData) {
     }
 
     const [userId] = matchedEntry;
-    const { coins, label } = coinsForAmount(amount);
 
-    if (coins <= 0) {
-        await processedRef.set({
-            donorUsername,
-            amount,
-            userId,
-            awardedCoins: 0,
-            reason: 'amount_too_small',
-            processedAt: new Date().toISOString()
-        });
-        return;
+    try {
+        await recordDonorContribution(userId, amount, currency);
+    } catch (statsError) {
+        console.error(`Donor stats update failed for donation ${donationId}:`, statsError.message);
     }
-
-    // Read current balance so we can store previousBalance/newBalance in the transaction
-    const userSnap = await db.ref(`users/${userId}/coins`).once('value');
-    const currentCoins = userSnap.val() || 0;
-    const newBalance = currentCoins + coins;
-
-    const now = new Date();
-    const transactionKey = db.ref(`users/${userId}/coinTransactions`).push().key;
-    const updates = {};
-    updates[`users/${userId}/coinTransactions/${transactionKey}`] = {
-        userId,
-        amount: coins,
-        type: 'donation_reward',
-        description: `Donation reward: ${label} tier (${amount} ${currency})`,
-        timestamp: now.toISOString(),
-        date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString(),
-        metadata: {
-            donationId,
-            donorUsername,
-            donationAmount: amount,
-            currency,
-            tier: label,
-            rewardCoins: coins,
-            previousBalance: currentCoins,
-            newBalance
-        }
-    };
-    updates[`users/${userId}/coins`] = newBalance;
-    await db.ref().update(updates);
 
     await processedRef.set({
         donorUsername,
         amount,
         currency,
         userId,
-        awardedCoins: coins,
-        tier: label,
         processedAt: new Date().toISOString()
     });
-    console.log(`Awarded ${coins} coins to user ${userId} for donation ${donationId} by DA user "${donorUsername}"`);
+    console.log(`Processed donation ${donationId} by DA user "${donorUsername}"`);
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +474,7 @@ exports.oauthCallback = functions.https.onRequest(async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // pollDonations — scheduled every 5 minutes. Matches by daUsername.
-// Fetches the latest donations from DA API and awards coins for matched nicknames.
+// Fetches the latest donations from DA API and updates prize pools + donor stats.
 // ---------------------------------------------------------------------------
 exports.pollDonations = functions.pubsub.schedule('every 5 minutes').onRun(async () => {
     let accessToken;
@@ -290,14 +555,150 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
-    const { amount, userId, nickname, origin } = req.body;
-    if (!amount || !userId || !nickname) {
-        return res.status(400).json({ error: 'amount, userId and nickname are required' });
+    const { amount, userId, nickname, origin, purpose, tournamentId, tournamentName } = req.body;
+    if (!userId || !nickname) {
+        return res.status(400).json({ error: 'userId and nickname are required' });
     }
 
     const stripe = Stripe(functions.config().stripe.secret_key);
-
     const baseUrl = origin || 'https://vkgaming.com.ua';
+
+    if (purpose === 'tournament_host_seed') {
+        if (!tournamentId) {
+            return res.status(400).json({ error: 'tournamentId is required' });
+        }
+
+        const tournamentSnap = await db.ref(`tournaments/heroes3/${tournamentId}`).once('value');
+        const tournament = tournamentSnap.val();
+        if (!tournament) {
+            return res.status(404).json({ error: 'Tournament not found' });
+        }
+
+        if (tournament.poolFunded) {
+            return res.status(400).json({ error: 'Prize pool already funded' });
+        }
+
+        if (tournament.status !== 'Pending funding') {
+            return res.status(400).json({ error: 'This tournament is not awaiting host funding' });
+        }
+
+        const goalUsd = Number(tournament.fundingGoalUsd) || 0;
+        if (goalUsd < MIN_STRIPE_DONATION_USD) {
+            return res.status(400).json({ error: `Minimum prize pool seed is $${MIN_STRIPE_DONATION_USD}` });
+        }
+
+        if (Math.abs(Number(amount) - goalUsd) > 0.001) {
+            return res.status(400).json({ error: 'Amount must match the prize pool goal' });
+        }
+
+        if (tournament.createdByUid && tournament.createdByUid !== userId) {
+            return res.status(403).json({ error: 'Only the tournament host can fund this pool' });
+        }
+
+        const cupName = tournament.name || tournamentName || 'Tournament';
+        const poolPreview = Math.round(goalUsd * HOST_SEED_POOL_SHARE * 100) / 100;
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: `${cupName} — prize pool seed`,
+                            description: `$${poolPreview} goes to the cup prize pool (95% of $${goalUsd})`
+                        },
+                        unit_amount: Math.round(goalUsd * 100)
+                    },
+                    quantity: 1
+                }
+            ],
+            mode: 'payment',
+            success_url: `${baseUrl}/tournaments/homm3/${tournamentId}?funding=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/tournaments/homm3/${tournamentId}?funding=cancelled`,
+            metadata: {
+                userId,
+                nickname,
+                amount: String(goalUsd),
+                purpose: 'tournament_host_seed',
+                tournamentId
+            }
+        });
+
+        return res.json({ url: session.url });
+    }
+
+    if (purpose === 'tournament_attendance') {
+        if (!tournamentId) {
+            return res.status(400).json({ error: 'tournamentId is required' });
+        }
+
+        const tournamentSnap = await db.ref(`tournaments/heroes3/${tournamentId}`).once('value');
+        const tournament = tournamentSnap.val();
+        if (!tournament) {
+            return res.status(404).json({ error: 'Tournament not found' });
+        }
+
+        const feeUsd = Number(tournament.attendanceFeeUsd) || 0;
+        if (feeUsd <= 0) {
+            return res.status(400).json({ error: 'This tournament has no attendance fee' });
+        }
+
+        if (!isRegistrationOpenStatus(tournament.status)) {
+            return res.status(400).json({ error: 'Registration is closed for this tournament' });
+        }
+
+        if (Math.abs(Number(amount) - feeUsd) > 0.001) {
+            return res.status(400).json({ error: 'Invalid attendance amount' });
+        }
+
+        if (isPlayerRegisteredInTournament(tournament, nickname)) {
+            return res.status(400).json({ error: 'You are already registered for this tournament' });
+        }
+
+        const paidSnap = await db.ref(`tournaments/heroes3/${tournamentId}/attendancePaid/${userId}`).once('value');
+        if (paidSnap.exists()) {
+            return res.status(400).json({ error: 'Attendance fee already paid' });
+        }
+
+        const cupName = tournament.name || tournamentName || 'Tournament';
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: `${cupName} — attendance fee`,
+                            description: `$${feeUsd} added to this cup's prize pool`
+                        },
+                        unit_amount: Math.round(feeUsd * 100)
+                    },
+                    quantity: 1
+                }
+            ],
+            mode: 'payment',
+            success_url: `${baseUrl}/tournaments/homm3/${tournamentId}?attendance=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/tournaments/homm3/${tournamentId}?attendance=cancelled`,
+            metadata: {
+                userId,
+                nickname,
+                amount: String(feeUsd),
+                purpose: 'tournament_attendance',
+                tournamentId
+            }
+        });
+
+        return res.json({ url: session.url });
+    }
+
+    if (!amount) {
+        return res.status(400).json({ error: 'amount, userId and nickname are required' });
+    }
+
+    const donationAmount = Number(amount);
+    if (!Number.isFinite(donationAmount) || donationAmount < MIN_STRIPE_DONATION_USD) {
+        return res.status(400).json({ error: `Minimum card donation is $${MIN_STRIPE_DONATION_USD}` });
+    }
 
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -307,9 +708,9 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
                     currency: 'usd',
                     product_data: {
                         name: `VKGaming Donation — ${nickname}`,
-                        description: `Earns coins for your in-game account`
+                        description: '90% funds live tournament prize pools'
                     },
-                    unit_amount: Math.round(Number(amount) * 100) // cents
+                    unit_amount: Math.round(donationAmount * 100) // cents
                 },
                 quantity: 1
             }
@@ -317,15 +718,104 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
         mode: 'payment',
         success_url: `${baseUrl}?donation=success`,
         cancel_url: `${baseUrl}?donation=cancelled`,
-        metadata: { userId, nickname, amount: String(amount) }
+        metadata: { userId, nickname, amount: String(donationAmount), purpose: 'donation' }
     });
 
     return res.json({ url: session.url });
 });
 
+// Fallback when Stripe webhook is delayed or missing — client calls after redirect.
+exports.confirmTournamentHostSeed = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    const { sessionId, userId } = req.body || {};
+    if (!sessionId || !userId) {
+        return res.status(400).json({ error: 'sessionId and userId are required' });
+    }
+
+    const stripe = Stripe(functions.config().stripe.secret_key);
+
+    try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== 'paid') {
+            return res.status(400).json({ error: 'Payment not completed yet' });
+        }
+
+        if (session.metadata?.purpose !== 'tournament_host_seed') {
+            return res.status(400).json({ error: 'Not a tournament host seed payment' });
+        }
+
+        if (session.metadata?.userId !== userId) {
+            return res.status(403).json({ error: 'Payment belongs to another user' });
+        }
+
+        await processTournamentHostSeedPayment(session, session.metadata);
+
+        const tournamentId = session.metadata.tournamentId;
+        const tournamentSnap = await db.ref(`tournaments/heroes3/${tournamentId}`).once('value');
+
+        return res.json({
+            ok: true,
+            tournamentId,
+            status: tournamentSnap.val()?.status || null,
+            poolFunded: tournamentSnap.val()?.poolFunded === true
+        });
+    } catch (error) {
+        console.error(`confirmTournamentHostSeed failed for ${sessionId}:`, error.message);
+        return res.status(500).json({ error: 'Could not confirm host seed payment' });
+    }
+});
+
+exports.confirmTournamentAttendance = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    const { sessionId, userId } = req.body || {};
+    if (!sessionId || !userId) {
+        return res.status(400).json({ error: 'sessionId and userId are required' });
+    }
+
+    const stripe = Stripe(functions.config().stripe.secret_key);
+
+    try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== 'paid') {
+            return res.status(400).json({ error: 'Payment not completed yet' });
+        }
+
+        if (session.metadata?.purpose !== 'tournament_attendance') {
+            return res.status(400).json({ error: 'Not a tournament attendance payment' });
+        }
+
+        if (session.metadata?.userId !== userId) {
+            return res.status(403).json({ error: 'Payment belongs to another user' });
+        }
+
+        await processTournamentAttendancePayment(session, session.metadata);
+
+        return res.json({
+            ok: true,
+            tournamentId: session.metadata.tournamentId,
+            paid: true
+        });
+    } catch (error) {
+        console.error(`confirmTournamentAttendance failed for ${sessionId}:`, error.message);
+        return res.status(500).json({ error: 'Could not confirm attendance payment' });
+    }
+});
+
 // ---------------------------------------------------------------------------
 // stripeWebhook — Stripe POSTs here after payment completes.
-// Verifies signature, then awards coins to the player.
+// Verifies signature, then allocates to prize pools and records donor stats.
 // ---------------------------------------------------------------------------
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -346,7 +836,37 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
     }
 
     const session = event.data.object;
-    const { userId, nickname, amount } = session.metadata;
+    const { userId, nickname, amount, purpose, tournamentId } = session.metadata;
+
+    if (purpose === 'tournament_host_seed') {
+        try {
+            await processTournamentHostSeedPayment(session, {
+                userId,
+                nickname,
+                amount,
+                tournamentId
+            });
+        } catch (hostSeedError) {
+            console.error(`Host seed payment failed for Stripe session ${session.id}:`, hostSeedError.message);
+            return res.status(500).send('host seed processing failed');
+        }
+        return res.status(200).send('ok');
+    }
+
+    if (purpose === 'tournament_attendance') {
+        try {
+            await processTournamentAttendancePayment(session, {
+                userId,
+                nickname,
+                amount,
+                tournamentId
+            });
+        } catch (attendanceError) {
+            console.error(`Attendance payment failed for Stripe session ${session.id}:`, attendanceError.message);
+            return res.status(500).send('attendance processing failed');
+        }
+        return res.status(200).send('ok');
+    }
 
     if (!nickname) {
         console.error('No nickname in Stripe session metadata');
@@ -375,7 +895,6 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
             userId,
             nickname,
             amount: parseFloat(amount || 0),
-            awardedCoins: 0,
             reason: 'nickname_not_found',
             processedAt: new Date().toISOString()
         });
@@ -385,60 +904,38 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
 
     const donationAmount = parseFloat(amount || 0);
     const currency = (session.currency || 'usd').toUpperCase();
-    const { coins, label } = coinsForAmount(donationAmount);
 
-    if (coins <= 0) {
+    if (donationAmount <= 0) {
         await processedRef.set({
             userId: dbUserId,
             amount: donationAmount,
-            awardedCoins: 0,
             reason: 'amount_too_small',
             processedAt: new Date().toISOString()
         });
         return res.status(200).send('ok');
     }
 
-    const userSnap = await db.ref(`users/${dbUserId}/coins`).once('value');
-    const currentCoins = userSnap.val() || 0;
-    const newBalance = currentCoins + coins;
+    try {
+        await allocateDonationToLivePrizePools(donationAmount, currency);
+    } catch (allocationError) {
+        console.error(`Prize pool allocation failed for Stripe session ${session.id}:`, allocationError.message);
+    }
 
-    const now = new Date();
-    const transactionKey = db.ref(`users/${dbUserId}/coinTransactions`).push().key;
-    const updates = {};
-    updates[`users/${dbUserId}/coinTransactions/${transactionKey}`] = {
-        userId: dbUserId,
-        amount: coins,
-        type: 'donation_reward',
-        description: `Stripe donation: ${label} tier (${donationAmount} ${currency})`,
-        timestamp: now.toISOString(),
-        date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString(),
-        metadata: {
-            sessionId: session.id,
-            donorNickname: nickname,
-            donationAmount,
-            currency,
-            tier: label,
-            rewardCoins: coins,
-            previousBalance: currentCoins,
-            newBalance,
-            provider: 'stripe'
-        }
-    };
-    updates[`users/${dbUserId}/coins`] = newBalance;
-    await db.ref().update(updates);
+    try {
+        await recordDonorContribution(dbUserId, donationAmount, currency);
+    } catch (statsError) {
+        console.error(`Donor stats update failed for Stripe session ${session.id}:`, statsError.message);
+    }
 
     await processedRef.set({
         userId: dbUserId,
         nickname,
         amount: donationAmount,
         currency,
-        awardedCoins: coins,
-        tier: label,
-        processedAt: now.toISOString()
+        processedAt: new Date().toISOString()
     });
 
-    console.log(`Stripe: awarded ${coins} coins to user ${dbUserId} (${nickname}) for session ${session.id}`);
+    console.log(`Stripe: processed donation from ${nickname} for session ${session.id}`);
     return res.status(200).send('ok');
 });
 
@@ -714,10 +1211,11 @@ exports.twitchAuth = functions.https.onCall(async (data, context) => {
                 gamesPlayed: { heroes3: { loses: 0, wins: 0 } },
                 prizes: [],
                 ratings: 0,
-                coins: 1,
                 stars: 0.5,
                 avatar: profileImageUrl || null,
                 totalPrize: 0,
+                totalDonatedUsd: 0,
+                donationCount: 0,
                 registeredAt: now.toISOString()
             };
 
@@ -728,17 +1226,6 @@ exports.twitchAuth = functions.https.onCall(async (data, context) => {
             }
 
             await newUserRef.set(newUser);
-            // Registration coin transaction
-            const txKey = db.ref(`users/${dbUserId}/coinTransactions`).push().key;
-            await db.ref(`users/${dbUserId}/coinTransactions/${txKey}`).set({
-                userId: dbUserId,
-                amount: 1,
-                type: 'registration',
-                description: 'Registration bonus (Twitch sign-up)',
-                timestamp: now.toISOString(),
-                date: now.toLocaleDateString(),
-                time: now.toLocaleTimeString()
-            });
         } else {
             // Existing user — refresh their Twitch profile info
             const updates = {
@@ -774,6 +1261,74 @@ exports.twitchAuth = functions.https.onCall(async (data, context) => {
         }
         throw new functions.https.HttpsError('internal', err.message || 'Twitch auth failed');
     }
+});
+
+async function getTwitchAppAccessToken() {
+    const twitchConfig = functions.config().twitch || {};
+    const clientId = twitchConfig.client_id;
+    const clientSecret = twitchConfig.client_secret;
+
+    if (!clientId || !clientSecret) {
+        return null;
+    }
+
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'client_credentials'
+        }).toString()
+    });
+    const tokenData = await tokenRes.json();
+    return tokenData.access_token || null;
+}
+
+// ---------------------------------------------------------------------------
+// twitchStreamStatus — returns Twitch logins that are currently live
+// Request body: { "data": { "logins": ["player1", "player2"] } }
+// Response:     { "result": { "liveLogins": ["player1"] } }
+// ---------------------------------------------------------------------------
+exports.twitchStreamStatus = functions.https.onCall(async (data) => {
+    const logins = Array.isArray(data?.logins)
+        ? [...new Set(data.logins.map((login) => String(login || '').trim().toLowerCase()).filter(Boolean))]
+        : [];
+
+    if (logins.length === 0) {
+        return { liveLogins: [] };
+    }
+
+    const clientId = functions.config().twitch?.client_id;
+    const accessToken = await getTwitchAppAccessToken();
+
+    if (!clientId || !accessToken) {
+        return { liveLogins: [] };
+    }
+
+    const liveLogins = [];
+
+    for (let index = 0; index < logins.length; index += 100) {
+        const chunk = logins.slice(index, index + 100);
+        const params = new URLSearchParams();
+        chunk.forEach((login) => params.append('user_login', login));
+
+        const streamRes = await fetch(`https://api.twitch.tv/helix/streams?${params.toString()}`, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Client-Id': clientId
+            }
+        });
+        const streamData = await streamRes.json();
+
+        (streamData.data || []).forEach((stream) => {
+            if (stream.user_login) {
+                liveLogins.push(String(stream.user_login).toLowerCase());
+            }
+        });
+    }
+
+    return { liveLogins };
 });
 
 // ---------------------------------------------------------------------------

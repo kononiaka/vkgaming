@@ -9,30 +9,6 @@
     box-shadow: var(--shadow-panel);
 }
 
-/* ── Hero: original konoplay welcome styling ── */
-.hero {
-    margin-bottom: 1rem;
-}
-
-.heroTitle {
-    font-family: var(--font-display);
-    font-size: clamp(0.85rem, 3.5vw, 2.5rem);
-    color: #ffd700;
-    text-shadow:
-        2px 2px 0 #8b4513,
-        4px 4px 0 rgba(0, 0, 0, 0.5),
-        0 0 20px rgba(255, 215, 0, 0.5);
-    letter-spacing: 2px;
-    margin: 0;
-    padding: 1rem;
-    background: linear-gradient(180deg, #ffd700 0%, #ffa500 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8));
-    line-height: 1.5;
-}
-
 /* ── Section breakers (lines between home blocks) ── */
 .homeSection {
     position: relative;
@@ -79,13 +55,6 @@
     margin-bottom: 0.35rem;
 }
 
-.matchCenterGreeting {
-    margin: 0 0 0.25rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--color-text);
-}
-
 .matchCenterSubtitle {
     margin: 0;
     font-size: 0.85rem;
@@ -99,6 +68,18 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--color-text-dim);
+}
+
+.prizePoolWrap {
+    margin-top: 1.25rem;
+    text-align: left;
+}
+
+.matchCenterLinks {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
 }
 
 .viewAllLink,
@@ -122,6 +103,10 @@
 
 .featuredAnnouncement {
     margin-bottom: 1.25rem;
+}
+
+.featuredAnnouncement .announcementList {
+    margin-top: 1rem;
 }
 
 .announcementList,

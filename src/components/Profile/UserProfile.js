@@ -43,6 +43,7 @@ const UserProfile = () => {
                 subtitle="Stats, standings, avatar, and account settings."
                 loadingMessage="Loading profile..."
                 avatarRefreshKey={avatarRefreshKey}
+                upcomingMatchesTitle="My upcoming matches"
                 settingsSlot={
                     <ProfileForm
                         userId={playerId}

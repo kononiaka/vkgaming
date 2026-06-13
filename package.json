@@ -25,6 +25,9 @@
         "start": "react-scripts start",
         "build": "react-scripts build",
         "test": "react-scripts test",
+        "test:readiness": "react-scripts test --watchAll=false --testPathPattern=productionReadiness",
+        "verify:live": "node scripts/verify-production-readiness.js",
+        "seed:prize-pools": "node scripts/seed-prize-pool-funding.js",
         "eject": "react-scripts eject",
         "deploy": "npm run build&&gh-pages -d build"
     },

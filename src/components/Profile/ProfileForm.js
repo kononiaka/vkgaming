@@ -2,7 +2,6 @@ import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAvatar, updateAvatar } from '../../api/api';
-import { addCoins } from '../../api/coinTransactions';
 import AuthContext from '../../store/auth-context';
 import { authFetch } from '../../api/authFetch';
 import { deleteAccount } from '../../api/deleteAccount';
@@ -104,8 +103,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
             onAvatarUpdated?.();
 
             if (hadNoAvatar) {
-                await addCoins(userId, 1, 'avatar_upload', 'First avatar upload bonus');
-                authCtx.setNotificationShown(true, 'You received 1 coin for your first avatar.', 'success', 5);
+                authCtx.setNotificationShown(true, 'Avatar saved.', 'success', 4);
             }
         };
         reader.readAsDataURL(selectedFile);
@@ -150,8 +148,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
             onAvatarUpdated?.();
 
             if (hadNoAvatar) {
-                await addCoins(userId, 1, 'avatar_upload', 'First avatar (generated) bonus');
-                authCtx.setNotificationShown(true, 'You received 1 coin for your first avatar.', 'success', 5);
+                authCtx.setNotificationShown(true, 'Avatar saved.', 'success', 4);
             } else {
                 authCtx.setNotificationShown(true, 'Avatar updated.', 'success', 3);
             }
@@ -192,7 +189,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
         }
 
         const confirmed = window.confirm(
-            'Delete your account permanently? This removes your profile, coins, and sign-in. Tournament history may still show your past nickname. This cannot be undone.'
+            'Delete your account permanently? This removes your profile and sign-in. Tournament history may still show your past nickname. This cannot be undone.'
         );
         if (!confirmed) {
             return;
@@ -227,7 +224,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                         </div>
                     )}
                     <div className={classes.avatarActions}>
-                        <p className={classes.avatarHint}>Avatar (max 200KB). First upload earns 1 coin.</p>
+                        <p className={classes.avatarHint}>Avatar (max 200KB).</p>
                         <input
                             type="file"
                             id="avatar"
@@ -255,7 +252,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
 
             {embedded && (
                 <div className={classes.embeddedAvatarActions}>
-                    <p className={classes.avatarHint}>Avatar (max 200KB). First upload earns 1 coin.</p>
+                    <p className={classes.avatarHint}>Avatar (max 200KB).</p>
                     <input
                         type="file"
                         id="avatar"
@@ -322,8 +319,8 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
             {!embedded && (
                 <div className={classes.quickStats}>
                     <div className={classes.statBox}>
-                        <span className={classes.statLabel}>Coins</span>
-                        <span className={classes.statValue}>{player.coins ?? 0}</span>
+                        <span className={classes.statLabel}>Tournament winnings</span>
+                        <span className={classes.statValue}>${Number(player.totalPrize || 0).toFixed(0)}</span>
                     </div>
                 </div>
             )}
@@ -331,7 +328,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
             <div className={classes.formPanel}>
                 <h4 className={classes.panelTitle}>Donation Alerts</h4>
                 <p className={classes.panelNote}>
-                    Link your Donation Alerts username so coins are awarded automatically when you donate.
+                    Link your Donation Alerts username so donations are matched to your account.
                 </p>
                 <div className={classes.formControl}>
                     <label htmlFor="da-username">DA username</label>

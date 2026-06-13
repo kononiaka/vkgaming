@@ -5,25 +5,30 @@ import AuthContext from '../../store/auth-context';
 import classes from './modalDonate.module.css';
 
 const STRIPE_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/createStripeCheckout';
+const MIN_STRIPE_DONATION_USD = 5;
 
 const ModalDonate = (props) => {
     const authCtx = useContext(AuthContext);
-    const [stripeLoading, setStripeLoading] = useState(null); // stores the tier amount being processed
+    const [stripeAmount, setStripeAmount] = useState('10');
+    const [stripeLoading, setStripeLoading] = useState(false);
     const [loginPrompt, setLoginPrompt] = useState(false);
 
-    const donationTiers = [
-        { amount: 1, coins: 2, label: 'Supporter', color: '#4CAF50' },
-        { amount: 3, coins: 5, label: 'Contributor', color: '#2196F3' },
-        { amount: 5, coins: 10, label: 'Champion', color: '#FF9800' },
-        { amount: 10, coins: 25, label: 'Legend', color: '#E91E63' }
-    ];
-
     const handleStripe = async (amount) => {
+        const parsedAmount = Number(amount);
+        if (!Number.isFinite(parsedAmount) || parsedAmount < MIN_STRIPE_DONATION_USD) {
+            authCtx.setNotificationShown(
+                true,
+                `Minimum card donation is $${MIN_STRIPE_DONATION_USD}. Use Donation Alerts for smaller amounts.`,
+                'warning',
+                5
+            );
+            return;
+        }
+
         if (!authCtx.isLogged) {
             setLoginPrompt(true);
             return;
         }
-        // Extract userId from the Firebase ID token (sub claim)
         const token = localStorage.getItem('token');
         let userId;
         try {
@@ -36,15 +41,14 @@ const ModalDonate = (props) => {
             alert('Could not identify your account. Please log out and log in again.');
             return;
         }
-        setStripeLoading(amount);
-        // Open blank window immediately in the click handler to avoid popup blocker
+        setStripeLoading(true);
         const stripeWindow = window.open('', '_blank');
         try {
             const res = await fetch(STRIPE_FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount,
+                    amount: parsedAmount,
                     userId,
                     nickname: authCtx.userNickName,
                     origin: window.location.origin
@@ -63,44 +67,42 @@ const ModalDonate = (props) => {
             console.error('Stripe error:', err);
             alert('Failed to open payment. Please try again.');
         } finally {
-            setStripeLoading(null);
+            setStripeLoading(false);
         }
+    };
+
+    const handleStripeSubmit = (event) => {
+        event.preventDefault();
+        handleStripe(stripeAmount);
     };
 
     return (
         <Modal onClick={props.onClose} donate={props.donate}>
             <div className={classes.donate_block}>
                 <p>
-                    <b>Support the Project & Earn Coins! 💎🎮</b>
+                    <b>Support the Project 🏆</b>
                 </p>
                 <p>
-                    • 80% of donations go to tournament prize pools 🏆
-                    <br />• 20% supports platform development ⚡
+                    • 90% of donations go to tournament prize pools
+                    <br />• 10% supports platform development
                 </p>
             </div>
 
-            {/* How coins are credited */}
             <div className={classes.nicknameInstruction}>
-                <p>
-                    🪙 <strong>Coins are credited automatically</strong> after payment via both providers.
-                </p>
+                <p>Donations are tracked on your account after payment via both providers.</p>
                 {authCtx.isLogged && authCtx.userNickName && (
                     <p className={classes.yourNickname}>
                         Your account: <strong>{authCtx.userNickName}</strong>
                     </p>
                 )}
                 {!authCtx.isLogged && (
-                    <p className={classes.loginPromptInline}>🔐 Log in first so we know which account to credit.</p>
+                    <p className={classes.loginPromptInline}>Log in first so we know which account to credit.</p>
                 )}
             </div>
 
-            {/* Donation Alerts — note + button only */}
-            <p className={classes.donate_title}>🎯 via Donation Alerts</p>
+            <p className={classes.donate_title}>via Donation Alerts</p>
             <p className={classes.customNote}>
-                Donate any amount — coins are matched by your DA username set in your Profile.
-            </p>
-            <p className={classes.coinConversionHint}>
-                💡 Coin conversion: $1 = 2 coins (Supporter) • $3 = 5 coins • $5 = 10 coins • $10 = 25 coins
+                Donate any amount — matched by your Donation Alerts username set in your Profile.
             </p>
             <div className={classes.donate_logo_block}>
                 <a
@@ -109,62 +111,52 @@ const ModalDonate = (props) => {
                     rel="noreferrer"
                     onClick={!authCtx.isLogged ? () => setLoginPrompt(true) : undefined}
                 >
-                    🎯 Open Donation Alerts →
+                    Open Donation Alerts →
                 </a>
             </div>
 
-            {/* Stripe — clickable tier cards, $5 minimum */}
             <p className={classes.donate_title}>
-                💳 via Card (Stripe — Visa / Mastercard / Apple Pay / Google Pay / BLIK)
+                via Card (Stripe — Visa / Mastercard / Apple Pay / Google Pay / BLIK)
             </p>
-            <div className={classes.donationTiers}>
-                {donationTiers
-                    .filter((t) => t.amount >= 5)
-                    .map((tier, index) => (
-                        <button
-                            key={index}
-                            className={classes.tierLink}
-                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                            onClick={() => handleStripe(tier.amount)}
-                            disabled={stripeLoading !== null}
-                        >
-                            <div className={classes.tierCard} style={{ borderColor: tier.color }}>
-                                <div className={classes.tierHeader} style={{ backgroundColor: tier.color }}>
-                                    <h3>{tier.label}</h3>
-                                    <span className={classes.tierAmount}>${tier.amount}</span>
-                                </div>
-                                <div className={classes.tierBody}>
-                                    <div className={classes.coinReward}>
-                                        <span className={classes.coinIcon}>🪙</span>
-                                        <span>
-                                            {stripeLoading === tier.amount ? '⏳ Opening...' : `+${tier.coins} coins`}
-                                        </span>
-                                    </div>
-                                    <div className={classes.payNowLabel}>
-                                        {stripeLoading === tier.amount ? '' : '💳 Pay →'}
-                                    </div>
-                                </div>
-                            </div>
-                        </button>
-                    ))}
-            </div>
+            <p className={classes.customNote}>
+                Enter any amount — minimum ${MIN_STRIPE_DONATION_USD} via card.
+            </p>
+            <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
+                <div className={classes.stripeRow}>
+                    <div className={classes.amountField}>
+                        <span className={classes.amountPrefix}>$</span>
+                        <input
+                            className={classes.amountInput}
+                            type="number"
+                            min={MIN_STRIPE_DONATION_USD}
+                            step="1"
+                            value={stripeAmount}
+                            onChange={(event) => setStripeAmount(event.target.value)}
+                            disabled={stripeLoading}
+                            aria-label="Donation amount in USD"
+                        />
+                    </div>
+                    <button type="submit" className={classes.stripePayBtn} disabled={stripeLoading}>
+                        {stripeLoading ? 'Opening checkout…' : 'Pay with card'}
+                    </button>
+                </div>
+            </form>
 
-            <p className={classes.customNote}>Minimum $5 via card. For smaller amounts use Donation Alerts.</p>
+            <p className={classes.customNote}>For smaller amounts, use Donation Alerts.</p>
 
             {loginPrompt && (
                 <div className={classes.loginPromptBanner}>
-                    <span>🔐 Please log in first to donate and receive coins.</span>
+                    <span>Please log in first to donate.</span>
                     <button className={classes.loginPromptClose} onClick={() => setLoginPrompt(false)}>
                         ✕
                     </button>
                 </div>
             )}
 
-            {/* MonoBank fallback */}
-            <p className={classes.donate_title}>📱 Other</p>
+            <p className={classes.donate_title}>Other</p>
             <div className={classes.donate_logo_block}>
                 <a href="https://send.monobank.ua/jar/834ApdUfdC" target="_blank" rel="noreferrer">
-                    💰 Donate via MonoBank (no coins)
+                    Donate via MonoBank
                 </a>
             </div>
         </Modal>

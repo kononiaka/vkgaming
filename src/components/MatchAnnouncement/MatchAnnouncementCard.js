@@ -90,7 +90,10 @@ const MatchAnnouncementCard = ({
     team1Stars = 0,
     team2Stars = 0,
     team1Prediction = null,
-    team2Prediction = null
+    team2Prediction = null,
+    watchUrl = null,
+    streamLive = false,
+    compact = false
 }) => {
     const castlesSelected = Boolean(castle1Image && castle2Image);
     const showMapBackground = variant === 'live' && castlesSelected;
@@ -100,37 +103,13 @@ const MatchAnnouncementCard = ({
             ? `GAME ${gameNumber || 1} · ${(stageLabel || 'IN PROGRESS').toUpperCase()}`
             : formatAnnounceDate(tournamentDate, (statusLabel || 'UPCOMING').toUpperCase());
 
-    const timeLabel = variant === 'live' ? 'LIVE · 0 : 0' : formatAnnounceTime(tournamentDate);
+    const timeLabel = variant === 'live' ? `${score1} : ${score2}` : formatAnnounceTime(tournamentDate);
     const showPrediction = team1Prediction != null && team2Prediction != null;
 
     const caption = `Heroes 3 PvP | ${team1} vs ${team2} | ${tournamentName}`;
     const isUpcoming = variant === 'upcoming';
 
-    const renderLivePlayerSide = (side) => {
-        if (side === 'left') {
-            return (
-                <div className={classes.playerSide}>
-                    <PlayerPortrait avatar={team1Avatar} name={team1} stars={team1Stars} />
-                    <div className={classes.playerPanel}>
-                        <CountryFlag code={team1CountryCode} size={18} />
-                        <span className={classes.playerName}>{team1}</span>
-                    </div>
-                </div>
-            );
-        }
-
-        return (
-            <div className={`${classes.playerSide} ${classes.playerSideRight}`}>
-                <div className={classes.playerPanel}>
-                    <span className={classes.playerName}>{team2}</span>
-                    <CountryFlag code={team2CountryCode} size={18} />
-                </div>
-                <PlayerPortrait avatar={team2Avatar} name={team2} stars={team2Stars} />
-            </div>
-        );
-    };
-
-    const renderUpcomingPlayerSide = (side) => {
+    const renderPlayerSide = (side) => {
         const isLeft = side === 'left';
         const name = isLeft ? team1 : team2;
         const avatar = isLeft ? team1Avatar : team2Avatar;
@@ -143,19 +122,33 @@ const MatchAnnouncementCard = ({
             >
                 <PlayerPortrait avatar={avatar} name={name} stars={stars} />
                 <div className={classes.playerLabelUnder}>
-                    {isLeft && <CountryFlag code={countryCode} size={16} />}
+                    {countryCode ? (
+                        <span className={classes.playerFlag}>
+                            <CountryFlag code={countryCode} size={18} />
+                        </span>
+                    ) : null}
                     <span className={classes.playerNameUnder}>{name}</span>
-                    {!isLeft && <CountryFlag code={countryCode} size={16} />}
                 </div>
             </div>
         );
     };
 
     return (
-        <Link
-            to={to}
-            className={`${classes.card} ${featured ? classes.featured : ''} ${isUpcoming ? classes.upcoming : ''} ${showMapBackground ? classes.withMap : classes.plain}`}
-        >
+        <div className={`${classes.cardShell} ${featured ? classes.featured : ''}`}>
+            {watchUrl && (
+                <a
+                    href={watchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${classes.watchBtn} ${streamLive ? classes.watchBtnLive : ''}`}
+                >
+                    {streamLive ? 'Watch live' : 'Watch'}
+                </a>
+            )}
+            <Link
+                to={to}
+                className={`${classes.card} ${featured ? classes.featured : ''} ${isUpcoming ? classes.upcoming : ''} ${compact ? classes.compact : ''} ${showMapBackground ? classes.withMap : classes.plain}`}
+            >
             {showMapBackground ? (
                 <>
                     <div
@@ -182,7 +175,7 @@ const MatchAnnouncementCard = ({
                 <div className={classes.dateBadge}>{dateLabel}</div>
 
                 <div className={classes.matchRow}>
-                    {isUpcoming ? renderUpcomingPlayerSide('left') : renderLivePlayerSide('left')}
+                    {renderPlayerSide('left')}
 
                     <div className={classes.centerBadge}>
                         <div className={classes.centerDiamond}>
@@ -202,7 +195,7 @@ const MatchAnnouncementCard = ({
                         </div>
                     </div>
 
-                    {isUpcoming ? renderUpcomingPlayerSide('right') : renderLivePlayerSide('right')}
+                    {renderPlayerSide('right')}
                 </div>
 
                 <div
@@ -213,7 +206,8 @@ const MatchAnnouncementCard = ({
 
                 <p className={classes.caption}>{caption}</p>
             </div>
-        </Link>
+            </Link>
+        </div>
     );
 };
 

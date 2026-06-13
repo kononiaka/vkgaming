@@ -16,6 +16,67 @@ export const getKnockoutPlayerCount = (maxPlayers) =>
 export const getGroupLabels = (groupCount) =>
     Array.from({ length: groupCount }, (_, index) => String.fromCharCode(65 + index));
 
+export const mapSnakeDrawIndexToSlot = (drawIndex, groupCount) => ({
+    groupIndex: drawIndex % groupCount,
+    seatIndex: Math.floor(drawIndex / groupCount)
+});
+
+export const createEmptyGroupDrawGrid = (playerCount) => {
+    const groupCount = playerCount / CHAMPIONS_LEAGUE_GROUP_SIZE;
+    return Array.from({ length: groupCount }, () =>
+        Array.from({ length: CHAMPIONS_LEAGUE_GROUP_SIZE }, () => 'TBD')
+    );
+};
+
+export const isGroupDrawGrid = (value) =>
+    Array.isArray(value) &&
+    value.length > 0 &&
+    Array.isArray(value[0]) &&
+    value[0].length === CHAMPIONS_LEAGUE_GROUP_SIZE;
+
+export const countFilledDrawGridSlots = (grid) =>
+    grid.reduce((count, group) => count + group.filter((name) => name !== 'TBD').length, 0);
+
+export const isGroupDrawGridComplete = (grid) =>
+    isGroupDrawGrid(grid) && grid.every((group) => group.every((name) => name !== 'TBD'));
+
+export const getSnakeDrawSlotLabel = (drawIndex, groupCount) => {
+    const labels = getGroupLabels(groupCount);
+    const { groupIndex, seatIndex } = mapSnakeDrawIndexToSlot(drawIndex, groupCount);
+    return `Table ${labels[groupIndex]}, seat ${seatIndex + 1}`;
+};
+
+export const buildGroupTablesFromDrawGrid = (grid) => {
+    if (!isGroupDrawGrid(grid)) {
+        return [];
+    }
+
+    const labels = getGroupLabels(grid.length);
+    return labels.map((label, groupIndex) => ({
+        label,
+        slots: grid[groupIndex].map((name, seatIndex) => ({
+            name,
+            drawOrder: seatIndex + 1,
+            filled: name !== 'TBD'
+        })),
+        isComplete: grid[groupIndex].every((entry) => entry !== 'TBD')
+    }));
+};
+
+export const buildGroupsFromDrawGrid = (grid, playerList) => {
+    const byName = new Map(playerList.map((player) => [player.name, player]));
+    const labels = getGroupLabels(grid.length);
+    const groups = {};
+
+    labels.forEach((label, groupIndex) => {
+        groups[label] = grid[groupIndex]
+            .map((name) => byName.get(name))
+            .filter((player) => player && player.name);
+    });
+
+    return groups;
+};
+
 const shuffleList = (items) => {
     const list = [...items];
     for (let i = list.length - 1; i > 0; i--) {
@@ -89,15 +150,38 @@ const createMatchGames = (count) =>
         restart2_112: 0
     }));
 
-export const assignPlayersToGroups = (playerList) => {
-    const shuffled = shuffleList(playerList);
-    const groupCount = shuffled.length / CHAMPIONS_LEAGUE_GROUP_SIZE;
+export const orderPlayersFromWheelPairs = (pairs, playerList) => {
+    const byName = new Map(playerList.map((player) => [player.name, player]));
+    const ordered = [];
+
+    pairs.forEach((pair) => {
+        pair.forEach((name) => {
+            const player = byName.get(name);
+            if (player && !ordered.some((entry) => entry.name === player.name)) {
+                ordered.push(player);
+            }
+        });
+    });
+
+    playerList.forEach((player) => {
+        if (!ordered.some((entry) => entry.name === player.name)) {
+            ordered.push(player);
+        }
+    });
+
+    return ordered;
+};
+
+export const assignPlayersToGroups = (playerList, options = {}) => {
+    const { shuffle = true } = options;
+    const ordered = shuffle ? shuffleList(playerList) : [...playerList];
+    const groupCount = ordered.length / CHAMPIONS_LEAGUE_GROUP_SIZE;
     const labels = getGroupLabels(groupCount);
     const groups = {};
 
     labels.forEach((label, index) => {
         const start = index * CHAMPIONS_LEAGUE_GROUP_SIZE;
-        groups[label] = shuffled.slice(start, start + CHAMPIONS_LEAGUE_GROUP_SIZE);
+        groups[label] = ordered.slice(start, start + CHAMPIONS_LEAGUE_GROUP_SIZE);
     });
 
     return groups;
@@ -380,4 +464,56 @@ export const validateChampionsLeagueRegistration = (registeredCount, maxPlayers)
     }
 
     return { valid: true, message: '' };
+};
+
+const normalizeGroupGameType = (rawGameType) => {
+    const raw = rawGameType || 'bo-1';
+    if (raw === '5' || raw === 'bo-5') {
+        return 'bo-5';
+    }
+    if (raw === '3' || raw === 'bo-3') {
+        return 'bo-3';
+    }
+    if (raw === '2' || raw === 'bo-2') {
+        return 'bo-2';
+    }
+    return 'bo-1';
+};
+
+export const prepareChampionsLeagueGroupStage = (playerList, tournamentData, options = {}) => {
+    const validation = validateChampionsLeagueRegistration(playerList.length, tournamentData.maxPlayers);
+    if (!validation.valid) {
+        return { validation, groups: null, groupPairs: null, gameType: null, groupCount: 0 };
+    }
+
+    const gameType = normalizeGroupGameType(tournamentData.tournamentPlayoffGames);
+    const groups = assignPlayersToGroups(playerList, { shuffle: options.shuffle !== false });
+    const groupPairs = generateChampionsLeagueGroupPairs(groups, gameType);
+
+    return {
+        validation,
+        groups,
+        groupPairs,
+        gameType,
+        groupCount: Object.keys(groups).length
+    };
+};
+
+export const prepareChampionsLeagueFromDrawGrid = (grid, tournamentData, playerList) => {
+    const validation = validateChampionsLeagueRegistration(playerList.length, tournamentData.maxPlayers);
+    if (!validation.valid) {
+        return { validation, groups: null, groupPairs: null, gameType: null, groupCount: 0 };
+    }
+
+    const gameType = normalizeGroupGameType(tournamentData.tournamentPlayoffGames);
+    const groups = buildGroupsFromDrawGrid(grid, playerList);
+    const groupPairs = generateChampionsLeagueGroupPairs(groups, gameType);
+
+    return {
+        validation,
+        groups,
+        groupPairs,
+        gameType,
+        groupCount: Object.keys(groups).length
+    };
 };

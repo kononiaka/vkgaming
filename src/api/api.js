@@ -1,4 +1,5 @@
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
+import { buildUsdPrizesFromFunding } from '../utils/prizePoolData';
 import { authFetch } from './authFetch';
 import { fetchHotaLeaderboard, findHotaLeaderboardRank } from './hotaMeta';
 
@@ -6,22 +7,19 @@ export const getTournamentPrizeLabel = (tournament) => {
     if (!tournament) {
         return null;
     }
+
+    const collected = Number(tournament.communityFundingUsd) || 0;
+    if (collected > 0) {
+        return `$${collected.toLocaleString()} prize pool`;
+    }
+
     if (tournament.prizeType === 'money' && tournament.totalPrizeUsd) {
         return `$${Number(tournament.totalPrizeUsd).toLocaleString()} prize pool`;
-    }
-    if (tournament.prizeType === 'coins' && tournament.totalPrizeCoins) {
-        return `${Number(tournament.totalPrizeCoins).toLocaleString()} coins`;
     }
     if (tournament.pricePull && typeof tournament.pricePull === 'object') {
         const total = Object.values(tournament.pricePull).reduce((sum, v) => sum + Number(v || 0), 0);
         if (total > 0) {
             return `$${total.toLocaleString()} prize pool`;
-        }
-    }
-    if (tournament.coinPrizePull && typeof tournament.coinPrizePull === 'object') {
-        const total = Object.values(tournament.coinPrizePull).reduce((sum, v) => sum + Number(v || 0), 0);
-        if (total > 0) {
-            return `${total.toLocaleString()} coins`;
         }
     }
     return null;
@@ -309,22 +307,6 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
         console.error(error);
     }
 };
-
-export async function addCoinsToUser(userId, coinsToAdd = 1) {
-    // Fetch the current user data
-    const userRes = await fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`);
-    const userData = await userRes.json();
-
-    // Calculate new coins value
-    const newCoins = (userData.coins || 0) + coinsToAdd;
-
-    // Update the user with the new coins value
-    await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coins: newCoins })
-    });
-}
 
 export const findByName = (data, nickname, newRating) => {
     for (let key in data) {
@@ -711,15 +693,23 @@ export const determineTournamentPrizes = (total_prize) => {
 
 export const pullTournamentPrizes = async (tournamentId) => {
     const tournamentResponse = await fetch(
-        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/pricePull.json`,
-        {
-            method: 'GET',
-            origin: ['*']
-        }
+        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`
     );
-    if (tournamentResponse.ok) {
-        return tournamentResponse.json();
+    if (!tournamentResponse.ok) {
+        return null;
     }
+
+    const tournament = await tournamentResponse.json();
+    const goldPrizes = buildUsdPrizesFromFunding(tournament);
+    if (goldPrizes) {
+        return goldPrizes;
+    }
+
+    if (tournament?.pricePull) {
+        return tournament.pricePull;
+    }
+
+    return null;
 };
 
 export const getPlayerPrizeTotal = async (userId) => {

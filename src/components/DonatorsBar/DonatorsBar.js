@@ -1,6 +1,27 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { normalizeDonationToUsd } from '../../utils/prizePoolData';
 import { useEffect, useState } from 'react';
 import classes from './DonatorsBar.module.css';
+
+const getLegacyDonatedUsd = (userData) => {
+    const transactions = Object.values(userData.coinTransactions || {}).filter(
+        (transaction) => transaction.type === 'donation_reward'
+    );
+
+    return transactions.reduce((sum, transaction) => {
+        const donationAmount = Number(transaction.metadata?.donationAmount) || 0;
+        const currency = transaction.metadata?.currency || 'UAH';
+        return sum + normalizeDonationToUsd(donationAmount, currency);
+    }, 0);
+};
+
+const getDonorTotalUsd = (userData) => {
+    const tracked = Number(userData.totalDonatedUsd);
+    if (Number.isFinite(tracked) && tracked > 0) {
+        return tracked;
+    }
+    return getLegacyDonatedUsd(userData);
+};
 
 const DonatorsBar = () => {
     const [donators, setDonators] = useState([]);
@@ -8,9 +29,7 @@ const DonatorsBar = () => {
     useEffect(() => {
         const fetchDonators = async () => {
             try {
-                const usersResponse = await window.fetch(
-                    `${FIREBASE_DATABASE_URL}/users.json`
-                );
+                const usersResponse = await window.fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 if (!usersResponse.ok) {
                     setDonators([]);
                     return;
@@ -23,21 +42,10 @@ const DonatorsBar = () => {
                 }
 
                 const donors = Object.values(users)
-                    .map((userData) => {
-                        const transactions = Object.values(userData.coinTransactions || {}).filter(
-                            (transaction) => transaction.type === 'donation_reward'
-                        );
-
-                        const totalDonated = transactions.reduce((sum, transaction) => {
-                            const donationAmount = Number(transaction.metadata?.donationAmount) || 0;
-                            return sum + donationAmount;
-                        }, 0);
-
-                        return {
-                            name: userData.enteredNickname || userData.name || 'Anonymous',
-                            amount: totalDonated
-                        };
-                    })
+                    .map((userData) => ({
+                        name: userData.enteredNickname || userData.name || 'Anonymous',
+                        amount: getDonorTotalUsd(userData)
+                    }))
                     .filter((donor) => donor.amount > 0)
                     .sort((a, b) => b.amount - a.amount)
                     .slice(0, 20);
@@ -52,12 +60,15 @@ const DonatorsBar = () => {
         fetchDonators();
     }, []);
 
-    // If no donators, don't render
+    useEffect(() => {
+        document.documentElement.classList.toggle('has-supporters-bar', donators.length > 0);
+        return () => document.documentElement.classList.remove('has-supporters-bar');
+    }, [donators.length]);
+
     if (donators.length === 0) {
         return null;
     }
 
-    // Duplicate the list for seamless infinite scroll
     const duplicatedDonators = [...donators, ...donators];
 
     const getRankLabel = (index) => {
@@ -85,7 +96,7 @@ const DonatorsBar = () => {
                                 {rank ? <span className={classes.donatorRank}>{rank}</span> : null}
                                 <span className={classes.donatorName}>{donator.name}</span>
                                 <span className={classes.donatorAmount}>
-                                    <strong>{donator.amount}</strong> UAH
+                                    <strong>${Math.round(donator.amount).toLocaleString()}</strong>
                                 </span>
                             </div>
                         );
