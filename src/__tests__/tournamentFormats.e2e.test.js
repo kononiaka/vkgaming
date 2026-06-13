@@ -22,7 +22,12 @@ import {
     isChampionsLeagueGroupStageComplete,
     isChampionsLeagueSize,
     pairKnockoutQualifiers,
-    validateChampionsLeagueRegistration
+    validateChampionsLeagueRegistration,
+    orderPlayersFromWheelPairs,
+    prepareChampionsLeagueFromDrawGrid,
+    prepareChampionsLeagueGroupStage,
+    createEmptyGroupDrawGrid,
+    mapSnakeDrawIndexToSlot
 } from '../components/tournaments/homm3/championsLeagueUtils';
 import {
     DOUBLE_ELIM_SIZES,
@@ -162,6 +167,75 @@ describe('tournament format E2E flows', () => {
 
             const groupPairs = generateChampionsLeagueGroupPairs(groups, 'bo-1');
             expect(groupPairs).toHaveLength(24);
+        });
+
+        test('spinning wheel draw order assigns groups without reshuffling', () => {
+            const eight = Array.from({ length: 8 }, (_, index) => makePlayer(`P${index + 1}`));
+            const wheelPairs = [
+                ['P1', 'P2'],
+                ['P3', 'P4'],
+                ['P5', 'P6'],
+                ['P7', 'P8']
+            ];
+            const ordered = orderPlayersFromWheelPairs(wheelPairs, eight);
+            expect(ordered.map((player) => player.name)).toEqual([
+                'P1',
+                'P2',
+                'P3',
+                'P4',
+                'P5',
+                'P6',
+                'P7',
+                'P8'
+            ]);
+
+            const prepared = prepareChampionsLeagueGroupStage(ordered, {
+                maxPlayers: 8,
+                tournamentPlayoffGames: 'bo-1'
+            }, { shuffle: false });
+
+            expect(prepared.validation.valid).toBe(true);
+            expect(prepared.groups.A.map((player) => player.name)).toEqual(['P1', 'P2', 'P3', 'P4']);
+            expect(prepared.groups.B.map((player) => player.name)).toEqual(['P5', 'P6', 'P7', 'P8']);
+            expect(prepared.groupPairs).toHaveLength(12);
+        });
+
+        test('snake draw fills Table A seat 1, Table B seat 1, then seat 2 across tables', () => {
+            const eight = Array.from({ length: 8 }, (_, index) => makePlayer(`P${index + 1}`));
+            const grid = createEmptyGroupDrawGrid(8);
+            const drawOrder = eight.map((player) => player.name);
+
+            drawOrder.forEach((name, drawIndex) => {
+                const { groupIndex, seatIndex } = mapSnakeDrawIndexToSlot(drawIndex, grid.length);
+                grid[groupIndex][seatIndex] = name;
+            });
+
+            expect(grid[0]).toEqual(['P1', 'P3', 'P5', 'P7']);
+            expect(grid[1]).toEqual(['P2', 'P4', 'P6', 'P8']);
+
+            const prepared = prepareChampionsLeagueFromDrawGrid(
+                grid,
+                { maxPlayers: 8, tournamentPlayoffGames: 'bo-1' },
+                eight
+            );
+
+            expect(prepared.validation.valid).toBe(true);
+            expect(prepared.groups.A.map((player) => player.name)).toEqual(['P1', 'P3', 'P5', 'P7']);
+            expect(prepared.groups.B.map((player) => player.name)).toEqual(['P2', 'P4', 'P6', 'P8']);
+        });
+
+        test('prepareChampionsLeagueGroupStage auto-shuffles when wheel is disabled', () => {
+            const eight = Array.from({ length: 8 }, (_, index) => makePlayer(`P${index + 1}`));
+            const prepared = prepareChampionsLeagueGroupStage(
+                eight,
+                { maxPlayers: 8, tournamentPlayoffGames: 'bo-3' },
+                { shuffle: true }
+            );
+
+            expect(prepared.validation.valid).toBe(true);
+            expect(prepared.gameType).toBe('bo-3');
+            expect(Object.keys(prepared.groups)).toHaveLength(2);
+            expect(prepared.groupPairs.every((pair) => pair.type === 'bo-3')).toBe(true);
         });
     });
 

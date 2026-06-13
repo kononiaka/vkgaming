@@ -1,6 +1,6 @@
 .main {
     background: transparent;
     width: 100%;
-    min-height: calc(100vh - var(--header-height));
-    padding-top: var(--header-height);
+    min-height: calc(100vh - var(--layout-top-offset));
+    padding-top: var(--layout-top-offset);
 }

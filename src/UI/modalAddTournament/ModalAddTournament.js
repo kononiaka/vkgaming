@@ -1,8 +1,6 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import { authFetch } from '../../api/authFetch';
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import { determineTournamentPrizes, lookForUserId } from '../../api/api';
-import { addCoins, deductCoins, getCoinBalance } from '../../api/coinTransactions';
+import React, { useContext, useRef, useState } from 'react';
 import Modal from '../Modal/Modal';
 import classes from './ModalAddTournament.module.css';
 import { shuffleArray, setStageLabels } from '../../components/tournaments/tournament_api';
@@ -14,6 +12,18 @@ import {
 } from '../../components/tournaments/homm3/loserBracketUtils';
 import AuthContext from '../../store/auth-context';
 import { getFirebaseUid } from '../../api/authFetch';
+import {
+    DEFAULT_FUNDING_GOAL_USD,
+    formatFundingUsd,
+    getHostSeedPoolPreview,
+    HOST_SEED_POOL_SHARE,
+    MIN_HOST_SEED_USD
+} from '../../utils/prizePoolData';
+import {
+    fundTournamentFromHostBalance,
+    startHostSeedCheckout
+} from '../../api/tournamentHostFunding';
+import { addCreatorToTournament } from '../../api/tournamentRegistration';
 import { MIN_SWISS_PLAYERS } from '../../components/tournaments/homm3/swissUtils';
 import {
     CHAMPIONS_LEAGUE_GROUP_SIZE,
@@ -22,7 +32,6 @@ import {
     isChampionsLeagueSize
 } from '../../components/tournaments/homm3/championsLeagueUtils';
 
-const MIN_PRIZE_POOL_COINS = 5;
 const MIN_TOURNAMENT_PLAYERS = 2;
 
 const getDefaultTournamentDate = () => {
@@ -36,11 +45,6 @@ const getDefaultTournamentDate = () => {
     return `${year}-${month}-${day}T${hours}:${roundedMinutes}`;
 };
 
-const splitCoinPrizes = (total) =>
-    Object.fromEntries(
-        Object.entries(determineTournamentPrizes(total)).map(([place, amount]) => [place, Math.round(Number(amount))])
-    );
-
 const Bracket = (props) => {
     const [isSaving, setIsSaving] = useState(false);
     const [date, setDate] = useState(getDefaultTournamentDate);
@@ -49,36 +53,25 @@ const Bracket = (props) => {
     const [tournamentType, setTournamentType] = useState('kick-off');
     const [isPublicTournament, setIsPublicTournament] = useState(true);
     const [loserBracket, setLoserBracket] = useState(false);
-    const [coinBalance, setCoinBalance] = useState(
-        () => (props.initialCoinBalance != null ? props.initialCoinBalance : null)
-    );
-    const [prizePoolCoins, setPrizePoolCoins] = useState('');
+    const [strictCastlePick, setStrictCastlePick] = useState(false);
+    const [fundingGoalUsd, setFundingGoalUsd] = useState(String(DEFAULT_FUNDING_GOAL_USD));
+    const [attendanceFeeUsd, setAttendanceFeeUsd] = useState('0');
     const authCtx = useContext(AuthContext);
     const isLeague = tournamentType === 'league';
     const isSwiss = tournamentType === 'swiss';
     const isChampionsLeague = tournamentType === 'champions-league';
     const isKickOff = tournamentType === 'kick-off';
     const isScheduleFormat = isLeague || isSwiss || isChampionsLeague;
-    const maxPrizePoolCoins =
-        !authCtx.isAdmin && coinBalance != null ? Math.max(0, Number(coinBalance) || 0) : null;
-    const parsedPrizePool = Number(prizePoolCoins);
-    const prizePoolExceedsBalance =
-        maxPrizePoolCoins != null &&
-        prizePoolCoins !== '' &&
-        Number.isFinite(parsedPrizePool) &&
-        parsedPrizePool > maxPrizePoolCoins;
-    const prizePoolBelowMin =
-        prizePoolCoins !== '' &&
-        (!Number.isFinite(parsedPrizePool) || parsedPrizePool < MIN_PRIZE_POOL_COINS);
-    const hasValidPrizeAmount =
-        prizePoolCoins !== '' &&
-        Number.isFinite(parsedPrizePool) &&
-        parsedPrizePool >= MIN_PRIZE_POOL_COINS;
-    const isPrizePoolValid = authCtx.isAdmin
-        ? hasValidPrizeAmount
-        : hasValidPrizeAmount &&
-          maxPrizePoolCoins != null &&
-          parsedPrizePool <= maxPrizePoolCoins;
+    const hideKnockoutStageGames = isScheduleFormat;
+    const showBracketOptions = isKickOff || isChampionsLeague;
+    const parsedFundingGoal = Number(fundingGoalUsd);
+    const fundingGoalInvalid =
+        fundingGoalUsd !== '' &&
+        (!Number.isFinite(parsedFundingGoal) || parsedFundingGoal < MIN_HOST_SEED_USD);
+    const hasValidFundingGoal =
+        fundingGoalUsd !== '' &&
+        Number.isFinite(parsedFundingGoal) &&
+        parsedFundingGoal >= MIN_HOST_SEED_USD;
     const minPlayersRequired = isSwiss
         ? MIN_SWISS_PLAYERS
         : isChampionsLeague
@@ -105,7 +98,7 @@ const Bracket = (props) => {
         Number.isFinite(parsedMaxPlayers) &&
         !isDoubleElimSize(parsedMaxPlayers);
     const canCreateTournament =
-        isPrizePoolValid &&
+        hasValidFundingGoal &&
         isMaxPlayersValid &&
         tournamentName.trim() !== '' &&
         !loserBracketSizeInvalid &&
@@ -145,55 +138,31 @@ const Bracket = (props) => {
         { value: '3', label: 'BO-3 (3 games per match)' }
     ];
 
-    useEffect(() => {
-        if (props.initialCoinBalance != null || authCtx.isAdmin || !authCtx.userNickName) {
-            return;
-        }
-
-        let cancelled = false;
-
-        const loadBalance = async () => {
-            try {
-                const userId = await lookForUserId(authCtx.userNickName);
-                const balance = await getCoinBalance(userId);
-                if (!cancelled) {
-                    setCoinBalance(balance);
-                }
-            } catch (error) {
-                console.error('Failed to load coin balance:', error);
-                if (!cancelled) {
-                    setCoinBalance(0);
-                }
-            }
-        };
-
-        loadBalance();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [authCtx.isAdmin, authCtx.userNickName, props.initialCoinBalance]);
-
     const tournamentPlayoffGames = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentPlayoffGamesThirdPlace = useRef(null);
     const randomBracketRef = useRef(null);
 
-    const handlePrizePoolChange = (event) => {
-        const rawValue = event.target.value;
-
-        if (rawValue === '') {
-            setPrizePoolCoins('');
-            return;
-        }
-
-        setPrizePoolCoins(rawValue);
+    const handleFundingGoalChange = (event) => {
+        setFundingGoalUsd(event.target.value);
     };
+
+    const handleAttendanceFeeChange = (event) => {
+        setAttendanceFeeUsd(event.target.value);
+    };
+
+    const parsedAttendanceFee = Number(attendanceFeeUsd);
+    const attendanceFeeInvalid =
+        attendanceFeeUsd !== '' && (!Number.isFinite(parsedAttendanceFee) || parsedAttendanceFee < 0);
 
     const handleSave = async () => {
         const name = tournamentName.trim();
         const maxPlayersCount = Number(maxPlayers);
-        const coinPrizePool = parsedPrizePool;
+        const goalUsd = parsedFundingGoal;
+        const attendanceUsd =
+            attendanceFeeUsd === '' || !Number.isFinite(parsedAttendanceFee) || parsedAttendanceFee < 0
+                ? 0
+                : parsedAttendanceFee;
 
         if (!name) {
             authCtx.setNotificationShown(true, 'Enter a tournament name.', 'warning', 4);
@@ -234,95 +203,54 @@ const Bracket = (props) => {
             return;
         }
 
-        if (!Number.isFinite(coinPrizePool) || coinPrizePool < MIN_PRIZE_POOL_COINS) {
+        if (!Number.isFinite(goalUsd) || goalUsd < MIN_HOST_SEED_USD) {
             authCtx.setNotificationShown(
                 true,
-                `Prize pool must be at least ${MIN_PRIZE_POOL_COINS} coins.`,
+                `Enter a prize pool goal of at least $${MIN_HOST_SEED_USD}.`,
                 'warning',
                 5
             );
             return;
         }
 
-        if (!authCtx.isAdmin && maxPrizePoolCoins != null && coinPrizePool > maxPrizePoolCoins) {
-            authCtx.setNotificationShown(
-                true,
-                `Prize pool cannot exceed your balance (${maxPrizePoolCoins} coins).`,
-                'error',
-                5
-            );
+        if (attendanceFeeInvalid) {
+            authCtx.setNotificationShown(true, 'Enter a valid attendance fee (USD). Use 0 for free entry.', 'warning', 5);
             return;
-        }
-
-        const coinPrizePull = splitCoinPrizes(coinPrizePool);
-        let userId = null;
-        let prizePoolDeducted = false;
-
-        if (!authCtx.isAdmin) {
-            try {
-                userId = await lookForUserId(authCtx.userNickName);
-                const balance = await getCoinBalance(userId);
-
-                if (balance < coinPrizePool) {
-                    authCtx.setNotificationShown(
-                        true,
-                        `Not enough coins. You have ${balance}, but the prize pool is ${coinPrizePool}.`,
-                        'error',
-                        6
-                    );
-                    return;
-                }
-
-                const deductResult = await deductCoins(
-                    userId,
-                    coinPrizePool,
-                    'tournament_prize_pool',
-                    `Prize pool for tournament: ${name}`,
-                    { tournamentName: name, prizePoolCoins: coinPrizePool }
-                );
-
-                if (!deductResult.success) {
-                    authCtx.setNotificationShown(
-                        true,
-                        deductResult.error || 'Could not deduct coins from your balance.',
-                        'error',
-                        5
-                    );
-                    return;
-                }
-
-                prizePoolDeducted = true;
-                setCoinBalance(deductResult.newBalance);
-            } catch (error) {
-                console.error('Prize pool deduction failed:', error);
-                authCtx.setNotificationShown(true, 'Could not verify your coin balance.', 'error', 5);
-                return;
-            }
         }
 
         const objTournament = {
             name,
             type: tournamentType,
             maxPlayers: maxPlayersCount,
-            pricePull: coinPrizePull,
-            coinPrizePull,
-            prizeType: 'coins',
+            prizeType: 'community',
             totalPrizeUsd: 0,
-            totalPrizeCoins: coinPrizePool,
+            fundingGoalUsd: goalUsd,
+            attendanceFeeUsd: attendanceUsd,
+            communityFundingUsd: 0,
+            poolFunded: false,
+            pricePull: {
+                '1st Place': 0,
+                '2nd Place': 0,
+                '3rd Place': 0
+            },
             date,
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
             tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
             tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
-            randomBracket: isScheduleFormat ? false : randomBracketRef.current.checked,
+            randomBracket:
+                isLeague || isSwiss
+                    ? false
+                    : showBracketOptions && randomBracketRef.current.checked,
             loserBracket: isKickOff && loserBracket,
+            strictCastlePick,
             championsLeaguePhase: isChampionsLeague ? 'group' : null,
             groupSize: isChampionsLeague ? CHAMPIONS_LEAGUE_GROUP_SIZE : null,
             qualifiersPerGroup: isChampionsLeague ? CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP : null,
             isPublic: isPublicTournament,
             createdBy: authCtx.userNickName || null,
             createdByUid: getFirebaseUid(),
-            status: isPublicTournament ? 'Registration Started' : 'Draft',
-            players: 0,
+            status: isPublicTournament ? 'Pending funding' : 'Draft',
+            players: {},
             winners: {
                 '1st place': 'TBD',
                 '2nd place': 'TBD',
@@ -330,7 +258,7 @@ const Bracket = (props) => {
             }
         };
 
-        if (!isScheduleFormat && randomBracketRef.current.checked) {
+        if (isKickOff && randomBracketRef.current.checked) {
             objTournament.bracket = {};
             if (loserBracket) {
                 const playOffPairs = createDoubleElimPlayoffPairs(
@@ -370,11 +298,56 @@ const Bracket = (props) => {
                 throw new Error('Tournament save failed');
             }
 
+            const created = await response.json();
+            const tournamentId = created.name;
+
+            if (tournamentId && authCtx.userNickName) {
+                try {
+                    await addCreatorToTournament(tournamentId, authCtx.userNickName);
+                } catch (registerError) {
+                    console.error('Could not auto-register tournament creator:', registerError);
+                }
+            }
+
+            if (isPublicTournament && tournamentId) {
+                const firebaseUid = getFirebaseUid();
+                const balanceResult = await fundTournamentFromHostBalance(firebaseUid, tournamentId, goalUsd, {
+                    isPublic: true
+                });
+
+                if (balanceResult.ok) {
+                    authCtx.setNotificationShown(
+                        true,
+                        `Tournament "${name}" created — $${balanceResult.poolUsd} added to the prize pool from your balance.`,
+                        'success',
+                        6
+                    );
+                    props.onClose();
+                    window.location.href = `/tournaments/homm3/${tournamentId}?status=registration`;
+                    return;
+                }
+
+                await startHostSeedCheckout({
+                    tournamentId,
+                    tournamentName: name,
+                    goalUsd,
+                    nickname: authCtx.userNickName
+                });
+
+                authCtx.setNotificationShown(
+                    true,
+                    `Tournament "${name}" saved. Complete the $${goalUsd} prize pool payment to open registration.`,
+                    'warning',
+                    8
+                );
+                props.onClose();
+                window.location.href = `/tournaments/homm3/${tournamentId}?funding=pending`;
+                return;
+            }
+
             authCtx.setNotificationShown(
                 true,
-                authCtx.isAdmin
-                    ? `Tournament "${name}" created.`
-                    : `Tournament created. ${coinPrizePool} coins deducted from your balance.`,
+                `Tournament "${name}" created.`,
                 'success',
                 5
             );
@@ -383,18 +356,7 @@ const Bracket = (props) => {
             window.location.href = '/tournaments/homm3';
         } catch (error) {
             console.error('Error creating tournament:', error);
-
-            if (prizePoolDeducted && userId) {
-                await addCoins(
-                    userId,
-                    coinPrizePool,
-                    'tournament_prize_pool_refund',
-                    `Refund — tournament creation failed: ${name}`,
-                    { tournamentName: name, prizePoolCoins: coinPrizePool }
-                );
-            }
-
-            authCtx.setNotificationShown(true, 'Failed to create tournament. Coins were refunded.', 'error', 6);
+            authCtx.setNotificationShown(true, 'Failed to create tournament.', 'error', 6);
         } finally {
             setIsSaving(false);
         }
@@ -406,23 +368,12 @@ const Bracket = (props) => {
                 <header className={classes.header}>
                     <h2 className={classes.title}>Add tournament</h2>
                     <p className={classes.subtitle}>
-                        Prize pool is paid in coins from your balance. Public cups are announced in Telegram.
+                        Public cups require a host prize pool seed at creation (95% to the pool). You are registered
+                        automatically as the host. Donations and registration fees can top it up later.
                     </p>
                 </header>
 
                 <div className={classes.body}>
-                        {!authCtx.isAdmin && coinBalance != null && (
-                            <p className={classes.balanceBanner}>
-                                Your balance: <strong>{coinBalance} coins</strong>
-                            </p>
-                        )}
-
-                        {prizePoolExceedsBalance && (
-                            <p className={classes.exceededBanner} role="alert">
-                                Prize pool exceeds your balance. Maximum allowed:{' '}
-                                <strong>{maxPrizePoolCoins} coins</strong> (you entered {parsedPrizePool}).
-                            </p>
-                        )}
 
                         <section className={classes.section}>
                             <h3 className={classes.sectionTitle}>Basics</h3>
@@ -536,29 +487,42 @@ const Bracket = (props) => {
                             <h3 className={classes.sectionTitle}>Prizes &amp; format</h3>
                             <div className={classes.grid}>
                                 <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentPricePoolCoins">
-                                        Prize pool (coins)
+                                    <label className={classes.label} htmlFor="tournamentFundingGoalUsd">
+                                        Prize pool goal (USD)
                                     </label>
                                     <input
-                                        id="tournamentPricePoolCoins"
-                                        className={`${classes.input} ${
-                                            prizePoolExceedsBalance || prizePoolBelowMin ? classes.inputError : ''
-                                        }`}
+                                        id="tournamentFundingGoalUsd"
+                                        className={`${classes.input} ${fundingGoalInvalid ? classes.inputError : ''}`}
                                         type="number"
-                                        min={MIN_PRIZE_POOL_COINS}
+                                        min={MIN_HOST_SEED_USD}
                                         step="1"
-                                        value={prizePoolCoins}
-                                        onChange={handlePrizePoolChange}
-                                        placeholder={`Min ${MIN_PRIZE_POOL_COINS}${
-                                            maxPrizePoolCoins != null ? `, max ${maxPrizePoolCoins}` : ''
-                                        }`}
+                                        value={fundingGoalUsd}
+                                        onChange={handleFundingGoalChange}
+                                        placeholder={`e.g. ${DEFAULT_FUNDING_GOAL_USD}`}
                                     />
                                     <p className={classes.fieldHint}>
-                                        {authCtx.isAdmin
-                                            ? 'Admins are not charged — pool is for display and payouts only.'
-                                            : maxPrizePoolCoins != null
-                                              ? `Deducted from your balance (max ${maxPrizePoolCoins} coins). Split 60% / 30% / 10%.`
-                                              : 'Deducted from your balance when you create the cup (60% / 30% / 10%).'}
+                                        You pay this at creation. {Math.round(HOST_SEED_POOL_SHARE * 100)}% (
+                                        {formatFundingUsd(getHostSeedPoolPreview(parsedFundingGoal || 0))}) goes to the pool. Winners paid 60% / 30% / 10%
+                                        when the cup ends.
+                                    </p>
+                                </div>
+                                <div className={classes.field}>
+                                    <label className={classes.label} htmlFor="tournamentAttendanceFeeUsd">
+                                        Self-registration fee (USD)
+                                    </label>
+                                    <input
+                                        id="tournamentAttendanceFeeUsd"
+                                        className={`${classes.input} ${attendanceFeeInvalid ? classes.inputError : ''}`}
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={attendanceFeeUsd}
+                                        onChange={handleAttendanceFeeChange}
+                                        placeholder="0 = free"
+                                    />
+                                    <p className={classes.fieldHint}>
+                                        Paid by players who register themselves. 100% goes to this cup&apos;s prize pool.
+                                        Admins can still add players for free.
                                     </p>
                                 </div>
                                 <div className={classes.field}>
@@ -571,14 +535,17 @@ const Bracket = (props) => {
                                         defaultValue="1"
                                         ref={tournamentPlayoffGames}
                                     >
-                                        {(isLeague ? leagueGameCountOptions : playoffGameCountOptions).map((option) => (
+                                        {(isLeague || isChampionsLeague
+                                            ? leagueGameCountOptions
+                                            : playoffGameCountOptions
+                                        ).map((option) => (
                                             <option key={option.value} value={option.value}>
                                                 {option.label}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
-                                <div className={`${classes.field} ${isScheduleFormat ? classes.hidden : ''}`}>
+                                <div className={`${classes.field} ${hideKnockoutStageGames ? classes.hidden : ''}`}>
                                     <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
                                         Final games
                                     </label>
@@ -597,7 +564,7 @@ const Bracket = (props) => {
                                 </div>
                                 <div
                                     className={`${classes.field} ${
-                                        isScheduleFormat || loserBracket ? classes.hidden : ''
+                                        hideKnockoutStageGames || loserBracket ? classes.hidden : ''
                                     }`}
                                 >
                                     <label className={classes.label} htmlFor="tournamentPlayoffGamesThirdPlace">
@@ -616,8 +583,10 @@ const Bracket = (props) => {
                                         ))}
                                     </select>
                                 </div>
-                                <div className={`${classes.field} ${isScheduleFormat ? classes.hidden : ''}`}>
-                                    <span className={classes.label}>Bracket</span>
+                                <div className={`${classes.field} ${showBracketOptions ? '' : classes.hidden}`}>
+                                    <span className={classes.label}>
+                                        {isChampionsLeague ? 'Group draw' : 'Bracket'}
+                                    </span>
                                     <label className={classes.checkLabel} htmlFor="randomBracket">
                                         <input
                                             type="checkbox"
@@ -625,8 +594,16 @@ const Bracket = (props) => {
                                             ref={randomBracketRef}
                                             defaultChecked
                                         />
-                                        Spinning wheel (random bracket)
+                                        {isChampionsLeague
+                                            ? 'Spinning wheel (group draw)'
+                                            : 'Spinning wheel (random bracket)'}
                                     </label>
+                                    {isChampionsLeague && (
+                                        <p className={classes.fieldHint}>
+                                            Optional. When enabled, the admin draws groups with the wheel before the
+                                            group stage. When off, groups are shuffled automatically.
+                                        </p>
+                                    )}
                                     {isKickOff && (
                                         <label className={classes.checkLabel} htmlFor="loserBracket">
                                             <input
@@ -649,6 +626,22 @@ const Bracket = (props) => {
                                             Loser bracket requires max players: {DOUBLE_ELIM_SIZES.join(', ')}.
                                         </p>
                                     )}
+                                </div>
+                                <div className={classes.field}>
+                                    <span className={classes.label}>Castle picks</span>
+                                    <label className={classes.checkLabel} htmlFor="strictCastlePick">
+                                        <input
+                                            type="checkbox"
+                                            id="strictCastlePick"
+                                            checked={strictCastlePick}
+                                            onChange={(event) => setStrictCastlePick(event.target.checked)}
+                                        />
+                                        Strict castle pick
+                                    </label>
+                                    <p className={classes.fieldHint}>
+                                        When enabled, admins can open the Available Castles panel in the bracket and
+                                        players see castle availability colors while reporting games (11/12 rule).
+                                    </p>
                                 </div>
                             </div>
                         </section>

@@ -23,7 +23,6 @@ import {
 import { shuffleArray } from '../../tournaments/tournament_api';
 import { PlayerBracket } from './PlayerBracket/PlayerBracket';
 import StatsPopup from '../../StatsPopup/StatsPopup';
-import { findByName } from '../../../api/api.js';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
@@ -43,14 +42,27 @@ import {
     getGroupLabels,
     getKnockoutPlayerCount,
     getQualifiedPlayers,
-    isChampionsLeagueGroupStageComplete
+    isChampionsLeagueGroupStageComplete,
+    isGroupDrawGridComplete,
+    orderPlayersFromWheelPairs,
+    prepareChampionsLeagueFromDrawGrid,
+    prepareChampionsLeagueGroupStage
 } from './championsLeagueUtils';
 import { setStageLabels as computeStageLabels } from '../../tournaments/tournament_api';
 import MatchScheduleControl from './MatchScheduleControl';
 import AuthContext from '../../../store/auth-context';
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
+import {
+    calculateAvailableCastlesFromBracket,
+    inferScheduleView,
+    normalizePlayoffPairs
+} from '../../../utils/tournamentBracketNavigation';
+import { fetchHeadToHeadStats } from '../../../utils/headToHeadStats';
 import { authFetch } from '../../../api/authFetch';
 import classes from './tournamentsBracket.module.css';
+import { getCastleImage } from '../../../utils/castleImages';
+import TournamentPlayerChip from './TournamentPlayerChip';
+import chipClasses from './TournamentPlayerChip.module.css';
 const formatPlayerName = (player) => player.name;
 
 const uniquePlayerNames = [];
@@ -59,7 +71,6 @@ let isManualScore = false;
 let clickedRadioButton;
 let playersObj = {};
 let tournamentName = null;
-let allPairsHaveTeams = null;
 
 const normalizeMatchType = (rawType) => {
     const normalized = String(rawType ?? '')
@@ -132,7 +143,14 @@ const buildMatchKey = (gameData, tournamentId) => {
     return encodeURIComponent(rawKey);
 };
 
-export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, tournamentWinners }) => {
+export const TournamentBracket = ({
+    maxPlayers,
+    tournamentId,
+    tournamentStatus,
+    tournamentWinners,
+    fullScreen = false,
+    strictCastlePick = false
+}) => {
     const setDetailedProgressStage = (stage, extra = {}) => {
         setPlayoffPairs((prevPairs) => {
             const updatedPairs = [...prevPairs];
@@ -148,13 +166,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [stageLabels, setStageLabels] = useState([]);
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
-    const [isUpdateButtonVisible, setUpdateButtonVisible] = useState(true);
     const reportDismissedRef = useRef(false);
     const [showCastlesModal, setShowCastlesModal] = useState(false);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
+    const [statsLoading, setStatsLoading] = useState(false);
     const [isSpinningWheelOpen, setIsSpinningWheelOpen] = useState(false);
+    const [spinningWheelMode, setSpinningWheelMode] = useState('kickoff');
     const [isLeague, setIsLeague] = useState(false);
     const [isSwiss, setIsSwiss] = useState(false);
     const [hasLoserBracket, setHasLoserBracket] = useState(false);
@@ -164,6 +183,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [championsGroupLabels, setChampionsGroupLabels] = useState([]);
     const [swissCurrentRound, setSwissCurrentRound] = useState(1);
     const [swissTotalRounds, setSwissTotalRounds] = useState(0);
+    const [usesScheduleView, setUsesScheduleView] = useState(false);
     const [registeredPlayerNames, setRegisteredPlayerNames] = useState([]);
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
@@ -172,6 +192,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
     const [selectedInitialGameId, setSelectedInitialGameId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
     const [displayName, setDisplayName] = useState('');
+    const [urlHighlightPair, setUrlHighlightPair] = useState(null);
     const [searchParams, setSearchParams] = useSearchParams();
     const highlightedPairRef = useRef(null);
     const lastTournamentIdRef = useRef(null);
@@ -186,40 +207,77 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         setSelectedPairIndex(null);
         setSelectedPairId(null);
         setSelectedInitialGameId(null);
+        setUrlHighlightPair(null);
+        setIsLeague(false);
+        setIsSwiss(false);
+        setIsChampionsLeague(false);
+        setChampionsLeaguePhase('group');
+        setUsesScheduleView(false);
+        setPlayoffPairs([]);
+        setStageLabels([]);
+        setActiveBracketStage(0);
     }, [tournamentId]);
 
-    // Auto-navigate to the stage+pair indicated by URL params (from "My Upcoming Matches")
+    const resolveKnockoutDisplayStage = (storageStageIdx, labels) => {
+        const allDisplayStages = labels.filter((s) => s !== 'Third Place');
+        const displayStages =
+            allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+        if (displayStages.length === 0) {
+            return 0;
+        }
+
+        const label = labels[storageStageIdx];
+        if (!label) {
+            return Math.min(storageStageIdx, displayStages.length - 1);
+        }
+        if (label === 'Final' || label === 'Third Place') {
+            return displayStages.length - 1;
+        }
+
+        const direct = displayStages.indexOf(label);
+        if (direct !== -1) {
+            return direct;
+        }
+
+        for (let i = 0; i < displayStages.length; i++) {
+            const nextLabel =
+                displayStages[i + 1] ??
+                (allDisplayStages.length > displayStages.length
+                    ? allDisplayStages[allDisplayStages.length - 1]
+                    : null);
+            if (nextLabel === label) {
+                return i;
+            }
+        }
+
+        return Math.min(storageStageIdx, displayStages.length - 1);
+    };
+
+    // Auto-navigate to the stage+pair indicated by URL params (from Match Center / Live Arena)
     useEffect(() => {
         const stageParam = searchParams.get('stage');
         const pairParam = searchParams.get('pair');
-        if (stageParam === null || pairParam === null || stageLabels.length === 0 || playoffPairs.length === 0) {
+        if (stageParam === null || pairParam === null || playoffPairs.length === 0) {
             return;
         }
 
         const targetStageIndex = Number(stageParam);
         const targetPairIndex = Number(pairParam);
-        const clKnockoutOffset =
-            isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
-        const labelStageIndex = targetStageIndex - clKnockoutOffset;
 
-        // Map playoffPairs stageIndex → displayStages index
-        const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
-        const displayStages = allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
-        const stageLabel = stageLabels[labelStageIndex];
-        // Final is the right column of the last page; Third Place also lives there
-        if (stageLabel === 'Final' || stageLabel === 'Third Place') {
-            setActiveBracketStage(displayStages.length - 1);
-        } else {
-            const displayIdx = displayStages.indexOf(stageLabel);
-            if (displayIdx !== -1) {
-                setActiveBracketStage(displayIdx);
+        highlightedPairRef.current = { stageIndex: targetStageIndex, pairIndex: targetPairIndex };
+        setUrlHighlightPair({ stageIndex: targetStageIndex, pairIndex: targetPairIndex });
+
+        if (!usesScheduleView) {
+            if (stageLabels.length === 0) {
+                return;
             }
+
+            const clKnockoutOffset =
+                isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+            const labelStageIndex = targetStageIndex - clKnockoutOffset;
+            setActiveBracketStage(resolveKnockoutDisplayStage(labelStageIndex, stageLabels));
         }
 
-        // Store for scroll after render
-        highlightedPairRef.current = { stageIndex: targetStageIndex, pairIndex: targetPairIndex };
-
-        // Scroll to the pair after the stage renders
         const timer = setTimeout(() => {
             const el = document.getElementById(`pair-s${targetStageIndex}-p${targetPairIndex}`);
             if (el) {
@@ -227,7 +285,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             }
         }, 400);
 
-        // Auto-open ReportGameModal when report=1 param is present (once per visit)
+        // Only open the report dialog when explicitly requested (?report=1)
         const reportParam = searchParams.get('report');
         if (reportParam === '1' && !reportDismissedRef.current) {
             const pair = playoffPairs[targetStageIndex]?.[targetPairIndex];
@@ -254,7 +312,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
 
         return () => clearTimeout(timer);
-    }, [searchParams, stageLabels, playoffPairs, tournamentId, isChampionsLeague, championsLeaguePhase]);
+    }, [
+        searchParams,
+        stageLabels,
+        playoffPairs,
+        tournamentId,
+        isLeague,
+        isSwiss,
+        isChampionsLeague,
+        championsLeaguePhase,
+        usesScheduleView
+    ]);
 
     const normalizeName = (value) =>
         String(value || '')
@@ -404,18 +472,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
         loadStageLabels();
 
-        if (tournamentStatus === 'Tournament Finished') {
-            setUpdateButtonVisible(false);
-        }
-
         const fetchPlayoffPairs = async () => {
+            let typeData = null;
+            let resolvedChampionsPhase = 'group';
+
             try {
                 // Detect league tournament type from tournament root
                 const typeResponse = await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/type.json`
                 );
                 if (typeResponse.ok) {
-                    const typeData = await typeResponse.json();
+                    typeData = await typeResponse.json();
                     if (typeData === 'league') {
                         setIsLeague(true);
                     }
@@ -434,6 +501,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         if (phaseRes.ok) {
                             const phase = await phaseRes.json();
                             if (phase === 'group' || phase === 'knockout') {
+                                resolvedChampionsPhase = phase;
                                 setChampionsLeaguePhase(phase);
                             }
                         }
@@ -496,35 +564,46 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 if (bracketResponse.ok) {
                     const data = await bracketResponse.json();
                     if (data) {
-                        // Parse the object
                         const valuesArray = Object.values(data);
 
                         let playoffPairsDetermined = data?.playoffPairs;
                         if (!playoffPairsDetermined) {
-                            playoffPairsDetermined = valuesArray[0].playoffPairs;
+                            playoffPairsDetermined = valuesArray[0]?.playoffPairs;
                         }
-                        // Restore progress fields for each game in each pair
-                        if (playoffPairsDetermined) {
-                            for (const round of playoffPairsDetermined) {
-                                for (const pair of round) {
-                                    if (pair.games && Array.isArray(pair.games)) {
-                                        pair.games = pair.games.map((g) => {
-                                            if (g && g.progress) {
-                                                // Import here to avoid circular dependency
-                                                const {
-                                                    restoreProgressFieldsFromNested
-                                                } = require('./progress/gameProgressApi');
 
-                                                const restored = restoreProgressFieldsFromNested(g);
-                                                return updateGameStatusForPartialProgress(restored);
-                                            }
-                                            return g;
-                                        });
-                                    }
+                        const normalizedPairs = normalizePlayoffPairs(playoffPairsDetermined);
+
+                        for (const round of normalizedPairs) {
+                            if (!Array.isArray(round)) {
+                                continue;
+                            }
+                            for (const pair of round) {
+                                if (pair.games && Array.isArray(pair.games)) {
+                                    pair.games = pair.games.map((g) => {
+                                        if (g && g.progress) {
+                                            const {
+                                                restoreProgressFieldsFromNested
+                                            } = require('./progress/gameProgressApi');
+
+                                            const restored = restoreProgressFieldsFromNested(g);
+                                            return updateGameStatusForPartialProgress(restored);
+                                        }
+                                        return g;
+                                    });
                                 }
                             }
                         }
-                        setPlayoffPairs(playoffPairsDetermined);
+
+                        setPlayoffPairs(normalizedPairs);
+                        setUsesScheduleView(
+                            inferScheduleView({
+                                type: typeData,
+                                playoffPairs: normalizedPairs,
+                                maxPlayers,
+                                championsLeaguePhase: resolvedChampionsPhase,
+                                isChampionsLeague: typeData === 'champions-league'
+                            })
+                        );
                     }
                 } else {
                     console.log('Failed to fetch playoff pairs');
@@ -535,100 +614,35 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         };
 
         fetchPlayoffPairs();
-    }, [maxPlayers, uniquePlayerNames]);
+    }, [tournamentId, maxPlayers, tournamentStatus, uniquePlayerNames]);
 
     const handleShowStats = async (team1, team2) => {
-        // Fetch all games from your DB (adjust the URL as needed)
-        const response = await authFetch(`${FIREBASE_DATABASE_URL}/games.json`);
-        const data = await response.json();
-
-        // Filter games where both players played and include game IDs
-        const games = Object.entries(data.heroes3 || {})
-            .filter(
-                ([, game]) =>
-                    (game.opponent1 === team1 && game.opponent2 === team2) ||
-                    (game.opponent1 === team2 && game.opponent2 === team1)
-            )
-            .map(([id, game]) => ({ ...game, id }));
-
-        const total = games.length;
-        const wins = games.filter((g) => g.winner === team1).length;
-        const losses = games.filter((g) => g.winner === team2).length;
-        const winPercent = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
-
-        // Sort by date descending and take the last 5 games
-        const last5Games = games.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-
-        // Calculate restart coefficients from tournament games
-        // Coefficient formula: 1.0 + (restart_111 × 0.5) + (restart_112 × 1.0), capped at 2.0
-        let restartCoeffA = 0;
-        let restartCoeffB = 0;
-        let team1GamesCount = 0;
-
-        // Collect all tournament games between these two players
-        playoffPairs.forEach((stageGames) => {
-            if (Array.isArray(stageGames)) {
-                stageGames.forEach((pair) => {
-                    if (
-                        (pair.team1 === team1 && pair.team2 === team2) ||
-                        (pair.team1 === team2 && pair.team2 === team1)
-                    ) {
-                        // Calculate restarts from pair.games array
-                        if (pair.games && Array.isArray(pair.games)) {
-                            pair.games.forEach((game) => {
-                                // Determine which team is team1 and team2 in the pair
-                                const isTeam1Side = pair.team1 === team1;
-
-                                if (isTeam1Side) {
-                                    // Team1 coefficient: 1.0 + (111 × 0.5) + (112 × 1.0)
-                                    const coeffA =
-                                        1.0 + (game.restart1_111 || 0) * 0.5 + (game.restart1_112 || 0) * 1.0;
-                                    restartCoeffA += Math.min(coeffA, 2.0); // Cap at 2.0
-
-                                    // Team2 coefficient: 1.0 + (111 × 0.5) + (112 × 1.0)
-                                    const coeffB =
-                                        1.0 + (game.restart2_111 || 0) * 0.5 + (game.restart2_112 || 0) * 1.0;
-                                    restartCoeffB += Math.min(coeffB, 2.0); // Cap at 2.0
-                                } else {
-                                    // Team1 and Team2 are swapped in the pair
-                                    const coeffA =
-                                        1.0 + (game.restart2_111 || 0) * 0.5 + (game.restart2_112 || 0) * 1.0;
-                                    restartCoeffA += Math.min(coeffA, 2.0);
-
-                                    const coeffB =
-                                        1.0 + (game.restart1_111 || 0) * 0.5 + (game.restart1_112 || 0) * 1.0;
-                                    restartCoeffB += Math.min(coeffB, 2.0);
-                                }
-
-                                team1GamesCount++;
-                            });
-                        }
-                    }
-                });
-            }
-        });
-
-        // Calculate averages
-        if (team1GamesCount > 0) {
-            restartCoeffA = restartCoeffA / team1GamesCount;
-            restartCoeffB = restartCoeffB / team1GamesCount;
-        }
-
-        setStats({
-            total,
-            wins,
-            losses,
-            winPercent,
-            playerA: team1,
-            playerB: team2,
-            last5Games,
-            restartCoeffA,
-            restartCoeffB
-        });
+        setStats({ playerA: team1, playerB: team2 });
+        setStatsLoading(true);
         setShowStats(true);
+
+        try {
+            const statsData = await fetchHeadToHeadStats(team1, team2, {
+                authFetch,
+                firebaseUrl: FIREBASE_DATABASE_URL,
+                playoffPairs
+            });
+            setStats(statsData);
+        } catch (error) {
+            console.error('Error loading head-to-head stats:', error);
+            setShowStats(false);
+            setStats(null);
+            alert('Could not load head-to-head stats.');
+        } finally {
+            setStatsLoading(false);
+        }
     };
 
-    const handleCloseStats = () => setShowStats(false);
+    const handleCloseStats = () => {
+        setShowStats(false);
+        setStatsLoading(false);
+        setStats(null);
+    };
 
     const getWinner = (pair) => {
         const score1 = pair.type === 'bo-3' ? parseInt(pair.score1) : parseInt(pair.score1) || 0;
@@ -735,9 +749,65 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             console.log('Should open spinning wheel?', !randomBrackets);
             if (randomBrackets) {
                 console.log('Opening spinning wheel...');
+                setSpinningWheelMode(
+                    data.type === 'champions-league' ? 'champions-league' : 'kickoff'
+                );
                 setIsSpinningWheelOpen(true);
+            } else if (data.type === 'champions-league') {
+                const playerList = Object.values(playersObj || {}).filter(
+                    (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+                );
+                const prepared = prepareChampionsLeagueGroupStage(playerList, data, { shuffle: true });
+                if (!prepared.validation.valid) {
+                    alert(prepared.validation.message);
+                    return;
+                }
+
+                const bracketRes = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify([prepared.groupPairs]),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                if (!bracketRes.ok) {
+                    alert('Failed to save group stage matches');
+                    return;
+                }
+
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(prepared.groups),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('group'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Started!'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+
+                setIsChampionsLeague(true);
+                setChampionsLeaguePhase('group');
+                setChampionsGroups(prepared.groups);
+                setChampionsGroupLabels(getGroupLabels(prepared.groupCount));
+                setPlayoffPairs([prepared.groupPairs]);
             } else {
-                console.log('Random bracket is true, skipping spinning wheel');
+                console.log('Random bracket disabled, skipping spinning wheel');
                 tournamentResponse = await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
                     {
@@ -765,849 +835,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
     };
 
-    const updateTournament = async () => {
-        const tournamentResponse = await lookForTournamentName(tournamentId);
-        tournamentName = tournamentResponse.name;
-        setDisplayName(tournamentResponse.name);
-
-        allPairsHaveTeams = allPairsHaveTeamsFunc(playoffPairs);
-
-        try {
-            //TODO: check if the playoffPairs is equal to the DB object => do nothing
-            // if (SHOULD_POSTING && updateDataResponseModal) {
-            //     const response = await authFetch(
-            //         `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`,
-            //         {
-            //             method: 'PUT',
-            //             body: JSON.stringify(tournamentData),
-            //             headers: {
-            //                 'Content-Type': 'application/json'
-            //             }
-            //         }
-            //     );
-
-            //     if (response.ok) {
-
-            // console.log('playoffPairs before', JSON.stringify(playoffPairs, null, 2));
-
-            await processFinishedGames(playoffPairs);
-
-            //TODO: Could this be ommit?
-            const retrievedWinners = await retrieveWinnersFromDatabase();
-
-            //TODO: check if the quantity of winners are the same => doing nothing
-            const tournamentDataWithWinners = {
-                playoffPairs: retrievedWinners
-            };
-
-            //TODO: if the tournamentDate is the same as the tournamentDataWithWinners
-            // const isSame = JSON.stringify(tournamentData) === JSON.stringify(tournamentDataWithWinners);
-
-            //TODO: why do we need to PUT it the second time - to determine the next stage pairings?
-            let winnerBracket = {};
-
-            //IMPORTANT: Which means that all pairs have teams and no need to determine the next stage pairings
-            if (!allPairsHaveTeams) {
-                let winnersDataPutResponseModal = confirmWindow(
-                    `Are you sure you want to update tournamentDataWithWinners with this JSON ${JSON.stringify(tournamentDataWithWinners, null, 2)}?`
-                );
-
-                if (SHOULD_POSTING && winnersDataPutResponseModal) {
-                    winnerBracket = await authFetch(
-                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`,
-                        {
-                            method: 'PUT',
-                            body: JSON.stringify(tournamentDataWithWinners),
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        }
-                    );
-                } else {
-                    winnerBracket.ok = true;
-                }
-            }
-
-            // if (winnerBracket.ok) {
-            let place;
-            let prizeAmount;
-            const lastStage = retrievedWinners[retrievedWinners.length - 1];
-
-            const firstPlace = lastStage[lastStage.length - 1] ? lastStage[lastStage.length - 1].winner : null;
-
-            const secondPlace = firstPlace
-                ? firstPlace === lastStage[lastStage.length - 1].team1
-                    ? lastStage[lastStage.length - 1].team2
-                    : lastStage[lastStage.length - 1].team1
-                : undefined;
-
-            // TODO URGENT: why we can't put the third place here as well?
-
-            if (firstPlace) {
-                let prizes = await pullTournamentPrizes(tournamentId);
-                const winnersData = await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/.json`
-                );
-
-                if (winnersData.ok) {
-                    const existingData = await winnersData.json();
-
-                    existingData['1st place'] = firstPlace;
-                    existingData['2nd place'] = secondPlace;
-
-                    let firstPlaceId = await lookForUserId(firstPlace);
-                    let secondPlaceId = await lookForUserId(secondPlace);
-
-                    let firstPlaceRecord = await loadUserById(firstPlaceId);
-                    let secondPlaceRecord = await loadUserById(secondPlaceId);
-                    let winnersResponse = {};
-
-                    let winnersResponseModal = confirmWindow(
-                        `Are you sure you want to update winners with this JSON ${JSON.stringify(existingData)}?`
-                    );
-
-                    if (SHOULD_POSTING && winnersResponseModal) {
-                        winnersResponse = await authFetch(
-                            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/.json`,
-                            {
-                                method: 'PUT',
-                                body: JSON.stringify(existingData),
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                }
-                            }
-                        );
-                    } else {
-                        winnersResponse.ok = true;
-                    }
-                    if (winnersResponse.ok) {
-                        let tournamentStatusResponse = {};
-                        let tournamentStatusResponseModal = confirmWindow(
-                            `Are you sure you want to update tournament's status to 'FINISHED'?`
-                        );
-                        if (SHOULD_POSTING && tournamentStatusResponseModal) {
-                            tournamentStatusResponse = await authFetch(
-                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
-                                {
-                                    method: 'PUT',
-                                    body: JSON.stringify('Tournament Finished'),
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    }
-                                }
-                            );
-                        } else {
-                            tournamentStatusResponse.ok = true;
-                        }
-                        if (tournamentStatusResponse.ok) {
-                            setUpdateButtonVisible(false);
-
-                            if (tournamentStatusResponse.ok) {
-                                if (!firstPlaceRecord || typeof firstPlaceRecord.prizes !== 'object') {
-                                    console.log('1ST PLACE PRIZE WAS DETERMINED', prizeAmount);
-                                    // If not, initialize "prizes" as an object
-                                    firstPlaceRecord.prizes = [];
-                                }
-                                place = '1st Place';
-                                prizeAmount = prizes[place];
-                                let firstPriceTotal = await getPlayerPrizeTotal(firstPlaceId);
-                                firstPlaceRecord.totalPrize = +firstPriceTotal + +prizeAmount;
-
-                                firstPlaceRecord.prizes.push({
-                                    tournamentName: tournamentResponse.name,
-                                    place: place,
-                                    prizeAmount: prizeAmount
-                                });
-
-                                let firstPlaceResponse = {};
-
-                                let firstPlaceResponseModal = confirmWindow(
-                                    `Are you sure you want to update first place winner?`
-                                );
-                                if (SHOULD_POSTING && firstPlaceResponseModal) {
-                                    firstPlaceResponse = await authFetch(
-                                        `${FIREBASE_DATABASE_URL}/users/${firstPlaceId}.json`,
-                                        {
-                                            method: 'PUT',
-                                            headers: {
-                                                'Content-Type': 'application/json'
-                                            },
-                                            body: JSON.stringify(firstPlaceRecord)
-                                        }
-                                    );
-                                } else {
-                                    firstPlaceResponse.ok = true;
-                                }
-                                if (firstPlaceResponse.ok) {
-                                    if (!secondPlaceRecord || typeof secondPlaceRecord.prizes !== 'object') {
-                                        secondPlaceRecord.prizes = [];
-                                    }
-                                    place = '2nd Place';
-                                    prizeAmount = prizes[place];
-                                    let secondPriceTotal = await getPlayerPrizeTotal(secondPlaceId);
-                                    secondPlaceRecord.totalPrize = +secondPriceTotal + +prizeAmount;
-
-                                    secondPlaceRecord.prizes.push({
-                                        tournamentName: tournamentResponse.name,
-                                        place: place,
-                                        prizeAmount: prizeAmount
-                                    });
-                                    let secondPlaceResponse = {};
-                                    let secondPlaceResponseModal = confirmWindow(
-                                        `Are you sure you want to update second place winner?`
-                                    );
-                                    console.log('Final firstPlaceResponseModal:', secondPlaceResponseModal);
-                                    if (SHOULD_POSTING && secondPlaceResponseModal) {
-                                        secondPlaceResponse = await authFetch(
-                                            `${FIREBASE_DATABASE_URL}/users/${secondPlaceId}.json`,
-                                            {
-                                                method: 'PUT',
-                                                headers: {
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify(secondPlaceRecord)
-                                            }
-                                        );
-                                    } else {
-                                        secondPlaceResponse.ok = true;
-                                    }
-                                    if (secondPlaceResponse.ok) {
-                                        console.log('PRIZES FOR THE USERS WERE UPDATED SUCCESSFULLY');
-                                        // Now process 3rd place prize
-                                        await determineThirdPlaceWinner(retrievedWinners, stageLabels);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        const errorMessage = await winnersResponse.text();
-                        console.error('Error:', winnersResponse.status, errorMessage);
-                    }
-                }
-            }
-
-            try {
-                const starRecalculationResult = await recalculatePlayerStars();
-                console.log(
-                    `Player stars recalculated after tournament finish. Updated ${starRecalculationResult.updatedCount} players.`
-                );
-            } catch (error) {
-                console.error('Error recalculating player stars after tournament finish:', error);
-            }
-
-            // }
-
-            // Automatically snapshot current leaderboard rankings after tournament finishes and all prizes are awarded
-            try {
-                const snapshotResult = await snapshotLeaderboardRanks();
-                if (snapshotResult.success) {
-                    console.log(
-                        `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
-                    );
-                } else {
-                    console.error('Failed to snapshot leaderboard after tournament:', snapshotResult.error);
-                }
-            } catch (error) {
-                console.error('Error during leaderboard snapshot after tournament:', error);
-            }
-
-            console.log('Pairs posted to Firebase successfully');
-            let reloadResponse = window.confirm(`Are you sure you want to reload the page?`);
-            if (reloadResponse) {
-                window.location.reload();
-            }
-        } catch (error) {
-            console.log('Error posting pairs to Firebase:', error);
-        }
-    };
-
-    // Utility function to check if all pairs have valid teams
-    function allPairsHaveTeamsFunc(tournamentPlayoffPairs) {
-        if (!Array.isArray(tournamentPlayoffPairs)) {
-            return false;
-        }
-        return tournamentPlayoffPairs.every(
-            (stage) =>
-                Array.isArray(stage) &&
-                stage.every((pair) => pair.team1 && pair.team1 !== 'TBD' && pair.team2 && pair.team2 !== 'TBD')
-        );
-    }
-
-    const retrieveWinnersFromDatabase = async () => {
-        try {
-            let mustFetch = window.confirm('Please wait...');
-            if (mustFetch) {
-                const tournamentResponseGET = await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
-                    {
-                        method: 'GET'
-                    }
-                );
-                if (tournamentResponseGET.ok) {
-                    const data = await tournamentResponseGET.json();
-                    const playoffsGames = data.tournamentPlayoffGames;
-                    const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
-
-                    const bracketResponse = await authFetch(
-                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`
-                    );
-                    const playerResponse = await authFetch(
-                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players/.json`
-                    );
-
-                    if (bracketResponse.ok && playerResponse.ok) {
-                        const bracketData = await bracketResponse.json();
-
-                        const playersData = await playerResponse.json();
-
-                        let collectedPlayoffPairs = bracketData?.playoffPairs || [];
-                        let nextStagePairings;
-                        let nextStageIndex = 0;
-
-                        for (let currentStage = 0; currentStage < collectedPlayoffPairs.length - 1; currentStage++) {
-                            let currentStagePlayoffPairs = collectedPlayoffPairs[currentStage];
-
-                            let currentStagePlayoffWinners = currentStagePlayoffPairs
-                                .map((pair) => {
-                                    const result = findByName(playersData, pair.winner);
-
-                                    // Always use ratings from DB (fresh), but preserve stars from tournament entry
-                                    let playerRecentRatings = result ? result.ratings : null;
-
-                                    if (pair.winner === pair.team1) {
-                                        return {
-                                            winner: pair.winner,
-                                            ratings: result ? playerRecentRatings : pair.ratings1,
-                                            stars: pair.stars1 // Always preserve original tournament entry stars
-                                        };
-                                    } else {
-                                        return {
-                                            winner: pair.winner,
-                                            ratings: result ? playerRecentRatings : pair.ratings2,
-                                            stars: pair.stars2 // Always preserve original tournament entry stars
-                                        };
-                                    }
-                                })
-                                .filter((pair) => pair.winner !== undefined || pair.winner === 'TBD');
-
-                            nextStageIndex = currentStage + 1;
-                            let nextStagePlayoffPairs = collectedPlayoffPairs[nextStageIndex];
-
-                            let thirdPlaceWinner;
-                            if (currentStage === 2) {
-                                thirdPlaceWinner = collectedPlayoffPairs[currentStage][0].winner;
-                            }
-                            const nextStagePlayoffWinners = nextStagePlayoffPairs.map((pair) => pair.winner);
-                            const hasUndefinedTeam = nextStagePlayoffPairs.some(
-                                (pair) => pair.team1 === 'TBD' || pair.team2 === 'TBD'
-                            );
-
-                            if (
-                                nextStagePlayoffWinners.includes(undefined) &&
-                                !thirdPlaceWinner &&
-                                !allPairsHaveTeams
-                            ) {
-                                if (nextStageIndex === 2) {
-                                    //THIRD PLACE
-                                    const losers = currentStagePlayoffPairs.map((match) => {
-                                        let loserName;
-                                        if (match.winner === match.team1) {
-                                            loserName = match.team2;
-                                        } else if (match.winner === match.team2) {
-                                            loserName = match.team1;
-                                        } else {
-                                            loserName = 'TBD';
-                                        }
-
-                                        // Use stars from the pair (original tournament entry), not from DB
-                                        // Fetch updated ratings from DB for losers
-                                        const loserData = Object.values(playersData).find(
-                                            (player) => player.name === loserName
-                                        );
-
-                                        return {
-                                            winner: loserName,
-                                            stars: match.winner === match.team1 ? match.stars2 : match.stars1,
-                                            ratings: loserData
-                                                ? loserData.ratings
-                                                : match.winner === match.team1
-                                                  ? match.ratings2
-                                                  : match.ratings1
-                                        };
-                                    });
-
-                                    let thirdPlacePairing = determineNextStagePairings(losers);
-
-                                    if (currentStagePlayoffWinners.length > 0) {
-                                        nextStagePairings = determineNextStagePairings(
-                                            currentStagePlayoffWinners,
-                                            currentStage,
-                                            playoffsGames
-                                        );
-                                        collectedPlayoffPairs[nextStageIndex + 1] = nextStagePairings;
-                                        collectedPlayoffPairs[nextStageIndex] = thirdPlacePairing;
-                                    }
-                                } else {
-                                    if (hasUndefinedTeam) {
-                                        const gamesToUse =
-                                            nextStageIndex === 3 ? tournamentPlayoffGamesFinal : playoffsGames;
-                                        if (currentStagePlayoffWinners.length > 0) {
-                                            nextStagePairings = determineNextStagePairings(
-                                                currentStagePlayoffWinners,
-                                                currentStage,
-                                                gamesToUse
-                                            );
-                                            collectedPlayoffPairs[nextStageIndex] = nextStagePairings;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        //TODO: This should be in a mutual function determinePrizeWinner
-                        determineThirdPlaceWinner(collectedPlayoffPairs, stageLabels);
-                        // setPlayoffPairs(collectedPlayoffPairs);
-                        return collectedPlayoffPairs;
-                    } else {
-                        console.log('Failed to retrieve winners from the database');
-                    }
-                } else {
-                    console.log('Fetch canceled by user');
-                }
-            }
-        } catch (error) {
-            console.error('Error retrieving winners from the database:', error);
-        }
-    };
-
-    const processFinishedGames = async (collectedPlayoffPairs) => {
-        let finishedPairs = [];
-
-        collectedPlayoffPairs.forEach((pair) => {
-            pair.forEach((pairDetails) => {
-                if (pairDetails.gameStatus !== 'Processed') {
-                    let fullResult = `${pairDetails.score1}-${pairDetails.score2}`;
-                    if (pairDetails.type === 'bo-3') {
-                        let results = ['2-0', '2-1', '1-2', '0-2'];
-
-                        if (results.includes(fullResult) && pairDetails.winner && pairDetails.winner !== 'Tie') {
-                            pairDetails.gameStatus = 'Finished';
-                            finishedPairs.push(pairDetails);
-                        } else {
-                            results = ['1-0', '1-1', '0-1'];
-                            if (results.includes(fullResult)) {
-                                pairDetails.gameStatus = 'In Progress';
-                            } else if (fullResult === '0-0' && Array.isArray(pairDetails.games)) {
-                                const hasActivity = pairDetails.games.some((game) =>
-                                    Boolean(
-                                        game && (game.castle1 || game.castle2 || game.gameWinner || game.castleWinner)
-                                    )
-                                );
-                                if (hasActivity) {
-                                    pairDetails.gameStatus = 'In Progress';
-                                }
-                            }
-                        }
-                    } else {
-                        if (
-                            +pairDetails.score1 + +pairDetails.score2 === 1 &&
-                            pairDetails.winner &&
-                            pairDetails.winner !== 'Tie'
-                        ) {
-                            pairDetails.gameStatus = 'Finished';
-                            finishedPairs.push(pairDetails);
-                        } else {
-                            if (
-                                pairDetails.games[0].castle1 &&
-                                pairDetails.games[0].castle2 &&
-                                !pairDetails.games[0].gameWinner
-                            ) {
-                                pairDetails.gameStatus = 'In Progress';
-                            }
-                        }
-                    }
-                }
-            });
-        });
-
-        //TODO: implement the gameStatus. If the gameWinner exists determine game as finished
-
-        if (finishedPairs.length === 0) {
-            console.log('No finished pairs found');
-            return;
-        }
-
-        const tournamentInfo = await lookForTournamentName(tournamentId);
-        const currentTournamentName = tournamentInfo?.name || tournamentName || 'Unknown Tournament';
-
-        // Process one finished pair per invocation so ratings always use current DB values
-        const finishedPair = finishedPairs[0];
-        {
-            let { castle1, castle2, score1, score2, team1, team2, winner, type } = finishedPair;
-            if (!winner || winner === 'Tie') {
-                return finishedPairs;
-            }
-
-            const opponent1Id = await lookForUserId(team1);
-            const opponent2Id = await lookForUserId(team2);
-
-            let games;
-            if (finishedPair.type === 'bo-3') {
-                games = {
-                    opponent1: team1,
-                    opponent2: team2,
-                    date: new Date().toISOString(),
-                    games: finishedPair.games,
-                    tournamentName: currentTournamentName,
-                    gameType: type,
-                    opponent1Castle: castle1,
-                    opponent2Castle: castle2,
-                    score: `${score1}-${score2}`,
-                    winner: winner
-                };
-            } else {
-                games = {
-                    opponent1: team1,
-                    opponent2: team2,
-                    date: new Date().toISOString(),
-                    tournamentName: currentTournamentName,
-                    gameType: type,
-                    opponent1Castle: finishedPair.games[0]?.castle1,
-                    opponent2Castle: finishedPair.games[0]?.castle2,
-                    score: `${score1}-${score2}`,
-                    winner: winner
-                };
-            }
-
-            let winnerId;
-            let winnerCastle;
-            let lostCastle;
-
-            if (finishedPair.type === 'bo-3') {
-                // Determine overall match winner from the match-level winner field (not per-game)
-                // This avoids a 2-1 scenario where the last game processed belongs to the losing player
-                if (winner === team1) {
-                    winnerId = opponent1Id;
-                } else if (winner === team2) {
-                    winnerId = opponent2Id;
-                }
-
-                // Per-game castle stats (each game has its own winner)
-                finishedPair.games.forEach((game) => {
-                    if (game.gameWinner) {
-                        const gameWinnerCastle = team1 === game.gameWinner ? game.castle1 : game.castle2;
-                        const gameLoserCastle = team1 === game.gameWinner ? game.castle2 : game.castle1;
-                        if (game.gameStatus && game.gameStatus === 'Finished' && gameWinnerCastle && gameLoserCastle) {
-                            lookForCastleStats(gameWinnerCastle, 'win');
-                            lookForCastleStats(gameLoserCastle, 'lost');
-                            game.gameStatus = 'Processed';
-                        }
-                    }
-                });
-            } else {
-                if (team1 === winner) {
-                    winnerId = opponent1Id;
-                    winnerCastle = finishedPair.games[0]?.castle1;
-                    lostCastle = finishedPair.games[0]?.castle2;
-                } else if (team2 === winner) {
-                    winnerId = opponent2Id;
-                    winnerCastle = finishedPair.games[0]?.castle2;
-                    lostCastle = finishedPair.games[0]?.castle1;
-                }
-
-                if (winnerCastle && lostCastle) {
-                    lookForCastleStats(winnerCastle, 'win');
-                    lookForCastleStats(lostCastle, 'lost');
-                }
-            }
-
-            if (SHOULD_POSTING) {
-                const matchKey = buildMatchKey(games, tournamentId);
-                games.matchKey = matchKey;
-
-                const existingGameResponse = await authFetch(
-                    `${FIREBASE_DATABASE_URL}/games/heroes3/${matchKey}.json`
-                );
-                const existingGameData = await existingGameResponse.json();
-
-                if (!existingGameData) {
-                    const gameResponse = await authFetch(
-                        `${FIREBASE_DATABASE_URL}/games/heroes3/${matchKey}.json`,
-                        {
-                            method: 'PUT',
-                            body: JSON.stringify(games),
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        }
-                    );
-                    await gameResponse.json();
-                }
-            }
-
-            const opponent1PrevData = await lookForUserPrevScore(opponent1Id);
-            const opponent2PrevData = await lookForUserPrevScore(opponent2Id);
-
-            const startRating1 = parseFloat(opponent1PrevData.ratings.split(',').pop().trim());
-            const startRating2 = parseFloat(opponent2PrevData.ratings.split(',').pop().trim());
-            const didWinOpponent1 = winnerId === opponent1Id;
-
-            let opponent1Score;
-            let opponent2Score;
-
-            if (finishedPair.type === 'bo-3' || finishedPair.type === 'bo-5') {
-                const { r1, r2 } = calcSeriesRatings(
-                    startRating1,
-                    startRating2,
-                    team1,
-                    team2,
-                    finishedPair.games,
-                    didWinOpponent1
-                );
-                opponent1Score = r1;
-                opponent2Score = r2;
-            } else {
-                opponent1Score = getNewRating(startRating1, startRating2, didWinOpponent1);
-                opponent2Score = getNewRating(startRating2, startRating1, !didWinOpponent1);
-            }
-
-            if (SHOULD_POSTING) {
-                await addScoreToUser(opponent1Id, opponent1PrevData, opponent1Score, winnerId, tournamentId, team1);
-                await addScoreToUser(opponent2Id, opponent2PrevData, opponent2Score, winnerId, tournamentId, team2);
-            }
-
-            finishedPair.gameStatus = 'Processed';
-            if (Array.isArray(finishedPair.games)) {
-                finishedPair.games.forEach((game) => {
-                    game.gameStatus = 'Processed';
-                });
-            }
-        }
-
-        let pushProcessedGame = true;
-        let responseFinishedPair;
-        if (pushProcessedGame) {
-            // Use collectedPlayoffPairs (the mutated parameter) instead of the stale playoffPairs state
-            responseFinishedPair = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(collectedPlayoffPairs),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-            if (responseFinishedPair.ok) {
-                console.log('Finished pairs PUT successfully');
-                setPlayoffPairs(collectedPlayoffPairs);
-            } else {
-                console.error('Failed to persist processed pairs. Local state was not updated.');
-            }
-        } else {
-            setPlayoffPairs(collectedPlayoffPairs);
-        }
-
-        if (finishedPairs.length > 1) {
-            await processFinishedGames(collectedPlayoffPairs);
-        }
-
-        return finishedPairs;
-    };
-
     const confirmWindow = (message) => {
         console.log('Auto-confirmed:', message);
         return true;
     };
 
-    const determineThirdPlaceWinner = async (playOffPairs, stages) => {
-        let place = '3rd Place';
-        const tournamentInfo = await lookForTournamentName(tournamentId);
-        const currentTournamentName = tournamentInfo?.name || tournamentName || 'Unknown Tournament';
-        let prizes = await pullTournamentPrizes(tournamentId);
-        if (!prizes || typeof prizes !== 'object' || prizes[place] === undefined || prizes[place] === null) {
-            console.warn(`Prize data missing for ${place}. Skipping 3rd place prize processing.`);
-            return;
-        }
-        const prizeAmount = prizes[place];
-
-        const thirdPlaceIndex = stages.indexOf('Third Place');
-        if (thirdPlaceIndex === -1 || !playOffPairs?.[thirdPlaceIndex] || !playOffPairs[thirdPlaceIndex][0]) {
-            console.warn('Third place stage or match is missing. Skipping 3rd place processing.');
-            return;
-        }
-
-        const thirdPlace = playOffPairs[thirdPlaceIndex];
-        if (thirdPlace[0].winner) {
-            let winner = thirdPlace[0].winner;
-            if (winner) {
-                let userId = await lookForUserId(winner);
-                let userRecord = await loadUserById(userId);
-                if (!userRecord || typeof userRecord !== 'object') {
-                    console.error('FAILED TO LOAD USER RECORD FOR THE THIRD PLACE:', userId);
-                    return;
-                }
-
-                let thirdPriceTotal = await getPlayerPrizeTotal(userId);
-
-                userRecord.totalPrize = +thirdPriceTotal + +prizeAmount;
-
-                if (!userRecord || typeof userRecord.prizes !== 'object') {
-                    // If not, initialize "prizes" as an object
-                    userRecord.prizes = [];
-                }
-
-                userRecord.prizes.push({
-                    tournamentName: currentTournamentName,
-                    place: place,
-                    prizeAmount: prizeAmount
-                });
-
-                const response = await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
-                    {
-                        method: 'GET'
-                    }
-                );
-                const data = await response.json();
-
-                if (response.ok && data === 'TBD') {
-                    let response = {};
-                    let thirdPlaceModal = confirmWindow(
-                        `Process Games: Are you sure you want to update the third place with a player: ${winner}?`
-                    );
-                    console.log('Process Games thirdPlaceModal:', thirdPlaceModal);
-
-                    if (SHOULD_POSTING && thirdPlaceModal) {
-                        response = await authFetch(
-                            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
-                            {
-                                method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(winner)
-                            }
-                        );
-                    } else {
-                        response.ok = true;
-                    }
-
-                    let responseUser = {};
-                    if (response.ok) {
-                        if (SHOULD_POSTING && thirdPlaceModal) {
-                            responseUser = await authFetch(
-                                `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
-                                {
-                                    method: 'PUT',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify(userRecord)
-                                }
-                            );
-                        } else {
-                            responseUser.ok = true;
-                        }
-
-                        if (responseUser.ok) {
-                            console.log('USER RECORD THIRD PLACE WAS UPDATED:', userId);
-                        }
-                    }
-                }
-            } else {
-                console.error('FAILED TO UPDATE USER FOR THE THIRD PLACE:');
-            }
-        }
-    };
-
-    // Example functions for processing winners and updating the next stage pairings in the database
-    const determineNextStagePairings = (winners, currentStage, playoffsGames = 1) => {
-        const nextPairings = [];
-        const normalizedType = normalizeMatchType(playoffsGames);
-        const configuredGames = getBestOfValue(normalizedType);
-
-        // Iterate through the winners array and create pairings for the next stage
-        for (let i = 0; i < winners.length; i += 2) {
-            const games = [];
-
-            const totalGames = configuredGames > 1 ? configuredGames - 1 : configuredGames;
-
-            for (let j = 0; j < totalGames; j++) {
-                games.push({
-                    castle1: '',
-                    castle2: '',
-                    castleWinner: '',
-                    gameId: j,
-                    gameStatus: 'Not Started',
-                    gameWinner: '',
-                    color1: 'red',
-                    color2: 'blue',
-                    gold1: 0,
-                    gold2: 0,
-                    restart1_111: 0,
-                    restart1_112: 0,
-                    restart2_111: 0,
-                    restart2_112: 0
-                });
-            }
-
-            const pair = {
-                gameStatus: 'Not Started',
-                team1: (winners[i] && winners[i].winner) || 'TBD',
-                score1: 0,
-                stars1: (winners[i] && winners[i].stars) || null,
-                ratings1: (winners[i] && winners[i].ratings) || null,
-                team2: (winners[i + 1] && winners[i + 1].winner) || 'TBD',
-                score2: 0,
-                stars2: (winners[i + 1] && winners[i + 1].stars) || null,
-                ratings2: (winners[i + 1] && winners[i + 1].ratings) || null,
-                type: normalizedType,
-                games: games,
-                color1: 'red',
-                color2: 'blue'
-            };
-
-            nextPairings.push(pair);
-        }
-        if (currentStage === 0 && nextPairings.length === 1) {
-            const pair = {
-                gameStatus: 'Not Started',
-                team1: 'TBD',
-                score1: 0,
-                stars1: null,
-                ratings1: null,
-                team2: 'TBD',
-                score2: 0,
-                stars2: null,
-                ratings2: null,
-                games: [
-                    {
-                        castle1: '',
-                        castle2: '',
-                        castleWinner: '',
-                        gameId: 0,
-                        gameStatus: 'Not Started',
-                        gameWinner: '',
-                        color1: 'red',
-                        color2: 'blue',
-                        gold1: 0,
-                        gold2: 0,
-                        restart1_111: 0,
-                        restart1_112: 0,
-                        restart2_111: 0,
-                        restart2_112: 0
-                    }
-                ],
-                type: 'bo-1',
-                color1: 'red',
-                color2: 'blue'
-            };
-
-            nextPairings.push(pair);
-        }
-        return nextPairings;
-    };
 
     const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
         const stageMappings = {
@@ -1652,27 +884,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
 
         return (
-            <div
+            <button
+                type="button"
+                className={classes.knockoutStatsBtn}
                 onClick={() => onShowStats(team1, team2)}
-                style={{
-                    width: '24px',
-                    height: '24px',
-                    background: 'rgb(62, 32, 192)',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'gold',
-                    fontWeight: 'bold',
-                    fontSize: '1em',
-                    cursor: 'pointer',
-                    border: '2px solid gold',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.10)'
-                }}
-                title="Show Stats"
+                title="Show head-to-head stats"
+                aria-label="Show head-to-head stats"
             >
                 ?
-            </div>
+            </button>
         );
     }
 
@@ -1687,49 +907,92 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
     //TODO: implement the getAvailableCastles function to filter castles based on the number of games played
     function getAvailableCastles(castles) {
-        // Calculate live games for each castle (castles selected but no winner yet)
-        const castlesWithLiveGames = castles.map((castle) => {
-            let liveGames = 0;
-
-            // Count live games across all stages
-            playoffPairs.forEach((stage) => {
-                stage.forEach((pair) => {
-                    if (pair.games && Array.isArray(pair.games)) {
-                        pair.games.forEach((game) => {
-                            // Game is live if:
-                            // 1. gameStatus is 'In Progress', OR
-                            // 2. Both castles are selected but no winner declared
-                            const isInProgress = game.gameStatus === 'In Progress';
-                            const hasCastlesNoWinner = game.castle1 && game.castle2 && !game.castleWinner;
-
-                            if (
-                                (game.castle1 === castle.name || game.castle2 === castle.name) &&
-                                (isInProgress || hasCastlesNoWinner)
-                            ) {
-                                liveGames++;
-                            }
-                        });
-                    }
-                });
-            });
-
-            return {
-                ...castle,
-                liveGames: liveGames
-            };
-        });
-
-        return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
+        return calculateAvailableCastlesFromBracket(castles, playoffPairs);
     }
 
     const onStartTournament = async (bracket) => {
         console.log('Tournament ID:', tournamentId);
         console.log('Tournament Bracket:', bracket);
 
-        const isBracketComplete = bracket.every((pair) => pair[0] !== 'TBD' && pair[1] !== 'TBD');
+        const isBracketComplete =
+            spinningWheelMode === 'champions-league'
+                ? isGroupDrawGridComplete(bracket)
+                : bracket.every((pair) => pair[0] !== 'TBD' && pair[1] !== 'TBD');
 
         if (!isBracketComplete) {
             console.error('Bracket is not complete. Please fill all slots.');
+            return;
+        }
+
+        if (spinningWheelMode === 'champions-league') {
+            try {
+                const tournamentResponseGET = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`,
+                    { method: 'GET' }
+                );
+                if (!tournamentResponseGET.ok) {
+                    throw new Error('Failed to fetch tournament data');
+                }
+
+                const tournamentData = await tournamentResponseGET.json();
+                const playerList = Object.values(tournamentData.players || {}).filter(
+                    (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+                );
+                const prepared = prepareChampionsLeagueFromDrawGrid(bracket, tournamentData, playerList);
+
+                if (!prepared.validation.valid) {
+                    alert(prepared.validation.message);
+                    return;
+                }
+
+                const bracketRes = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify([prepared.groupPairs]),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                if (!bracketRes.ok) {
+                    throw new Error('Failed to save group stage matches');
+                }
+
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(prepared.groups),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('group'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+                await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify('Started!'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+
+                setIsChampionsLeague(true);
+                setChampionsLeaguePhase('group');
+                setChampionsGroups(prepared.groups);
+                setChampionsGroupLabels(getGroupLabels(prepared.groupCount));
+                setPlayoffPairs([prepared.groupPairs]);
+                setIsSpinningWheelOpen(false);
+                setSpinningWheelMode('kickoff');
+            } catch (error) {
+                console.error('Error starting Champions League from wheel:', error);
+                alert('Error starting Champions League: ' + error.message);
+            }
             return;
         }
 
@@ -2000,13 +1263,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
 
         try {
-            // Leagues always use coins — read coinPrizePull, not pricePull (USD)
-            const coinPrizePullRes = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/coinPrizePull.json`
-            );
-            const prizes = await coinPrizePullRes.json();
+            const prizes = await pullTournamentPrizes(tournamentId);
             if (!prizes || typeof prizes !== 'object') {
-                alert('Could not load coin prize data. Aborting.');
+                alert('Could not load prize data. Aborting.');
                 return;
             }
 
@@ -2233,6 +1492,16 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             setPlayoffPairs(updatedPairs);
             setStageLabels(knockoutLabels);
             setChampionsLeaguePhase('knockout');
+            setUsesScheduleView(
+                inferScheduleView({
+                    type: 'champions-league',
+                    playoffPairs: updatedPairs,
+                    maxPlayers,
+                    championsLeaguePhase: 'knockout',
+                    isChampionsLeague: true
+                })
+            );
+            setActiveBracketStage(0);
             alert('Knockout stage started!');
         } catch (error) {
             console.error('Error starting Champions League knockout:', error);
@@ -2619,6 +1888,17 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 skipBracket = stageAtLeast(latestStage, 'bracket');
             }
 
+            if (reportData.mockMode) {
+                skipCastleStats = true;
+                skipRatings = true;
+                skipPlayerStats = true;
+                skipGamePost = true;
+                skipPrizes = true;
+                skipTournamentStatus = true;
+                skipPromotion = false;
+                skipBracket = false;
+            }
+
             // Build upfront summary of all DB operations and ask for one confirmation
             // Pre-fetch castle data here so we can show exact stats and reuse in the write loop
             const castleDataCache = new Map();
@@ -2729,8 +2009,19 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                 lines.push('The following DB operations will run automatically:');
                 lines.push('');
 
+                if (reportData.mockMode) {
+                    lines.push('  🧪 TEST MODE — tournament bracket only');
+                    lines.push('  • Skipped: ELO, castle stats, player stats, game archive, prize payouts');
+                    lines.push('  • Still runs: match result, promotion, bracket save');
+                    lines.push('');
+                }
+
                 if (skipCastleStats) {
-                    lines.push('  ✓ Castle stats (already done)');
+                    lines.push(
+                        reportData.mockMode
+                            ? '  • Castle stats: skipped (test mode)'
+                            : '  ✓ Castle stats (already done)'
+                    );
                 } else if (castleGames.length > 0) {
                     castleGames.forEach((g, i) => {
                         const gameIndex = reportData.games.indexOf(g);
@@ -2807,7 +2098,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             lines.push(`  • Update ELO ratings: ${pair.team1}, ${pair.team2}`);
                         }
                     } else {
-                        lines.push('  ✓ Ratings (already done)');
+                        lines.push(
+                            reportData.mockMode
+                                ? '  • ELO ratings: skipped (test mode)'
+                                : '  ✓ Ratings (already done)'
+                        );
                     }
 
                     if (!skipPlayerStats) {
@@ -2823,13 +2118,21 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             lines.push(`  • Update player stats (W/L/total): ${pair.team1}, ${pair.team2}`);
                         }
                     } else {
-                        lines.push('  ✓ Player stats (already done)');
+                        lines.push(
+                            reportData.mockMode
+                                ? '  • Player stats: skipped (test mode)'
+                                : '  ✓ Player stats (already done)'
+                        );
                     }
 
                     if (!skipGamePost) {
                         lines.push('  • Post game record to /games/heroes3/');
                     } else {
-                        lines.push('  ✓ Game post (already done)');
+                        lines.push(
+                            reportData.mockMode
+                                ? '  • Game archive: skipped (test mode)'
+                                : '  ✓ Game post (already done)'
+                        );
                     }
 
                     if (!skipPrizes) {
@@ -2860,7 +2163,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             lines.push('  • Prizes: N/A for this stage');
                         }
                     } else {
-                        lines.push('  ✓ Prizes (already done)');
+                        lines.push(
+                            reportData.mockMode
+                                ? '  • Prize payouts: skipped (test mode)'
+                                : '  ✓ Prizes (already done)'
+                        );
                     }
 
                     if (!skipPromotion) {
@@ -2915,8 +2222,12 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
                     if (!skipTournamentStatus && currentStage === 'Final') {
                         lines.push('  • Set tournament status → Finished + snapshot leaderboard + recalculate stars');
-                    } else if (currentStage === 'Final' && skipTournamentStatus) {
-                        lines.push('  ✓ Tournament status (already done)');
+                    } else if (currentStage === 'Final' && (skipTournamentStatus || reportData.mockMode)) {
+                        lines.push(
+                            reportData.mockMode
+                                ? '  • Tournament status / star recalc: skipped (test mode)'
+                                : '  ✓ Tournament status (already done)'
+                        );
                     }
 
                     if (!skipBracket) {
@@ -2926,7 +2237,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     }
                 }
 
-                const confirmed = window.confirm(lines.join('\n'));
+                const confirmed = window.confirm(
+                    reportData.mockMode
+                        ? `🧪 TEST MODE — bracket + promotion only\n\n${lines.join('\n')}\n\nContinue?`
+                        : lines.join('\n')
+                );
                 if (!confirmed) {
                     setDetailedProgressStage('Cancelled');
                     alert('Game report submission cancelled. No changes were made.');
@@ -2947,8 +2262,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             pair.score1 = reportData.score1;
             pair.score2 = reportData.score2;
             pair.winner = reportData.winner;
+            pair.testReport = Boolean(reportData.mockMode);
             // Ensure all progress fields are nested under 'progress' in each game
-            pair.games = reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g)));
+            pair.games = reportData.games.map((g) => {
+                const stored = moveProgressFieldsToNested(stripUiFields(g));
+                if (reportData.mockMode) {
+                    stored.testOnly = true;
+                }
+                return stored;
+            });
             // Set game status based on whether winner is selected
             pair.gameStatus = reportData.winner ? 'Finished' : 'In Progress';
 
@@ -2957,7 +2279,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             // Update castle statistics for each game (runs regardless of overall winner)
             let anyCastleWritten = false; // tracks if any castle stat was actually saved to DB
-            if (!skipCastleStats) {
+            if (!skipCastleStats && !reportData.mockMode) {
                 for (let gameIndex = 0; gameIndex < reportData.games.length; gameIndex++) {
                     const game = reportData.games[gameIndex];
                     const castleIdx = gameIndex + 1;
@@ -3223,17 +2545,14 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     console.log('Game post step skipped (already done in previous session)');
                 }
 
-                if (!skipPrizes) {
-                    setDetailedProgressStage('Prizes processing');
+                if (!skipPromotion) {
+                    setDetailedProgressStage('Promotion processing');
                     // Promote winner and loser to next stage
                     const currentStage = stageLabels[selectedStageIndex];
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
                     console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
-
-                    // Prize DB writes happen only for Third Place and Final stages
-                    // For all other stages this just falls through and checkpoints immediately
 
                     // Promote based on current stage
                     if (currentStage === 'Semi-final') {
@@ -3434,7 +2753,58 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 }
                             }
                         }
-                    } else if (currentStage === 'Third Place') {
+                    }
+
+                    if (hasLoserBracket && reportData.winner) {
+                        const loserRating = winner === pair.team1 ? team2NewRating : team1NewRating;
+                        const loserStars = winner === pair.team1 ? pair.stars2 : pair.stars1;
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const winnerStars = winner === pair.team1 ? pair.stars1 : pair.stars2;
+
+                        if (
+                            !currentStage.startsWith('LB') &&
+                            currentStage !== 'Grand Final' &&
+                            loser &&
+                            loser !== 'TBD'
+                        ) {
+                            dropLoserToBracket({
+                                updatedPairs,
+                                stageLabels,
+                                currentStage,
+                                pairIndex: selectedPairIndex,
+                                loser,
+                                loserRating,
+                                loserStars,
+                                maxPlayers
+                            });
+                        }
+
+                        if (currentStage.startsWith('LB') || currentStage === 'LB Final') {
+                            promoteLoserBracketWinner({
+                                updatedPairs,
+                                stageLabels,
+                                currentStage,
+                                pairIndex: selectedPairIndex,
+                                winner,
+                                winnerRating,
+                                winnerStars,
+                                maxPlayers
+                            });
+                        }
+                    }
+
+                    // Update the local state with promoted players
+                    setPlayoffPairs(updatedPairs);
+                    setDetailedProgressStage('Finished');
+                    await updatePairProgressStage(tournamentId, selectedPairId, 'promotion');
+                }
+
+                if (!skipPrizes) {
+                    const currentStage = stageLabels[selectedStageIndex];
+                    const winner = reportData.winner;
+                    const loser = pair.team1 === winner ? pair.team2 : pair.team1;
+
+                    if (currentStage === 'Third Place') {
                         // Award Third Place prize to the winner
                         console.log(`Third Place game completed. Winner: ${winner}`);
 
@@ -3685,12 +3055,13 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             console.log('Final prizes awarded');
                             await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
 
-                            // Update tournament status to "Tournament Finished"
-                            const confirmStatusUpdate = confirmWindow(
-                                `Update tournament status to 'Tournament Finished'?\n\nThis will mark the tournament as complete.\n\nUpdate status?`
-                            );
+                            if (!skipTournamentStatus) {
+                                // Update tournament status to "Tournament Finished"
+                                const confirmStatusUpdate = confirmWindow(
+                                    `Update tournament status to 'Tournament Finished'?\n\nThis will mark the tournament as complete.\n\nUpdate status?`
+                                );
 
-                            if (confirmStatusUpdate) {
+                                if (confirmStatusUpdate) {
                                 try {
                                     await authFetch(
                                         `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
@@ -3742,57 +3113,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     console.error('Error updating tournament status:', error);
                                     alert('Error updating tournament status: ' + error.message);
                                 }
-                            } else {
-                                console.log('Tournament status update cancelled by user');
+                                } else {
+                                    console.log('Tournament status update cancelled by user');
+                                }
+                                await updatePairProgressStage(tournamentId, selectedPairId, 'tournament_status');
                             }
-                            await updatePairProgressStage(tournamentId, selectedPairId, 'tournament_status');
                         } else {
                             console.log('Final prizes award cancelled by user');
                         }
                     }
-
-                    if (hasLoserBracket && reportData.winner) {
-                        const loserRating = winner === pair.team1 ? team2NewRating : team1NewRating;
-                        const loserStars = winner === pair.team1 ? pair.stars2 : pair.stars1;
-                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
-                        const winnerStars = winner === pair.team1 ? pair.stars1 : pair.stars2;
-
-                        if (
-                            !currentStage.startsWith('LB') &&
-                            currentStage !== 'Grand Final' &&
-                            loser &&
-                            loser !== 'TBD'
-                        ) {
-                            dropLoserToBracket({
-                                updatedPairs,
-                                stageLabels,
-                                currentStage,
-                                pairIndex: selectedPairIndex,
-                                loser,
-                                loserRating,
-                                loserStars,
-                                maxPlayers
-                            });
-                        }
-
-                        if (currentStage.startsWith('LB') || currentStage === 'LB Final') {
-                            promoteLoserBracketWinner({
-                                updatedPairs,
-                                stageLabels,
-                                currentStage,
-                                pairIndex: selectedPairIndex,
-                                winner,
-                                winnerRating,
-                                winnerStars,
-                                maxPlayers
-                            });
-                        }
-                    }
-
-                    // Update the local state with promoted players
-                    setPlayoffPairs(updatedPairs);
-                    setDetailedProgressStage('Finished');
-                    await updatePairProgressStage(tournamentId, selectedPairId, 'promotion');
                 }
             } // end if (reportData.winner)
 
@@ -3808,9 +3137,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             // Post to Firebase
             if (!skipBracket) {
-                const confirmBracketUpdate = confirmWindow(
-                    `Update tournament bracket in database?\n\nThis will save all changes to the tournament.\n\nUpdate bracket?`
-                );
+                const confirmBracketUpdate =
+                    reportData.mockMode ||
+                    confirmWindow(
+                        `Update tournament bracket in database?\n\nThis will save all changes to the tournament.\n\nUpdate bracket?`
+                    );
                 if (confirmBracketUpdate) {
                     const response = await authFetch(
                         `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
@@ -3837,8 +3168,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                             skipTournamentStatus && 'tournament_status',
                             skipBracket && 'bracket'
                         ].filter(Boolean);
-                        const skippedMsg =
-                            skippedList.length > 0 ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}` : '';
+                        const skippedMsg = reportData.mockMode
+                            ? '\n\n(Test mode — bracket saved; global stats and castle availability were not updated.)'
+                            : skippedList.length > 0
+                              ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}`
+                              : '';
                         alert(`Game result reported successfully!${skippedMsg}`);
                     } else {
                         alert('Error updating tournament bracket');
@@ -3862,8 +3196,11 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     skipTournamentStatus && 'tournament_status',
                     skipBracket && 'bracket'
                 ].filter(Boolean);
-                const skippedMsg =
-                    skippedList.length > 0 ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}` : '';
+                const skippedMsg = reportData.mockMode
+                    ? '\n\n(Test mode — bracket saved; global stats and castle availability were not updated.)'
+                    : skippedList.length > 0
+                      ? `\n\nAlready completed (skipped): ${skippedList.join(', ')}`
+                      : '';
                 alert(`Game result reported successfully!${skippedMsg}`);
             }
         } catch (error) {
@@ -3909,15 +3246,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         }
 
         return (
-            <div
-                style={{
-                    position: 'relative',
-                    zIndex: 4,
-                    marginBottom: '0.65rem',
-                    padding: '0 0.5rem',
-                    pointerEvents: 'auto'
-                }}
-            >
+            <div className={classes.knockoutScheduleWrap}>
                 <MatchScheduleControl
                     scheduledAt={pair.scheduledAt}
                     scheduledBy={pair.scheduledBy}
@@ -3929,29 +3258,50 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
         );
     };
 
+    const renderKnockoutReportButton = (pair, stageIndex, pairIndex) => {
+        if (pair.team1 === 'TBD' || pair.team2 === 'TBD') {
+            return null;
+        }
+        if (!canViewReportButtonForPair(pair)) {
+            return null;
+        }
+        if (pair.gameStatus === 'Processed' && !authCtx.isAdmin) {
+            return null;
+        }
+        const isProcessed = pair.gameStatus === 'Processed';
+        return (
+            <button
+                type="button"
+                className={`${classes.knockoutReportBtn} ${isProcessed ? classes.knockoutReportBtnMuted : ''}`}
+                onClick={() => handleOpenReportGame(pair, stageIndex, pairIndex)}
+            >
+                {isProcessed ? 'Re-report Game' : 'Report Game'}
+            </button>
+        );
+    };
+
+    const renderMatchFormatBadge = (pair) => {
+        const label = pair.type === 'bo-5' ? 'BO5' : pair.type === 'bo-3' ? 'BO3' : 'BO1';
+        const extraClass =
+            pair.type === 'bo-5'
+                ? classes.matchFormatBadgeBo5
+                : pair.type === 'bo-3'
+                  ? classes.matchFormatBadgeBo3
+                  : '';
+        return <div className={`${classes.matchFormatBadge} ${extraClass}`}>⚔ {label}</div>;
+    };
+
+    const getKnockoutGameBlockClass = (isHighlighted) =>
+        `${classes['game-block']} ${isHighlighted ? classes.gameBlockHighlighted : ''}`;
+
     return (
         <div
-            className={`scrollable-list-class brackets-class ${classes.bracketShell}`}
-            style={{ overflowY: 'auto', maxHeight: '80vh' }}
+            className={`scrollable-list-class brackets-class ${classes.bracketShell} ${fullScreen ? classes.bracketShellFull : ''}`}
         >
             <div className={classes.fixedHeader}>
                 {!startTournament && (
                     <div className={classes.headerBar}>
-                        <div className={classes.headerSide}>
-                            {authCtx.isAdmin &&
-                                isUpdateButtonVisible &&
-                                !isLeague &&
-                                !isSwiss &&
-                                !(isChampionsLeague && championsLeaguePhase === 'group') && (
-                                <button
-                                    id="update-tournament"
-                                    onClick={() => updateTournament()}
-                                    className={classes.actionButton}
-                                >
-                                    Update Tournament
-                                </button>
-                            )}
-                        </div>
+                        <div className={classes.headerSide} aria-hidden="true" />
 
                         <div className={classes.headerCenter}>
                             <div className={classes.headerTitle}>{tournamentName}</div>
@@ -3977,7 +3327,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                         </div>
 
                         <div className={`${classes.headerSide} ${classes.headerSideEnd}`}>
-                            {authCtx.isAdmin && (
+                            {authCtx.isAdmin && strictCastlePick && (
                                 <button
                                     onClick={() => handleGetAvailableCastles()}
                                     className={classes.actionButton}
@@ -3985,7 +3335,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                     Get Available Castles
                                 </button>
                             )}
-                            {authCtx.isAdmin && !isUpdateButtonVisible && (
+                            {authCtx.isAdmin &&
+                                (tournamentStatus === 'Tournament Finished' ||
+                                    String(tournamentStatus || '').includes('Finished')) && (
                                 <button
                                     onClick={async () => {
                                         const confirmed = window.confirm(
@@ -4016,163 +3368,107 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             {/* Render the spinning wheel modal */}
             {isSpinningWheelOpen && (
-                <Modal onClose={() => setIsSpinningWheelOpen(false)}>
-                    <SpinningWheel players={playersObj} onStartTournament={onStartTournament} />
+                <Modal
+                    onClose={() => {
+                        setIsSpinningWheelOpen(false);
+                        setSpinningWheelMode('kickoff');
+                    }}
+                >
+                    <SpinningWheel
+                        players={playersObj}
+                        onStartTournament={onStartTournament}
+                        mode={spinningWheelMode}
+                    />
                 </Modal>
             )}
 
-            {showCastlesModal && (
+            {strictCastlePick && showCastlesModal && (
                 <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        background: 'rgba(0, 0, 0, 0.6)',
-                        backdropFilter: 'blur(4px)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 10000,
-                        overflow: 'hidden'
-                    }}
+                    className={classes.castlesModalBackdrop}
                     onClick={() => setShowCastlesModal(false)}
                 >
-                    <div
-                        style={{
-                            background:
-                                'linear-gradient(135deg, rgba(62, 32, 192, 0.98) 0%, rgba(45, 20, 150, 0.98) 100%)',
-                            padding: '2rem',
-                            borderRadius: '12px',
-                            border: '2px solid gold',
-                            minWidth: '400px',
-                            maxWidth: '600px',
-                            maxHeight: '80vh',
-                            overflowY: 'auto',
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-                            position: 'relative',
-                            animation: 'slideIn 0.3s ease-out'
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className={classes.castlesModal} onClick={(e) => e.stopPropagation()}>
                         <button
+                            type="button"
+                            className={classes.castlesModalClose}
                             onClick={() => setShowCastlesModal(false)}
-                            style={{
-                                position: 'absolute',
-                                top: '1rem',
-                                right: '1rem',
-                                background: 'gold',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '32px',
-                                height: '32px',
-                                color: 'rgb(62, 32, 192)',
-                                fontSize: '1.5rem',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => (e.target.style.transform = 'rotate(90deg)')}
-                            onMouseLeave={(e) => (e.target.style.transform = 'rotate(0deg)')}
+                            aria-label="Close"
                         >
                             ×
                         </button>
-                        <h3
-                            style={{
-                                color: 'gold',
-                                textAlign: 'center',
-                                marginBottom: '1.5rem',
-                                fontSize: '1.5rem',
-                                fontWeight: 'bold',
-                                textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)'
-                            }}
-                        >
-                            Available Castles
-                        </h3>
-                        <ul
-                            style={{
-                                listStyle: 'none',
-                                padding: 0,
-                                margin: 0
-                            }}
-                        >
+                        <div className={classes.castlesModalHeader}>
+                            <h3 className={classes.castlesModalTitle}>Available Castles</h3>
+                            <div className={classes.castlesModalLegend}>
+                                <span className={classes.castlesModalLegendItem}>
+                                    <span
+                                        className={`${classes.castlesModalLegendSwatch} ${classes.castlesModalLegendLow}`}
+                                    />
+                                    Fewest games
+                                </span>
+                                <span className={classes.castlesModalLegendItem}>
+                                    <span
+                                        className={`${classes.castlesModalLegendSwatch} ${classes.castlesModalLegendHigh}`}
+                                    />
+                                    Most games
+                                </span>
+                                <span className={classes.castlesModalLegendItem}>
+                                    <span
+                                        className={`${classes.castlesModalLegendSwatch} ${classes.castlesModalLegendLive}`}
+                                    />
+                                    Live in progress
+                                </span>
+                            </div>
+                        </div>
+                        <ul className={classes.castlesModalList}>
                             {(() => {
-                                // Find min and max total values (including live games)
-                                const totals = availableCastles.map((castle) => castle.total + (castle.liveGames || 0));
+                                const totals = availableCastles.map(
+                                    (castle) => castle.total + (castle.liveGames || 0)
+                                );
                                 const minTotal = Math.min(...totals);
                                 const maxTotal = Math.max(...totals);
 
                                 return availableCastles.map((castle, idx) => {
                                     const isLive = castle.liveGames > 0;
                                     const castleTotal = castle.total + (castle.liveGames || 0);
+                                    const castleImage = getCastleImage(castle.name);
+                                    const rowClass = [
+                                        classes.castlesModalRow,
+                                        isLive ? classes.castlesModalRowLive : '',
+                                        castleTotal === minTotal ? classes.castlesModalRowLow : '',
+                                        castleTotal === maxTotal ? classes.castlesModalRowHigh : ''
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' ');
+
                                     return (
-                                        <li
-                                            key={idx}
-                                            style={{
-                                                padding: '0.75rem 1rem',
-                                                margin: '0.5rem 0',
-                                                background: isLive
-                                                    ? 'rgba(255, 165, 0, 0.3)'
-                                                    : 'rgba(45, 20, 150, 0.6)',
-                                                borderLeft: isLive ? '4px solid #ff6b00' : '4px solid gold',
-                                                borderRadius: '6px',
-                                                color:
-                                                    castleTotal === minTotal
-                                                        ? '#4ade80'
-                                                        : castleTotal === maxTotal
-                                                          ? '#f87171'
-                                                          : '#FFD700',
-                                                fontWeight:
-                                                    castleTotal === minTotal || castleTotal === maxTotal
-                                                        ? 'bold'
-                                                        : 'normal',
-                                                fontSize: '1.1rem',
-                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                                                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                                                cursor: 'default'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.target.style.transform = 'translateX(5px)';
-                                                e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.target.style.transform = 'translateX(0)';
-                                                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-                                            }}
-                                        >
-                                            <span style={{ fontWeight: 'bold' }}>
-                                                {castle.name}
-                                                {isLive && (
-                                                    <span
-                                                        style={{
-                                                            marginLeft: '8px',
-                                                            padding: '2px 6px',
-                                                            background: '#ff6b00',
-                                                            color: 'white',
-                                                            borderRadius: '4px',
-                                                            fontSize: '0.8rem',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        🔴 LIVE ({castle.liveGames})
-                                                    </span>
+                                        <li key={idx} className={rowClass}>
+                                            <div className={classes.castlesModalMain}>
+                                                {castleImage ? (
+                                                    <img
+                                                        src={castleImage}
+                                                        alt=""
+                                                        className={classes.castlesModalThumb}
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className={classes.castlesModalThumbFallback}
+                                                        aria-hidden="true"
+                                                    />
                                                 )}
-                                            </span>
-                                            <span style={{ float: 'right', color: 'white' }}>
+                                                <span className={classes.castlesModalName}>
+                                                    {castle.name}
+                                                    {isLive && (
+                                                        <span className={classes.castlesModalLiveBadge}>
+                                                            <span className={classes.liveDot} />
+                                                            Live ({castle.liveGames})
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <span className={classes.castlesModalStats}>
                                                 Games: {castle.total}
                                                 {isLive && (
-                                                    <span
-                                                        style={{
-                                                            color: '#ff6b00',
-                                                            fontWeight: 'bold',
-                                                            marginLeft: '4px'
-                                                        }}
-                                                    >
+                                                    <span className={classes.castlesModalLiveCount}>
                                                         +{castle.liveGames}
                                                     </span>
                                                 )}
@@ -4182,33 +3478,15 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 });
                             })()}
                         </ul>
-                        <button
-                            onClick={() => setShowCastlesModal(false)}
-                            style={{
-                                marginTop: '1.5rem',
-                                width: '100%',
-                                padding: '0.75rem',
-                                background: 'linear-gradient(135deg, gold 0%, #FFD700 100%)',
-                                border: 'none',
-                                borderRadius: '8px',
-                                color: 'rgb(62, 32, 192)',
-                                fontSize: '1rem',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                boxShadow: '0 4px 12px rgba(255, 215, 0, 0.3)',
-                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.target.style.transform = 'translateY(-2px)';
-                                e.target.style.boxShadow = '0 6px 16px rgba(255, 215, 0, 0.4)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = '0 4px 12px rgba(255, 215, 0, 0.3)';
-                            }}
-                        >
-                            Close
-                        </button>
+                        <div className={classes.castlesModalFooter}>
+                            <button
+                                type="button"
+                                className={`${classes.actionButton} ${classes.castlesModalFooterBtn}`}
+                                onClick={() => setShowCastlesModal(false)}
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -4230,7 +3508,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
 
             {stageLabels.length === 0 && !isLeague && !isSwiss && !isChampionsLeague ? (
                 <h6>Tournament registration hasn't started</h6>
-            ) : (isLeague || isSwiss) || (isChampionsLeague && championsLeaguePhase === 'group') ? (
+            ) : usesScheduleView ? (
                 <div className={classes.bracketBody}>
                     {isChampionsLeague && (
                         <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
@@ -4255,6 +3533,8 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                   : 'League views'
                         }
                         groupLabels={isChampionsLeague ? championsGroupLabels : []}
+                        highlightPair={urlHighlightPair}
+                        storageStageIndex={0}
                         onSelectPair={(pairIdx) => {
                             const pair = playoffPairs[0]?.[pairIdx];
                             if (pair) {
@@ -4352,151 +3632,63 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     return (
                         <div className={classes.bracketBody} style={{ width: '100%' }}>
                             {clKnockoutOffset > 0 && (
-                                <p
-                                    style={{
-                                        textAlign: 'center',
-                                        margin: '0 0 1rem',
-                                        color: 'var(--color-text-muted)'
-                                    }}
-                                >
+                                <p className={classes.knockoutBanner}>
                                     Knockout stage — group winners vs runners-up from other groups
                                 </p>
                             )}
-                            {/* Stage navigation */}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '2rem',
-                                    marginBottom: '1.5rem',
-                                    padding: '1rem 0'
-                                }}
-                            >
+                            <div className={classes.knockoutNav}>
                                 <button
+                                    type="button"
+                                    className={classes.knockoutNavBtn}
                                     onClick={() => setActiveBracketStage((prev) => Math.max(0, prev - 1))}
                                     disabled={clampedStage === 0}
-                                    style={{
-                                        background: clampedStage === 0 ? 'rgba(255,215,0,0.2)' : 'gold',
-                                        border: '2px solid gold',
-                                        borderRadius: '50%',
-                                        width: '52px',
-                                        height: '52px',
-                                        fontSize: '1.6rem',
-                                        color: clampedStage === 0 ? 'rgba(62,32,192,0.4)' : 'rgb(62,32,192)',
-                                        cursor: clampedStage === 0 ? 'default' : 'pointer',
-                                        fontWeight: 'bold',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s',
-                                        flexShrink: 0
-                                    }}
+                                    aria-label="Previous stage"
                                 >
                                     ←
                                 </button>
-                                <div style={{ textAlign: 'center', minWidth: '280px' }}>
-                                    <div
-                                        style={{
-                                            color: 'red',
-                                            fontSize: '1.5rem',
-                                            fontWeight: 'bold',
-                                            textTransform: 'uppercase',
-                                            textShadow: '2px 2px 8px rgba(0,0,0,0.6)',
-                                            letterSpacing: '2px'
-                                        }}
-                                    >
+                                <div className={classes.knockoutNavCenter}>
+                                    <div className={classes.knockoutStageTitle}>
                                         {nextDisplayStage !== null
                                             ? `${currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage} → ${nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}`
                                             : currentDisplayStage === 'Final'
                                               ? 'Final & Third Place'
                                               : currentDisplayStage}
                                     </div>
-                                    <div
-                                        style={{
-                                            color: 'rgba(255,255,255,0.6)',
-                                            fontSize: '0.9rem',
-                                            marginTop: '0.3rem'
-                                        }}
-                                    >
+                                    <div className={classes.knockoutStageMeta}>
                                         Stage {clampedStage + 1}
                                         {nextDisplayStage !== null ? `–${clampedStage + 2}` : ''} of{' '}
                                         {displayStages.length}
                                     </div>
                                 </div>
                                 <button
+                                    type="button"
+                                    className={classes.knockoutNavBtn}
                                     onClick={() =>
                                         setActiveBracketStage((prev) => Math.min(displayStages.length - 1, prev + 1))
                                     }
                                     disabled={clampedStage === displayStages.length - 1}
-                                    style={{
-                                        background:
-                                            clampedStage === displayStages.length - 1 ? 'rgba(255,215,0,0.2)' : 'gold',
-                                        border: '2px solid gold',
-                                        borderRadius: '50%',
-                                        width: '52px',
-                                        height: '52px',
-                                        fontSize: '1.6rem',
-                                        color:
-                                            clampedStage === displayStages.length - 1
-                                                ? 'rgba(62,32,192,0.4)'
-                                                : 'rgb(62,32,192)',
-                                        cursor: clampedStage === displayStages.length - 1 ? 'default' : 'pointer',
-                                        fontWeight: 'bold',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s',
-                                        flexShrink: 0
-                                    }}
+                                    aria-label="Next stage"
                                 >
                                     →
                                 </button>
                             </div>
 
-                            {/* Stage dots indicator */}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    gap: '0.6rem',
-                                    marginBottom: '2rem'
-                                }}
-                            >
+                            <div className={classes.knockoutDots}>
                                 {displayStages.map((label, idx) => (
                                     <button
                                         key={idx}
+                                        type="button"
+                                        className={`${classes.knockoutDot} ${idx === clampedStage ? classes.knockoutDotActive : ''}`}
                                         onClick={() => setActiveBracketStage(idx)}
                                         title={label}
-                                        style={{
-                                            width: '14px',
-                                            height: '14px',
-                                            borderRadius: '50%',
-                                            background: idx === clampedStage ? 'gold' : 'rgba(255,215,0,0.25)',
-                                            border: '2px solid gold',
-                                            padding: 0,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            transform: idx === clampedStage ? 'scale(1.3)' : 'scale(1)'
-                                        }}
+                                        aria-label={`Go to ${label}`}
                                     />
                                 ))}
                             </div>
 
-                            {/* Stage panels - two stages side by side */}
-                            <div style={{ display: 'flex', width: '100%', alignItems: 'stretch' }}>
+                            <div className={classes.knockoutColumns}>
                                 <div className={classes['bracket-stage-single']}>
-                                    {/* Column header */}
-                                    <h3
-                                        style={{
-                                            color: 'gold',
-                                            textAlign: 'center',
-                                            fontSize: '1.1rem',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '1px',
-                                            marginBottom: '1rem'
-                                        }}
-                                    >
+                                    <h3 className={classes.knockoutColumnTitle}>
                                         {currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage}
                                     </h3>
                                     {currentDisplayStage === 'Final' ? (
@@ -4637,17 +3829,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                     </div>
                                                 );
                                             })}
-                                            <h3
-                                                style={{
-                                                    color: 'orange',
-                                                    textAlign: 'center',
-                                                    fontSize: '1.4rem',
-                                                    marginTop: '3rem',
-                                                    marginBottom: '1.5rem'
-                                                }}
-                                            >
-                                                Third Place
-                                            </h3>
+                                            <h3 className={classes.knockoutSubTitle}>Third Place</h3>
                                             {thirdPlaceIndex !== -1 &&
                                                 (bracketPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
@@ -5010,7 +4192,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                         }
                                         return (
                                             <svg
-                                                style={{ width: '60px', flexShrink: 0, alignSelf: 'stretch' }}
+                                                className={classes.knockoutConnector}
                                                 viewBox="0 0 100 100"
                                                 preserveAspectRatio="none"
                                             >
@@ -5025,7 +4207,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         <path
                                                             key={i}
                                                             d={`M 0,${leftY} C 50,${leftY} 50,${rightY} 100,${rightY}`}
-                                                            stroke="rgba(255,215,0,0.5)"
+                                                            stroke="rgba(201, 162, 39, 0.35)"
                                                             strokeWidth="2"
                                                             fill="none"
                                                             vectorEffect="non-scaling-stroke"
@@ -5038,16 +4220,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                 {nextDisplayStage !== null && (
                                     <div className={classes['bracket-stage-single']}>
                                         {/* Column header */}
-                                        <h3
-                                            style={{
-                                                color: 'gold',
-                                                textAlign: 'center',
-                                                fontSize: '1.1rem',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '1px',
-                                                marginBottom: '1rem'
-                                            }}
-                                        >
+                                        <h3 className={classes.knockoutColumnTitle}>
                                             {nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}
                                         </h3>
                                         {nextDisplayStage === 'Final' ? (
@@ -5243,17 +4416,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                                                         </div>
                                                     );
                                                 })}
-                                                <h3
-                                                    style={{
-                                                        color: 'orange',
-                                                        textAlign: 'center',
-                                                        fontSize: '1.4rem',
-                                                        marginTop: '3rem',
-                                                        marginBottom: '1.5rem'
-                                                    }}
-                                                >
-                                                    Third Place
-                                                </h3>
+                                                <h3 className={classes.knockoutSubTitle}>Third Place</h3>
                                                 {thirdPlaceIndex !== -1 &&
                                                     (bracketPairs[thirdPlaceIndex] || []).map((pair, pairIndex) => {
                                                         const { team1, team2 } = pair;
@@ -5659,7 +4822,9 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
             )}
 
             {/* Stats Popup - Single instance for all games */}
-            {showStats && stats && <StatsPopup stats={stats} onClose={handleCloseStats} />}
+            {showStats && stats && (
+                <StatsPopup stats={stats} loading={statsLoading} onClose={handleCloseStats} />
+            )}
 
             {/* Report Game Modal */}
             {canShowReportModal && (
@@ -5671,6 +4836,7 @@ export const TournamentBracket = ({ maxPlayers, tournamentId, tournamentStatus, 
                     onSubmit={handleSubmitGameReport}
                     playoffPairs={playoffPairs}
                     initialGameId={selectedInitialGameId}
+                    strictCastlePick={strictCastlePick}
                 />
             )}
         </div>
@@ -5827,24 +4993,40 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
     });
 }
 
-export const renderPlayerList = (players) => {
-    const playerNames = Object.values(players)
-        .filter((player) => player !== null && player.name !== undefined && player.name.trim() !== '')
-        .map((player) => player.name);
+export const renderPlayerList = (players, kickOptions = null) => {
+    const safePlayers = players && typeof players === 'object' ? players : {};
+    const entries = Object.entries(safePlayers)
+        .filter(
+            ([, player]) => player !== null && player.name !== undefined && player.name.trim() !== ''
+        )
+        .sort(
+            ([, a], [, b]) =>
+                (Number(b.stars) || 0) - (Number(a.stars) || 0) || a.name.localeCompare(b.name)
+        );
 
-    playerNames.forEach((name) => {
-        if (!uniquePlayerNames.includes(name) && name) {
-            uniquePlayerNames.push(name);
+    entries.forEach(([, player]) => {
+        if (!uniquePlayerNames.includes(player.name) && player.name) {
+            uniquePlayerNames.push(player.name);
         }
     });
 
     return (
         <>
             <h4>Players:</h4>
-            <ul>
-                {playerNames.map(function (name, index) {
-                    return <li key={index}>{formatPlayerName({ name })}</li>;
-                })}
+            <ul className={chipClasses.list}>
+                {entries.map(([playerKey, player]) => (
+                    <TournamentPlayerChip
+                        key={playerKey}
+                        player={player}
+                        canKick={Boolean(kickOptions?.canKick)}
+                        onKick={
+                            kickOptions?.onKick
+                                ? () => kickOptions.onKick(playerKey, player.name)
+                                : undefined
+                        }
+                        kicking={kickOptions?.kickingPlayerKey === playerKey}
+                    />
+                ))}
             </ul>
         </>
     );

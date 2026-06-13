@@ -1,26 +1,126 @@
 .player_bracket {
     display: flex;
     align-items: center;
-    flex-wrap: nowrap;
+    gap: 0.65rem;
     width: 100%;
+    min-width: 0;
+    padding: 0.45rem 0.55rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 
-.playerMiddleRow {
+.player_bracket:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(201, 162, 39, 0.18);
+}
+
+.playerWinner {
+    border-color: rgba(201, 162, 39, 0.35);
+    background: rgba(201, 162, 39, 0.06);
+}
+
+.playerLoser {
+    opacity: 0.72;
+}
+
+.playerRow {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.statusLabel {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
     flex-shrink: 0;
-    min-width: max-content;
 }
 
-.playerInfoColumn {
+.statusWon,
+.statusLost,
+.statusPending {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.statusWon {
+    background: #6ecf8a;
+    box-shadow: 0 0 8px rgba(110, 207, 138, 0.45);
+}
+
+.statusLost {
+    background: #c97a7a;
+}
+
+.statusPending {
+    background: var(--color-text-dim);
+}
+
+.playerFlag {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.playerStarsBracket {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 5.5rem;
+    margin-left: 0.2rem;
+    gap: 0.05rem;
+}
+
+.playerStarsBracketParen {
+    color: var(--color-text-dim);
+    font-size: 0.82rem;
+    line-height: 1;
+    user-select: none;
+}
+
+.playerStars {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    line-height: 1;
+    min-width: 4.5rem;
+}
+
+.playerAvatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.playerAvatarFallback {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    flex: 0 0 320px;
-    min-width: 320px;
-    max-width: 320px;
-    overflow: hidden;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.1);
+    border: 1px solid rgba(201, 162, 39, 0.25);
 }
 
 .playerName {
@@ -31,43 +131,84 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--color-text);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a.playerName:hover {
+    color: var(--color-gold-bright);
+}
+
+.playerNameHint {
+    white-space: normal;
+    overflow: visible;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
 }
 
 .leaderboardPlace {
     flex: 0 0 auto;
-    color: #9ff6ff;
+    color: var(--color-gold-dim);
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
-.starsContainer {
+.playerCastles {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    flex: 0 0 160px;
-    min-width: 160px;
-    max-width: 160px;
-    overflow: hidden;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    flex-shrink: 0;
 }
 
+.playerCastlesBo3 {
+    gap: 0.4rem;
+}
+
+.scoreBox {
+    width: 2.5rem;
+    padding: 0.35rem 0.25rem;
+    text-align: center;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    color: var(--color-gold-bright);
+    font-weight: 700;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.playerWinner .scoreBox {
+    border-color: rgba(201, 162, 39, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.15);
+}
+
+/* Legacy class names kept for castle/game UI */
 .green-indicator,
 .red-indicator,
 .grey-indicator {
-    width: 16px;
-    height: 16px;
-    /* border-radius: 50%; */
-    margin-right: 8px;
-    min-width: 16px;
-    min-height: 16px;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
     display: inline-block;
+    flex-shrink: 0;
 }
 
 .green-indicator {
-    background: #4caf50;
+    background: #6ecf8a;
 }
+
 .red-indicator {
-    background: #f44336;
+    background: #c97a7a;
 }
+
 .grey-indicator {
-    background: #bdbdbd;
+    background: var(--color-text-dim);
 }
 
 .player_bracket_live {
@@ -75,7 +216,7 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: red;
+    background-color: #c97a7a;
 }
 
 .blink {
@@ -89,19 +230,21 @@
 
 .stars_details {
     visibility: hidden;
-    background-color: #333;
-    color: #fff;
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
     text-align: center;
-    padding: 5px;
-    border-radius: 5px;
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-md);
+    border: var(--border-subtle);
     position: absolute;
-    z-index: 1;
-    bottom: 125%; /* Position above the StarsComponent */
+    z-index: 20;
+    bottom: 125%;
     left: 50%;
     transform: translateX(-50%);
     white-space: nowrap;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: opacity 0.2s;
+    font-size: 0.75rem;
 }
 
 .stars_wrapper:hover .stars_details {
@@ -110,59 +253,39 @@
 }
 
 .radio_custom {
-    accent-color: #ffb300; /* Gold/yellow for modern browsers */
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 2px solid #3e20c0;
-    box-shadow:
-        0 0 0 2px #fff,
-        0 0 6px 2px #3e20c033;
-    margin: 0 0.5rem;
+    accent-color: var(--color-gold);
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: 0 0.35rem;
     cursor: pointer;
-    transition: box-shadow 0.2s;
 }
-.radio_custom:checked {
-    box-shadow:
-        0 0 0 2px #fff,
-        0 0 8px 4px #ffb30077;
-    border-color: #ffb300;
-}
+
 .radio_custom:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
-.gamesStrip {
-    display: flex;
-    flex-direction: row;
-    gap: 0.3rem;
-    align-items: center;
-    flex-wrap: nowrap;
-    flex-shrink: 0;
-}
-
+.gamesStrip,
 .gamesStripBo3 {
     display: flex;
     flex-direction: row;
-    gap: 0.4rem;
     align-items: center;
-    justify-content: flex-start;
+    gap: 0.35rem;
     flex-wrap: nowrap;
     flex-shrink: 0;
 }
 
 @keyframes blink {
     50% {
-        opacity: 0;
+        opacity: 0.35;
     }
 }
 
 .castle-selected {
-    border: 5px solid #cb27e0 !important; /* Gold border for visibility */
-    box-shadow: 0 0 6px #ffb30055;
+    border: 3px solid var(--color-gold) !important;
+    box-shadow: 0 0 10px rgba(201, 162, 39, 0.45);
 }
 
-/* Compact castle slot — dot by default, full image on hover */
 .castleSlot {
     position: relative;
     display: inline-flex;
@@ -173,11 +296,11 @@
 }
 
 .castleDot {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 3px;
-    background: rgba(62, 32, 192, 0.4);
-    border: 1px solid rgba(255, 215, 0, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(201, 162, 39, 0.25);
     flex-shrink: 0;
     transition:
         border-color 0.15s,
@@ -185,14 +308,14 @@
 }
 
 .castleDotSelected {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(203, 39, 224, 0.2));
-    border: 1px solid #ffd700;
-    box-shadow: 0 0 5px rgba(255, 215, 0, 0.55);
+    background: rgba(201, 162, 39, 0.2);
+    border-color: var(--color-gold);
+    box-shadow: 0 0 6px rgba(201, 162, 39, 0.35);
 }
 
 .castleDotEmpty {
-    background: rgba(30, 20, 60, 0.35);
-    border: 1px dashed rgba(255, 215, 0, 0.2);
+    background: rgba(255, 255, 255, 0.03);
+    border-style: dashed;
 }
 
 .castlePopup {
@@ -202,11 +325,11 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 500;
-    background: rgba(14, 9, 36, 0.97);
-    border: 2px solid rgba(255, 215, 0, 0.6);
-    border-radius: 8px;
+    background: var(--color-bg-panel);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
     padding: 6px;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.8);
+    box-shadow: var(--shadow-panel);
     pointer-events: none;
     white-space: nowrap;
 }
@@ -216,18 +339,34 @@
 }
 
 .castlePopupImg {
-    width: 64px;
-    height: 64px;
-    border-radius: 5px;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-sm);
     display: block;
     object-fit: cover;
 }
 
 .castlePopupLabel {
     text-align: center;
-    color: #ffd700;
-    font-size: 10px;
-    font-weight: bold;
+    color: var(--color-gold);
+    font-size: 0.62rem;
+    font-weight: 600;
     margin-top: 4px;
     letter-spacing: 0.04em;
+}
+
+@media (max-width: 900px) {
+    .player_bracket {
+        flex-wrap: wrap;
+    }
+
+    .playerCastles {
+        width: 100%;
+        justify-content: flex-start;
+        padding-left: 1.5rem;
+    }
+
+    .scoreBox {
+        margin-left: auto;
+    }
 }

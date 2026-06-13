@@ -82,7 +82,7 @@ function tournamentLink(siteUrl, tournamentId) {
 }
 
 function matchCenterLink(siteUrl) {
-    return `${siteUrl.replace(/\/$/, '')}/`;
+    return `${siteUrl.replace(/\/$/, '')}/live`;
 }
 
 function useDigestOnlyMode() {

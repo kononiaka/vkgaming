@@ -1,3 +1,34 @@
+.cardShell {
+    position: relative;
+}
+
+.watchBtn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    background: #9146ff;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.watchBtn:hover {
+    filter: brightness(1.08);
+}
+
+.watchBtnLive {
+    box-shadow: 0 0 0 2px rgba(145, 70, 255, 0.45);
+}
+
 .card {
 
     position: relative;
@@ -455,17 +486,37 @@
 
 
 .playerSideUpcoming .portraitWrap {
-
     margin-bottom: 4px;
-
 }
 
-
-
 .playerSideUpcoming .playerLabelUnder {
+    margin-top: 0.35rem;
+    max-width: 120px;
+    flex-direction: column;
+    gap: 0.25rem;
+}
 
-    margin-top: 0.15rem;
+.playerFlag {
+    display: flex;
+    justify-content: center;
+    line-height: 1;
+}
 
+.playerFlag .icon,
+.playerFlag img {
+    width: 22px;
+    height: 16px;
+}
+
+.withMap .playerNameUnder,
+.plain .playerNameUnder {
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+    line-height: 1.25;
+    text-align: center;
 }
 
 
@@ -483,6 +534,8 @@
     max-width: 108px;
 
     min-width: 0;
+
+    flex-direction: column;
 
 }
 
@@ -513,6 +566,72 @@
 .plain .playerNameUnder {
 
     color: var(--color-text);
+
+}
+
+
+
+.compact .frame {
+
+    min-height: 250px;
+
+    padding: 1.1rem 0.65rem 0.85rem;
+
+}
+
+
+
+.compact .matchRow {
+
+    grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+
+    gap: 0.4rem;
+
+}
+
+
+
+.compact .centerBadge {
+
+    width: 96px;
+
+}
+
+
+
+.compact .centerDiamond {
+
+    width: 72px;
+
+    height: 72px;
+
+}
+
+
+
+.compact .playerLabelUnder {
+
+    max-width: 100%;
+
+}
+
+
+
+.compact .playerNameUnder {
+
+    max-width: 9.5rem;
+
+    white-space: normal;
+
+    overflow: visible;
+
+    text-overflow: clip;
+
+    word-break: break-word;
+
+    line-height: 1.25;
+
+    text-align: center;
 
 }
 

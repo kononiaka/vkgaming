@@ -203,89 +203,70 @@
     color: var(--color-gold-bright);
 }
 
-.tierGrid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin: 0.75rem 0 0.5rem;
+.stripeForm {
+    margin-top: 0.75rem;
 }
 
-.tierBtn {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    text-align: left;
+.amountLabel {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
-.tierBtn:disabled {
-    cursor: wait;
-    opacity: 0.85;
+.stripeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: stretch;
 }
 
-.tierCard {
-    background: var(--color-bg-panel-alt);
+.amountField {
+    display: inline-flex;
+    align-items: center;
+    min-width: 8rem;
+    flex: 1 1 8rem;
+    max-width: 12rem;
+    background: var(--color-bg-deep);
     border: var(--border-subtle);
     border-radius: var(--radius-md);
     overflow: hidden;
-    transition:
-        border-color 0.15s ease,
-        transform 0.15s ease;
 }
 
-.tierBtn:hover:not(:disabled) .tierCard {
-    border-color: rgba(201, 162, 39, 0.45);
-    transform: translateY(-2px);
-}
-
-.tierChampion {
-    border-top: 2px solid var(--color-gold-dim);
-}
-
-.tierLegend {
-    border-top: 2px solid var(--color-gold);
-}
-
-.tierHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 0.75rem 1rem;
-    background: var(--color-bg-deep);
-    border-bottom: var(--border-subtle);
-}
-
-.tierLabel {
-    font-size: 0.85rem;
+.amountPrefix {
+    padding: 0.55rem 0.65rem 0.55rem 0.85rem;
+    color: var(--color-gold);
     font-weight: 600;
-    color: var(--color-text);
-    letter-spacing: 0.04em;
+    background: var(--color-bg-panel-alt);
+    border-right: var(--border-subtle);
 }
 
-.tierAmount {
+.amountInput {
+    width: 100%;
+    min-width: 0;
+    padding: 0.55rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-gold);
+    font-family: var(--font-body);
 }
 
-.tierBody {
-    padding: 0.85rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+.amountInput:focus {
+    outline: none;
 }
 
-.tierCoins {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--color-gold-bright);
+.amountInput:disabled {
+    opacity: 0.7;
 }
 
-.tierPay {
-    font-size: 0.75rem;
-    color: var(--color-text-dim);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+.stripeRow .primaryBtn {
+    align-self: stretch;
+    border: none;
 }
 
 .footnote {
@@ -314,7 +295,17 @@
 }
 
 @media (max-width: 540px) {
-    .tierGrid {
-        grid-template-columns: 1fr;
+    .stripeRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .amountField {
+        max-width: none;
+    }
+
+    .stripeRow .primaryBtn {
+        width: 100%;
+        text-align: center;
     }
 }

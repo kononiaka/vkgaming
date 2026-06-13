@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import classes from './ReportGameModal.module.css';
 import { getAvatar, lookForUserId, fetchCastlesList, getPairProgress, savePairProgress } from '../../../api/api';
+import { calculateAvailableCastlesFromBracket } from '../../../utils/tournamentBracketNavigation';
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -18,7 +19,16 @@ import redFlagImg from '../../../image/flags/red.jpg';
 import blueFlagImg from '../../../image/flags/blue.jpg';
 import goldImg from '../../../image/gold-removebg.png';
 
-const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playoffPairs, initialGameId }) => {
+const ReportGameModal = ({
+    pair,
+    pairId,
+    tournamentId,
+    onClose,
+    onSubmit,
+    playoffPairs,
+    initialGameId,
+    strictCastlePick = false
+}) => {
     // Use backend progress instead of localStorage
     const [initial, setInitial] = useState({});
     const [progressLoaded, setProgressLoaded] = useState(false);
@@ -79,6 +89,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
     const [avatar2, setAvatar2] = useState(null);
     const [availableCastles, setAvailableCastles] = useState([]);
     const [castleMarkOverrides, setCastleMarkOverrides] = useState({});
+    const [mockMode, setMockMode] = useState(false);
 
     // When progress is loaded, restore only fields the pair useEffect doesn't already cover
     useEffect(() => {
@@ -223,48 +234,32 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
     };
 
     // Calculate available castles statistics - using exact same logic as Get Available Castles modal
-    const calculateAvailableCastles = (apiCastles, pairsData) => {
-        // API castles already have the correct 'total' count
-        const castlesWithLiveGames = apiCastles.map((castle) => {
-            let liveGames = 0;
-            // Count live games across all stages
-            if (pairsData && Array.isArray(pairsData)) {
-                pairsData.forEach((stage) => {
-                    if (Array.isArray(stage)) {
-                        stage.forEach((matchPair) => {
-                            if (matchPair.games && Array.isArray(matchPair.games)) {
-                                matchPair.games.forEach((game) => {
-                                    // Game is live if:
-                                    // 1. gameStatus is 'In Progress', OR
-                                    // 2. Both castles are selected but no winner declared
-                                    const isInProgress = game.gameStatus === 'In Progress';
-                                    const hasCastlesNoWinner = game.castle1 && game.castle2 && !game.castleWinner;
-                                    if (
-                                        (game.castle1 === castle.name || game.castle2 === castle.name) &&
-                                        (isInProgress || hasCastlesNoWinner)
-                                    ) {
-                                        liveGames++;
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-            return { ...castle, liveGames };
-        });
-        return [...castlesWithLiveGames].sort((a, b) => a.total - b.total);
-    };
+    const calculateAvailableCastles = (apiCastles, pairsData) =>
+        calculateAvailableCastlesFromBracket(apiCastles, pairsData);
 
     // Get border color for a castle based on availability
     const getCastleBorderColor = (castleName) => {
-        // Check for manual marks first (selected or deactivated)
+        if (mockMode) {
+            const manualMark = castleMarkOverrides[castleName];
+            if (manualMark === 'selected') {
+                return '#4ade80';
+            }
+            if (manualMark === 'deactivated') {
+                return '#f87171';
+            }
+            return '#CCCCCC';
+        }
+
         const manualMark = castleMarkOverrides[castleName];
         if (manualMark === 'selected') {
-            return '#4ade80'; // Green for manually selected
+            return '#4ade80';
         }
         if (manualMark === 'deactivated') {
-            return '#f87171'; // Red for manually deactivated
+            return '#f87171';
+        }
+
+        if (!strictCastlePick) {
+            return '#CCCCCC';
         }
 
         // If in 11/12 state (castleMarkOverrides has keys with null values), color by min/max
@@ -416,8 +411,12 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
 
     // Calculate available castles when playoffPairs changes
     React.useEffect(() => {
-        if (playoffPairs) {
-            const fetchAndCalculate = async () => {
+        if (!strictCastlePick || !playoffPairs) {
+            setAvailableCastles([]);
+            return;
+        }
+
+        const fetchAndCalculate = async () => {
                 try {
                     const apiCastles = await fetchCastlesList();
                     const stats = calculateAvailableCastles(apiCastles, playoffPairs);
@@ -505,8 +504,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                 }
             };
             fetchAndCalculate();
-        }
-    }, [playoffPairs, pair]);
+    }, [playoffPairs, pair, strictCastlePick]);
 
     // Reset castle marks when pair changes (new game opened)
     React.useEffect(() => {
@@ -640,6 +638,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
             score2: score2,
             color1: color1,
             color2: color2,
+            mockMode,
             games: isSeriesMatch
                 ? gameResults.map((g) => ({
                       castle1: g.castle1 || '',
@@ -679,14 +678,16 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                   ]
         };
 
-        // Persist final progress to backend before handing off
-        await savePairProgress(tournamentId, pairId, {
-            ...reportData,
-            latestStage: 'submitted',
-            bannedCastlesBO1_1,
-            bannedCastlesBO1_2,
-            castleMarkOverrides
-        });
+        // Persist final progress to backend before handing off (skipped in mock mode)
+        if (!mockMode) {
+            await savePairProgress(tournamentId, pairId, {
+                ...reportData,
+                latestStage: 'submitted',
+                bannedCastlesBO1_1,
+                bannedCastlesBO1_2,
+                castleMarkOverrides
+            });
+        }
         onSubmit(reportData);
     };
 
@@ -778,6 +779,13 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                     ×
                 </button>
 
+                {mockMode && (
+                    <div className={classes.mockModeBanner}>
+                        Test mode — saves bracket and promotions only. Global castle totals, availability
+                        counts, ELO, and player stats are not updated.
+                    </div>
+                )}
+
                 {/* Player Header Bar at Top - STICKY (only for series matches) */}
                 {isSeriesMatch && (
                     <div className={classes.matchHeader}>
@@ -820,8 +828,8 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                         <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* Series match game results */}
                             {gameResults.map((game, idx) => (
+                                <div key={idx} className={classes.gameBlock}>
                                 <div
-                                    key={idx}
                                     id={`report-game-section-${idx}`}
                                     className={classes.gameSection}
                                     style={{
@@ -1368,23 +1376,24 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                                             </div>
                                         </div>
                                     </div> */}
-                                    <div className={classes.restartConfirmationRow}>
-                                        <label className={classes.restartConfirmationLabel}>
-                                            <input
-                                                type="checkbox"
-                                                checked={game.restartsFinished || false}
-                                                onChange={(e) => {
-                                                    const updated = [...gameResults];
-                                                    updated[idx] = {
-                                                        ...updated[idx],
-                                                        restartsFinished: e.target.checked
-                                                    };
-                                                    setGameResults(updated);
-                                                }}
-                                            />
-                                            Restarts finished / main game started
-                                        </label>
-                                    </div>
+                                </div>
+                                <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
+                                    <label className={classes.restartConfirmationLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={game.restartsFinished || false}
+                                            onChange={(e) => {
+                                                const updated = [...gameResults];
+                                                updated[idx] = {
+                                                    ...updated[idx],
+                                                    restartsFinished: e.target.checked
+                                                };
+                                                setGameResults(updated);
+                                            }}
+                                        />
+                                        Restarts finished / main game started
+                                    </label>
+                                </div>
                                 </div>
                             ))}
                         </div>
@@ -2011,7 +2020,7 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                     )}
 
                     {!isSeriesMatch && (
-                        <div className={classes.restartConfirmationRow}>
+                        <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
                             <label className={classes.restartConfirmationLabel}>
                                 <input
                                     type="checkbox"
@@ -2023,9 +2032,23 @@ const ReportGameModal = ({ pair, pairId, tournamentId, onClose, onSubmit, playof
                         </div>
                     )}
 
+                    <div className={classes.mockModeRow}>
+                        <label className={classes.mockModeLabel}>
+                            <input
+                                type="checkbox"
+                                checked={mockMode}
+                                onChange={(event) => setMockMode(event.target.checked)}
+                            />
+                            Mock result (test — bracket + promotion only, no stats or castle availability)
+                        </label>
+                    </div>
+
                     <div className={`${classes.buttonGroup} ${classes.layered}`}>
-                        <button type="submit" className={classes.submitButton}>
-                            Submit Result
+                        <button
+                            type="submit"
+                            className={`${classes.submitButton} ${mockMode ? classes.submitButtonMock : ''}`}
+                        >
+                            {mockMode ? 'Submit (bracket only)' : 'Submit Result'}
                         </button>
                         <button type="button" onClick={onClose} className={classes.cancelButton}>
                             Cancel

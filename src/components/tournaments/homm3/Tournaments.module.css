@@ -249,19 +249,16 @@
     list-style: none;
     padding: 0;
     margin: 0.75rem 0 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
 }
 
 .playersList li {
-    background: var(--color-bg-panel-alt);
-    padding: 0.4rem 0.55rem;
-    border: var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--color-text);
-    text-align: center;
-    font-size: 0.82rem;
+    padding: 0;
+    background: none;
+    border: none;
+    text-align: left;
 }
 
 .actionButtons {
@@ -379,6 +376,114 @@
     margin: 0;
 }
 
+.registrationActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.commentatorSection {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--color-bg-panel-alt);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.commentatorHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.65rem;
+}
+
+.commentatorHint {
+    margin: 0 0 0.75rem;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+}
+
+.commentatorList,
+.commentatorRequestsList {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    display: grid;
+    gap: 0.45rem;
+}
+
+.commentatorItem,
+.commentatorRequestItem {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.commentatorRequestItem {
+    justify-content: space-between;
+    padding: 0.55rem 0.65rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: var(--border-subtle);
+    border-radius: var(--radius-sm);
+}
+
+.commentatorName {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.commentatorLiveBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(255, 82, 82, 0.12);
+    border: 1px solid rgba(255, 82, 82, 0.35);
+    color: #ff8a8a;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.commentatorWatchLink {
+    color: var(--color-gold);
+    font-size: 0.82rem;
+    text-decoration: none;
+}
+
+.commentatorWatchLink:hover {
+    text-decoration: underline;
+}
+
+.commentatorRequestsPanel {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: var(--border-subtle);
+}
+
+.commentatorRequestsTitle {
+    margin: 0 0 0.5rem;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+}
+
+.commentatorRequestMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.commentatorRequestActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
 .emptyPlayersNote {
     color: var(--color-text-dim);
     font-style: italic;
@@ -440,6 +545,13 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.hostInviteHint {
+    margin: 0 0 0.65rem;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
 }
 
 .inputGroup input {
@@ -607,6 +719,75 @@
     font-size: 0.9rem;
 }
 
+.tournamentFullPage {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0.75rem 1rem 1.5rem;
+    background: var(--color-bg-panel);
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: calc(100vh - var(--layout-top-offset));
+}
+
+.tournamentFullPageBar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.85rem;
+    border-bottom: var(--border-subtle);
+}
+
+.tournamentBackBtn {
+    flex-shrink: 0;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-gold);
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.tournamentBackBtn:hover {
+    background: rgba(201, 162, 39, 0.1);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+}
+
+.tournamentFullPageMeta {
+    min-width: 0;
+    text-align: left;
+}
+
+.tournamentFullPageTitle {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--color-gold);
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+}
+
+.tournamentFullPageStatus {
+    margin: 0.2rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+}
+
+.tournamentFullPageBody {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
 @media (max-width: 768px) {
     .tournamentContainer {
         padding: 1rem;
@@ -619,5 +800,14 @@
 
     .statusFilter {
         width: 100%;
+    }
+
+    .tournamentFullPageBar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tournamentFullPageMeta {
+        min-width: 0;
     }
 }

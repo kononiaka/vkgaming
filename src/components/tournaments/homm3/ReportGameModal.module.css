@@ -217,6 +217,14 @@
     border-color: rgba(201, 162, 39, 0.28);
 }
 
+.gameBlock {
+    margin-bottom: 1.25rem;
+}
+
+.gameBlock .gameSection {
+    margin-bottom: 0.55rem;
+}
+
 .gameBgLeft,
 .gameBgRight {
     position: absolute;
@@ -670,6 +678,9 @@
     display: flex;
     justify-content: center;
     margin-top: 0.5rem;
+    position: relative;
+    z-index: 3;
+    opacity: 1;
 }
 
 .restartConfirmationLabel {
@@ -683,19 +694,24 @@
     border: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 0.5rem 0.75rem;
+    opacity: 1;
     transition:
         background 0.2s ease,
         border-color 0.2s ease;
 }
 
 .restartConfirmationLabel:has(input:not(:checked)) {
-    background: rgba(201, 120, 40, 0.12);
-    border-color: rgba(201, 120, 40, 0.45);
+    background: var(--color-bg-elevated);
+    border-color: rgba(201, 120, 40, 0.75);
+    box-shadow: inset 0 0 0 1px rgba(201, 120, 40, 0.18);
+    opacity: 1;
 }
 
 .restartConfirmationLabel:has(input:checked) {
-    background: rgba(74, 143, 156, 0.12);
-    border-color: rgba(74, 143, 156, 0.45);
+    background: var(--color-bg-elevated);
+    border-color: rgba(74, 143, 156, 0.75);
+    box-shadow: inset 0 0 0 1px rgba(74, 143, 156, 0.18);
+    opacity: 1;
 }
 
 .restartConfirmationLabel input {
@@ -703,6 +719,54 @@
     height: 1rem;
     accent-color: var(--color-gold);
     cursor: pointer;
+}
+
+.mockModeRow {
+    margin: 0.75rem 0 0.25rem;
+    padding: 0.65rem 0.75rem;
+    background: rgba(74, 143, 156, 0.1);
+    border: 1px solid rgba(74, 143, 156, 0.35);
+    border-radius: var(--radius-sm);
+}
+
+.mockModeLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.mockModeLabel input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-teal);
+    cursor: pointer;
+}
+
+.mockModeBanner {
+    margin: 0 0 0.75rem;
+    padding: 0.55rem 0.75rem;
+    background: rgba(74, 143, 156, 0.12);
+    border: 1px solid rgba(74, 143, 156, 0.4);
+    border-radius: var(--radius-sm);
+    color: var(--color-teal);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.submitButtonMock {
+    background: rgba(74, 143, 156, 0.22);
+    color: var(--color-text);
+    border-color: rgba(74, 143, 156, 0.55);
+}
+
+.submitButtonMock:hover {
+    background: rgba(74, 143, 156, 0.32);
+    border-color: var(--color-teal);
+    color: var(--color-text);
 }
 
 .submitButton,

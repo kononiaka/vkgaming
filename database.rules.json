@@ -11,7 +11,23 @@
             "heroes3": {
                 "$tournamentId": {
                     "players": {
-                        ".write": "auth != null"
+                        "$playerId": {
+                            ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && (!root.child('tournaments').child('heroes3').child($tournamentId).child('attendanceFeeUsd').exists() || root.child('tournaments').child('heroes3').child($tournamentId).child('attendanceFeeUsd').val() == 0 || root.child('tournaments').child('heroes3').child($tournamentId).child('attendancePaid').child(auth.uid).exists() || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)) || (data.exists() && !newData.exists() && (data.child('registeredUid').val() === auth.uid || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)))"
+                        }
+                    },
+                    "commentatorRequests": {
+                        "$requestUid": {
+                            ".write": "auth != null && ((!data.exists() && $requestUid === auth.uid && newData.child('registeredUid').val() === auth.uid) || (data.exists() && (data.child('registeredUid').val() === auth.uid || root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)))"
+                        }
+                    },
+                    "commentators": {
+                        "$commentatorUid": {
+                            ".write": "auth != null && ($commentatorUid === auth.uid || root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                        }
+                    },
+                    "attendancePaid": {
+                        ".read": "auth != null",
+                        ".write": false
                     },
                     "bracket": {
                         ".write": "auth != null"
@@ -26,9 +42,6 @@
                         ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
                     },
                     "pricePull": {
-                        ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
-                    },
-                    "coinPrizePull": {
                         ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
                     },
                     ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('createdByUid').val() === auth.uid))"
@@ -81,6 +94,10 @@
         },
         "processedStripe": {
             ".read": false,
+            ".write": false
+        },
+        "prizePoolFunding": {
+            ".read": true,
             ".write": false
         }
     }

@@ -18,9 +18,12 @@ import kronverkImg from '../../image/castles/kronverk.jpeg';
 import { getTournamentPrizeLabel } from '../../api/api';
 import DonationLeaderboard from '../DonationLeaderboard/DonationLeaderboard';
 import MatchAnnouncementCard from '../MatchAnnouncement/MatchAnnouncementCard';
-import { formatMatchSchedule } from '../tournaments/homm3/matchScheduleUtils';
-import { resolveCountryCode } from '../../utils/country';
+import PrizePoolPanel from '../PrizePoolPanel/PrizePoolPanel';
+import { buildCountryLookup, lookupCountryCode } from '../../utils/country';
 import { isPlayerVisibleTournament, isPublicTournament } from '../../utils/tournamentVisibility';
+import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
+import { collectMyUpcomingMatches } from '../../utils/myUpcomingMatches';
+import MyUpcomingMatchesSection from '../MyUpcomingMatches/MyUpcomingMatchesSection';
 import classes from './StartingPageContent.module.css';
 
 const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'finished']);
@@ -28,7 +31,7 @@ const MATCH_CENTER_PREVIEW_LIMIT = 5;
 
 const StartingPageContent = () => {
     const authCtx = useContext(AuthContext);
-    let { userNickName, isLogged, notificationShown, isAdmin } = authCtx;
+    let { userNickName, isLogged, isAdmin } = authCtx;
     const [activeTournaments, setActiveTournaments] = useState([]);
     const [liveGames, setLiveGames] = useState([]);
     const [upcomingMatches, setUpcomingMatches] = useState([]);
@@ -146,11 +149,6 @@ const StartingPageContent = () => {
         userNickName = localStorage.getItem('userName');
     }
 
-    let greeting = null;
-    if (isLogged && userNickName) {
-        greeting = notificationShown ? `Welcome aboard, ${userNickName}!` : `Welcome back, ${userNickName}!`;
-    }
-
     useEffect(() => {
         const fetchActiveTournaments = async () => {
             try {
@@ -166,7 +164,7 @@ const StartingPageContent = () => {
                 );
                 const historyData = await historyResponse.json();
                 const avatarByNickname = {};
-                const countryByNickname = {};
+                const countryLookup = buildCountryLookup(usersData);
                 const rankByNickname = {};
 
                 const getLatestRating = (u) => {
@@ -188,7 +186,6 @@ const StartingPageContent = () => {
                 Object.values(usersData || {}).forEach((user) => {
                     if (user?.enteredNickname) {
                         avatarByNickname[user.enteredNickname] = user.avatar || null;
-                        countryByNickname[user.enteredNickname] = resolveCountryCode(user);
                     }
                 });
 
@@ -283,8 +280,8 @@ const StartingPageContent = () => {
                                                         team2: pair.team2,
                                                         team1Avatar: avatarByNickname[pair.team1] || null,
                                                         team2Avatar: avatarByNickname[pair.team2] || null,
-                                                        team1CountryCode: countryByNickname[pair.team1] || null,
-                                                        team2CountryCode: countryByNickname[pair.team2] || null,
+                                                        team1CountryCode: lookupCountryCode(pair.team1, countryLookup, team1Player),
+                                                        team2CountryCode: lookupCountryCode(pair.team2, countryLookup, team2Player),
                                                         score1: pair.score1 || 0,
                                                         score2: pair.score2 || 0,
                                                         type: pair.type,
@@ -339,8 +336,8 @@ const StartingPageContent = () => {
                                                 team2: pair.team2,
                                                 team1Avatar: avatarByNickname[pair.team1] || null,
                                                 team2Avatar: avatarByNickname[pair.team2] || null,
-                                                team1CountryCode: countryByNickname[pair.team1] || null,
-                                                team2CountryCode: countryByNickname[pair.team2] || null,
+                                                team1CountryCode: lookupCountryCode(pair.team1, countryLookup, team1Player),
+                                                team2CountryCode: lookupCountryCode(pair.team2, countryLookup, team2Player),
                                                 score1: ps1,
                                                 score2: ps2,
                                                 scheduledAt: pair.scheduledAt || null,
@@ -370,76 +367,21 @@ const StartingPageContent = () => {
                     setLiveGames(liveGamesList);
                     setUpcomingMatches(upcomingList);
 
-                    // Compute upcoming/active matches for the logged-in player
                     const playerName =
-                        userNickName && userNickName !== 'undefined' ? userNickName : localStorage.getItem('userName');
+                        userNickName && userNickName !== 'undefined'
+                            ? userNickName
+                            : localStorage.getItem('userName');
 
                     if (playerName) {
-                        const playerMatches = [];
-                        Object.keys(data).forEach((tournamentId) => {
-                            const tournament = data[tournamentId];
-                            if (
-                                !tournament ||
-                                !isPublicTournament(tournament) ||
-                                tournament.status !== 'Started!' ||
-                                !tournament.bracket?.playoffPairs
-                            ) {
-                                return;
-                            }
-
-                            tournament.bracket.playoffPairs.forEach((stage, stageIndex) => {
-                                if (!Array.isArray(stage)) {
-                                    return;
-                                }
-                                stage.forEach((pair, pairIndex) => {
-                                    const isMyPair = pair.team1 === playerName || pair.team2 === playerName;
-                                    if (!isMyPair) {
-                                        return;
-                                    }
-
-                                    // Skip finished series
-                                    const bestOf = pair.type === 'bo-5' ? 5 : pair.type === 'bo-3' ? 3 : 1;
-                                    const winThreshold = Math.floor(bestOf / 2) + 1;
-                                    const s1 = Number(pair.score1) || 0;
-                                    const s2 = Number(pair.score2) || 0;
-                                    if (s1 >= winThreshold || s2 >= winThreshold || pair.winner) {
-                                        return;
-                                    }
-
-                                    const opponent = pair.team1 === playerName ? pair.team2 : pair.team1;
-                                    const myScore = pair.team1 === playerName ? s1 : s2;
-                                    const opponentScore = pair.team1 === playerName ? s2 : s1;
-                                    const opponentAvatar = avatarByNickname[opponent] || null;
-                                    const myAvatar = avatarByNickname[playerName] || null;
-
-                                    const isLive = (pair.games || []).some(
-                                        (g) => g.castle1 && g.castle2 && !g.castleWinner
-                                    );
-
-                                    playerMatches.push({
-                                        tournamentId,
-                                        tournamentName: tournament.name,
-                                        stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
-                                        stageIndex,
-                                        pairIndex,
-                                        scheduledAt: pair.scheduledAt || null,
-                                        opponent,
-                                        opponentAvatar,
-                                        myAvatar,
-                                        myScore,
-                                        opponentScore,
-                                        type: pair.type,
-                                        isLive,
-                                        opponentPlace: rankByNickname[opponent] || '-',
-                                        opponentStars: parseNumericValue(
-                                            Object.values(tournament.players || {}).find((p) => p?.name === opponent)
-                                                ?.stars
-                                        )
-                                    });
-                                });
-                            });
-                        });
-                        setMyGames(playerMatches);
+                        setMyGames(
+                            collectMyUpcomingMatches(data, playerName, {
+                                avatarByNickname,
+                                countryLookup,
+                                rankByNickname
+                            })
+                        );
+                    } else {
+                        setMyGames([]);
                     }
                 }
             } catch (error) {
@@ -511,34 +453,25 @@ const StartingPageContent = () => {
         );
     const featuredPrizeLabel = featuredCup ? getTournamentPrizeLabel(featuredCup) : null;
     const previewUpcoming = upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
-    const featuredMatch = liveGames[0] ? { ...liveGames[0], variant: 'live' } : null;
+    const previewLive = liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
+    const featuredMatch = previewLive[0] ? { ...previewLive[0], variant: 'live' } : null;
+    const remainingLive = previewLive.slice(1).map((match) => ({ ...match, variant: 'live' }));
     const remainingUpcoming = previewUpcoming;
 
-    const getBracketLink = (match, { report = false, gameNumber = 1 } = {}) => {
-        const base = `/tournaments/homm3/${match.tournamentId}?status=started&stage=${match.stageIndex}&pair=${match.pairIndex}`;
-        if (!report) {
-            return base;
-        }
-
-        return `${base}&report=1&game=${gameNumber - 1}`;
-    };
+    const getBracketLink = getTournamentMatchLink;
 
     const renderAnnouncementCard = (match, key, { featured = false } = {}) => (
         <MatchAnnouncementCard
             key={key}
-            to={
-                match.variant === 'live'
-                    ? getBracketLink(match, { report: true, gameNumber: match.gameNumber || 1 })
-                    : getBracketLink(match)
-            }
+            to={getBracketLink(match)}
             team1={match.team1}
             team2={match.team2}
             team1Avatar={match.team1Avatar}
             team2Avatar={match.team2Avatar}
             team1CountryCode={match.team1CountryCode}
             team2CountryCode={match.team2CountryCode}
-            score1={match.variant === 'live' ? 0 : match.score1}
-            score2={match.variant === 'live' ? 0 : match.score2}
+            score1={match.score1}
+            score2={match.score2}
             tournamentName={match.tournamentName}
             stageLabel={match.stageLabel}
             tournamentDate={match.tournamentDate}
@@ -563,7 +496,6 @@ const StartingPageContent = () => {
                     <div className={classes.sectionHeader}>
                         <div>
                             <h2 className={`${classes.sectionTitle} ${classes.matchCenterTitle}`}>Match center</h2>
-                            {greeting && <p className={classes.matchCenterGreeting}>{greeting}</p>}
                             <p className={classes.matchCenterSubtitle}>
                                 Live cups and bracket fixtures
                                 {featuredPrizeLabel && featuredCup && (
@@ -580,17 +512,32 @@ const StartingPageContent = () => {
                                 )}
                             </p>
                         </div>
-                        <Link to="/tournaments/homm3?status=started" className={classes.viewAllLink}>
-                            View all tournaments
-                        </Link>
+                        <div className={classes.matchCenterLinks}>
+                            <Link to="/live" className={classes.viewAllLink}>
+                                Open Live Arena
+                            </Link>
+                            <Link to="/tournaments/homm3?status=started" className={classes.viewAllLink}>
+                                View all tournaments
+                            </Link>
+                        </div>
                     </div>
 
                     {featuredMatch ? (
                         <div className={classes.featuredAnnouncement}>
                             {renderAnnouncementCard(featuredMatch, 'featured-match', { featured: true })}
-                            {liveGames.length > 1 && (
-                                <Link to="/tournaments/homm3?status=live" className={classes.viewMoreLink}>
-                                    +{liveGames.length - 1} more live — view all
+                            {remainingLive.length > 0 && (
+                                <div className={classes.announcementList}>
+                                    {remainingLive.map((match, index) =>
+                                        renderAnnouncementCard(
+                                            match,
+                                            `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
+                                        )
+                                    )}
+                                </div>
+                            )}
+                            {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                <Link to="/live" className={classes.viewMoreLink}>
+                                    +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
                                 </Link>
                             )}
                         </div>
@@ -629,78 +576,19 @@ const StartingPageContent = () => {
                             <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
                         </div>
                     )}
-                </div>
-            )}
 
-            {greeting && !hasActiveCup && (
-                <div className={classes.hero}>
-                    <h1 className={classes.heroTitle}>{greeting}</h1>
-                </div>
-            )}
-
-            {isLogged && myGames.length > 0 && (
-                <div className={`${classes.myGamesSection} ${classes.homeSection}`}>
-                    <h2 className={classes.sectionTitle}>My upcoming matches</h2>
-                    <div className={classes.myGamesList}>
-                        {myGames.map((match, index) => (
-                            <Link
-                                key={index}
-                                to={`/tournaments/homm3/${match.tournamentId}?status=started&stage=${match.stageIndex}&pair=${match.pairIndex}`}
-                                className={classes.myGameCard}
-                            >
-                                {match.isLive ? (
-                                    <div className={classes.liveIndicator}>LIVE</div>
-                                ) : (
-                                    <div className={classes.upcomingIndicator}>UPCOMING</div>
-                                )}
-                                <div className={classes.tournamentName}>{match.tournamentName}</div>
-                                <div className={classes.myGameStage}>{match.stageLabel}</div>
-                                {match.scheduledAt && (
-                                    <div className={classes.myGameSchedule}>
-                                        Starts {formatMatchSchedule(match.scheduledAt)}
-                                    </div>
-                                )}
-                                <div className={classes.myGameMatchup}>
-                                    <div className={classes.myGamePlayer}>
-                                        {match.myAvatar ? (
-                                            <img src={match.myAvatar} alt="You" className={classes.playerAvatar} />
-                                        ) : (
-                                            <div className={classes.playerAvatarFallback}>
-                                                {String(userNickName || '?')
-                                                    .charAt(0)
-                                                    .toUpperCase()}
-                                            </div>
-                                        )}
-                                        <span className={classes.myGamePlayerName}>You</span>
-                                        <span className={classes.myGameScore}>{match.myScore}</span>
-                                    </div>
-                                    <div className={classes.vs}>VS</div>
-                                    <div className={classes.myGamePlayer}>
-                                        <span className={classes.myGameScore}>{match.opponentScore}</span>
-                                        {match.opponentAvatar ? (
-                                            <img
-                                                src={match.opponentAvatar}
-                                                alt={match.opponent}
-                                                className={classes.playerAvatar}
-                                            />
-                                        ) : (
-                                            <div className={classes.playerAvatarFallback}>
-                                                {String(match.opponent || '?')
-                                                    .charAt(0)
-                                                    .toUpperCase()}
-                                            </div>
-                                        )}
-                                        <span className={classes.myGamePlayerName}>{match.opponent}</span>
-                                        <span className={classes.myGamePlayerMeta}>#{match.opponentPlace}</span>
-                                    </div>
-                                </div>
-                                <div className={classes.myGameType}>
-                                    {match.type === 'bo-3' ? 'Best of 3' : 'Best of 1'}
-                                </div>
-                            </Link>
-                        ))}
+                    <div className={classes.prizePoolWrap}>
+                        <PrizePoolPanel compact />
                     </div>
                 </div>
+            )}
+
+            {isLogged && (
+                <MyUpcomingMatchesSection
+                    matches={myGames}
+                    title="My upcoming matches"
+                    className={classes.homeSection}
+                />
             )}
 
             {activeTournaments.length > 0 && (

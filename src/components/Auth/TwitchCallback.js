@@ -84,14 +84,11 @@ const TwitchCallback = () => {
                 }
 
                 const signInData = await signInRes.json();
-                const expirationTime = new Date(
-                    new Date().getTime() + Number(signInData.expiresIn) * 1000
-                ).toISOString();
 
                 // 3. Store login in auth context (localId = Firebase auth uid, e.g. twitch:12345)
-                authCtx.login(signInData.idToken, expirationTime, displayName, signInData.localId);
+                authCtx.login(signInData.idToken, displayName, signInData.localId, signInData.refreshToken);
 
-                // 4. Award daily login coin if applicable
+                // 4. Track daily login date
                 if (dbUserId) {
                     try {
                         const userSnap = await fetch(
@@ -105,14 +102,6 @@ const TwitchCallback = () => {
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ lastLoginDate: today })
                             });
-                            const { addCoins } = await import('../../api/coinTransactions');
-                            await addCoins(dbUserId, 1, 'daily_login', 'Daily login reward');
-                            authCtx.setNotificationShown(
-                                true,
-                                'Congrats! You received 1 coin for your first login today!',
-                                'success',
-                                5
-                            );
                         }
                     } catch (dailyErr) {
                         console.error('Daily login reward error:', dailyErr);

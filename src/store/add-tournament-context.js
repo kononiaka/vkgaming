@@ -7,10 +7,8 @@ export const useAddTournament = () => {
     if (!ctx) {
         return {
             openAddTournament: () => {},
-            refreshAddTournamentState: () => {},
             isAddTournamentDisabled: true,
-            addTournamentHint: '',
-            userCoins: null
+            addTournamentHint: ''
         };
     }
     return ctx;

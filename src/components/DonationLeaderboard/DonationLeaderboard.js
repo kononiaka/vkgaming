@@ -1,7 +1,30 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
+import { normalizeDonationToUsd } from '../../utils/prizePoolData';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import classes from './DonationLeaderboard.module.css';
+
+const getLegacyDonationStats = (userData) => {
+    const donationTransactions = Object.values(userData.coinTransactions || {}).filter(
+        (transaction) => transaction.type === 'donation_reward'
+    );
+
+    if (donationTransactions.length === 0) {
+        return null;
+    }
+
+    const totalDonated = donationTransactions.reduce((sum, transaction) => {
+        const amount = Number(transaction.metadata?.donationAmount) || 0;
+        const currency = transaction.metadata?.currency || 'UAH';
+        return sum + normalizeDonationToUsd(amount, currency);
+    }, 0);
+
+    return {
+        totalDonated,
+        donationCount: donationTransactions.length,
+        lastDonation: Math.max(...donationTransactions.map((t) => new Date(t.timestamp).getTime()))
+    };
+};
 
 const DonationLeaderboard = ({
     title = 'Top supporters',
@@ -16,7 +39,6 @@ const DonationLeaderboard = ({
     useEffect(() => {
         const fetchDonationData = async () => {
             try {
-                // Fetch all users and their coin transactions
                 const usersResponse = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
                 const users = await usersResponse.json();
 
@@ -26,37 +48,33 @@ const DonationLeaderboard = ({
 
                 const donorStats = [];
 
-                for (const [userId, userData] of Object.entries(users)) {
-                    if (userData.coinTransactions) {
-                        const donationTransactions = Object.values(userData.coinTransactions)
-                            .filter((transaction) => transaction.type === 'donation_reward')
-                            .map((transaction) => ({
-                                amount: transaction.metadata?.donationAmount || 0,
-                                coins: transaction.amount,
-                                timestamp: transaction.timestamp
-                            }));
-
-                        if (donationTransactions.length > 0) {
-                            const totalDonated = donationTransactions.reduce((sum, t) => sum + t.amount, 0);
-                            const totalCoinsEarned = donationTransactions.reduce((sum, t) => sum + t.coins, 0);
-
-                            const nickname = userData.enteredNickname || userData.name;
-                            if (!nickname) {
-                                continue;
-                            }
-
-                            donorStats.push({
-                                nickname,
-                                totalDonated,
-                                totalCoinsEarned,
-                                donationCount: donationTransactions.length,
-                                lastDonation: Math.max(...donationTransactions.map((t) => new Date(t.timestamp)))
-                            });
-                        }
+                for (const [, userData] of Object.entries(users)) {
+                    const nickname = userData.enteredNickname || userData.name;
+                    if (!nickname) {
+                        continue;
                     }
+
+                    const trackedUsd = Number(userData.totalDonatedUsd);
+                    const hasTracked = Number.isFinite(trackedUsd) && trackedUsd > 0;
+                    const legacy = hasTracked ? null : getLegacyDonationStats(userData);
+                    const totalDonated = hasTracked ? trackedUsd : legacy?.totalDonated || 0;
+
+                    if (totalDonated <= 0) {
+                        continue;
+                    }
+
+                    donorStats.push({
+                        nickname,
+                        totalDonated,
+                        donationCount: hasTracked
+                            ? Number(userData.donationCount) || 1
+                            : legacy?.donationCount || 1,
+                        lastDonation: userData.lastDonationAt
+                            ? new Date(userData.lastDonationAt).getTime()
+                            : legacy?.lastDonation || 0
+                    });
                 }
 
-                // Sort by total donated (descending)
                 donorStats.sort((a, b) => b.totalDonated - a.totalDonated);
                 setDonors(donorStats.slice(0, limit));
             } catch (error) {
@@ -98,8 +116,9 @@ const DonationLeaderboard = ({
                             </div>
                             <div className={classes.donorInfo}>
                                 <span className={classes.nickname}>{donor.nickname}</span>
-                                <span className={classes.amount}>{donor.totalDonated} UAH donated</span>
-                                <span className={classes.coins}>+{donor.totalCoinsEarned} coins earned</span>
+                                <span className={classes.amount}>
+                                    ${Math.round(donor.totalDonated).toLocaleString()} donated
+                                </span>
                             </div>
                             <div className={classes.donationCount}>
                                 {donor.donationCount} {donor.donationCount === 1 ? 'donation' : 'donations'}

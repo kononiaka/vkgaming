@@ -1,8 +1,12 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { getAvatar, lookForUserId } from '../../../api/api';
+import CountryFlag from '../../Country/CountryFlag';
 import StarsComponent from '../../Stars/Stars';
 import MatchScheduleControl from './MatchScheduleControl';
+import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
 import classes from './LeagueBracket.module.css';
+import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP } from './championsLeagueUtils';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
 import towerImg from '../../../image/castles/tower.jpeg';
@@ -92,6 +96,158 @@ const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team
     return { team1: pred1.toFixed(1), team2: (100 - pred1).toFixed(1) };
 };
 
+const parseStarsValue = (value) => {
+    if (value == null) {
+        return 0;
+    }
+    const str = String(value);
+    if (str.includes(',')) {
+        return parseFloat(str.split(',').at(-1)) || 0;
+    }
+    return parseFloat(str) || 0;
+};
+
+const StandingsPlayerCell = ({ name, player, stars, showKnockoutBadge = false }) => {
+    const [avatarUrl, setAvatarUrl] = useState(null);
+
+    useEffect(() => {
+        if (!name) {
+            setAvatarUrl(null);
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        const loadAvatar = async () => {
+            try {
+                let userId = player?.siteUserId || null;
+                if (!userId) {
+                    userId = await lookForUserId(name);
+                }
+
+                if (userId && !cancelled) {
+                    const avatar = await getAvatar(userId);
+                    if (!cancelled && avatar) {
+                        setAvatarUrl(avatar);
+                    }
+                }
+            } catch {
+                // Avatar is optional.
+            }
+        };
+
+        loadAvatar();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [name, player?.siteUserId]);
+
+    return (
+        <div className={classes.standingsPlayer}>
+            {avatarUrl ? (
+                <img src={avatarUrl} alt="" className={classes.standingsPlayerAvatar} />
+            ) : (
+                <div className={classes.standingsPlayerAvatarFallback} aria-hidden="true">
+                    {name.charAt(0).toUpperCase()}
+                </div>
+            )}
+            <span className={classes.standingsPlayerName}>{name}</span>
+            {stars > 0 && (
+                <span className={classes.standingsPlayerStars}>
+                    <StarsComponent stars={stars} />
+                </span>
+            )}
+            {showKnockoutBadge && <span className={classes.qualifierBadge}>Knockout</span>}
+        </div>
+    );
+};
+
+const usePlayerAvatar = (name, player) => {
+    const [avatarUrl, setAvatarUrl] = useState(null);
+
+    useEffect(() => {
+        if (!name) {
+            setAvatarUrl(null);
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        const loadAvatar = async () => {
+            try {
+                let userId = player?.siteUserId || null;
+                if (!userId) {
+                    userId = await lookForUserId(name);
+                }
+
+                if (userId && !cancelled) {
+                    const avatar = await getAvatar(userId);
+                    if (!cancelled && avatar) {
+                        setAvatarUrl(avatar);
+                    }
+                }
+            } catch {
+                // Avatar is optional.
+            }
+        };
+
+        loadAvatar();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [name, player?.siteUserId]);
+
+    return avatarUrl;
+};
+
+const SchedulePlayerCell = ({
+    name,
+    player,
+    stars,
+    place,
+    countryCode,
+    align = 'left',
+    isWinner = false
+}) => {
+    const avatarUrl = usePlayerAvatar(name, player);
+    const isRight = align === 'right';
+
+    const avatar = avatarUrl ? (
+        <img src={avatarUrl} alt="" className={classes.schedulePlayerAvatar} />
+    ) : (
+        <div className={classes.schedulePlayerAvatarFallback} aria-hidden="true">
+            {String(name || '?').charAt(0).toUpperCase()}
+        </div>
+    );
+
+    return (
+        <div
+            className={`${classes.schedulePlayerCell} ${isRight ? classes.schedulePlayerCellRight : ''}`}
+        >
+            {countryCode ? (
+                <span className={classes.schedulePlayerFlag}>
+                    <CountryFlag code={countryCode} size={16} />
+                </span>
+            ) : null}
+            {stars > 0 ? (
+                <div className={classes.schedulePlayerStars}>
+                    <StarsComponent stars={stars} />
+                </div>
+            ) : null}
+            {avatar}
+            <span
+                className={`${classes.schedulePlayerName} ${isWinner ? classes.winnerName : ''}`}
+            >
+                {!isRight && place ? <span className={classes.placeTag}>#{place}</span> : null}
+                {name}
+                {isRight && place ? <span className={classes.placeTag}>#{place}</span> : null}
+            </span>
+        </div>
+    );
+};
+
 /**
  * LeagueBracket — display component for round-robin league tournaments.
  *
@@ -130,12 +286,15 @@ const LeagueBracket = ({
     playersObj = {},
     roundLabel = 'Day',
     scheduleTitle = 'League views',
-    groupLabels = []
+    groupLabels = [],
+    highlightPair = null,
+    storageStageIndex = 0
 }) => {
     const [activeTab, setActiveTab] = useState('schedule');
     const [activeGroup, setActiveGroup] = useState(groupLabels[0] || '');
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
+    const [countryLookup, setCountryLookup] = useState({});
     const dayNavInitialized = useRef(false);
     const hasGroups = groupLabels.length > 0;
     const scopedPairs = hasGroups ? pairs.filter((pair) => pair.group === activeGroup) : pairs;
@@ -173,6 +332,7 @@ const LeagueBracket = ({
                     }
                 });
                 setRankByNickname(map);
+                setCountryLookup(buildCountryLookup(data || {}));
             } catch {
                 // silently ignore
             }
@@ -265,6 +425,23 @@ const LeagueBracket = ({
     const finished = scopedPairs.filter((p) => p.winner).length;
     const total = scopedPairs.length;
 
+    const getPlayerByName = (name) =>
+        name && name !== 'TBD'
+            ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
+            : null;
+
+    const getPlayerStars = (name) => {
+        for (const pair of scopedPairs) {
+            if (pair.team1 === name && pair.stars1 != null) {
+                return parseStarsValue(pair.stars1);
+            }
+            if (pair.team2 === name && pair.stars2 != null) {
+                return parseStarsValue(pair.stars2);
+            }
+        }
+        return parseStarsValue(getPlayerByName(name)?.stars);
+    };
+
     // Group matches into days using pair.round if available, else compute via circle method
     const computeRoundGroups = () => {
         if (scopedPairs.length === 0) {
@@ -326,6 +503,35 @@ const LeagueBracket = ({
         setActiveDayIndex(getDefaultDayIndex(roundGroups));
         dayNavInitialized.current = true;
     }, [activeTab, dayCount, roundGroups]);
+
+    useEffect(() => {
+        if (!highlightPair) {
+            return;
+        }
+
+        const pair = pairs[highlightPair.pairIndex];
+        if (pair?.group && hasGroups) {
+            setActiveGroup(pair.group);
+        }
+        setActiveTab('schedule');
+        dayNavInitialized.current = false;
+
+        const dayIdx = roundGroups.findIndex(({ items }) =>
+            items.some(({ idx }) => idx === highlightPair.pairIndex)
+        );
+        if (dayIdx >= 0) {
+            setActiveDayIndex(dayIdx);
+        }
+
+        const timer = setTimeout(() => {
+            const el = document.getElementById(
+                `pair-s${highlightPair.stageIndex ?? storageStageIndex}-p${highlightPair.pairIndex}`
+            );
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [highlightPair, pairs, hasGroups, roundGroups, storageStageIndex]);
 
     const goToPrevDay = () => setActiveDayIndex((prev) => Math.max(0, prev - 1));
     const goToNextDay = () => setActiveDayIndex((prev) => Math.min(dayCount - 1, prev + 1));
@@ -473,24 +679,27 @@ const LeagueBracket = ({
                                 const rating2 = getLatestRating(pair.ratings2 ?? p2?.ratings);
 
                                 const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
+                                const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
+                                const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
+                                const isHighlighted =
+                                    highlightPair?.pairIndex === idx &&
+                                    (highlightPair?.stageIndex ?? storageStageIndex) === storageStageIndex;
 
                                 return (
                                     <div
                                         key={idx}
-                                        className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending}`}
+                                        id={`pair-s${storageStageIndex}-p${idx}`}
+                                        className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
                                     >
                                         <div className={classes.teamCell}>
-                                            <span
-                                                className={`${classes.teamName} ${pair.winner === pair.team1 ? classes.winnerName : ''}`}
-                                            >
-                                                {place1 && <span className={classes.placeTag}>#{place1}</span>}
-                                                {pair.team1}
-                                            </span>
-                                            {stars1 > 0 && (
-                                                <div className={classes.starsWrap}>
-                                                    <StarsComponent stars={stars1} />
-                                                </div>
-                                            )}
+                                            <SchedulePlayerCell
+                                                name={pair.team1}
+                                                player={p1}
+                                                stars={stars1}
+                                                place={place1}
+                                                countryCode={country1}
+                                                isWinner={pair.winner === pair.team1}
+                                            />
                                         </div>
 
                                         <div className={classes.centerBlock}>
@@ -534,17 +743,15 @@ const LeagueBracket = ({
                                         </div>
 
                                         <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
-                                            {stars2 > 0 && (
-                                                <div className={classes.starsWrap}>
-                                                    <StarsComponent stars={stars2} />
-                                                </div>
-                                            )}
-                                            <span
-                                                className={`${classes.teamName} ${classes.teamRight} ${pair.winner === pair.team2 ? classes.winnerName : ''}`}
-                                            >
-                                                {pair.team2}
-                                                {place2 && <span className={classes.placeTag}>#{place2}</span>}
-                                            </span>
+                                            <SchedulePlayerCell
+                                                name={pair.team2}
+                                                player={p2}
+                                                stars={stars2}
+                                                place={place2}
+                                                countryCode={country2}
+                                                align="right"
+                                                isWinner={pair.winner === pair.team2}
+                                            />
                                         </div>
 
                                         {isInProgress &&
@@ -602,17 +809,35 @@ const LeagueBracket = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {standings.map((s, i) => (
-                                <tr key={s.name} className={i === 0 && s.played > 0 ? classes.leader : ''}>
-                                    <td>{i + 1}</td>
-                                    <td className={classes.playerCell}>{s.name}</td>
-                                    <td>{s.played}</td>
-                                    <td>{s.wins}</td>
-                                    {hasBo2 && <td>{s.draws || 0}</td>}
-                                    <td>{s.losses}</td>
-                                    <td className={classes.pointsCell}>{s.points}</td>
-                                </tr>
-                            ))}
+                            {standings.map((s, i) => {
+                                const isKnockoutQualifier =
+                                    hasGroups && i < CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP;
+                                const rowClass = [
+                                    isKnockoutQualifier ? classes.qualifierRow : '',
+                                    !hasGroups && i === 0 && s.played > 0 ? classes.leader : ''
+                                ]
+                                    .filter(Boolean)
+                                    .join(' ');
+
+                                return (
+                                    <tr key={s.name} className={rowClass || undefined}>
+                                        <td>{i + 1}</td>
+                                        <td className={classes.playerCell}>
+                                            <StandingsPlayerCell
+                                                name={s.name}
+                                                player={getPlayerByName(s.name)}
+                                                stars={getPlayerStars(s.name)}
+                                                showKnockoutBadge={isKnockoutQualifier}
+                                            />
+                                        </td>
+                                        <td>{s.played}</td>
+                                        <td>{s.wins}</td>
+                                        {hasBo2 && <td>{s.draws || 0}</td>}
+                                        <td>{s.losses}</td>
+                                        <td className={classes.pointsCell}>{s.points}</td>
+                                    </tr>
+                                );
+                            })}
                             {standings.length === 0 && (
                                 <tr>
                                     <td colSpan={hasBo2 ? 7 : 6} className={classes.emptyNote}>
@@ -624,7 +849,7 @@ const LeagueBracket = ({
                     </table>
                     <p className={classes.pointsNote}>
                         {hasGroups
-                            ? `Top 2 in each group advance to the knockout stage.`
+                            ? 'Top 2 in each group (green) advance to the knockout stage.'
                             : hasBo2
                               ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts'
                               : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
