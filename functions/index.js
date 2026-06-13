@@ -616,7 +616,7 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
     }
 
     const stripe = Stripe(functions.config().stripe.secret_key);
-    const baseUrl = origin || 'https://vkgaming.com.ua';
+    const baseUrl = origin || 'https://kononiaka.github.io/vkgaming';
 
     if (purpose === 'tournament_host_seed') {
         if (!tournamentId) {
