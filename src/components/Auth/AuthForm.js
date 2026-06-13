@@ -1,6 +1,7 @@
 import { useContext, useEffect } from 'react';
 
 import AuthContext from '../../store/auth-context';
+import { getTwitchRedirectUri } from '../../utils/appBasePath';
 
 import classes from './AuthForm.module.css';
 
@@ -25,7 +26,7 @@ const AuthForm = () => {
         const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
         sessionStorage.setItem('twitch_oauth_state', state);
 
-        const redirectUri = `${window.location.origin}/auth/twitch/callback`;
+        const redirectUri = getTwitchRedirectUri();
         const scope = 'user:read:email';
         const params = new URLSearchParams({
             client_id: TWITCH_CLIENT_ID,

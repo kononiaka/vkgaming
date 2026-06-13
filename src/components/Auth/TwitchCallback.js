@@ -2,6 +2,7 @@ import { FIREBASE_DATABASE_URL, FIREBASE_FUNCTIONS_BASE } from '../../config/fir
 import { authFetch } from '../../api/authFetch';
 import { useContext, useEffect, useRef } from 'react';
 import AuthContext from '../../store/auth-context';
+import { getAppHashUrl, getTwitchRedirectUri } from '../../utils/appBasePath';
 
 const TWITCH_AUTH_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/twitchAuth`;
 const FIREBASE_API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
@@ -25,7 +26,7 @@ const TwitchCallback = () => {
             const message = `Twitch login cancelled: ${error}`;
             sessionStorage.setItem('auth_error_message', message);
             authCtx.setNotificationShown(true, message, 'error', 5);
-            window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
+            window.location.href = getAppHashUrl('/auth');
             return;
         }
 
@@ -33,7 +34,7 @@ const TwitchCallback = () => {
             const message = 'Twitch login failed: missing code.';
             sessionStorage.setItem('auth_error_message', message);
             authCtx.setNotificationShown(true, message, 'error', 5);
-            window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
+            window.location.href = getAppHashUrl('/auth');
             return;
         }
 
@@ -44,11 +45,11 @@ const TwitchCallback = () => {
             const message = 'Twitch login failed: invalid state.';
             sessionStorage.setItem('auth_error_message', message);
             authCtx.setNotificationShown(true, message, 'error', 5);
-            window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
+            window.location.href = getAppHashUrl('/auth');
             return;
         }
 
-        const redirectUri = `${window.location.origin}/auth/twitch/callback`;
+        const redirectUri = getTwitchRedirectUri();
 
         const doAuth = async () => {
             try {
@@ -108,13 +109,13 @@ const TwitchCallback = () => {
                     }
                 }
 
-                window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/`;
+                window.location.href = getAppHashUrl('/');
             } catch (err) {
                 console.error('Twitch OAuth error:', err);
                 const message = `Twitch login failed: ${err.message}`;
                 sessionStorage.setItem('auth_error_message', message);
                 authCtx.setNotificationShown(true, message, 'error', 5);
-                window.location.href = `${window.location.pathname.replace(/\/auth\/twitch\/callback$/, '')}/#/auth`;
+                window.location.href = getAppHashUrl('/auth');
             }
         };
 
