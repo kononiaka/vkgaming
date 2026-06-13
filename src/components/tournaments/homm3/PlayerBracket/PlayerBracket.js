@@ -372,7 +372,6 @@ export const PlayerBracket = (props) => {
 
         return (
             <span className={classes.playerStarsBracket}>
-                <span className={classes.playerStarsBracketParen}>(</span>
                 <span className={classes.playerStars}>
                     <div className={classes.stars_wrapper}>
                         <StarsComponent stars={playerStars} />
@@ -381,7 +380,6 @@ export const PlayerBracket = (props) => {
                         </div>
                     </div>
                 </span>
-                <span className={classes.playerStarsBracketParen}>)</span>
             </span>
         );
     };

@@ -3,7 +3,22 @@
         "users": {
             ".read": true,
             "$uid": {
-                ".write": "auth != null && (auth.uid === $uid || root.child('meta').child('admins').child(auth.uid).val() === true)"
+                ".write": "auth != null && (auth.uid === $uid || root.child('meta').child('admins').child(auth.uid).val() === true)",
+                "telegramChatId": {
+                    ".write": false
+                },
+                "telegramLinkedAt": {
+                    ".write": false
+                },
+                "telegramUsername": {
+                    ".write": false
+                },
+                "telegramNotificationPrefs": {
+                    ".write": "auth != null && auth.uid === $uid"
+                },
+                "telegramFollowedPlayers": {
+                    ".write": "auth != null && auth.uid === $uid"
+                }
             }
         },
         "tournaments": {

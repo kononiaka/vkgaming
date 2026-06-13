@@ -50,6 +50,10 @@ export const isLiveFundableTournament = (tournament) =>
             hasSecuredPoolFunding(tournament)
     );
 
+/** Public tournaments in registration or live — shown in prize pool widgets. */
+export const isActivePrizePoolTournament = (tournament) =>
+    Boolean(tournament && isPlayerVisibleTournament(tournament));
+
 export const getTournamentPrizePoolLink = (tournament) => {
     if (tournament?.status === 'Registration' || tournament?.status === 'Registration Started') {
         return `/tournaments/homm3/${tournament.id || ''}?status=registration`;
@@ -164,21 +168,78 @@ export const getPrizeAmountForPlace = (breakdown, place) => {
 
 export const buildPrizePoolEntry = (tournament, id) => {
     const collected = getTournamentCollectedUsd(tournament);
+    const goalUsd = getTournamentFundingGoalUsd(tournament);
+    const status = tournament?.status;
 
     return {
         id,
         name: tournament.name || 'Live tournament',
         collected,
+        goalUsd,
         collectedLabel: formatFundingUsd(collected),
+        goalLabel: formatFundingUsd(goalUsd),
+        progressPct: getFundingProgress(collected, goalUsd),
+        status,
+        statusLabel: status === 'Started!' ? 'In progress' : 'Registration open',
         tournamentLink: getTournamentPrizePoolLink({ ...tournament, id })
     };
 };
 
+const prizePoolEntrySort = (a, b) => {
+    const statusRank = (entry) => (entry.status === 'Started!' ? 0 : 1);
+    const statusDiff = statusRank(a) - statusRank(b);
+    if (statusDiff !== 0) {
+        return statusDiff;
+    }
+    if (b.collected !== a.collected) {
+        return b.collected - a.collected;
+    }
+    return a.name.localeCompare(b.name);
+};
+
 export const buildPrizePoolEntries = (tournamentsById = {}) =>
+    Object.entries(tournamentsById)
+        .filter(([, tournament]) => isActivePrizePoolTournament(tournament))
+        .map(([id, tournament]) => buildPrizePoolEntry(tournament, id))
+        .sort(prizePoolEntrySort);
+
+export const buildDonatablePrizePoolEntries = (tournamentsById = {}) =>
     Object.entries(tournamentsById)
         .filter(([, tournament]) => isLiveFundableTournament(tournament))
         .map(([id, tournament]) => buildPrizePoolEntry(tournament, id))
-        .sort((a, b) => b.collected - a.collected || a.name.localeCompare(b.name));
+        .sort(prizePoolEntrySort);
+
+export const filterDonationTargetIds = (selectedIds = [], donatableIds = []) => {
+    if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
+        return [];
+    }
+
+    const allowed = new Set(donatableIds);
+    return selectedIds.map(String).filter((id) => allowed.has(id));
+};
+
+export const resolveDonationTargetIds = (selectedIds, donatableIds) => {
+    const filtered = filterDonationTargetIds(selectedIds, donatableIds);
+    if (filtered.length > 0) {
+        return filtered;
+    }
+
+    return [...donatableIds];
+};
+
+export const fetchDonatableTournamentPools = async () => {
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`);
+    if (!response.ok) {
+        throw new Error('Failed to load donatable tournament prize pools');
+    }
+
+    const tournaments = await response.json();
+    if (!tournaments) {
+        return [];
+    }
+
+    return buildDonatablePrizePoolEntries(tournaments);
+};
 
 export const fetchLiveTournamentPrizePools = async () => {
     const response = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`);

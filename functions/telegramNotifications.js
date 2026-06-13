@@ -8,9 +8,16 @@ const {
     formatSchedule,
     tournamentLink,
     matchCenterLink,
+    matchPairLink,
     getTelegramConfig,
     useDigestOnlyMode
 } = require('./telegram');
+
+const {
+    notifyLinkedUsersForPair,
+    notifyUserDirect,
+    buildCommentatorAssignedMessage
+} = require('./telegramUserNotifications');
 
 const {
     MORNING_DIGEST_HOUR,
@@ -207,11 +214,6 @@ exports.notifyTelegramMatchSchedule = functions.database
             return null;
         }
 
-        if (useDigestOnlyMode()) {
-            await markEveningDigestNeeded(after);
-            return null;
-        }
-
         const { tournamentId, stageIdx, pairIdx } = context.params;
         const [tournament, pair] = await Promise.all([
             getTournamentSummary(tournamentId),
@@ -220,18 +222,28 @@ exports.notifyTelegramMatchSchedule = functions.database
 
         const { siteUrl } = getTelegramConfig();
         const text = buildScheduleInstantMessage(tournament.name, pair, after, tournamentId, siteUrl);
+        const eventType = before ? 'matchReschedule' : 'matchSchedule';
+        const dedupeKey = `schedule-${tournamentId}-${stageIdx}-${pairIdx}-${after}`;
 
-        await sendOnce(`schedule-${tournamentId}-${stageIdx}-${pairIdx}-${after}`, text, { parseMode: 'HTML' });
+        if (useDigestOnlyMode()) {
+            await markEveningDigestNeeded(after);
+        } else {
+            await sendOnce(dedupeKey, text, { parseMode: 'HTML' });
+        }
+
+        await notifyLinkedUsersForPair({
+            eventType,
+            dedupeKey,
+            text,
+            pair,
+            options: { parseMode: 'HTML' }
+        });
         return null;
     });
 
 exports.notifyTelegramMatchLive = functions.database
     .ref('/tournaments/heroes3/{tournamentId}/bracket/playoffPairs/{stageIdx}/{pairIdx}/games/{gameIdx}')
     .onWrite(async (change, context) => {
-        if (useDigestOnlyMode()) {
-            return null;
-        }
-
         const after = change.after.val();
         const before = change.before.val();
 
@@ -251,27 +263,35 @@ exports.notifyTelegramMatchLive = functions.database
         const castle2 = escapeHtml(after.castle2);
         const mapNumber = Number(gameIdx) + 1;
         const seriesScore = escapeHtml(formatSeriesScore(pair));
-        const home = matchCenterLink(getTelegramConfig().siteUrl);
+        const watchLink = matchPairLink(getTelegramConfig().siteUrl, tournamentId, stageIdx, pairIdx);
 
         const text =
-            `🔴 <b>Матч live</b>\n` +
+            `🔴 <b>Match live</b>\n` +
             `${escapeHtml(tournament.name)}\n\n` +
             `${team1} vs ${team2}\n` +
-            `Счёт: ${seriesScore}\n` +
-            `Карта ${mapNumber}: ${castle1} vs ${castle2}\n\n` +
-            `<a href="${home}">Матч-центр</a>`;
+            `Score: ${seriesScore}\n` +
+            `Map ${mapNumber}: ${castle1} vs ${castle2}\n\n` +
+            `<a href="${watchLink}">Watch</a>`;
 
-        await sendOnce(`live-${tournamentId}-${stageIdx}-${pairIdx}-${gameIdx}`, text, { parseMode: 'HTML' });
+        const dedupeKey = `live-${tournamentId}-${stageIdx}-${pairIdx}-${gameIdx}`;
+
+        if (!useDigestOnlyMode()) {
+            await sendOnce(dedupeKey, text, { parseMode: 'HTML' });
+        }
+
+        await notifyLinkedUsersForPair({
+            eventType: 'matchLive',
+            dedupeKey,
+            text,
+            pair,
+            options: { parseMode: 'HTML' }
+        });
         return null;
     });
 
 exports.notifyTelegramMatchResult = functions.database
     .ref('/tournaments/heroes3/{tournamentId}/bracket/playoffPairs/{stageIdx}/{pairIdx}/winner')
     .onWrite(async (change, context) => {
-        if (useDigestOnlyMode()) {
-            return null;
-        }
-
         const after = (change.after.val() || '').trim();
         const before = (change.before.val() || '').trim();
 
@@ -289,18 +309,49 @@ exports.notifyTelegramMatchResult = functions.database
         const team2 = escapeHtml(pair.team2 || 'TBD');
         const winner = escapeHtml(after);
         const seriesScore = escapeHtml(formatSeriesScore(pair));
-        const stageLabel = escapeHtml(pair.stage || `Стадия ${Number(stageIdx) + 1}`);
+        const stageLabel = escapeHtml(pair.stage || `Stage ${Number(stageIdx) + 1}`);
         const link = tournamentLink(getTelegramConfig().siteUrl, tournamentId);
 
         const text =
-            `✅ <b>Результат матча</b>\n` +
+            `✅ <b>Match result</b>\n` +
             `${escapeHtml(tournament.name)} · ${stageLabel}\n\n` +
             `${team1} vs ${team2}\n` +
-            `Счёт: ${seriesScore}\n` +
-            `Победитель: <b>${winner}</b>\n\n` +
-            `<a href="${link}">Сетка</a>`;
+            `Score: ${seriesScore}\n` +
+            `Winner: <b>${winner}</b>\n\n` +
+            `<a href="${link}">Bracket</a>`;
 
-        await sendOnce(`result-${tournamentId}-${stageIdx}-${pairIdx}-${after}`, text, { parseMode: 'HTML' });
+        const dedupeKey = `result-${tournamentId}-${stageIdx}-${pairIdx}-${after}`;
+
+        if (!useDigestOnlyMode()) {
+            await sendOnce(dedupeKey, text, { parseMode: 'HTML' });
+        }
+
+        await notifyLinkedUsersForPair({
+            eventType: 'matchResult',
+            dedupeKey,
+            text,
+            pair,
+            options: { parseMode: 'HTML' }
+        });
+        return null;
+    });
+
+exports.notifyTelegramCommentatorApproved = functions.database
+    .ref('/tournaments/heroes3/{tournamentId}/commentators/{commentatorUid}')
+    .onCreate(async (snap, context) => {
+        const { tournamentId, commentatorUid } = context.params;
+        const tournament = await getTournamentSummary(tournamentId);
+        const { siteUrl } = getTelegramConfig();
+        const text = buildCommentatorAssignedMessage(tournament.name, tournamentId, siteUrl);
+
+        await notifyUserDirect({
+            uid: commentatorUid,
+            eventType: 'commentatorAssigned',
+            dedupeKey: `commentator-${tournamentId}-${commentatorUid}`,
+            text,
+            options: { parseMode: 'HTML' }
+        });
+
         return null;
     });
 

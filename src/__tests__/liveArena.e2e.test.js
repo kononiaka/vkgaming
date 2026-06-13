@@ -192,7 +192,7 @@ describe('Live Arena E2E flow', () => {
                                 type: 'bo-2',
                                 score1: 0,
                                 score2: 0,
-                                scheduledAt: '2026-06-04T16:00:00.000Z',
+                                scheduledAt: '2030-06-04T16:00:00.000Z',
                                 games: [{ gameId: 0, castle1: '', castle2: '' }]
                             }
                         ]
@@ -220,6 +220,108 @@ describe('Live Arena E2E flow', () => {
         expect(fixture.variant).toBe('upcoming');
         expect(fixture.team1TwitchLogin).toBe('alice_streams');
         expect(getTwitchWatchUrl(fixture.streamLogin)).toBe('https://www.twitch.tv/alice_streams');
+    });
+
+    test('treats past scheduled time as live even without castles selected', async () => {
+        const scheduledLiveTournaments = {
+            cup3: {
+                name: 'Morning Cup',
+                status: 'Started!',
+                isPublic: true,
+                players: {
+                    p1: { name: 'Alice', ratings: '1500' },
+                    p2: { name: 'Bob', ratings: '1480' }
+                },
+                bracket: {
+                    playoffPairs: [
+                        [
+                            {
+                                stage: 'Round 1',
+                                team1: 'Alice',
+                                team2: 'Bob',
+                                type: 'bo-1',
+                                score1: 0,
+                                score2: 0,
+                                scheduledAt: '2020-01-01T12:00:00.000Z',
+                                games: [{ gameId: 0, castle1: '', castle2: '', gameStatus: 'Not Started' }]
+                            }
+                        ]
+                    ]
+                }
+            }
+        };
+
+        global.fetch = jest.fn((url) => {
+            if (String(url).includes('/tournaments/heroes3.json')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(scheduledLiveTournaments) });
+            }
+            if (String(url).includes('/users.json')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(mockUsers) });
+            }
+            return Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
+        });
+
+        const { liveGames, upcomingMatches } = await fetchMatchCenterMatches();
+
+        expect(liveGames).toHaveLength(1);
+        expect(upcomingMatches).toHaveLength(0);
+        expect(liveGames[0].variant).toBe('live');
+        expect(liveGames[0].castle1).toBeFalsy();
+    });
+
+    test('treats restart phase as live before castles are locked in', async () => {
+        const restartTournaments = {
+            cup4: {
+                name: 'Jebus Cross Cup',
+                status: 'Started!',
+                isPublic: true,
+                players: {
+                    p1: { name: 'Alice', ratings: '1500' },
+                    p2: { name: 'Bob', ratings: '1480' }
+                },
+                bracket: {
+                    playoffPairs: [
+                        [
+                            {
+                                stage: 'Semi-final',
+                                team1: 'Alice',
+                                team2: 'Bob',
+                                type: 'bo-1',
+                                score1: 0,
+                                score2: 0,
+                                scheduledAt: '2030-06-04T16:00:00.000Z',
+                                games: [
+                                    {
+                                        gameId: 0,
+                                        castle1: '',
+                                        castle2: '',
+                                        gameStatus: 'In Progress',
+                                        restartsFinished: false,
+                                        restart1_111: 1
+                                    }
+                                ]
+                            }
+                        ]
+                    ]
+                }
+            }
+        };
+
+        global.fetch = jest.fn((url) => {
+            if (String(url).includes('/tournaments/heroes3.json')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(restartTournaments) });
+            }
+            if (String(url).includes('/users.json')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(mockUsers) });
+            }
+            return Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
+        });
+
+        const { liveGames, upcomingMatches } = await fetchMatchCenterMatches();
+
+        expect(liveGames).toHaveLength(1);
+        expect(upcomingMatches).toHaveLength(0);
+        expect(liveGames[0].variant).toBe('live');
     });
 
     test('on-air match row renders Watch + Bracket actions', () => {

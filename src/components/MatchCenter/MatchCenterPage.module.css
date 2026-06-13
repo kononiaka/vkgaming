@@ -1,0 +1,264 @@
+.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem 2.5rem;
+    text-align: left;
+}
+
+.loading,
+.empty {
+    margin: 0;
+    color: var(--color-text-muted);
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.title {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-nav);
+    font-size: 1.5rem;
+    letter-spacing: 0.04em;
+    color: var(--color-text);
+}
+
+.vs {
+    color: var(--color-text-muted);
+    font-weight: 400;
+}
+
+.subtitle {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.92rem;
+}
+
+.headerActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.bracketLink,
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.bracketLink {
+    background: linear-gradient(180deg, #ffb347 0%, #ff8c00 100%);
+    color: #1a1208;
+}
+
+.backLink {
+    border: var(--border-subtle);
+    color: var(--color-gold);
+    background: var(--color-bg-panel);
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.controlsLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.controlsLabel {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold-dim);
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.tab {
+    border: var(--border-subtle);
+    background: var(--color-bg-panel);
+    color: var(--color-text-muted);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.tabActive {
+    border-color: rgba(255, 140, 0, 0.65);
+    background: rgba(255, 140, 0, 0.14);
+    color: var(--color-gold-bright);
+}
+
+.fullscreenBtn {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.9rem;
+    background: linear-gradient(180deg, #ffb347 0%, #ff8c00 100%);
+    color: #1a1208;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.helpBox {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    border: var(--border-subtle);
+    background: var(--color-bg-panel-alt);
+}
+
+.helpTitle {
+    margin: 0 0 0.35rem;
+    color: var(--color-gold);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.helpText {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.streamStage {
+    display: grid;
+    gap: 1rem;
+}
+
+.streamStageSingle {
+    grid-template-columns: 1fr;
+}
+
+.streamStageMulti {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.streamPanel {
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-bg-panel);
+}
+
+.streamPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border-bottom: var(--border-subtle);
+}
+
+.streamPanelMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.twitchTag {
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(145, 70, 255, 0.18);
+    color: #bf94ff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.streamPlayerName {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.streamStatus {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+}
+
+.streamStatusLive {
+    color: #ff6b00;
+}
+
+.channelLink {
+    color: var(--color-gold);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.channelLink:hover {
+    text-decoration: underline;
+}
+
+.streamPanelBody {
+    background: #000;
+}
+
+.streamPlaceholder {
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 1.5rem;
+}
+
+.streamPlaceholderTitle {
+    margin: 0;
+    color: var(--color-gold);
+    font-weight: 600;
+}
+
+.streamPlaceholderText {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    .streamStageMulti {
+        grid-template-columns: 1fr;
+    }
+
+    .header {
+        flex-direction: column;
+    }
+}

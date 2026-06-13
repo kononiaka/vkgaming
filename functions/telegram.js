@@ -1,14 +1,20 @@
 const functions = require('firebase-functions');
 
 const TELEGRAM_API = 'https://api.telegram.org';
+const TELEGRAM_BOT_USERNAME = 'konoplay_bot';
 
 function getTelegramConfig() {
     const cfg = functions.config().telegram || {};
     return {
         botToken: cfg.bot_token || '',
         channelId: cfg.channel_id || '',
-        siteUrl: (cfg.site_url || 'https://vkgaming.com.ua').replace(/\/$/, '')
+        siteUrl: (cfg.site_url || 'https://vkgaming.com.ua').replace(/\/$/, ''),
+        botUsername: cfg.bot_username || TELEGRAM_BOT_USERNAME
     };
+}
+
+function getTelegramBotUsername() {
+    return getTelegramConfig().botUsername || TELEGRAM_BOT_USERNAME;
 }
 
 function isTelegramConfigured() {
@@ -16,22 +22,17 @@ function isTelegramConfigured() {
     return Boolean(botToken && channelId);
 }
 
-async function sendTelegramMessage(text, options = {}) {
-    const { botToken, channelId } = getTelegramConfig();
+function isBotConfigured() {
+    const { botToken } = getTelegramConfig();
+    return Boolean(botToken);
+}
 
-    if (!botToken || !channelId) {
-        console.warn('Telegram not configured — skip notification');
+async function postTelegramMessage(body) {
+    const { botToken } = getTelegramConfig();
+
+    if (!botToken) {
+        console.warn('Telegram bot token missing — skip notification');
         return { ok: false, skipped: true };
-    }
-
-    const body = {
-        chat_id: channelId,
-        text,
-        disable_web_page_preview: options.disablePreview !== false
-    };
-
-    if (options.parseMode) {
-        body.parse_mode = options.parseMode;
     }
 
     const response = await fetch(`${TELEGRAM_API}/bot${botToken}/sendMessage`, {
@@ -47,6 +48,45 @@ async function sendTelegramMessage(text, options = {}) {
     }
 
     return { ok: true, messageId: data.result?.message_id };
+}
+
+async function sendTelegramMessage(text, options = {}) {
+    const { channelId } = getTelegramConfig();
+
+    if (!channelId) {
+        console.warn('Telegram channel not configured — skip notification');
+        return { ok: false, skipped: true };
+    }
+
+    const body = {
+        chat_id: channelId,
+        text,
+        disable_web_page_preview: options.disablePreview !== false
+    };
+
+    if (options.parseMode) {
+        body.parse_mode = options.parseMode;
+    }
+
+    return postTelegramMessage(body);
+}
+
+async function sendTelegramDirectMessage(chatId, text, options = {}) {
+    if (!chatId) {
+        return { ok: false, skipped: true };
+    }
+
+    const body = {
+        chat_id: chatId,
+        text,
+        disable_web_page_preview: options.disablePreview !== false
+    };
+
+    if (options.parseMode) {
+        body.parse_mode = options.parseMode;
+    }
+
+    return postTelegramMessage(body);
 }
 
 function escapeHtml(value) {
@@ -77,12 +117,22 @@ function formatSchedule(iso) {
     });
 }
 
+function appRoute(siteUrl, path) {
+    const base = siteUrl.replace(/\/$/, '');
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return `${base}/#${normalized}`;
+}
+
 function tournamentLink(siteUrl, tournamentId) {
-    return `${siteUrl}/tournaments/homm3/${tournamentId}`;
+    return appRoute(siteUrl, `/tournaments/homm3/${tournamentId}`);
 }
 
 function matchCenterLink(siteUrl) {
-    return `${siteUrl.replace(/\/$/, '')}/live`;
+    return appRoute(siteUrl, '/live');
+}
+
+function matchPairLink(siteUrl, tournamentId, stageIdx, pairIdx) {
+    return appRoute(siteUrl, `/live/match/${tournamentId}/${stageIdx}/${pairIdx}`);
 }
 
 function useDigestOnlyMode() {
@@ -92,11 +142,16 @@ function useDigestOnlyMode() {
 
 module.exports = {
     getTelegramConfig,
+    getTelegramBotUsername,
     isTelegramConfigured,
+    isBotConfigured,
     sendTelegramMessage,
+    sendTelegramDirectMessage,
     escapeHtml,
     formatSchedule,
     tournamentLink,
     matchCenterLink,
+    matchPairLink,
+    appRoute,
     useDigestOnlyMode
 };

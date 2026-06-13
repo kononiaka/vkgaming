@@ -3,12 +3,20 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 
 import AuthContext from '../../../store/auth-context';
 import { useAddGame } from '../../../store/add-game-context';
+import MatchLogDetailsModal from './MatchLogDetailsModal';
+import {
+    findBracketMatchForGame,
+    normalizeMatchLogGame
+} from '../../../utils/matchLogDetails';
 import classes from './Heroes3.module.css';
 
 const Heroes3Games = () => {
     const authCtx = useContext(AuthContext);
     const { openAddGame } = useAddGame();
     let [games, setGames] = useState([]);
+    const [tournamentsData, setTournamentsData] = useState({});
+    const [usersData, setUsersData] = useState({});
+    const [selectedGame, setSelectedGame] = useState(null);
     const [sortBy, setSortBy] = useState('date-desc');
     const [searchPlayer, setSearchPlayer] = useState('');
     const [searchTournament, setSearchTournament] = useState('');
@@ -39,28 +47,24 @@ const Heroes3Games = () => {
     useEffect(() => {
         const fetchGamesList = async () => {
             try {
-                const response = await fetch(
-                    `${FIREBASE_DATABASE_URL}/games/heroes3.json`
-                );
-                const data = await response.json();
+                const [gamesResponse, tournamentsResponse, usersResponse] = await Promise.all([
+                    fetch(`${FIREBASE_DATABASE_URL}/games/heroes3.json`),
+                    fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`),
+                    fetch(`${FIREBASE_DATABASE_URL}/users.json`)
+                ]);
+
+                const data = gamesResponse.ok ? await gamesResponse.json() : null;
+                const tournaments = tournamentsResponse.ok ? await tournamentsResponse.json() : {};
+                const users = usersResponse.ok ? await usersResponse.json() : {};
+
+                setTournamentsData(tournaments || {});
+                setUsersData(users || {});
 
                 if (data) {
-                    games = Object.entries(data).map(([id, game]) => ({
-                        id: id,
-                        date: game.date,
-                        gameName: game.gameName,
-                        gameType: game.gameType,
-                        tournamentName: game.tournamentName,
-                        stage: game.stage,
-                        opponent1: game.opponent1,
-                        opponent1Castle: game.opponent1Castle,
-                        opponent2: game.opponent2,
-                        opponent2Castle: game.opponent2Castle,
-                        score: game.score,
-                        winner: game.winner
-                    }));
-
-                    setGames(games);
+                    const mappedGames = Object.entries(data).map(([id, game]) => normalizeMatchLogGame(game, id));
+                    setGames(mappedGames);
+                } else {
+                    setGames([]);
                 }
             } catch (error) {
                 console.error(error);
@@ -126,6 +130,11 @@ const Heroes3Games = () => {
         }
         return 0;
     });
+
+    const selectedBracketContext = useMemo(
+        () => (selectedGame ? findBracketMatchForGame(tournamentsData, selectedGame) : null),
+        [selectedGame, tournamentsData]
+    );
 
     return (
         <div className={`${classes.gamesContainer} data-page`}>
@@ -254,7 +263,12 @@ const Heroes3Games = () => {
                     )}
                     <div className={classes.gamesList}>
                         {sortedGames.map((game) => (
-                            <div key={game.id} className={classes.gameCard}>
+                            <button
+                                key={game.id}
+                                type="button"
+                                className={classes.gameCard}
+                                onClick={() => setSelectedGame(game)}
+                            >
                                 <div className={classes.gameHeader}>
                                     <span className={classes.gameDate}>{game.date}</span>
                                     {game.gameType && (
@@ -290,9 +304,16 @@ const Heroes3Games = () => {
                                 </div>
                                 {game.score && <div className={classes.score}>Score: {game.score}</div>}
                                 {game.winner && <div className={classes.winner}>Winner: {game.winner}</div>}
-                            </div>
+                                <div className={classes.openHint}>View match details</div>
+                            </button>
                         ))}
                     </div>
+                    <MatchLogDetailsModal
+                        game={selectedGame}
+                        bracketContext={selectedBracketContext}
+                        usersData={usersData}
+                        onClose={() => setSelectedGame(null)}
+                    />
                 </>
             )}
         </div>

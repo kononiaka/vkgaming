@@ -1,23 +1,14 @@
 import { Link } from 'react-router-dom';
 import CountryFlag from '../Country/CountryFlag';
+import {
+    HeadToHeadStatsButton,
+    HeadToHeadStatsPortal
+} from '../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../Stars/Stars';
+import { useHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
 import konoplayLogo from '../../image/konoplay-logo-new-invert.png';
+import { buildMatchBannerLabel } from '../../utils/matchFixtureLabels';
 import classes from './MatchAnnouncementCard.module.css';
-
-const formatAnnounceDate = (iso, fallbackLabel) => {
-    if (!iso) {
-        return fallbackLabel;
-    }
-
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) {
-        return fallbackLabel;
-    }
-
-    return date
-        .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-        .toUpperCase();
-};
 
 const formatAnnounceTime = (iso) => {
     if (!iso) {
@@ -36,11 +27,11 @@ const formatAnnounceTime = (iso) => {
     });
 };
 
-const formatSeriesLabel = (type) => {
-    if (type === 'bo-5') {
+const formatSeriesLabel = (seriesType) => {
+    if (seriesType === 'bo-5') {
         return 'BO5';
     }
-    if (type === 'bo-3') {
+    if (seriesType === 'bo-3') {
         return 'BO3';
     }
     return 'BO1';
@@ -51,7 +42,9 @@ const PlayerPortrait = ({ avatar, name, stars = 0 }) => {
         <img src={avatar} alt={name} className={classes.portraitImage} />
     ) : (
         <div className={classes.portraitFallback} aria-hidden="true">
-            {String(name || '?').charAt(0).toUpperCase()}
+            {String(name || '?')
+                .charAt(0)
+                .toUpperCase()}
         </div>
     );
 
@@ -78,6 +71,7 @@ const MatchAnnouncementCard = ({
     score1 = 0,
     score2 = 0,
     tournamentName,
+    tournamentType = null,
     stageLabel,
     tournamentDate = null,
     variant = 'upcoming',
@@ -91,22 +85,33 @@ const MatchAnnouncementCard = ({
     team2Stars = 0,
     team1Prediction = null,
     team2Prediction = null,
+    matchCenterUrl = null,
     watchUrl = null,
     streamLive = false,
-    compact = false
+    compact = false,
+    playoffPairs = []
 }) => {
+    const {
+        stats,
+        loading: statsLoading,
+        open: statsOpen,
+        showHeadToHeadStats,
+        closeHeadToHeadStats
+    } = useHeadToHeadStats({ playoffPairs });
+
     const castlesSelected = Boolean(castle1Image && castle2Image);
     const showMapBackground = variant === 'live' && castlesSelected;
 
-    const dateLabel =
-        variant === 'live'
-            ? `GAME ${gameNumber || 1} · ${(stageLabel || 'IN PROGRESS').toUpperCase()}`
-            : formatAnnounceDate(tournamentDate, (statusLabel || 'UPCOMING').toUpperCase());
+    const bannerLabel = buildMatchBannerLabel({
+        tournamentName,
+        tournamentType,
+        stageLabel
+    }).toUpperCase();
 
+    const dateLabel = bannerLabel;
     const timeLabel = variant === 'live' ? `${score1} : ${score2}` : formatAnnounceTime(tournamentDate);
     const showPrediction = team1Prediction != null && team2Prediction != null;
 
-    const caption = `Heroes 3 PvP | ${team1} vs ${team2} | ${tournamentName}`;
     const isUpcoming = variant === 'upcoming';
 
     const renderPlayerSide = (side) => {
@@ -133,80 +138,100 @@ const MatchAnnouncementCard = ({
         );
     };
 
+    const watchControl = matchCenterUrl ? (
+        <Link to={matchCenterUrl} className={`${classes.watchBtn} ${streamLive ? classes.watchBtnLive : ''}`}>
+            {streamLive ? 'Watch live' : 'Watch'}
+        </Link>
+    ) : watchUrl ? (
+        <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${classes.watchBtn} ${streamLive ? classes.watchBtnLive : ''}`}
+        >
+            {streamLive ? 'Watch live' : 'Watch'}
+        </a>
+    ) : null;
+
     return (
         <div className={`${classes.cardShell} ${featured ? classes.featured : ''}`}>
-            {watchUrl && (
-                <a
-                    href={watchUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${classes.watchBtn} ${streamLive ? classes.watchBtnLive : ''}`}
-                >
-                    {streamLive ? 'Watch live' : 'Watch'}
-                </a>
-            )}
+            <div className={classes.cardTopBar}>
+                <div className={classes.cardTopBarLeft}>
+                    <HeadToHeadStatsButton
+                        team1={team1}
+                        team2={team2}
+                        onShow={showHeadToHeadStats}
+                    />
+                    {variant === 'live' && <div className={classes.liveBadge}>LIVE</div>}
+                </div>
+                {watchControl}
+            </div>
             <Link
                 to={to}
                 className={`${classes.card} ${featured ? classes.featured : ''} ${isUpcoming ? classes.upcoming : ''} ${compact ? classes.compact : ''} ${showMapBackground ? classes.withMap : classes.plain}`}
             >
-            {showMapBackground ? (
-                <>
-                    <div
-                        className={classes.backdropSplitLeft}
-                        style={{ backgroundImage: `url(${castle1Image})` }}
-                        aria-hidden="true"
-                    />
-                    <div
-                        className={classes.backdropSplitRight}
-                        style={{ backgroundImage: `url(${castle2Image})` }}
-                        aria-hidden="true"
-                    />
-                    <div className={classes.overlay} aria-hidden="true" />
-                </>
-            ) : (
-                <div className={classes.plainBackdrop} aria-hidden="true" />
-            )}
+                {showMapBackground ? (
+                    <>
+                        <div
+                            className={classes.backdropSplitLeft}
+                            style={{ backgroundImage: `url(${castle1Image})` }}
+                            aria-hidden="true"
+                        />
+                        <div
+                            className={classes.backdropSplitRight}
+                            style={{ backgroundImage: `url(${castle2Image})` }}
+                            aria-hidden="true"
+                        />
+                        <div className={classes.overlay} aria-hidden="true" />
+                    </>
+                ) : (
+                    <div className={classes.plainBackdrop} aria-hidden="true" />
+                )}
 
-            <div className={classes.frame}>
-                {variant === 'live' && <div className={classes.liveBadge}>LIVE</div>}
+                <div className={classes.frame}>
+                    <div className={classes.connector} aria-hidden="true" />
 
-                <div className={classes.connector} aria-hidden="true" />
+                    <div className={classes.dateBadge}>{dateLabel}</div>
 
-                <div className={classes.dateBadge}>{dateLabel}</div>
+                    <div className={classes.matchRow}>
+                        {renderPlayerSide('left')}
 
-                <div className={classes.matchRow}>
-                    {renderPlayerSide('left')}
-
-                    <div className={classes.centerBadge}>
-                        <div className={classes.centerDiamond}>
-                            <img src={konoplayLogo} alt="" className={classes.centerLogo} />
-                        </div>
-                        {showPrediction && (
-                            <div className={classes.predictionEmbed} aria-label={`Win prediction ${team1Prediction}% to ${team2Prediction}%`}>
-                                <span className={classes.predictionPct}>{team1Prediction}%</span>
-                                <span className={classes.predictionLabel}>win odds</span>
-                                <span className={classes.predictionPct}>{team2Prediction}%</span>
+                        <div className={classes.centerBadge}>
+                            <div className={classes.centerDiamond}>
+                                <img src={konoplayLogo} alt="" className={classes.centerLogo} />
                             </div>
-                        )}
-                        <div className={classes.centerMeta}>
-                            <span className={classes.centerTournament}>{tournamentName}</span>
-                            <span className={classes.centerStage}>{stageLabel}</span>
-                            <span className={classes.centerFormat}>{formatSeriesLabel(type)}</span>
+                            {showPrediction && (
+                                <div
+                                    className={classes.predictionEmbed}
+                                    aria-label={`Win prediction ${team1Prediction}% to ${team2Prediction}%`}
+                                >
+                                    <span className={classes.predictionPct}>{team1Prediction}%</span>
+                                    <span className={classes.predictionLabel}>win odds</span>
+                                    <span className={classes.predictionPct}>{team2Prediction}%</span>
+                                </div>
+                            )}
                         </div>
+
+                        {renderPlayerSide('right')}
                     </div>
 
-                    {renderPlayerSide('right')}
-                </div>
+                    <div
+                        className={`${classes.dateBadge} ${classes.timeBadge} ${variant === 'live' ? classes.timeBadgeLive : ''}`}
+                    >
+                        {timeLabel}
+                    </div>
 
-                <div
-                    className={`${classes.dateBadge} ${classes.timeBadge} ${variant === 'live' ? classes.timeBadgeLive : ''}`}
-                >
-                    {timeLabel}
+                    <p className={classes.caption}>
+                        Heroes 3 · <span className={classes.captionSeries}>{formatSeriesLabel(type)}</span>
+                    </p>
                 </div>
-
-                <p className={classes.caption}>{caption}</p>
-            </div>
             </Link>
+            <HeadToHeadStatsPortal
+                stats={stats}
+                loading={statsLoading}
+                open={statsOpen}
+                onClose={closeHeadToHeadStats}
+            />
         </div>
     );
 };

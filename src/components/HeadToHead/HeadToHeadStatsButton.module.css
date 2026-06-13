@@ -1,0 +1,49 @@
+.iconBtn {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid rgba(201, 162, 39, 0.45);
+    color: var(--color-gold);
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.iconBtn:hover {
+    background: rgba(201, 162, 39, 0.22);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+    transform: scale(1.05);
+}
+
+.textBtn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201, 162, 39, 0.45);
+    background: rgba(201, 162, 39, 0.12);
+    color: var(--color-gold);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.textBtn:hover {
+    background: rgba(201, 162, 39, 0.22);
+    border-color: var(--color-gold);
+    color: var(--color-gold-bright);
+}

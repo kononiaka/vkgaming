@@ -29,6 +29,7 @@ const MyUpcomingMatchesSection = ({
                         score1={match.score1}
                         score2={match.score2}
                         tournamentName={match.tournamentName}
+                        tournamentType={match.tournamentType}
                         stageLabel={match.stageLabel}
                         tournamentDate={match.tournamentDate}
                         variant={match.variant || 'upcoming'}

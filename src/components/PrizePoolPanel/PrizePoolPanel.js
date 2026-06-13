@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom';
 import { fetchLiveTournamentPrizePools } from '../../utils/prizePoolData';
 import classes from './PrizePoolPanel.module.css';
 
-const PrizePoolPanel = ({ compact = false, className = '' }) => {
+const PrizePoolPanel = ({
+    compact = false,
+    className = '',
+    showSupportButton = true,
+    showNote = true
+}) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -42,19 +47,21 @@ const PrizePoolPanel = ({ compact = false, className = '' }) => {
 
     return (
         <section className={rootClass} aria-label="Live tournament prize pools">
-            <div className={classes.header}>
+            <div className={classes.panelHeader}>
                 <h2 className={classes.title}>Prize pool</h2>
-                <Link to="/support" className={classes.supportBtn}>
-                    Support
-                </Link>
+                {showSupportButton ? (
+                    <Link to="/support" className={classes.supportBtn}>
+                        Support
+                    </Link>
+                ) : null}
             </div>
 
             {loading ? (
                 <p className={classes.loading}>Loading prize pools…</p>
             ) : entries.length === 0 ? (
                 <p className={classes.empty}>
-                    No open cups right now. When a funded cup is in registration or live, community donations (90%)
-                    are added here automatically.
+                    No open tournaments right now. When registration opens or a cup goes live, prize pools appear
+                    here.
                 </p>
             ) : (
                 <div className={classes.list}>
@@ -66,16 +73,23 @@ const PrizePoolPanel = ({ compact = false, className = '' }) => {
                                         Prize pool {entry.name}
                                     </Link>
                                 </h3>
+                                <span className={classes.statusBadge}>{entry.statusLabel}</span>
                             </div>
-                            <div className={classes.amountRow}>
-                                <span className={classes.amountLabel}>{entry.collectedLabel} prize pool</span>
+                            <div className={classes.progressTrack} aria-hidden="true">
+                                <div
+                                    className={classes.progressFill}
+                                    style={{ width: `${entry.progressPct}%` }}
+                                />
+                                <span className={classes.progressLabel}>Collected {entry.collectedLabel}</span>
                             </div>
                         </article>
                     ))}
                 </div>
             )}
 
-            <p className={classes.note}>90% of every donation goes to active cup prize pools.</p>
+            {showNote ? (
+                <p className={classes.note}>90% of every donation goes to active cup prize pools.</p>
+            ) : null}
         </section>
     );
 };

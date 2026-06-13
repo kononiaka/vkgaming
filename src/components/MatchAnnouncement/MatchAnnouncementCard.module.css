@@ -2,11 +2,30 @@
     position: relative;
 }
 
-.watchBtn {
+.cardTopBar {
     position: absolute;
     top: 0.75rem;
+    left: 0.75rem;
     right: 0.75rem;
     z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.cardTopBarLeft {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    pointer-events: auto;
+}
+
+.watchBtn {
+    flex-shrink: 0;
+    pointer-events: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -248,15 +267,7 @@
 
 
 .liveBadge {
-
-    position: absolute;
-
-    top: 0.85rem;
-
-    left: 0.85rem;
-
-    z-index: 3;
-
+    flex-shrink: 0;
     padding: 0.3rem 0.65rem;
 
     border-radius: 6px;
@@ -579,6 +590,14 @@
 
 }
 
+.compact .dateBadge {
+    min-width: 0;
+    max-width: calc(100% - 1.5rem);
+    padding: 0.45rem 0.75rem;
+    font-size: 0.68rem;
+    line-height: 1.25;
+}
+
 
 
 .compact .matchRow {
@@ -863,12 +882,17 @@
 
     font-size: 0.72rem;
 
-    letter-spacing: 0.03em;
+    letter-spacing: 0.06em;
 
-    color: rgba(248, 244, 234, 0.88);
+    color: rgba(248, 244, 234, 0.72);
 
     text-align: center;
 
+}
+
+.captionSeries {
+    color: #f5c400;
+    font-weight: 700;
 }
 
 

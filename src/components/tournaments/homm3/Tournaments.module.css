@@ -48,6 +48,11 @@
     font-weight: 400;
 }
 
+.prizePoolPanelWrap {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
 .headerActions {
     display: flex;
     flex-wrap: wrap;

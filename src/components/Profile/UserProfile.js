@@ -44,6 +44,8 @@ const UserProfile = () => {
                 loadingMessage="Loading profile..."
                 avatarRefreshKey={avatarRefreshKey}
                 upcomingMatchesTitle="My upcoming matches"
+                attendedTournamentsTitle="My tournaments"
+                attendedTournamentsEmptyMessage="You have not joined any tournaments yet."
                 settingsSlot={
                     <ProfileForm
                         userId={playerId}

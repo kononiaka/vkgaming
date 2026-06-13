@@ -56,7 +56,28 @@ async function recordPlatformShare(amountUsd) {
     await db.ref('prizePoolFunding/platform').transaction((current) => (current || 0) + share);
 }
 
-async function allocateDonationToLivePrizePools(amount, currency) {
+function parseTargetTournamentIds(raw) {
+    if (!raw) {
+        return null;
+    }
+
+    if (Array.isArray(raw)) {
+        const ids = raw.map(String).map((id) => id.trim()).filter(Boolean);
+        return ids.length > 0 ? ids : null;
+    }
+
+    if (typeof raw === 'string') {
+        const ids = raw
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+        return ids.length > 0 ? ids : null;
+    }
+
+    return null;
+}
+
+async function allocateDonationToLivePrizePools(amount, currency, targetTournamentIds = null) {
     const usdAmount = normalizeDonationToUsd(amount, currency);
     const prizeShare = usdAmount * PUBLIC_DONATION_POOL_SHARE;
     const platformShare = usdAmount - prizeShare;
@@ -66,15 +87,35 @@ async function allocateDonationToLivePrizePools(amount, currency) {
 
     const tournamentsSnap = await db.ref('tournaments/heroes3').once('value');
     const tournaments = tournamentsSnap.val() || {};
-    const liveIds = Object.entries(tournaments)
+    let liveIds = Object.entries(tournaments)
         .filter(([, tournament]) => isFundableTournament(tournament))
         .map(([id]) => id);
+
+    let usedExplicitTargets = false;
+    if (Array.isArray(targetTournamentIds)) {
+        usedExplicitTargets = true;
+        if (targetTournamentIds.length === 0) {
+            liveIds = [];
+        } else {
+            const targetSet = new Set(targetTournamentIds.map(String));
+            liveIds = liveIds.filter((id) => targetSet.has(id));
+        }
+    } else {
+        const parsedTargets = parseTargetTournamentIds(targetTournamentIds);
+        if (parsedTargets) {
+            usedExplicitTargets = true;
+            const targetSet = new Set(parsedTargets);
+            liveIds = liveIds.filter((id) => targetSet.has(id));
+        }
+    }
 
     if (liveIds.length === 0) {
         await db.ref('prizePoolFunding/unallocated').transaction((current) => (current || 0) + prizeShare);
         await recordPlatformShare(platformShare);
         console.log(
-            `No open cups — stored $${prizeShare.toFixed(2)} in unallocated prize pool funding; platform $${platformShare.toFixed(2)}`
+            usedExplicitTargets
+                ? `No matching selected cups — stored $${prizeShare.toFixed(2)} in unallocated prize pool funding; platform $${platformShare.toFixed(2)}`
+                : `No open cups — stored $${prizeShare.toFixed(2)} in unallocated prize pool funding; platform $${platformShare.toFixed(2)}`
         );
         return;
     }
@@ -89,7 +130,9 @@ async function allocateDonationToLivePrizePools(amount, currency) {
     await db.ref().update(updates);
     await recordPlatformShare(platformShare);
     console.log(
-        `Allocated $${prizeShare.toFixed(2)} across ${liveIds.length} live cup(s) ($${sharePerTournament.toFixed(2)} each); platform $${platformShare.toFixed(2)}`
+        usedExplicitTargets
+            ? `Allocated $${prizeShare.toFixed(2)} across ${liveIds.length} selected cup(s) ($${sharePerTournament.toFixed(2)} each); platform $${platformShare.toFixed(2)}`
+            : `Allocated $${prizeShare.toFixed(2)} across ${liveIds.length} live cup(s) ($${sharePerTournament.toFixed(2)} each); platform $${platformShare.toFixed(2)}`
     );
 }
 
@@ -391,7 +434,18 @@ async function processDonation(donation, usersData) {
     }
 
     try {
-        await allocateDonationToLivePrizePools(amount, currency);
+        let targetTournamentIds = null;
+        const matchedEntryPreview = Object.entries(usersData || {}).find(
+            ([, user]) => user.daUsername && user.daUsername.toLowerCase() === donorUsername.toLowerCase()
+        );
+        if (matchedEntryPreview) {
+            const [, userPreview] = matchedEntryPreview;
+            if (Array.isArray(userPreview.donationTargetTournamentIds)) {
+                targetTournamentIds = userPreview.donationTargetTournamentIds;
+            }
+        }
+
+        await allocateDonationToLivePrizePools(amount, currency, targetTournamentIds);
     } catch (allocationError) {
         console.error(`Prize pool allocation failed for donation ${donationId}:`, allocationError.message);
     }
@@ -555,7 +609,8 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
-    const { amount, userId, nickname, origin, purpose, tournamentId, tournamentName } = req.body;
+    const { amount, userId, nickname, origin, purpose, tournamentId, tournamentName, targetTournamentIds } =
+        req.body;
     if (!userId || !nickname) {
         return res.status(400).json({ error: 'userId and nickname are required' });
     }
@@ -700,6 +755,18 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
         return res.status(400).json({ error: `Minimum card donation is $${MIN_STRIPE_DONATION_USD}` });
     }
 
+    const parsedTargets = parseTargetTournamentIds(targetTournamentIds);
+    if (parsedTargets) {
+        const tournamentsSnap = await db.ref('tournaments/heroes3').once('value');
+        const tournaments = tournamentsSnap.val() || {};
+        const validTargetIds = parsedTargets.filter((id) => isFundableTournament(tournaments[id]));
+        if (validTargetIds.length === 0) {
+            return res.status(400).json({ error: 'Select at least one eligible cup to support.' });
+        }
+    }
+
+    const metadataTargets = parsedTargets ? parsedTargets.join(',') : '';
+
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
@@ -708,7 +775,9 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
                     currency: 'usd',
                     product_data: {
                         name: `VKGaming Donation — ${nickname}`,
-                        description: '90% funds live tournament prize pools'
+                        description: parsedTargets
+                            ? `90% split across ${parsedTargets.length} selected cup(s)`
+                            : '90% funds live tournament prize pools'
                     },
                     unit_amount: Math.round(donationAmount * 100) // cents
                 },
@@ -718,7 +787,13 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
         mode: 'payment',
         success_url: `${baseUrl}?donation=success`,
         cancel_url: `${baseUrl}?donation=cancelled`,
-        metadata: { userId, nickname, amount: String(donationAmount), purpose: 'donation' }
+        metadata: {
+            userId,
+            nickname,
+            amount: String(donationAmount),
+            purpose: 'donation',
+            targetTournamentIds: metadataTargets
+        }
     });
 
     return res.json({ url: session.url });
@@ -916,7 +991,16 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        await allocateDonationToLivePrizePools(donationAmount, currency);
+        const stripeTargets = parseTargetTournamentIds(session.metadata?.targetTournamentIds);
+        let targetTournamentIds = stripeTargets;
+        if (targetTournamentIds === null) {
+            const userSnap = await db.ref(`users/${dbUserId}/donationTargetTournamentIds`).once('value');
+            if (userSnap.exists() && Array.isArray(userSnap.val())) {
+                targetTournamentIds = userSnap.val();
+            }
+        }
+
+        await allocateDonationToLivePrizePools(donationAmount, currency, targetTournamentIds);
     } catch (allocationError) {
         console.error(`Prize pool allocation failed for Stripe session ${session.id}:`, allocationError.message);
     }
@@ -1436,3 +1520,4 @@ exports.deleteAccount = functions.https.onCall(async (data, context) => {
 
 // Telegram channel notifications (@vkgamingplay) — see telegramNotifications.js
 Object.assign(exports, require('./telegramNotifications'));
+Object.assign(exports, require('./telegramBot'));

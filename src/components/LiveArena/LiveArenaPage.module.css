@@ -48,10 +48,6 @@
     font-size: 0.92rem;
 }
 
-.prizePoolRow {
-    margin-bottom: 1.25rem;
-}
-
 .featuredBlock {
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -116,6 +112,12 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-gold);
+}
+
+.matchCardGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
 }
 
 .matchList {

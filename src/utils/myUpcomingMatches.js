@@ -1,6 +1,8 @@
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { buildCountryLookup, lookupCountryCode } from './country';
+import { buildMatchStageLabel } from './matchFixtureLabels';
 import { isPublicTournament } from './tournamentVisibility';
+import { isGameSessionActive, isPairLive, hasScheduledAt } from './matchCenterData';
 
 const parseNumericValue = (value) => {
     if (typeof value === 'string' && value.includes(',')) {
@@ -87,19 +89,22 @@ export const collectMyUpcomingMatches = (
 
                 const team1Player = tournamentPlayers.find((player) => player.name === pair.team1);
                 const team2Player = tournamentPlayers.find((player) => player.name === pair.team2);
-                const liveGame = (pair.games || []).find(
-                    (game) => game.castle1 && game.castle2 && !game.castleWinner
-                );
-                const isLive = Boolean(liveGame);
+                const activeGame = (pair.games || []).find(isGameSessionActive) || null;
+                const isLive = isPairLive(pair);
+
+                if (!isLive && !hasScheduledAt(pair)) {
+                    return;
+                }
 
                 matches.push({
                     tournamentId,
                     tournamentName: tournament.name,
-                    stageLabel: pair.stage || `Stage ${stageIndex + 1}`,
+                    tournamentType: tournament.type || null,
+                    stageLabel: buildMatchStageLabel(tournament, pair, stageIndex),
                     stageIndex,
                     pairIndex,
                     scheduledAt: pair.scheduledAt || null,
-                    tournamentDate: pair.scheduledAt || tournament.date || null,
+                    tournamentDate: pair.scheduledAt || null,
                     team1: pair.team1,
                     team2: pair.team2,
                     team1Avatar: avatarByNickname[pair.team1] || null,
@@ -115,9 +120,9 @@ export const collectMyUpcomingMatches = (
                     team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
                     team1Place: rankByNickname[pair.team1] || team1Player?.placeInLeaderboard || null,
                     team2Place: rankByNickname[pair.team2] || team2Player?.placeInLeaderboard || null,
-                    castle1: liveGame?.castle1 || null,
-                    castle2: liveGame?.castle2 || null,
-                    gameNumber: liveGame ? (liveGame.gameId || 0) + 1 : null
+                    castle1: activeGame?.castle1 || null,
+                    castle2: activeGame?.castle2 || null,
+                    gameNumber: activeGame ? (activeGame.gameId || 0) + 1 : score1 + score2 + 1
                 });
             });
         });

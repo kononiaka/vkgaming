@@ -7,6 +7,7 @@ import { authFetch } from '../../api/authFetch';
 import { deleteAccount } from '../../api/deleteAccount';
 import LobbyNicknameField from './LobbyNicknameField';
 import CountryField from './CountryField';
+import TelegramNotificationsSection from './TelegramNotificationsSection';
 
 import classes from './ProfileForm.module.css';
 
@@ -316,12 +317,9 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 </>
             )}
 
-            {!embedded && (
-                <div className={classes.quickStats}>
-                    <div className={classes.statBox}>
-                        <span className={classes.statLabel}>Tournament winnings</span>
-                        <span className={classes.statValue}>${Number(player.totalPrize || 0).toFixed(0)}</span>
-                    </div>
+            {isOwnProfile && (
+                <div className={classes.formPanel}>
+                    <TelegramNotificationsSection userId={userId} authCtx={authCtx} />
                 </div>
             )}
 

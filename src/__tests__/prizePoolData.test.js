@@ -1,8 +1,11 @@
 import {
 
+    buildDonatablePrizePoolEntries,
     buildPrizePoolEntry,
 
     buildPrizePoolEntries,
+
+    filterDonationTargetIds,
 
     getFundingProgress,
 
@@ -21,6 +24,8 @@ import {
     PUBLIC_DONATION_POOL_SHARE,
 
     PRIZE_POOL_DONATION_SHARE,
+
+    resolveDonationTargetIds,
 
     splitHostSeedPayment,
 
@@ -114,7 +119,7 @@ describe('prizePoolData', () => {
 
 
 
-    test('builds prize pool entries only for funded started public cups', () => {
+    test('builds prize pool entries for all open and live public cups', () => {
 
         const entries = buildPrizePoolEntries({
 
@@ -162,7 +167,7 @@ describe('prizePoolData', () => {
 
 
 
-        expect(entries).toHaveLength(2);
+        expect(entries).toHaveLength(3);
 
         expect(entries[0].name).toBe('Top League');
 
@@ -170,9 +175,21 @@ describe('prizePoolData', () => {
 
         expect(entries[0].collectedLabel).toBe('$250');
 
+        expect(entries[0].progressPct).toBe(25);
+
+        expect(entries[0].statusLabel).toBe('In progress');
+
         const leagueA = entries.find((entry) => entry.name === 'League A');
 
         expect(leagueA.collectedLabel).toBe('$0');
+
+        expect(leagueA.progressPct).toBe(0);
+
+        const unfunded = entries.find((entry) => entry.name === 'Unfunded Cup');
+
+        expect(unfunded.statusLabel).toBe('Registration open');
+
+        expect(unfunded.progressPct).toBe(0);
 
     });
 
@@ -221,6 +238,56 @@ describe('prizePoolData', () => {
         expect(splitPublicDonation(100)).toEqual({ poolUsd: 90, platformUsd: 10 });
 
         expect(splitHostSeedPayment(100)).toEqual({ poolUsd: 95, platformUsd: 5 });
+
+    });
+
+
+
+    test('buildDonatablePrizePoolEntries only includes funded live public cups', () => {
+
+        const entries = buildDonatablePrizePoolEntries({
+
+            funded: {
+
+                name: 'Top League',
+
+                status: 'Started!',
+
+                isPublic: true,
+
+                communityFundingUsd: 100
+
+            },
+
+            unfunded: {
+
+                name: 'Open Cup',
+
+                status: 'Registration Started',
+
+                isPublic: true
+
+            }
+
+        });
+
+
+
+        expect(entries).toHaveLength(1);
+
+        expect(entries[0].name).toBe('Top League');
+
+    });
+
+
+
+    test('resolveDonationTargetIds keeps valid saved ids or falls back to all donatable cups', () => {
+
+        expect(filterDonationTargetIds(['cup1', 'cup2'], ['cup1', 'cup3'])).toEqual(['cup1']);
+
+        expect(resolveDonationTargetIds(['missing'], ['cup1', 'cup2'])).toEqual(['cup1', 'cup2']);
+
+        expect(resolveDonationTargetIds(['cup2'], ['cup1', 'cup2'])).toEqual(['cup2']);
 
     });
 

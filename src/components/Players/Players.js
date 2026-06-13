@@ -17,10 +17,14 @@ import StarsComponent from '../Stars/Stars';
 import GameMechanicsStats from './GameMechanicsStats';
 import HotaPlayerStats from './HotaPlayerStats';
 import MyUpcomingMatchesSection from '../MyUpcomingMatches/MyUpcomingMatchesSection';
+import PlayerTournamentsSection from '../Profile/PlayerTournamentsSection';
 import { fetchMyUpcomingMatches } from '../../utils/myUpcomingMatches';
+import { fetchPlayerTournaments } from '../../utils/playerTournaments';
 import LobbyNicknameField from '../Profile/LobbyNicknameField';
+import PublicLinksField from '../Profile/PublicLinksField';
 import CountryFlag from '../Country/CountryFlag';
 import { resolveCountryCode } from '../../utils/country';
+import { buildPublicLinks } from '../../utils/publicLinks';
 import {
     deriveBestWorstFaction,
     deriveBestWorstOpponent,
@@ -67,6 +71,8 @@ export const PlayerProfileContent = ({
     settingsSlot = null,
     avatarRefreshKey = 0,
     upcomingMatchesTitle = 'Upcoming matches',
+    attendedTournamentsTitle = 'Tournaments attended',
+    attendedTournamentsEmptyMessage = 'No tournaments yet.',
     children
 }) => {
     const [player, setPlayer] = useState(null);
@@ -86,6 +92,7 @@ export const PlayerProfileContent = ({
     const [hotaData, setHotaData] = useState({ status: 'idle' });
     const [profileSiteStars, setProfileSiteStars] = useState(null);
     const [upcomingMatches, setUpcomingMatches] = useState([]);
+    const [attendedTournaments, setAttendedTournaments] = useState([]);
 
     useEffect(() => {
         if (!player?.enteredNickname) {
@@ -138,6 +145,35 @@ export const PlayerProfileContent = ({
             cancelled = true;
         };
     }, [player?.enteredNickname]);
+
+    useEffect(() => {
+        if (!player?.enteredNickname) {
+            setAttendedTournaments([]);
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        fetchPlayerTournaments(
+            { ...player, id: playerId },
+            { includePrivateTournaments: Boolean(settingsSlot) }
+        )
+            .then((tournaments) => {
+                if (!cancelled) {
+                    setAttendedTournaments(tournaments);
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching attended tournaments:', error);
+                if (!cancelled) {
+                    setAttendedTournaments([]);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [player, playerId, settingsSlot]);
 
     const hotaIsSource = hotaData.status === 'ok';
     const showKonoplayPerformance = !hotaIsSource && hotaData.status !== 'loading';
@@ -574,40 +610,6 @@ export const PlayerProfileContent = ({
         setShowPopup(true);
     };
 
-    const normalizeSocialUrl = (rawValue, platform) => {
-        if (!rawValue) {
-            return null;
-        }
-
-        const value = String(rawValue).trim();
-        if (!value) {
-            return null;
-        }
-
-        if (/^https?:\/\//i.test(value)) {
-            return value;
-        }
-
-        const cleaned = value.replace(/^@/, '');
-
-        if (platform === 'telegram') {
-            return `https://t.me/${cleaned}`;
-        }
-
-        if (platform === 'twitch') {
-            return `https://www.twitch.tv/${cleaned.replace(/^www\.twitch\.tv\//i, '').replace(/^twitch\.tv\//i, '')}`;
-        }
-
-        if (platform === 'youtube') {
-            if (value.startsWith('@')) {
-                return `https://www.youtube.com/${value}`;
-            }
-            return `https://www.youtube.com/${cleaned}`;
-        }
-
-        return null;
-    };
-
     const konoplayTotalGames = player?.gamesPlayed?.heroes3?.total || 0;
     const konoplayLosses = player?.gamesPlayed?.heroes3?.lose || 0;
     const konoplayWins = Math.max(konoplayTotalGames - konoplayLosses, 0);
@@ -628,30 +630,13 @@ export const PlayerProfileContent = ({
         hotaDerived?.winRate != null
             ? Number(hotaDerived.winRate).toFixed(1)
             : konoplayWinRate;
-    const currentLeague = player?.league || player?.currentLeague || 'Not specified';
 
     const displayBestCastle = hotaIsSource ? hotaFactions.best : bestCastle;
     const displayWorstCastle = hotaIsSource ? hotaFactions.worst : worstCastle;
     const displayBestOpponent = hotaIsSource ? hotaOpponents.best : bestOpponent;
     const displayWorstOpponent = hotaIsSource ? hotaOpponents.worst : worstOpponent;
 
-    const publicLinks = [
-        {
-            label: 'Telegram',
-            value: player?.telegram,
-            href: normalizeSocialUrl(player?.telegram, 'telegram')
-        },
-        {
-            label: 'Twitch',
-            value: player?.twitch,
-            href: normalizeSocialUrl(player?.twitch, 'twitch')
-        },
-        {
-            label: 'YouTube',
-            value: player?.youtube,
-            href: normalizeSocialUrl(player?.youtube, 'youtube')
-        }
-    ].filter((entry) => entry.value && entry.href);
+    const publicLinks = buildPublicLinks(player);
 
     return (
         <div className={classes.playerContainer}>
@@ -718,11 +703,23 @@ export const PlayerProfileContent = ({
 
                             <div className={classes.publicLinksBlock}>
                                 <div className={classes.publicLinksTitle}>Public links</div>
-                                {publicLinks.length > 0 ? (
+                                {settingsSlot ? (
+                                    <PublicLinksField
+                                        userId={playerId}
+                                        links={{
+                                            telegram: player?.telegram,
+                                            twitch: player?.twitch,
+                                            youtube: player?.youtube
+                                        }}
+                                        onSaved={(update) =>
+                                            setPlayer((prev) => (prev ? { ...prev, ...update } : prev))
+                                        }
+                                    />
+                                ) : publicLinks.length > 0 ? (
                                     <div className={classes.publicLinksList}>
                                         {publicLinks.map((link) => (
                                             <a
-                                                key={link.label}
+                                                key={link.key}
                                                 href={link.href}
                                                 target="_blank"
                                                 rel="noreferrer"
@@ -761,12 +758,7 @@ export const PlayerProfileContent = ({
                                             <span className={classes.statusValue}>{overallWinRate}%</span>
                                         </div>
                                     </>
-                                ) : (
-                                    <div className={classes.statusItem}>
-                                        <span className={classes.statusLabel}>League</span>
-                                        <span className={classes.statusValue}>{currentLeague}</span>
-                                    </div>
-                                )}
+                                ) : null}
                                 <div className={classes.statusItem}>
                                     <span className={classes.statusLabel}>
                                         {hotaIsSource ? 'HotA rank' : 'Place'}
@@ -1036,6 +1028,13 @@ export const PlayerProfileContent = ({
                         matches={upcomingMatches}
                         title={upcomingMatchesTitle}
                         className={classes.upcomingMatchesSection}
+                    />
+
+                    <PlayerTournamentsSection
+                        tournaments={attendedTournaments}
+                        title={attendedTournamentsTitle}
+                        emptyMessage={attendedTournamentsEmptyMessage}
+                        className={classes.attendedTournamentsSection}
                     />
 
                     {children}

@@ -211,19 +211,36 @@
 }
 
 .gameCard {
+    display: block;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
     background: var(--color-bg-deep);
     border: var(--border-subtle);
     border-left: 2px solid var(--color-gold-dim);
     border-radius: var(--radius-md);
     padding: 1rem 1.1rem;
+    color: inherit;
+    font: inherit;
     transition:
         border-color 0.15s ease,
-        background 0.15s ease;
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 
 .gameCard:hover {
     border-left-color: var(--color-gold);
     background: var(--color-bg-elevated);
+    transform: translateY(-1px);
+}
+
+.openHint {
+    margin-top: 0.75rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-teal);
 }
 
 .gameHeader {

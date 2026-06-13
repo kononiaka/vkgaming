@@ -25,6 +25,66 @@ export const getTwitchWatchUrl = (loginOrUrl) => {
     return login ? `https://www.twitch.tv/${login}` : null;
 };
 
+export const getTwitchVideosUrl = (loginOrUrl) => {
+    const login = extractTwitchLogin(loginOrUrl);
+    return login ? `https://www.twitch.tv/${login}/videos` : null;
+};
+
+export const isTwitchRecordingUrl = (value) =>
+    /(?:https?:\/\/)?(?:www\.)?twitch\.tv\/(?:videos\/\d+|clip\/|[^/?#]+\/clip\/)/i.test(String(value || ''));
+
+export const extractTwitchVideoId = (value) => {
+    const match = String(value || '').match(/twitch\.tv\/videos\/(\d+)/i);
+    return match?.[1] || null;
+};
+
+export const extractTwitchClipSlug = (value) => {
+    const match = String(value || '').match(/twitch\.tv\/(?:[^/?#]+\/)?clip\/([^/?#]+)/i);
+    return match?.[1] || null;
+};
+
+export const getTwitchRecordingEmbedUrl = (recordingUrl) => {
+    const videoId = extractTwitchVideoId(recordingUrl);
+    if (videoId) {
+        const params = new URLSearchParams({
+            video: videoId,
+            parent: getTwitchEmbedParent(),
+            muted: 'false'
+        });
+        return `https://player.twitch.tv/?${params.toString()}`;
+    }
+
+    const clipSlug = extractTwitchClipSlug(recordingUrl);
+    if (clipSlug) {
+        const params = new URLSearchParams({
+            clip: clipSlug,
+            parent: getTwitchEmbedParent(),
+            muted: 'false'
+        });
+        return `https://clips.twitch.tv/embed?${params.toString()}`;
+    }
+
+    return null;
+};
+
+export const normalizeTwitchRecordingWatchUrl = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+    }
+
+    if (isTwitchRecordingUrl(trimmed) || trimmed.includes('twitch.tv')) {
+        return trimmed.startsWith('http') ? trimmed : `https://${trimmed.replace(/^\/\//, '')}`;
+    }
+
+    const login = extractTwitchLogin(trimmed);
+    return login ? getTwitchWatchUrl(login) : null;
+};
+
 export const getTwitchEmbedParent = () => {
     if (typeof window === 'undefined') {
         return 'localhost';

@@ -2483,11 +2483,17 @@ export const TournamentBracket = ({
                         date: new Date().toISOString(),
                         games: reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g))),
                         tournamentName: tournamentName,
+                        tournamentId,
+                        stage: pair.stage || stageLabels[selectedStageIndex] || null,
+                        stageIndex: selectedStageIndex,
+                        pairIndex: selectedPairIndex,
                         gameType: pair.type,
                         opponent1Castle: reportData.games[0]?.castle1 || '',
                         opponent2Castle: reportData.games[0]?.castle2 || '',
                         score: `${reportData.score1}-${reportData.score2}`,
-                        winner: reportData.winner
+                        winner: reportData.winner,
+                        streamUrl: pair.streamUrl || pair.streamLogin || null,
+                        streamLogin: pair.streamLogin || null
                     };
 
                     console.log('Game data to be posted:', JSON.stringify(gameData, null, 2));

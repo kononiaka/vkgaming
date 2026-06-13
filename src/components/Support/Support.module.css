@@ -1,12 +1,43 @@
-.wrapper {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 1.75rem 1.5rem 2.5rem;
+.page {
+    width: calc(100% + 1.5rem);
+    max-width: none;
+    margin: 0 -0.75rem;
+    padding: 1.75rem clamp(1rem, 4vw, 3rem) 2.5rem;
     background: var(--color-bg-panel);
-    border: var(--border-panel);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-panel);
+    border: none;
+    border-top: var(--border-panel);
+    border-bottom: var(--border-panel);
+    border-radius: 0;
+    box-shadow: none;
     color: var(--color-text);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    align-items: start;
+}
+
+.mainColumn {
+    min-width: 0;
+}
+
+.sidebarColumn {
+    position: sticky;
+    top: 1rem;
+    padding: 1rem 1.1rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-left: 2px solid var(--color-gold-dim);
+    border-radius: var(--radius-md);
+}
+
+.prizePoolSection {
+    margin-top: 2rem;
+    padding-top: 1.75rem;
+    border-top: var(--border-subtle);
+    max-width: 720px;
 }
 
 .pageHeader {
@@ -292,6 +323,17 @@
 
 .studioCredit a:hover {
     color: var(--color-gold-dim);
+}
+
+@media (max-width: 960px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebarColumn {
+        position: static;
+        order: -1;
+    }
 }
 
 @media (max-width: 540px) {
