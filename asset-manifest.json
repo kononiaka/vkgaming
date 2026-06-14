@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/vkgaming/static/css/main.f8f834c4.css",
-    "main.js": "/vkgaming/static/js/main.09637169.js",
+    "main.js": "/vkgaming/static/js/main.d990e8ac.js",
     "static/media/rs.svg": "/vkgaming/static/media/rs.099fd9d4031b066a2362.svg",
     "static/media/sh-ac.svg": "/vkgaming/static/media/sh-ac.12e47249c910761e397d.svg",
     "static/media/gold-removebg.png": "/vkgaming/static/media/gold-removebg.f0be57c9a7c3c50cfd15.png",
@@ -297,10 +297,10 @@
     "static/media/pe.svg": "/vkgaming/static/media/pe.d64e9732fcaa8f765994.svg",
     "static/media/id.svg": "/vkgaming/static/media/id.f624e2c8444a7794b357.svg",
     "main.f8f834c4.css.map": "/vkgaming/static/css/main.f8f834c4.css.map",
-    "main.09637169.js.map": "/vkgaming/static/js/main.09637169.js.map"
+    "main.d990e8ac.js.map": "/vkgaming/static/js/main.d990e8ac.js.map"
   },
   "entrypoints": [
     "static/css/main.f8f834c4.css",
-    "static/js/main.09637169.js"
+    "static/js/main.d990e8ac.js"
   ]
 }
