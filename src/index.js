@@ -2,16 +2,23 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
-import { getAppBasePath } from './utils/appBasePath';
 import 'flag-icons/css/flag-icons.min.css';
 import './index.css';
 import { AuthContextProvider } from './store/auth-context';
+
+const ensureHashRoute = () => {
+    if (!window.location.hash || window.location.hash === '#') {
+        window.location.replace(`${window.location.pathname}${window.location.search}#/`);
+    }
+};
+
+ensureHashRoute();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
     <AuthContextProvider>
-        <HashRouter basename={getAppBasePath() || undefined}>
+        <HashRouter>
             <App />
         </HashRouter>
     </AuthContextProvider>
