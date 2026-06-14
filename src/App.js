@@ -22,13 +22,13 @@ import RulesPage from './pages/RulesPage';
 import LiveArenaPage from './pages/LiveArenaPage';
 import MatchCenterPage from './pages/MatchCenterPage';
 import AuthContext from './store/auth-context';
-import { isTwitchCallbackPath } from './utils/appBasePath';
+import { shouldHandleTwitchOAuth } from './utils/appBasePath';
 
 import classes from './App.module.css';
 
 function App() {
     const authCtx = useContext(AuthContext);
-    const isTwitchCallback = isTwitchCallbackPath(window.location.pathname);
+    const isTwitchCallback = shouldHandleTwitchOAuth();
 
     if (isTwitchCallback) {
         return <TwitchCallback />;

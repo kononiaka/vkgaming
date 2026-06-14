@@ -5,8 +5,13 @@ import App from './App';
 import 'flag-icons/css/flag-icons.min.css';
 import './index.css';
 import { AuthContextProvider } from './store/auth-context';
+import { shouldHandleTwitchOAuth } from './utils/appBasePath';
 
 const ensureHashRoute = () => {
+    if (shouldHandleTwitchOAuth()) {
+        return;
+    }
+
     if (!window.location.hash || window.location.hash === '#') {
         window.location.replace(`${window.location.pathname}${window.location.search}#/`);
     }

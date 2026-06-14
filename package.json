@@ -23,7 +23,7 @@
     },
     "scripts": {
         "start": "react-scripts start",
-        "build": "react-scripts build",
+        "build": "react-scripts build && node scripts/postbuild-ghpages.js",
         "test": "react-scripts test",
         "test:readiness": "react-scripts test --watchAll=false --testPathPattern=productionReadiness",
         "verify:live": "node scripts/verify-production-readiness.js",
