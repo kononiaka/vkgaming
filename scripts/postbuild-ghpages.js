@@ -5,7 +5,7 @@ const buildDir = path.join(__dirname, '..', 'build');
 const indexPath = path.join(buildDir, 'index.html');
 const indexHtml = fs.readFileSync(indexPath, 'utf8');
 
-// GitHub Pages serves 404.html for unknown paths under /vkgaming/.
+// GitHub Pages serves 404.html for unknown paths (SPA fallback).
 fs.writeFileSync(path.join(buildDir, '404.html'), indexHtml);
 
 // Serve the OAuth callback as a real page so Twitch can redirect here with ?code=...

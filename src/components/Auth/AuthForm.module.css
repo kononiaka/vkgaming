@@ -78,6 +78,27 @@
     flex-shrink: 0;
 }
 
+.localDevWarning {
+    margin: 0 0 1.25rem;
+    padding: 0.75rem 0.85rem;
+    text-align: left;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #ffd9a8;
+    background: rgba(180, 90, 20, 0.18);
+    border: 1px solid rgba(255, 170, 60, 0.35);
+    border-radius: var(--radius-sm);
+}
+
+.localDevWarning a {
+    color: #ffe5bf;
+}
+
+.localDevWarning strong {
+    color: #fff;
+    font-weight: 600;
+}
+
 .hint {
     margin: 0;
     font-size: 0.8rem;

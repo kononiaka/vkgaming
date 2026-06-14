@@ -1,0 +1,15 @@
+---
+description: Production launch to konoplay.com — read LAUNCH_KONOPLAY_COM.md for deploy, domain, OAuth, and hosting handoff
+alwaysApply: false
+---
+
+# konoplay.com launch
+
+When the user asks about **launch**, **production**, **custom domain**, **konoplay.com**, **deploy**, **hosting**, or **moving off github.io**:
+
+1. **Read `LAUNCH_KONOPLAY_COM.md`** at the repo root first — it has the full checklist, decisions, and current blockers.
+2. Production domain is **`konoplay.com`** (not `.gg`, not github.io long-term).
+3. Staging may stay on `https://kononiaka.github.io` (root) until cutover.
+4. OAuth/Twitch/Firebase/Google API key referrers must all use the **exact** production callback:
+   `https://konoplay.com/auth/twitch/callback`
+5. Do not confuse Google **API key** HTTP referrers (browser login) with Firebase **Authorized domains** or Twitch redirect URIs — all three must be updated on domain change.

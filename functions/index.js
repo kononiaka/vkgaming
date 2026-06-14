@@ -616,7 +616,7 @@ exports.createStripeCheckout = functions.https.onRequest(async (req, res) => {
     }
 
     const stripe = Stripe(functions.config().stripe.secret_key);
-    const baseUrl = origin || 'https://kononiaka.github.io/vkgaming';
+    const baseUrl = origin || 'https://kononiaka.github.io';
 
     if (purpose === 'tournament_host_seed') {
         if (!tournamentId) {
@@ -1195,8 +1195,7 @@ exports.hotaLeaderboard = functions.https.onCall(async (data) => {
 //   firebase functions:config:set twitch.client_id="..." twitch.client_secret="..."
 //
 // Request body: { "data": { "code": "...", "redirectUri": "..." } }
-// Response:     { "result": { "customToken": "...", "displayName": "...",
-//                             "profileImageUrl": "...", "dbUserId": "..." } }
+// Response:     { "result": { "customToken", "displayName", "profileImageUrl", "dbUserId" } }
 // ---------------------------------------------------------------------------
 exports.twitchAuth = functions.https.onCall(async (data, context) => {
     try {

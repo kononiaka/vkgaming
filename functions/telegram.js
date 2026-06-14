@@ -8,7 +8,7 @@ function getTelegramConfig() {
     return {
         botToken: cfg.bot_token || '',
         channelId: cfg.channel_id || '',
-        siteUrl: (cfg.site_url || 'https://kononiaka.github.io/vkgaming').replace(/\/$/, ''),
+        siteUrl: (cfg.site_url || 'https://kononiaka.github.io').replace(/\/$/, ''),
         botUsername: cfg.bot_username || TELEGRAM_BOT_USERNAME
     };
 }

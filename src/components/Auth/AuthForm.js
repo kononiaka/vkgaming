@@ -1,14 +1,25 @@
 import { useContext, useEffect } from 'react';
 
 import AuthContext from '../../store/auth-context';
-import { getTwitchRedirectUri } from '../../utils/appBasePath';
+import { DEFAULT_PRODUCTION_SITE, getTwitchRedirectUri } from '../../utils/appBasePath';
 
 import classes from './AuthForm.module.css';
 
 const TWITCH_CLIENT_ID = process.env.REACT_APP_TWITCH_CLIENT_ID;
 
+const isLocalDevHost = () => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const { hostname } = window.location;
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
 const AuthForm = () => {
     const authCtx = useContext(AuthContext);
+    const onLocalDev = isLocalDevHost();
+    const productionLoginUrl = `${DEFAULT_PRODUCTION_SITE}/#/auth`;
 
     useEffect(() => {
         const pendingAuthError = sessionStorage.getItem('auth_error_message');
@@ -47,6 +58,14 @@ const AuthForm = () => {
                     channel.
                 </p>
             </header>
+
+            {onLocalDev && (
+                <p className={classes.localDevWarning} role="alert">
+                    You are on <strong>{window.location.origin}</strong>, not production. Local login uses a different
+                    Twitch callback and will fail unless dev URIs are registered. For live login, open{' '}
+                    <a href={productionLoginUrl}>{DEFAULT_PRODUCTION_SITE}/#/auth</a>.
+                </p>
+            )}
 
             <div className={classes.primaryAction}>
                 <button type="button" className={classes.twitchBtn} onClick={handleTwitchLogin}>

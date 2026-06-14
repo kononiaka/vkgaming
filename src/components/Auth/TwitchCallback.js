@@ -69,7 +69,10 @@ const TwitchCallback = () => {
                 const { result } = await fnRes.json();
                 const { customToken, displayName, dbUserId } = result;
 
-                // 2. Sign in to Firebase with the custom token (REST API)
+                if (!customToken) {
+                    throw new Error('Twitch auth response missing custom token');
+                }
+
                 const signInRes = await fetch(
                     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${FIREBASE_API_KEY}`,
                     {
@@ -86,7 +89,6 @@ const TwitchCallback = () => {
 
                 const signInData = await signInRes.json();
 
-                // 3. Store login in auth context (localId = Firebase auth uid, e.g. twitch:12345)
                 authCtx.login(signInData.idToken, displayName, signInData.localId, signInData.refreshToken);
 
                 // 4. Track daily login date

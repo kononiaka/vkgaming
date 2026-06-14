@@ -1,5 +1,5 @@
 {
-    "homepage": "https://kononiaka.github.io/vkgaming",
+    "homepage": "https://kononiaka.github.io",
     "name": "vkgaming-app",
     "version": "0.1.0",
     "private": true,
@@ -29,7 +29,8 @@
         "verify:live": "node scripts/verify-production-readiness.js",
         "seed:prize-pools": "node scripts/seed-prize-pool-funding.js",
         "eject": "react-scripts eject",
-        "deploy": "npm run build&&gh-pages -d build"
+        "deploy": "npm run build&&gh-pages -d build",
+        "deploy:github-root": "npm run build&&gh-pages -d build -r https://github.com/kononiaka/kononiaka.github.io.git -b main -f"
     },
     "eslintConfig": {
         "extends": [
