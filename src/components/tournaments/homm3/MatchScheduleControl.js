@@ -1,9 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import {
-    formatMatchSchedule,
-    fromDatetimeLocalValue,
-    toDatetimeLocalValue
-} from './matchScheduleUtils';
+import { formatMatchSchedule, fromDatetimeLocalValue, toDatetimeLocalValue } from './matchScheduleUtils';
 import classes from './MatchScheduleControl.module.css';
 
 const MatchScheduleControl = ({

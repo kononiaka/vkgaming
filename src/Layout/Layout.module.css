@@ -13,15 +13,15 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 
+    box-shadow:
         0 4px 8px rgba(0, 0, 0, 0.5),
         0 0 20px rgba(0, 255, 255, 0.3),
         inset 0 2px 4px rgba(255, 215, 0, 0.2);
 }
 
 .help-ico:hover {
-    border-color: #FFD700;
-    box-shadow: 
+    border-color: #ffd700;
+    box-shadow:
         0 8px 16px rgba(0, 0, 0, 0.6),
         0 0 40px rgba(0, 255, 255, 0.6),
         inset 0 2px 4px rgba(255, 215, 0, 0.4);
@@ -37,10 +37,19 @@
 }
 
 @keyframes questionBounce {
-    0%, 100% { transform: scale(1); }
-    25% { transform: scale(1.15); }
-    50% { transform: scale(0.95); }
-    75% { transform: scale(1.1); }
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    25% {
+        transform: scale(1.15);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    75% {
+        transform: scale(1.1);
+    }
 }
 
 .help-icon {
@@ -49,7 +58,7 @@
     background: linear-gradient(135deg, #00ffff, #0099cc);
     border-radius: 50%;
     position: relative;
-    box-shadow: 
+    box-shadow:
         inset -3px -3px 0 rgba(0, 0, 0, 0.4),
         inset 3px 3px 0 rgba(255, 255, 255, 0.4),
         0 0 15px rgba(0, 255, 255, 0.8);
@@ -67,7 +76,7 @@
     border: 4px solid #1a1a2e;
     border-bottom: none;
     border-radius: 20px 20px 0 0;
-    box-shadow: 
+    box-shadow:
         inset 0 2px 0 rgba(255, 255, 255, 0.3),
         0 1px 2px rgba(0, 0, 0, 0.5);
 }
@@ -80,7 +89,7 @@
     height: 6px;
     background: #1a1a2e;
     border-radius: 50%;
-    box-shadow: 
+    box-shadow:
         0 0 0 2px #00ffff,
         0 2px 4px rgba(0, 0, 0, 0.5);
 }
@@ -92,7 +101,7 @@
     width: 100%;
     height: 60px;
     background: linear-gradient(180deg, #1a1a2e 0%, #0f172a 100%);
-    border-bottom: 3px solid #FFD700;
+    border-bottom: 3px solid #ffd700;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -134,7 +143,7 @@
 }
 
 .donator-name {
-    color: #FFD700;
+    color: #ffd700;
     font-size: 1.1rem;
     text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
 }
@@ -157,7 +166,7 @@
     font-size: 12px;
     font-weight: bold;
     white-space: nowrap;
-    border: 2px solid #FFD700;
+    border: 2px solid #ffd700;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
     opacity: 0;
     visibility: hidden;
@@ -176,7 +185,16 @@
     height: 0;
     border-top: 8px solid transparent;
     border-bottom: 8px solid transparent;
-    border-left: 8px solid #FFD700;
+    border-left: 8px solid #ffd700;
+}
+
+.siteChrome {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    width: 100%;
+    background: linear-gradient(180deg, #121820 0%, #0d1118 100%);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
 }
 
 .mainContent {
@@ -199,4 +217,41 @@
 
 .siteFooter a:hover {
     color: var(--color-gold-dim);
+}
+
+@media (max-width: 768px) {
+    .mainContent {
+        padding: 0 0.5rem 0.5rem;
+    }
+
+    .siteFooter {
+        padding: 1rem 0.75rem 1.5rem;
+        font-size: 0.7rem;
+    }
+
+    .help-ico {
+        right: 1rem;
+        bottom: 5rem;
+        width: 56px;
+        height: 56px;
+        border-width: 3px;
+    }
+
+    .help-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .help-icon::before {
+        width: 14px;
+        height: 18px;
+        top: 6px;
+        border-width: 3px;
+    }
+
+    .help-icon::after {
+        bottom: 6px;
+        width: 5px;
+        height: 5px;
+    }
 }

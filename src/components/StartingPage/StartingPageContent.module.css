@@ -2,7 +2,7 @@
     width: calc(100% + 1.5rem);
     max-width: none;
     margin: 0 -0.75rem;
-    text-align: center;
+    text-align: left;
     padding: 1.75rem clamp(1rem, 4vw, 3rem) 2.5rem;
     background: var(--color-bg-panel);
     border: none;
@@ -10,6 +10,25 @@
     border-bottom: var(--border-panel);
     border-radius: 0;
     box-shadow: none;
+}
+
+.homeLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: clamp(1.25rem, 2.5vw, 2rem);
+    align-items: start;
+    max-width: 1320px;
+    margin: 0 auto;
+}
+
+.homeMain {
+    min-width: 0;
+}
+
+.homeSidebar {
+    position: sticky;
+    top: calc(var(--layout-top-offset) + 0.75rem);
+    min-width: 0;
 }
 
 /* ── Section breakers (lines between home blocks) ── */
@@ -47,11 +66,6 @@
 }
 
 /* ── Match center (home hub when a cup is active) ── */
-.prizePoolSection {
-    text-align: left;
-    max-width: 720px;
-}
-
 .matchCenterSection {
     text-align: left;
     margin-bottom: 0.5rem;
@@ -107,7 +121,7 @@
 .announcementList,
 .upcomingList {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
     gap: 1rem;
 }
 
@@ -656,6 +670,16 @@
 .restartValue {
     color: var(--color-text-muted);
     background: rgba(40, 56, 70, 0.4);
+}
+
+@media (max-width: 960px) {
+    .homeLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .homeSidebar {
+        position: static;
+    }
 }
 
 @media (max-width: 768px) {

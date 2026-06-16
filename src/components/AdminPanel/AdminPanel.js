@@ -86,9 +86,7 @@ const AdminPanel = () => {
             }
 
             setUsers(users.map((u) => (u.userId === userId ? { ...u, isAdmin: newStatus } : u)));
-            alert(
-                `Admin status ${newStatus ? 'granted' : 'revoked'} for ${targetUser?.nickname || 'user'}`
-            );
+            alert(`Admin status ${newStatus ? 'granted' : 'revoked'} for ${targetUser?.nickname || 'user'}`);
         } catch (error) {
             console.error('Error updating admin status:', error);
             alert('Error updating admin status: ' + error.message);

@@ -154,10 +154,7 @@ export const PlayerProfileContent = ({
 
         let cancelled = false;
 
-        fetchPlayerTournaments(
-            { ...player, id: playerId },
-            { includePrivateTournaments: Boolean(settingsSlot) }
-        )
+        fetchPlayerTournaments({ ...player, id: playerId }, { includePrivateTournaments: Boolean(settingsSlot) })
             .then((tournaments) => {
                 if (!cancelled) {
                     setAttendedTournaments(tournaments);
@@ -613,23 +610,15 @@ export const PlayerProfileContent = ({
     const konoplayTotalGames = player?.gamesPlayed?.heroes3?.total || 0;
     const konoplayLosses = player?.gamesPlayed?.heroes3?.lose || 0;
     const konoplayWins = Math.max(konoplayTotalGames - konoplayLosses, 0);
-    const konoplayRating = player?.ratings
-        ? parseFloat(player.ratings.split(',').pop()).toFixed(2)
-        : '0.00';
-    const konoplayWinRate =
-        konoplayTotalGames > 0 ? ((konoplayWins / konoplayTotalGames) * 100).toFixed(1) : '0.0';
+    const konoplayRating = player?.ratings ? parseFloat(player.ratings.split(',').pop()).toFixed(2) : '0.00';
+    const konoplayWinRate = konoplayTotalGames > 0 ? ((konoplayWins / konoplayTotalGames) * 100).toFixed(1) : '0.0';
 
     const totalGames = hotaDerived?.totalGames ?? konoplayTotalGames;
     const losses = hotaDerived?.losses ?? konoplayLosses;
     const wins = hotaDerived?.wins ?? konoplayWins;
-    const latestRating =
-        hotaDerived?.rating != null ? Number(hotaDerived.rating).toFixed(2) : konoplayRating;
-    const peakRating =
-        hotaDerived?.peakRating != null ? Number(hotaDerived.peakRating).toFixed(2) : null;
-    const overallWinRate =
-        hotaDerived?.winRate != null
-            ? Number(hotaDerived.winRate).toFixed(1)
-            : konoplayWinRate;
+    const latestRating = hotaDerived?.rating != null ? Number(hotaDerived.rating).toFixed(2) : konoplayRating;
+    const peakRating = hotaDerived?.peakRating != null ? Number(hotaDerived.peakRating).toFixed(2) : null;
+    const overallWinRate = hotaDerived?.winRate != null ? Number(hotaDerived.winRate).toFixed(1) : konoplayWinRate;
 
     const displayBestCastle = hotaIsSource ? hotaFactions.best : bestCastle;
     const displayWorstCastle = hotaIsSource ? hotaFactions.worst : worstCastle;
@@ -648,9 +637,7 @@ export const PlayerProfileContent = ({
                             ? 'Ranked stats from HotA Meta. Konoplay sections below cover cups, prizes, and site rewards.'
                             : subtitle}
                     </p>
-                    {hotaIsSource && (
-                        <div className={classes.sourceBadge}>Stats synced from HotA Meta</div>
-                    )}
+                    {hotaIsSource && <div className={classes.sourceBadge}>Stats synced from HotA Meta</div>}
 
                     <div className={classes.heroGrid}>
                         <div className={classes.profileCard}>
@@ -760,9 +747,7 @@ export const PlayerProfileContent = ({
                                     </>
                                 ) : null}
                                 <div className={classes.statusItem}>
-                                    <span className={classes.statusLabel}>
-                                        {hotaIsSource ? 'HotA rank' : 'Place'}
-                                    </span>
+                                    <span className={classes.statusLabel}>{hotaIsSource ? 'HotA rank' : 'Place'}</span>
                                     <span className={classes.statusValue}>
                                         {leaderboardPlace !== null ? `#${leaderboardPlace}` : '-'}
                                     </span>
@@ -846,13 +831,11 @@ export const PlayerProfileContent = ({
                     )}
 
                     <div className={classes.section}>
-                        <h3 className={classes.sectionTitle}>
-                            {hotaIsSource ? 'Konoplay cups' : 'Tournament prizes'}
-                        </h3>
+                        <h3 className={classes.sectionTitle}>{hotaIsSource ? 'Konoplay cups' : 'Tournament prizes'}</h3>
                         {hotaIsSource && (
                             <p className={classes.sectionNote}>
-                                Prize money from tournaments on this site. Ranked stats, colors, and gold trade are
-                                from HotA Meta above.
+                                Prize money from tournaments on this site. Ranked stats, colors, and gold trade are from
+                                HotA Meta above.
                             </p>
                         )}
                         {Array.isArray(player.prizes) && player.prizes.length > 0 ? (

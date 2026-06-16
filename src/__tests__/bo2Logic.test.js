@@ -10,9 +10,15 @@ function getBestOfValue(type) {
     const normalized = String(type || '')
         .toLowerCase()
         .trim();
-    if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') return 5;
-    if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') return 3;
-    if (normalized === 'bo-2' || normalized === '2' || normalized === 'bo2') return 2;
+    if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
+        return 5;
+    }
+    if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
+        return 3;
+    }
+    if (normalized === 'bo-2' || normalized === '2' || normalized === 'bo2') {
+        return 2;
+    }
     return 1;
 }
 
@@ -54,9 +60,15 @@ function autoSelectWinner(team1, team2, gameResults, bestOf) {
     const team1Wins = gameResults.filter((g) => g.winner === team1).length;
     const team2Wins = gameResults.filter((g) => g.winner === team2).length;
 
-    if (bestOf === 2 && team1Wins === 1 && team2Wins === 1) return 'draw';
-    if (team1Wins >= requiredWins) return team1;
-    if (team2Wins >= requiredWins) return team2;
+    if (bestOf === 2 && team1Wins === 1 && team2Wins === 1) {
+        return 'draw';
+    }
+    if (team1Wins >= requiredWins) {
+        return team1;
+    }
+    if (team2Wins >= requiredWins) {
+        return team2;
+    }
     return null; // no winner yet
 }
 
@@ -147,26 +159,36 @@ function calcWinPoints(pair, winnerTeam) {
     let total111 = 0;
     let total112 = 0;
     games.forEach((g) => {
-        if (!g) return;
+        if (!g) {
+            return;
+        }
         total111 += Number(isTeam1 ? g.restart1_111 : g.restart2_111) || 0;
         total112 += Number(isTeam1 ? g.restart1_112 : g.restart2_112) || 0;
     });
     const totalRestarts = total111 + total112;
-    if (totalRestarts === 0) return 3;
-    if (totalRestarts === 1) return 2.5;
+    if (totalRestarts === 0) {
+        return 3;
+    }
+    if (totalRestarts === 1) {
+        return 2.5;
+    }
     return 2;
 }
 
 function computeStandings(pairs, registeredPlayers = []) {
     const map = {};
     registeredPlayers.forEach((name) => {
-        if (name) map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+        if (name) {
+            map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+        }
     });
     pairs.forEach((pair) => {
-        if (pair.team1 && pair.team1 !== 'TBD' && !map[pair.team1])
+        if (pair.team1 && pair.team1 !== 'TBD' && !map[pair.team1]) {
             map[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
-        if (pair.team2 && pair.team2 !== 'TBD' && !map[pair.team2])
+        }
+        if (pair.team2 && pair.team2 !== 'TBD' && !map[pair.team2]) {
             map[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+        }
         if (pair.winner && pair.winner !== 'TBD') {
             map[pair.team1].played++;
             map[pair.team2].played++;
@@ -294,10 +316,12 @@ describe('computeStandings — bo-2 scoring', () => {
 function computeFinishLeagueStandings(pairs) {
     const standingsMap = {};
     pairs.forEach((pair) => {
-        if (!standingsMap[pair.team1])
+        if (!standingsMap[pair.team1]) {
             standingsMap[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
-        if (!standingsMap[pair.team2])
+        }
+        if (!standingsMap[pair.team2]) {
             standingsMap[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+        }
         if (pair.winner) {
             standingsMap[pair.team1].played++;
             standingsMap[pair.team2].played++;
@@ -398,7 +422,9 @@ describe('handleSubmit draw validation', () => {
             const valid =
                 (score1 === requiredWins && score2 < requiredWins) ||
                 (score2 === requiredWins && score1 < requiredWins);
-            if (!valid) return { valid: false, error: 'invalid score for winner' };
+            if (!valid) {
+                return { valid: false, error: 'invalid score for winner' };
+            }
         }
         if (selectedWinner === 'draw' && !(score1 === 1 && score2 === 1 && bestOf === 2)) {
             return { valid: false, error: 'draw only valid for bo-2 with 1-1 score' };

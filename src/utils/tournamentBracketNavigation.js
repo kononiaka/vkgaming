@@ -47,12 +47,7 @@ export const inferScheduleView = ({
         return true;
     }
 
-    return stagePairs.some(
-        (pair) =>
-            pair?.round != null ||
-            pair?.group ||
-            isScheduleStageLabel(pair?.stage)
-    );
+    return stagePairs.some((pair) => pair?.round != null || pair?.group || isScheduleStageLabel(pair?.stage));
 };
 
 export const getTournamentMatchLink = (match) => {
@@ -62,9 +57,7 @@ export const getTournamentMatchLink = (match) => {
 };
 
 export const pairHasLiveMap = (pair) =>
-    Boolean(
-        pair?.games?.some((game) => game?.castle1 && game?.castle2 && !game?.castleWinner)
-    );
+    Boolean(pair?.games?.some((game) => game?.castle1 && game?.castle2 && !game?.castleWinner));
 
 export const isTestOnlyGame = (game, pair) => Boolean(game?.testOnly || pair?.testReport);
 

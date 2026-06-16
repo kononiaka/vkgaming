@@ -17,10 +17,7 @@ const loserStageLabels = (maxPlayers) => {
         return ['LB Final'];
     }
 
-    return [
-        ...Array.from({ length: loserStageCount - 1 }, (_, index) => `LB R${index + 1}`),
-        'LB Final'
-    ];
+    return [...Array.from({ length: loserStageCount - 1 }, (_, index) => `LB R${index + 1}`), 'LB Final'];
 };
 
 export const getDoubleElimStageLabels = (maxPlayers) => [
@@ -113,12 +110,7 @@ const normalizePlayers = (shuffledNames) =>
         stars: typeof player === 'string' ? 0 : player?.stars || 0
     }));
 
-export const createDoubleElimPlayoffPairs = (
-    playoffsGames,
-    tournamentPlayoffGamesFinal,
-    shuffledNames,
-    maxPlayers
-) => {
+export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, maxPlayers) => {
     const labels = getDoubleElimStageLabels(maxPlayers);
     const winnerCounts = winnerPairsPerStage(maxPlayers);
     const loserCounts = loserPairsPerStage(maxPlayers);
@@ -193,18 +185,11 @@ export const dropLoserToBracket = ({
     const lbR1Index = stageLabels.indexOf('LB R1');
     const lbR2Index = stageLabels.indexOf('LB R2');
     const lbFinalIndex = stageLabels.indexOf('LB Final');
-    const wbFinalIndex = stageLabels.indexOf('WB Final');
 
     if (currentStage === 'Quarter-final' && lbR1Index !== -1) {
         const targetPairIndex = Math.floor(pairIndex / 2);
         const slot = pairIndex % 2 === 0 ? 'team1' : 'team2';
-        return fillSlot(
-            updatedPairs[lbR1Index]?.[targetPairIndex],
-            slot,
-            loser,
-            loserRating,
-            loserStars
-        );
+        return fillSlot(updatedPairs[lbR1Index]?.[targetPairIndex], slot, loser, loserRating, loserStars);
     }
 
     if (currentStage === 'Semi-final' && size === 4 && lbR1Index !== -1) {
@@ -224,13 +209,7 @@ export const dropLoserToBracket = ({
     if (currentStage === '1/8 Final' && lbR1Index !== -1) {
         const targetPairIndex = Math.floor(pairIndex / 2);
         const slot = pairIndex % 2 === 0 ? 'team1' : 'team2';
-        return fillSlot(
-            updatedPairs[lbR1Index]?.[targetPairIndex],
-            slot,
-            loser,
-            loserRating,
-            loserStars
-        );
+        return fillSlot(updatedPairs[lbR1Index]?.[targetPairIndex], slot, loser, loserRating, loserStars);
     }
 
     return false;
@@ -243,14 +222,12 @@ export const promoteLoserBracketWinner = ({
     pairIndex,
     winner,
     winnerRating,
-    winnerStars,
-    maxPlayers
+    winnerStars
 }) => {
     if (!winner || winner === 'TBD' || !currentStage.startsWith('LB')) {
         return false;
     }
 
-    const lbFinalIndex = stageLabels.indexOf('LB Final');
     const grandFinalIndex = stageLabels.indexOf('Grand Final');
 
     if (currentStage.startsWith('LB R')) {
@@ -263,13 +240,7 @@ export const promoteLoserBracketWinner = ({
 
         const targetPairIndex = nextLabel === 'LB Final' ? 0 : Math.floor(pairIndex / 2);
         const slot = nextLabel === 'LB Final' ? 'team1' : pairIndex % 2 === 0 ? 'team1' : 'team2';
-        return fillSlot(
-            updatedPairs[nextIndex]?.[targetPairIndex],
-            slot,
-            winner,
-            winnerRating,
-            winnerStars
-        );
+        return fillSlot(updatedPairs[nextIndex]?.[targetPairIndex], slot, winner, winnerRating, winnerStars);
     }
 
     if (currentStage === 'LB Final' && grandFinalIndex !== -1) {

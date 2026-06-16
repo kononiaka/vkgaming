@@ -2,13 +2,7 @@ import StatsPopup from '../StatsPopup/StatsPopup';
 import { canShowHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
 import classes from './HeadToHeadStatsButton.module.css';
 
-export const HeadToHeadStatsButton = ({
-    team1,
-    team2,
-    onShow,
-    className = '',
-    variant = 'icon'
-}) => {
+export const HeadToHeadStatsButton = ({ team1, team2, onShow, className = '', variant = 'icon' }) => {
     if (!canShowHeadToHeadStats(team1, team2)) {
         return null;
     }

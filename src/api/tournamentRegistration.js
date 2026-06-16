@@ -53,7 +53,9 @@ export const findRegisteredPlayerKey = (players, { nickname, firebaseUid }) => {
         return null;
     }
 
-    const normalizedNick = String(nickname || '').trim().toLowerCase();
+    const normalizedNick = String(nickname || '')
+        .trim()
+        .toLowerCase();
 
     for (const [key, player] of Object.entries(players)) {
         if (!player || typeof player !== 'object') {
@@ -62,7 +64,12 @@ export const findRegisteredPlayerKey = (players, { nickname, firebaseUid }) => {
         if (firebaseUid && player.registeredUid === firebaseUid) {
             return key;
         }
-        if (normalizedNick && String(player.name || '').trim().toLowerCase() === normalizedNick) {
+        if (
+            normalizedNick &&
+            String(player.name || '')
+                .trim()
+                .toLowerCase() === normalizedNick
+        ) {
             return key;
         }
     }
@@ -95,14 +102,11 @@ export const addCreatorToTournament = async (tournamentId, nickname) => {
 
     const { payload } = await buildPlayerPayload(nickname);
 
-    const response = await authFetch(
-        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players/.json`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }
-    );
+    const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players/.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
 
     if (!response.ok) {
         throw new Error('Could not add you to the tournament.');

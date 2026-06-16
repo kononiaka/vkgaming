@@ -39,6 +39,9 @@
     border-radius: var(--radius-md);
     padding: 1rem 1.25rem;
     margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
 }
 
 .infoLead {
@@ -46,6 +49,15 @@
     color: var(--color-text-muted);
     font-size: 0.9rem;
     line-height: 1.6;
+}
+
+.inlineLink {
+    color: var(--color-gold);
+    text-decoration: none;
+}
+
+.inlineLink:hover {
+    text-decoration: underline;
 }
 
 .channelList {

@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-    HeadToHeadStatsButton,
-    HeadToHeadStatsPortal
-} from '../HeadToHead/HeadToHeadStatsButton';
+import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../HeadToHead/HeadToHeadStatsButton';
 import TwitchEmbed from '../LiveArena/TwitchEmbed';
 import { fetchTwitchLiveLogins } from '../../api/twitchStreams';
 import { useHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
@@ -33,12 +30,7 @@ const StreamPanel = ({ playerName, twitchLogin, isLive }) => {
                     </span>
                 </div>
                 {channelUrl && (
-                    <a
-                        href={channelUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={classes.channelLink}
-                    >
+                    <a href={channelUrl} target="_blank" rel="noopener noreferrer" className={classes.channelLink}>
                         Twitch channel
                     </a>
                 )}
@@ -258,8 +250,8 @@ const MatchCenterPage = () => {
                 <p className={classes.helpTitle}>How to use fullscreen mode</p>
                 <p className={classes.helpText}>
                     Choose multistream to watch both players side by side, then press Fullscreen. Hotkeys:{' '}
-                    <strong>1</strong> player 1 only, <strong>2</strong> player 2 only, <strong>3</strong>{' '}
-                    multistream, <strong>F</strong> fullscreen.
+                    <strong>1</strong> player 1 only, <strong>2</strong> player 2 only, <strong>3</strong> multistream,{' '}
+                    <strong>F</strong> fullscreen.
                 </p>
             </div>
 
@@ -270,18 +262,10 @@ const MatchCenterPage = () => {
                 }`}
             >
                 {(viewMode === VIEW_MODES.TEAM1 || viewMode === VIEW_MODES.MULTI) && (
-                    <StreamPanel
-                        playerName={match.team1}
-                        twitchLogin={team1Login}
-                        isLive={team1Live}
-                    />
+                    <StreamPanel playerName={match.team1} twitchLogin={team1Login} isLive={team1Live} />
                 )}
                 {(viewMode === VIEW_MODES.TEAM2 || viewMode === VIEW_MODES.MULTI) && (
-                    <StreamPanel
-                        playerName={match.team2}
-                        twitchLogin={team2Login}
-                        isLive={team2Live}
-                    />
+                    <StreamPanel playerName={match.team2} twitchLogin={team2Login} isLive={team2Live} />
                 )}
             </div>
 

@@ -7,7 +7,6 @@ import {
     getNewRating,
     getPlayerPrizeTotal,
     loadUserById,
-    lookForCastleStats,
     lookForTournamentName,
     lookForUserId,
     lookForUserPrevScore,
@@ -27,16 +26,8 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
-import {
-    generateNextSwissRoundPairings,
-    isSwissRoundComplete,
-    normalizeGameType
-} from './swissUtils';
-import {
-    dropLoserToBracket,
-    getDoubleElimStageLabels,
-    promoteLoserBracketWinner
-} from './loserBracketUtils';
+import { generateNextSwissRoundPairings, isSwissRoundComplete, normalizeGameType } from './swissUtils';
+import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
 import {
     generateKnockoutBracketStages,
     getGroupLabels,
@@ -44,7 +35,6 @@ import {
     getQualifiedPlayers,
     isChampionsLeagueGroupStageComplete,
     isGroupDrawGridComplete,
-    orderPlayersFromWheelPairs,
     prepareChampionsLeagueFromDrawGrid,
     prepareChampionsLeagueGroupStage
 } from './championsLeagueUtils';
@@ -63,10 +53,8 @@ import classes from './tournamentsBracket.module.css';
 import { getCastleImage } from '../../../utils/castleImages';
 import TournamentPlayerChip from './TournamentPlayerChip';
 import chipClasses from './TournamentPlayerChip.module.css';
-const formatPlayerName = (player) => player.name;
 
 const uniquePlayerNames = [];
-let SHOULD_POSTING = true;
 let isManualScore = false;
 let clickedRadioButton;
 let playersObj = {};
@@ -88,6 +76,31 @@ const normalizeMatchType = (rawType) => {
 const getBestOfValue = (matchType) => {
     const normalized = normalizeMatchType(matchType);
     return Number(normalized.split('-')[1]) || 1;
+};
+
+const MOBILE_KNOCKOUT_MQ = '(max-width: 768px)';
+
+const getKnockoutPaginationStages = (labels, isMobileView) => {
+    const allDisplayStages = labels.filter((s) => s !== 'Third Place');
+    if (isMobileView) {
+        return allDisplayStages;
+    }
+    return allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+};
+
+const useMobileKnockoutView = () => {
+    const [isMobile, setIsMobile] = useState(
+        () => typeof window !== 'undefined' && window.matchMedia(MOBILE_KNOCKOUT_MQ).matches
+    );
+
+    useEffect(() => {
+        const mq = window.matchMedia(MOBILE_KNOCKOUT_MQ);
+        const onChange = (event) => setIsMobile(event.matches);
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
+
+    return isMobile;
 };
 
 // Chains ELO across every played game in a series and returns the final ratings.
@@ -191,7 +204,8 @@ export const TournamentBracket = ({
     const [selectedPairId, setSelectedPairId] = useState(null);
     const [selectedInitialGameId, setSelectedInitialGameId] = useState(null);
     const [activeBracketStage, setActiveBracketStage] = useState(0);
-    const [displayName, setDisplayName] = useState('');
+    const isMobileKnockoutView = useMobileKnockoutView();
+    const [, setDisplayName] = useState('');
     const [urlHighlightPair, setUrlHighlightPair] = useState(null);
     const [searchParams, setSearchParams] = useSearchParams();
     const highlightedPairRef = useRef(null);
@@ -218,10 +232,9 @@ export const TournamentBracket = ({
         setActiveBracketStage(0);
     }, [tournamentId]);
 
-    const resolveKnockoutDisplayStage = (storageStageIdx, labels) => {
+    const resolveKnockoutDisplayStage = (storageStageIdx, labels, isMobileView = false) => {
         const allDisplayStages = labels.filter((s) => s !== 'Third Place');
-        const displayStages =
-            allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+        const displayStages = getKnockoutPaginationStages(labels, isMobileView);
         if (displayStages.length === 0) {
             return 0;
         }
@@ -231,6 +244,10 @@ export const TournamentBracket = ({
             return Math.min(storageStageIdx, displayStages.length - 1);
         }
         if (label === 'Final' || label === 'Third Place') {
+            if (isMobileView) {
+                const finalIdx = allDisplayStages.indexOf('Final');
+                return finalIdx !== -1 ? finalIdx : displayStages.length - 1;
+            }
             return displayStages.length - 1;
         }
 
@@ -242,9 +259,7 @@ export const TournamentBracket = ({
         for (let i = 0; i < displayStages.length; i++) {
             const nextLabel =
                 displayStages[i + 1] ??
-                (allDisplayStages.length > displayStages.length
-                    ? allDisplayStages[allDisplayStages.length - 1]
-                    : null);
+                (allDisplayStages.length > displayStages.length ? allDisplayStages[allDisplayStages.length - 1] : null);
             if (nextLabel === label) {
                 return i;
             }
@@ -272,10 +287,9 @@ export const TournamentBracket = ({
                 return;
             }
 
-            const clKnockoutOffset =
-                isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+            const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
             const labelStageIndex = targetStageIndex - clKnockoutOffset;
-            setActiveBracketStage(resolveKnockoutDisplayStage(labelStageIndex, stageLabels));
+            setActiveBracketStage(resolveKnockoutDisplayStage(labelStageIndex, stageLabels, isMobileKnockoutView));
         }
 
         const timer = setTimeout(() => {
@@ -321,7 +335,8 @@ export const TournamentBracket = ({
         isSwiss,
         isChampionsLeague,
         championsLeaguePhase,
-        usesScheduleView
+        usesScheduleView,
+        isMobileKnockoutView
     ]);
 
     const normalizeName = (value) =>
@@ -493,9 +508,7 @@ export const TournamentBracket = ({
                             authFetch(
                                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`
                             ),
-                            authFetch(
-                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`
-                            )
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`)
                         ]);
 
                         if (phaseRes.ok) {
@@ -697,8 +710,7 @@ export const TournamentBracket = ({
             console.log('Tournament data:', data);
             // const playoffsGames = data.tournamentPlayoffGames;
             // const tournamentPlayoffGamesFinal = data.tournamentPlayoffGamesFinal;
-            const randomBrackets =
-                data.type === 'league' || data.type === 'swiss' ? false : data.randomBracket;
+            const randomBrackets = data.type === 'league' || data.type === 'swiss' ? false : data.randomBracket;
             playersObj = data.players;
             console.log('playersObj:', playersObj);
             // let tournamentData = {};
@@ -749,9 +761,7 @@ export const TournamentBracket = ({
             console.log('Should open spinning wheel?', !randomBrackets);
             if (randomBrackets) {
                 console.log('Opening spinning wheel...');
-                setSpinningWheelMode(
-                    data.type === 'champions-league' ? 'champions-league' : 'kickoff'
-                );
+                setSpinningWheelMode(data.type === 'champions-league' ? 'champions-league' : 'kickoff');
                 setIsSpinningWheelOpen(true);
             } else if (data.type === 'champions-league') {
                 const playerList = Object.values(playersObj || {}).filter(
@@ -776,14 +786,11 @@ export const TournamentBracket = ({
                     return;
                 }
 
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(prepared.groups),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(prepared.groups),
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
                     {
@@ -792,14 +799,11 @@ export const TournamentBracket = ({
                         headers: { 'Content-Type': 'application/json' }
                     }
                 );
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify('Started!'),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
                 setIsChampionsLeague(true);
                 setChampionsLeaguePhase('group');
@@ -839,7 +843,6 @@ export const TournamentBracket = ({
         console.log('Auto-confirmed:', message);
         return true;
     };
-
 
     const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
         const stageMappings = {
@@ -957,14 +960,11 @@ export const TournamentBracket = ({
                     throw new Error('Failed to save group stage matches');
                 }
 
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(prepared.groups),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(prepared.groups),
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
                     {
@@ -973,14 +973,11 @@ export const TournamentBracket = ({
                         headers: { 'Content-Type': 'application/json' }
                     }
                 );
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify('Started!'),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
                 setIsChampionsLeague(true);
                 setChampionsLeaguePhase('group');
@@ -1167,16 +1164,13 @@ export const TournamentBracket = ({
             if (tournamentResponse.ok) {
                 console.log('Tournament Bracket Updated successfully!');
                 // Update tournament status
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify('Started!'),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify('Started!'),
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                );
+                });
                 console.log('Tournament successfully started!');
                 setIsSpinningWheelOpen(false);
 
@@ -1315,14 +1309,11 @@ export const TournamentBracket = ({
                 );
             }
 
-            const res = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify('Tournament Finished'),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            const res = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`, {
+                method: 'PUT',
+                body: JSON.stringify('Tournament Finished'),
+                headers: { 'Content-Type': 'application/json' }
+            });
             if (!res.ok) {
                 alert('Failed to update tournament status.');
                 return;
@@ -1394,14 +1385,11 @@ export const TournamentBracket = ({
                 throw new Error('Failed to save Swiss pairings');
             }
 
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissCurrentRound.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(nextRound),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissCurrentRound.json`, {
+                method: 'PUT',
+                body: JSON.stringify(nextRound),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
             setPlayoffPairs([updatedPairs]);
             setSwissCurrentRound(nextRound);
@@ -1471,23 +1459,17 @@ export const TournamentBracket = ({
                 throw new Error('Failed to save knockout bracket');
             }
 
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify('knockout'),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`, {
+                method: 'PUT',
+                body: JSON.stringify('knockout'),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/stageLabels.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(knockoutLabels),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/stageLabels.json`, {
+                method: 'PUT',
+                body: JSON.stringify(knockoutLabels),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
             setPlayoffPairs(updatedPairs);
             setStageLabels(knockoutLabels);
@@ -1793,14 +1775,11 @@ export const TournamentBracket = ({
                 `Update ${team1} statistics to database?\n\nTotal: ${updatedOpponent1Stats.total}, Win: ${updatedOpponent1Stats.win}, Lose: ${updatedOpponent1Stats.lose}\n\nUpdate?`
             );
             if (confirmStats1) {
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/users/${opponent1Id}/gamesPlayed/heroes3.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(updatedOpponent1Stats),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/users/${opponent1Id}/gamesPlayed/heroes3.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedOpponent1Stats),
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 console.log(`${team1} statistics updated successfully`);
             } else {
                 console.log(`${team1} statistics update skipped by user`);
@@ -1811,14 +1790,11 @@ export const TournamentBracket = ({
                 `Update ${team2} statistics to database?\n\nTotal: ${updatedOpponent2Stats.total}, Win: ${updatedOpponent2Stats.win}, Lose: ${updatedOpponent2Stats.lose}\n\nUpdate?`
             );
             if (confirmStats2) {
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/users/${opponent2Id}/gamesPlayed/heroes3.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(updatedOpponent2Stats),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/users/${opponent2Id}/gamesPlayed/heroes3.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedOpponent2Stats),
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 console.log(`${team2} statistics updated successfully`);
             } else {
                 console.log(`${team2} statistics update skipped by user`);
@@ -2099,9 +2075,7 @@ export const TournamentBracket = ({
                         }
                     } else {
                         lines.push(
-                            reportData.mockMode
-                                ? '  • ELO ratings: skipped (test mode)'
-                                : '  ✓ Ratings (already done)'
+                            reportData.mockMode ? '  • ELO ratings: skipped (test mode)' : '  ✓ Ratings (already done)'
                         );
                     }
 
@@ -2164,9 +2138,7 @@ export const TournamentBracket = ({
                         }
                     } else {
                         lines.push(
-                            reportData.mockMode
-                                ? '  • Prize payouts: skipped (test mode)'
-                                : '  ✓ Prizes (already done)'
+                            reportData.mockMode ? '  • Prize payouts: skipped (test mode)' : '  ✓ Prizes (already done)'
                         );
                     }
 
@@ -2874,14 +2846,11 @@ export const TournamentBracket = ({
                                         );
 
                                         if (confirmUpdatePlayer) {
-                                            await authFetch(
-                                                `${FIREBASE_DATABASE_URL}/users/${playerId}.json`,
-                                                {
-                                                    method: 'PUT',
-                                                    body: JSON.stringify(playerData),
-                                                    headers: { 'Content-Type': 'application/json' }
-                                                }
-                                            );
+                                            await authFetch(`${FIREBASE_DATABASE_URL}/users/${playerId}.json`, {
+                                                method: 'PUT',
+                                                body: JSON.stringify(playerData),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            });
                                             console.log('Player record updated with 3rd place prize');
                                         }
                                     } else {
@@ -3068,57 +3037,57 @@ export const TournamentBracket = ({
                                 );
 
                                 if (confirmStatusUpdate) {
-                                try {
-                                    await authFetch(
-                                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
-                                        {
-                                            method: 'PUT',
-                                            body: JSON.stringify('Tournament Finished'),
-                                            headers: { 'Content-Type': 'application/json' }
-                                        }
-                                    );
-                                    console.log('Tournament status updated to Tournament Finished');
-
-                                    // Automatically snapshot current leaderboard rankings after tournament finishes
                                     try {
-                                        const snapshotResult = await snapshotLeaderboardRanks();
-                                        if (snapshotResult.success) {
-                                            console.log(
-                                                `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
-                                            );
+                                        await authFetch(
+                                            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/status.json`,
+                                            {
+                                                method: 'PUT',
+                                                body: JSON.stringify('Tournament Finished'),
+                                                headers: { 'Content-Type': 'application/json' }
+                                            }
+                                        );
+                                        console.log('Tournament status updated to Tournament Finished');
+
+                                        // Automatically snapshot current leaderboard rankings after tournament finishes
+                                        try {
+                                            const snapshotResult = await snapshotLeaderboardRanks();
+                                            if (snapshotResult.success) {
+                                                console.log(
+                                                    `Leaderboard snapshot taken after tournament: ${snapshotResult.successCount} players, ${snapshotResult.errorCount} errors`
+                                                );
+                                            } else {
+                                                console.error(
+                                                    'Failed to snapshot leaderboard after tournament:',
+                                                    snapshotResult.error
+                                                );
+                                            }
+                                        } catch (error) {
+                                            console.error('Error during leaderboard snapshot after tournament:', error);
+                                        }
+
+                                        // Recalculate stars for all players based on new ratings
+                                        const confirmRecalculateStars = confirmWindow(
+                                            `Recalculate stars for all players based on updated ratings?\n\nThis will update every player's star count.`
+                                        );
+
+                                        if (confirmRecalculateStars) {
+                                            try {
+                                                const result = await recalculatePlayerStars();
+                                                console.log(
+                                                    `All player stars recalculated successfully. Updated ${result.updatedCount} players.`
+                                                );
+                                                alert('Player stars recalculated successfully!');
+                                            } catch (error) {
+                                                console.error('Error recalculating stars:', error);
+                                                alert('Error recalculating stars: ' + error.message);
+                                            }
                                         } else {
-                                            console.error(
-                                                'Failed to snapshot leaderboard after tournament:',
-                                                snapshotResult.error
-                                            );
+                                            console.log('Star recalculation cancelled by user');
                                         }
                                     } catch (error) {
-                                        console.error('Error during leaderboard snapshot after tournament:', error);
+                                        console.error('Error updating tournament status:', error);
+                                        alert('Error updating tournament status: ' + error.message);
                                     }
-
-                                    // Recalculate stars for all players based on new ratings
-                                    const confirmRecalculateStars = confirmWindow(
-                                        `Recalculate stars for all players based on updated ratings?\n\nThis will update every player's star count.`
-                                    );
-
-                                    if (confirmRecalculateStars) {
-                                        try {
-                                            const result = await recalculatePlayerStars();
-                                            console.log(
-                                                `All player stars recalculated successfully. Updated ${result.updatedCount} players.`
-                                            );
-                                            alert('Player stars recalculated successfully!');
-                                        } catch (error) {
-                                            console.error('Error recalculating stars:', error);
-                                            alert('Error recalculating stars: ' + error.message);
-                                        }
-                                    } else {
-                                        console.log('Star recalculation cancelled by user');
-                                    }
-                                } catch (error) {
-                                    console.error('Error updating tournament status:', error);
-                                    alert('Error updating tournament status: ' + error.message);
-                                }
                                 } else {
                                     console.log('Tournament status update cancelled by user');
                                 }
@@ -3264,7 +3233,7 @@ export const TournamentBracket = ({
         );
     };
 
-    const renderKnockoutReportButton = (pair, stageIndex, pairIndex) => {
+    const _renderKnockoutReportButton = (pair, stageIndex, pairIndex) => {
         if (pair.team1 === 'TBD' || pair.team2 === 'TBD') {
             return null;
         }
@@ -3286,7 +3255,7 @@ export const TournamentBracket = ({
         );
     };
 
-    const renderMatchFormatBadge = (pair) => {
+    const _renderMatchFormatBadge = (pair) => {
         const label = pair.type === 'bo-5' ? 'BO5' : pair.type === 'bo-3' ? 'BO3' : 'BO1';
         const extraClass =
             pair.type === 'bo-5'
@@ -3297,7 +3266,7 @@ export const TournamentBracket = ({
         return <div className={`${classes.matchFormatBadge} ${extraClass}`}>⚔ {label}</div>;
     };
 
-    const getKnockoutGameBlockClass = (isHighlighted) =>
+    const _getKnockoutGameBlockClass = (isHighlighted) =>
         `${classes['game-block']} ${isHighlighted ? classes.gameBlockHighlighted : ''}`;
 
     return (
@@ -3334,39 +3303,36 @@ export const TournamentBracket = ({
 
                         <div className={`${classes.headerSide} ${classes.headerSideEnd}`}>
                             {authCtx.isAdmin && strictCastlePick && (
-                                <button
-                                    onClick={() => handleGetAvailableCastles()}
-                                    className={classes.actionButton}
-                                >
+                                <button onClick={() => handleGetAvailableCastles()} className={classes.actionButton}>
                                     Get Available Castles
                                 </button>
                             )}
                             {authCtx.isAdmin &&
                                 (tournamentStatus === 'Tournament Finished' ||
                                     String(tournamentStatus || '').includes('Finished')) && (
-                                <button
-                                    onClick={async () => {
-                                        const confirmed = window.confirm(
-                                            "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
-                                        );
-                                        if (!confirmed) {
-                                            return;
-                                        }
-                                        try {
-                                            const result = await recalculatePlayerStars();
-                                            alert(
-                                                `Stars recalculated successfully! Updated ${result.updatedCount} players.`
+                                    <button
+                                        onClick={async () => {
+                                            const confirmed = window.confirm(
+                                                "Recalculate stars for ALL players based on their current ratings?\n\nThis will update every player's star count."
                                             );
-                                        } catch (error) {
-                                            console.error('Error recalculating stars:', error);
-                                            alert('Error recalculating stars: ' + error.message);
-                                        }
-                                    }}
-                                    className={`${classes.actionButton} ${classes.actionButtonSecondary}`}
-                                >
-                                    Recalculate stars
-                                </button>
-                            )}
+                                            if (!confirmed) {
+                                                return;
+                                            }
+                                            try {
+                                                const result = await recalculatePlayerStars();
+                                                alert(
+                                                    `Stars recalculated successfully! Updated ${result.updatedCount} players.`
+                                                );
+                                            } catch (error) {
+                                                console.error('Error recalculating stars:', error);
+                                                alert('Error recalculating stars: ' + error.message);
+                                            }
+                                        }}
+                                        className={`${classes.actionButton} ${classes.actionButtonSecondary}`}
+                                    >
+                                        Recalculate stars
+                                    </button>
+                                )}
                         </div>
                     </div>
                 )}
@@ -3389,10 +3355,7 @@ export const TournamentBracket = ({
             )}
 
             {strictCastlePick && showCastlesModal && (
-                <div
-                    className={classes.castlesModalBackdrop}
-                    onClick={() => setShowCastlesModal(false)}
-                >
+                <div className={classes.castlesModalBackdrop} onClick={() => setShowCastlesModal(false)}>
                     <div className={classes.castlesModal} onClick={(e) => e.stopPropagation()}>
                         <button
                             type="button"
@@ -3427,9 +3390,7 @@ export const TournamentBracket = ({
                         </div>
                         <ul className={classes.castlesModalList}>
                             {(() => {
-                                const totals = availableCastles.map(
-                                    (castle) => castle.total + (castle.liveGames || 0)
-                                );
+                                const totals = availableCastles.map((castle) => castle.total + (castle.liveGames || 0));
                                 const minTotal = Math.min(...totals);
                                 const maxTotal = Math.max(...totals);
 
@@ -3502,10 +3463,10 @@ export const TournamentBracket = ({
                 !isLeague &&
                 !isSwiss &&
                 !isChampionsLeague && (
-                <button onClick={handleStartTournament} className={classes.actionButton}>
-                    Start Tournament
-                </button>
-            )}
+                    <button onClick={handleStartTournament} className={classes.actionButton}>
+                        Start Tournament
+                    </button>
+                )}
             {startTournament && playoffPairs.length === 0 && (
                 <button onClick={() => shuffleArray(uniquePlayerNames)} className={classes.actionButton}>
                     Shuffle
@@ -3532,11 +3493,7 @@ export const TournamentBracket = ({
                         playersObj={playersObj}
                         roundLabel={isSwiss ? 'Round' : 'Matchday'}
                         scheduleTitle={
-                            isChampionsLeague
-                                ? 'Champions League groups'
-                                : isSwiss
-                                  ? 'Swiss views'
-                                  : 'League views'
+                            isChampionsLeague ? 'Champions League groups' : isSwiss ? 'Swiss views' : 'League views'
                         }
                         groupLabels={isChampionsLeague ? championsGroupLabels : []}
                         highlightPair={urlHighlightPair}
@@ -3568,10 +3525,7 @@ export const TournamentBracket = ({
                         swissCurrentRound < swissTotalRounds &&
                         isSwissRoundComplete(playoffPairs[0] || [], swissCurrentRound) && (
                             <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
-                                <button
-                                    className={classes.actionButton}
-                                    onClick={handleGenerateNextSwissRound}
-                                >
+                                <button className={classes.actionButton} onClick={handleGenerateNextSwissRound}>
                                     Generate round {swissCurrentRound + 1}
                                 </button>
                             </div>
@@ -3595,27 +3549,22 @@ export const TournamentBracket = ({
                 </div>
             ) : (
                 (() => {
-                    const clKnockoutOffset =
-                        isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
-                    const bracketPairs =
-                        clKnockoutOffset > 0 ? playoffPairs.slice(clKnockoutOffset) : playoffPairs;
+                    const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+                    const bracketPairs = clKnockoutOffset > 0 ? playoffPairs.slice(clKnockoutOffset) : playoffPairs;
                     const storageStage = (labelIndex) => labelIndex + clKnockoutOffset;
 
                     const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
-                    // When there are multiple stages, the last one (Final) is already shown
-                    // as the right column of the previous page — no need for a dedicated page.
-                    const displayStages =
-                        allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+                    const displayStages = getKnockoutPaginationStages(stageLabels, isMobileKnockoutView);
                     const clampedStage = Math.min(activeBracketStage, displayStages.length - 1);
                     const currentDisplayStage = displayStages[clampedStage];
                     const stageIndex = stageLabels.indexOf(currentDisplayStage);
                     const thirdPlaceIndex = stageLabels.indexOf('Third Place');
-                    // On the last navigable page, show the removed Final as the right column
-                    const nextDisplayStage =
-                        displayStages[clampedStage + 1] ??
-                        (clampedStage === displayStages.length - 1 && allDisplayStages.length > displayStages.length
-                            ? allDisplayStages[allDisplayStages.length - 1]
-                            : null);
+                    const nextDisplayStage = isMobileKnockoutView
+                        ? null
+                        : (displayStages[clampedStage + 1] ??
+                          (clampedStage === displayStages.length - 1 && allDisplayStages.length > displayStages.length
+                              ? allDisplayStages[allDisplayStages.length - 1]
+                              : null));
                     const nextStageIndex = nextDisplayStage !== null ? stageLabels.indexOf(nextDisplayStage) : -1;
 
                     // Shared bracket layout constants
@@ -3654,16 +3603,22 @@ export const TournamentBracket = ({
                                 </button>
                                 <div className={classes.knockoutNavCenter}>
                                     <div className={classes.knockoutStageTitle}>
-                                        {nextDisplayStage !== null
-                                            ? `${currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage} → ${nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}`
-                                            : currentDisplayStage === 'Final'
-                                              ? 'Final & Third Place'
-                                              : currentDisplayStage}
+                                        {isMobileKnockoutView
+                                            ? currentDisplayStage === 'Final'
+                                                ? 'Final & Third Place'
+                                                : currentDisplayStage
+                                            : nextDisplayStage !== null
+                                              ? `${currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage} → ${nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}`
+                                              : currentDisplayStage === 'Final'
+                                                ? 'Final & Third Place'
+                                                : currentDisplayStage}
                                     </div>
                                     <div className={classes.knockoutStageMeta}>
                                         Stage {clampedStage + 1}
-                                        {nextDisplayStage !== null ? `–${clampedStage + 2}` : ''} of{' '}
-                                        {displayStages.length}
+                                        {!isMobileKnockoutView && nextDisplayStage !== null
+                                            ? `–${clampedStage + 2}`
+                                            : ''}{' '}
+                                        of {displayStages.length}
                                     </div>
                                 </div>
                                 <button
@@ -3692,7 +3647,9 @@ export const TournamentBracket = ({
                                 ))}
                             </div>
 
-                            <div className={classes.knockoutColumns}>
+                            <div
+                                className={`${classes.knockoutColumns} ${isMobileKnockoutView ? classes.knockoutColumnsMobile : ''}`}
+                            >
                                 <div className={classes['bracket-stage-single']}>
                                     <h3 className={classes.knockoutColumnTitle}>
                                         {currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage}
@@ -3705,7 +3662,8 @@ export const TournamentBracket = ({
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                 const isFinalHighlighted =
-                                                    highlightedPairRef.current?.stageIndex === storageStage(stageIndex) &&
+                                                    highlightedPairRef.current?.stageIndex ===
+                                                        storageStage(stageIndex) &&
                                                     highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
@@ -3720,7 +3678,11 @@ export const TournamentBracket = ({
                                                             })
                                                         }}
                                                     >
-                                                        {renderMatchScheduleControl(pair, storageStage(stageIndex), pairIndex)}
+                                                        {renderMatchScheduleControl(
+                                                            pair,
+                                                            storageStage(stageIndex),
+                                                            pairIndex
+                                                        )}
                                                         <div
                                                             style={{
                                                                 display: 'grid',
@@ -3842,7 +3804,8 @@ export const TournamentBracket = ({
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                     const isThirdHighlighted =
-                                                        highlightedPairRef.current?.stageIndex === storageStage(thirdPlaceIndex) &&
+                                                        highlightedPairRef.current?.stageIndex ===
+                                                            storageStage(thirdPlaceIndex) &&
                                                         highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
@@ -3857,7 +3820,11 @@ export const TournamentBracket = ({
                                                                 })
                                                             }}
                                                         >
-                                                            {renderMatchScheduleControl(pair, storageStage(thirdPlaceIndex), pairIndex)}
+                                                            {renderMatchScheduleControl(
+                                                                pair,
+                                                                storageStage(thirdPlaceIndex),
+                                                                pairIndex
+                                                            )}
                                                             <div
                                                                 style={{
                                                                     display: 'grid',
@@ -3994,7 +3961,8 @@ export const TournamentBracket = ({
                                                 const hasTruthyPlayers =
                                                     (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                 const isOtherHighlighted =
-                                                    highlightedPairRef.current?.stageIndex === storageStage(stageIndex) &&
+                                                    highlightedPairRef.current?.stageIndex ===
+                                                        storageStage(stageIndex) &&
                                                     highlightedPairRef.current?.pairIndex === pairIndex;
                                                 return (
                                                     <div
@@ -4015,7 +3983,11 @@ export const TournamentBracket = ({
                                                             })
                                                         }}
                                                     >
-                                                        {renderMatchScheduleControl(pair, storageStage(stageIndex), pairIndex)}
+                                                        {renderMatchScheduleControl(
+                                                            pair,
+                                                            storageStage(stageIndex),
+                                                            pairIndex
+                                                        )}
                                                         <div
                                                             style={{
                                                                 position: 'absolute',
@@ -4237,7 +4209,8 @@ export const TournamentBracket = ({
                                                     const hasTruthyPlayers =
                                                         (team1 && team2 && team1 !== 'TBD') || team2 !== 'TBD';
                                                     const isFinalNextHighlighted =
-                                                        highlightedPairRef.current?.stageIndex === storageStage(nextStageIndex) &&
+                                                        highlightedPairRef.current?.stageIndex ===
+                                                            storageStage(nextStageIndex) &&
                                                         highlightedPairRef.current?.pairIndex === pairIndex;
                                                     return (
                                                         <div
@@ -4252,7 +4225,11 @@ export const TournamentBracket = ({
                                                                 })
                                                             }}
                                                         >
-                                                            {renderMatchScheduleControl(pair, storageStage(nextStageIndex), pairIndex)}
+                                                            {renderMatchScheduleControl(
+                                                                pair,
+                                                                storageStage(nextStageIndex),
+                                                                pairIndex
+                                                            )}
                                                             <div
                                                                 style={{
                                                                     display: 'grid',
@@ -4445,7 +4422,11 @@ export const TournamentBracket = ({
                                                                     })
                                                                 }}
                                                             >
-                                                                {renderMatchScheduleControl(pair, storageStage(thirdPlaceIndex), pairIndex)}
+                                                                {renderMatchScheduleControl(
+                                                                    pair,
+                                                                    storageStage(thirdPlaceIndex),
+                                                                    pairIndex
+                                                                )}
                                                                 <div
                                                                     style={{
                                                                         display: 'grid',
@@ -4828,9 +4809,7 @@ export const TournamentBracket = ({
             )}
 
             {/* Stats Popup - Single instance for all games */}
-            {showStats && stats && (
-                <StatsPopup stats={stats} loading={statsLoading} onClose={handleCloseStats} />
-            )}
+            {showStats && stats && <StatsPopup stats={stats} loading={statsLoading} onClose={handleCloseStats} />}
 
             {/* Report Game Modal */}
             {canShowReportModal && (
@@ -5002,13 +4981,8 @@ function handleRadioChange(gameId, teamIndex, value, setPlayoffPairs, stageIndex
 export const renderPlayerList = (players, kickOptions = null) => {
     const safePlayers = players && typeof players === 'object' ? players : {};
     const entries = Object.entries(safePlayers)
-        .filter(
-            ([, player]) => player !== null && player.name !== undefined && player.name.trim() !== ''
-        )
-        .sort(
-            ([, a], [, b]) =>
-                (Number(b.stars) || 0) - (Number(a.stars) || 0) || a.name.localeCompare(b.name)
-        );
+        .filter(([, player]) => player !== null && player.name !== undefined && player.name.trim() !== '')
+        .sort(([, a], [, b]) => (Number(b.stars) || 0) - (Number(a.stars) || 0) || a.name.localeCompare(b.name));
 
     entries.forEach(([, player]) => {
         if (!uniquePlayerNames.includes(player.name) && player.name) {
@@ -5025,11 +4999,7 @@ export const renderPlayerList = (players, kickOptions = null) => {
                         key={playerKey}
                         player={player}
                         canKick={Boolean(kickOptions?.canKick)}
-                        onKick={
-                            kickOptions?.onKick
-                                ? () => kickOptions.onKick(playerKey, player.name)
-                                : undefined
-                        }
+                        onKick={kickOptions?.onKick ? () => kickOptions.onKick(playerKey, player.name) : undefined}
                         kicking={kickOptions?.kickingPlayerKey === playerKey}
                     />
                 ))}

@@ -87,10 +87,7 @@ const buildGroupDrawPlacement = (grid, slotIndex, playerName) => {
 };
 
 const countFilledSlots = (pairs) =>
-    pairs.reduce(
-        (count, pair) => count + (pair[0] !== 'TBD' ? 1 : 0) + (pair[1] !== 'TBD' ? 1 : 0),
-        0
-    );
+    pairs.reduce((count, pair) => count + (pair[0] !== 'TBD' ? 1 : 0) + (pair[1] !== 'TBD' ? 1 : 0), 0);
 
 const DrawSeatPlayer = ({ seatLabel, playerData, waiting = false }) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
@@ -180,7 +177,7 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
     const [modalMessage, setModalMessage] = useState('');
     const canvasRef = useRef(null);
     const [fadingSlice, setFadingSlice] = useState(null);
-    const [fadingOpacity, setFadingOpacity] = useState(1);
+    const [fadingOpacity, _setFadingOpacity] = useState(1);
     const [particles, setParticles] = useState([]);
     const [pairDetails, setPairDetails] = useState({});
     const [resultAvatarUrl, setResultAvatarUrl] = useState(null);
@@ -191,19 +188,11 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
         ? groupCount * CHAMPIONS_LEAGUE_GROUP_SIZE
         : preBracketPairs.length * 2;
     const filledDrawSlots = useMemo(
-        () =>
-            isChampionsLeagueDraw
-                ? countFilledDrawGridSlots(groupDrawGrid)
-                : countFilledSlots(preBracketPairs),
+        () => (isChampionsLeagueDraw ? countFilledDrawGridSlots(groupDrawGrid) : countFilledSlots(preBracketPairs)),
         [isChampionsLeagueDraw, groupDrawGrid, preBracketPairs]
     );
     const drawProgress = totalDrawSlots > 0 ? Math.round((filledDrawSlots / totalDrawSlots) * 100) : 0;
-    const nextSlotLabel = getNextSlotLabel(
-        currentSlotIndex,
-        preBracketPairs,
-        isChampionsLeagueDraw,
-        groupCount
-    );
+    const nextSlotLabel = getNextSlotLabel(currentSlotIndex, preBracketPairs, isChampionsLeagueDraw, groupCount);
     const groupTables = useMemo(
         () => (isChampionsLeagueDraw ? buildGroupTablesFromDrawGrid(groupDrawGrid) : []),
         [isChampionsLeagueDraw, groupDrawGrid]
@@ -598,9 +587,6 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
         const fullSpins = Math.floor(spinDuration) * 360; // 1 full spin per second
         const totalRotation = fullSpins + adjustedStopAngle;
 
-        // Total rotation angle
-        const rotationAngle = fullSpins + adjustedStopAngle;
-
         // Apply the rotation to the wheel
         const wheel = document.querySelector(`.${classes.spinningWheelCanvas}`);
         if (!wheel) {
@@ -619,11 +605,6 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
 
         // Stop the wheel after the animation
         setTimeout(() => {
-            // Calculate the player's range for clarity
-            const playerStartAngle = Math.floor(selectedIndex * sliceAngle);
-            const playerEndAngle = Math.floor((selectedIndex + 1) * sliceAngle - 1);
-            const playerRange = `${playerStartAngle}° - ${playerEndAngle}°`;
-
             setTimeout(() => {
                 setModalMessage(`Place ${selected} — ${nextSlotLabel.replace('Next: ', '')}?`);
                 setSelectedPlayer(selected);
@@ -646,9 +627,7 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
 
             setTimeout(() => {
                 if (isChampionsLeagueDraw) {
-                    setGroupDrawGrid((prevGrid) =>
-                        buildGroupDrawPlacement(prevGrid, currentSlotIndex, lastPlayer)
-                    );
+                    setGroupDrawGrid((prevGrid) => buildGroupDrawPlacement(prevGrid, currentSlotIndex, lastPlayer));
                 } else {
                     setPreBracketPairs((prevPairs) =>
                         buildKickoffPairPlacement(prevPairs, currentSlotIndex, lastPlayer)
@@ -685,11 +664,7 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
                 </div>
             </header>
 
-            <div
-                className={`${classes.mainLayout} ${
-                    remainingPlayers.length === 0 ? classes.mainLayoutSingle : ''
-                }`}
-            >
+            <div className={`${classes.mainLayout} ${remainingPlayers.length === 0 ? classes.mainLayoutSingle : ''}`}>
                 {remainingPlayers.length > 0 && (
                     <div className={classes.wheelSection}>
                         <div className={classes.wheelFrame}>
@@ -709,9 +684,7 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
                                 disabled={isSpinning}
                                 className={classes.spinButton}
                             >
-                                {isSpinning
-                                    ? 'Spinning…'
-                                    : `Spin wheel (${remainingPlayers.length} left)`}
+                                {isSpinning ? 'Spinning…' : `Spin wheel (${remainingPlayers.length} left)`}
                             </button>
 
                             <div className={classes.durationControl}>
@@ -779,9 +752,7 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
                                       <div className={classes.groupTableGrid}>
                                           {group.slots.map((slot) => {
                                               const playerData = slot.filled
-                                                  ? Object.values(players).find(
-                                                        (player) => player.name === slot.name
-                                                    )
+                                                  ? Object.values(players).find((player) => player.name === slot.name)
                                                   : null;
 
                                               return (
@@ -880,9 +851,7 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
                 <div className={classes.footer}>
                     <button
                         type="button"
-                        onClick={() =>
-                            onStartTournament(isChampionsLeagueDraw ? groupDrawGrid : preBracketPairs)
-                        }
+                        onClick={() => onStartTournament(isChampionsLeagueDraw ? groupDrawGrid : preBracketPairs)}
                         className={classes.startTournamentButton}
                     >
                         {startButtonLabel}
@@ -892,7 +861,12 @@ const SpinningWheel = ({ players, onStartTournament, mode = 'kickoff' }) => {
 
             {isModalVisible && (
                 <div className={classes.confirmOverlay} role="presentation">
-                    <div className={classes.confirmDialog} role="dialog" aria-modal="true" aria-labelledby="wheel-result-title">
+                    <div
+                        className={classes.confirmDialog}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="wheel-result-title"
+                    >
                         <span className={classes.confirmKicker}>Wheel result</span>
                         <div className={classes.confirmPlayerCard}>
                             {resultAvatarUrl ? (

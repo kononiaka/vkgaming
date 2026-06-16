@@ -80,10 +80,8 @@ export const isTwitchOAuthReturn = (search = window.location.search) => {
     return params.has('code') || params.has('error');
 };
 
-export const shouldHandleTwitchOAuth = (
-    pathname = window.location.pathname,
-    search = window.location.search
-) => isTwitchCallbackPath(pathname) || isTwitchOAuthReturn(search);
+export const shouldHandleTwitchOAuth = (pathname = window.location.pathname, search = window.location.search) =>
+    isTwitchCallbackPath(pathname) || isTwitchOAuthReturn(search);
 
 /** @deprecated use DEFAULT_GITHUB_PAGES_SITE */
 export const DEFAULT_PRODUCTION_SITE = DEFAULT_GITHUB_PAGES_SITE;

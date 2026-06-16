@@ -272,9 +272,7 @@ const StartingPageContent = () => {
     }, []);
 
     const previewUpcoming = upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
-    const previewLive = liveGames
-        .slice(0, MATCH_CENTER_PREVIEW_LIMIT)
-        .map((match) => ({ ...match, variant: 'live' }));
+    const previewLive = liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT).map((match) => ({ ...match, variant: 'live' }));
     const remainingUpcoming = previewUpcoming;
 
     const getBracketLink = getTournamentMatchLink;
@@ -312,75 +310,83 @@ const StartingPageContent = () => {
 
     return (
         <section className={classes.starting}>
-            <div className={`${classes.matchCenterSection} ${classes.homeSectionFirst}`}>
-                    <div className={classes.sectionHeader}>
-                        <div>
-                            <h2 className={`${classes.sectionTitle} ${classes.matchCenterTitle}`}>Match center</h2>
-                            <p className={classes.matchCenterSubtitle}>Live tournament games and bracket fixtures</p>
-                        </div>
-                        <div className={classes.matchCenterLinks}>
-                            <Link to="/live" className={classes.viewAllLink}>
-                                Open Live Arena
-                            </Link>
-                            <Link to="/tournaments/homm3?status=started" className={classes.viewAllLink}>
-                                View all tournaments
-                            </Link>
-                        </div>
-                    </div>
-
-                    {previewLive.length > 0 ? (
-                        <>
-                            <div className={classes.announcementList}>
-                                {previewLive.map((match, index) =>
-                                    renderAnnouncementCard(
-                                        match,
-                                        `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
-                                    )
-                                )}
+            <div className={classes.homeLayout}>
+                <div className={classes.homeMain}>
+                    <div className={`${classes.matchCenterSection} ${classes.homeSectionFirst}`}>
+                        <div className={classes.sectionHeader}>
+                            <div>
+                                <h2 className={`${classes.sectionTitle} ${classes.matchCenterTitle}`}>Match center</h2>
+                                <p className={classes.matchCenterSubtitle}>
+                                    Live tournament games and bracket fixtures
+                                </p>
                             </div>
-                            {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                <Link to="/live" className={classes.viewMoreLink}>
-                                    +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
+                            <div className={classes.matchCenterLinks}>
+                                <Link to="/live" className={classes.viewAllLink}>
+                                    Open Live Arena
                                 </Link>
-                            )}
-                        </>
-                    ) : (
-                        <div className={classes.emptyLive}>
-                            <p className={classes.emptyLiveTitle}>No live games in progress</p>
-                            <p className={classes.emptyLiveHint}>Matches will appear here when players start a game.</p>
+                                <Link to="/tournaments/homm3?status=started" className={classes.viewAllLink}>
+                                    View all tournaments
+                                </Link>
+                            </div>
                         </div>
-                    )}
 
-                    <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
-                    {upcomingMatches.length > 0 ? (
-                        remainingUpcoming.length > 0 ? (
+                        {previewLive.length > 0 ? (
                             <>
                                 <div className={classes.announcementList}>
-                                    {remainingUpcoming.map((match, index) =>
+                                    {previewLive.map((match, index) =>
                                         renderAnnouncementCard(
-                                            { ...match, variant: 'upcoming' },
-                                            `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                            match,
+                                            `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
                                         )
                                     )}
                                 </div>
-                                {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
                                     <Link to="/live" className={classes.viewMoreLink}>
-                                        +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming — Open Live
-                                        Arena
+                                        +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
                                     </Link>
                                 )}
                             </>
-                        ) : null
-                    ) : (
-                        <div className={classes.emptyUpcoming}>
-                            <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
-                            <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
-                        </div>
-                    )}
-            </div>
+                        ) : (
+                            <div className={classes.emptyLive}>
+                                <p className={classes.emptyLiveTitle}>No live games in progress</p>
+                                <p className={classes.emptyLiveHint}>
+                                    Matches will appear here when players start a game.
+                                </p>
+                            </div>
+                        )}
 
-            <div className={`${classes.prizePoolSection} ${classes.homeSection}`} aria-label="Tournament prize pools">
-                <PrizePoolPanel />
+                        <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
+                        {upcomingMatches.length > 0 ? (
+                            remainingUpcoming.length > 0 ? (
+                                <>
+                                    <div className={classes.announcementList}>
+                                        {remainingUpcoming.map((match, index) =>
+                                            renderAnnouncementCard(
+                                                { ...match, variant: 'upcoming' },
+                                                `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                            )
+                                        )}
+                                    </div>
+                                    {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                        <Link to="/live" className={classes.viewMoreLink}>
+                                            +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming — Open
+                                            Live Arena
+                                        </Link>
+                                    )}
+                                </>
+                            ) : null
+                        ) : (
+                            <div className={classes.emptyUpcoming}>
+                                <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
+                                <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <aside className={classes.homeSidebar} aria-label="Tournament prize pools">
+                    <PrizePoolPanel compact />
+                </aside>
             </div>
         </section>
     );

@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
 import CountryFlag from '../Country/CountryFlag';
-import {
-    HeadToHeadStatsButton,
-    HeadToHeadStatsPortal
-} from '../HeadToHead/HeadToHeadStatsButton';
+import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../Stars/Stars';
 import { useHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
 import konoplayLogo from '../../image/konoplay-logo-new-invert.png';
@@ -75,12 +72,12 @@ const MatchAnnouncementCard = ({
     stageLabel,
     tournamentDate = null,
     variant = 'upcoming',
-    statusLabel = 'Upcoming',
+    statusLabel: _statusLabel = 'Upcoming',
     type = 'bo-3',
     featured = false,
     castle1Image = null,
     castle2Image = null,
-    gameNumber = null,
+    gameNumber: _gameNumber = null,
     team1Stars = 0,
     team2Stars = 0,
     team1Prediction = null,
@@ -122,21 +119,36 @@ const MatchAnnouncementCard = ({
         const stars = isLeft ? team1Stars : team2Stars;
 
         return (
-            <div
-                className={`${classes.playerSide} ${classes.playerSideUpcoming} ${isLeft ? '' : classes.playerSideRight}`}
-            >
-                <PlayerPortrait avatar={avatar} name={name} stars={stars} />
-                <div className={classes.playerLabelUnder}>
+            <div className={`${classes.playerCol} ${isLeft ? classes.playerColLeft : classes.playerColRight}`}>
+                <div className={classes.portraitSlot}>
+                    <PlayerPortrait avatar={avatar} name={name} stars={stars} />
+                </div>
+                <div className={classes.playerMeta}>
                     {countryCode ? (
                         <span className={classes.playerFlag}>
                             <CountryFlag code={countryCode} size={18} />
                         </span>
-                    ) : null}
+                    ) : (
+                        <span className={classes.playerFlagSpacer} aria-hidden="true" />
+                    )}
                     <span className={classes.playerNameUnder}>{name}</span>
                 </div>
             </div>
         );
     };
+
+    const scoreClassName = `${classes.dateBadge} ${classes.timeBadge} ${variant === 'live' ? classes.timeBadgeLive : ''}`;
+
+    const predictionBlock = showPrediction ? (
+        <div
+            className={classes.predictionEmbed}
+            aria-label={`Win prediction ${team1Prediction}% to ${team2Prediction}%`}
+        >
+            <span className={classes.predictionPct}>{team1Prediction}%</span>
+            <span className={classes.predictionLabel}>win odds</span>
+            <span className={classes.predictionPct}>{team2Prediction}%</span>
+        </div>
+    ) : null;
 
     const watchControl = matchCenterUrl ? (
         <Link to={matchCenterUrl} className={`${classes.watchBtn} ${streamLive ? classes.watchBtnLive : ''}`}>
@@ -157,11 +169,7 @@ const MatchAnnouncementCard = ({
         <div className={`${classes.cardShell} ${featured ? classes.featured : ''}`}>
             <div className={classes.cardTopBar}>
                 <div className={classes.cardTopBarLeft}>
-                    <HeadToHeadStatsButton
-                        team1={team1}
-                        team2={team2}
-                        onShow={showHeadToHeadStats}
-                    />
+                    <HeadToHeadStatsButton team1={team1} team2={team2} onShow={showHeadToHeadStats} />
                     {variant === 'live' && <div className={classes.liveBadge}>LIVE</div>}
                 </div>
                 {watchControl}
@@ -191,39 +199,39 @@ const MatchAnnouncementCard = ({
                 <div className={classes.frame}>
                     <div className={classes.connector} aria-hidden="true" />
 
-                    <div className={classes.dateBadge}>{dateLabel}</div>
+                    <div className={`${classes.dateBadge} ${classes.tournamentBadge} ${classes.tournamentBadgeTop}`}>
+                        {dateLabel}
+                    </div>
 
-                    <div className={classes.matchRow}>
+                    <div className={classes.matchArena}>
                         {renderPlayerSide('left')}
 
-                        <div className={classes.centerBadge}>
+                        <div className={classes.centerStack}>
                             <div className={classes.centerDiamond}>
                                 <img src={konoplayLogo} alt="" className={classes.centerLogo} />
                             </div>
-                            {showPrediction && (
-                                <div
-                                    className={classes.predictionEmbed}
-                                    aria-label={`Win prediction ${team1Prediction}% to ${team2Prediction}%`}
-                                >
-                                    <span className={classes.predictionPct}>{team1Prediction}%</span>
-                                    <span className={classes.predictionLabel}>win odds</span>
-                                    <span className={classes.predictionPct}>{team2Prediction}%</span>
-                                </div>
-                            )}
+                            {predictionBlock}
+                            <div className={classes.centerStackMobile}>
+                                <div className={scoreClassName}>{timeLabel}</div>
+                                <p className={classes.caption}>
+                                    Heroes 3 · <span className={classes.captionSeries}>{formatSeriesLabel(type)}</span>
+                                </p>
+                            </div>
                         </div>
 
                         {renderPlayerSide('right')}
                     </div>
 
-                    <div
-                        className={`${classes.dateBadge} ${classes.timeBadge} ${variant === 'live' ? classes.timeBadgeLive : ''}`}
-                    >
-                        {timeLabel}
+                    <div className={classes.matchFooterDesktop}>
+                        <div className={scoreClassName}>{timeLabel}</div>
+                        <p className={classes.caption}>
+                            Heroes 3 · <span className={classes.captionSeries}>{formatSeriesLabel(type)}</span>
+                        </p>
                     </div>
 
-                    <p className={classes.caption}>
-                        Heroes 3 · <span className={classes.captionSeries}>{formatSeriesLabel(type)}</span>
-                    </p>
+                    <div className={`${classes.dateBadge} ${classes.tournamentBadge} ${classes.tournamentBadgeBottom}`}>
+                        {dateLabel}
+                    </div>
                 </div>
             </Link>
             <HeadToHeadStatsPortal

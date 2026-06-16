@@ -32,15 +32,16 @@
 
     /* Layout */
     --header-height: 5rem;
+    --mobile-header-height: 4rem;
     --donators-bar-height: 1.75rem;
     --donators-bar-active-height: 0px;
     --layout-top-offset: calc(var(--header-height) + var(--donators-bar-active-height));
+    --site-chrome-height: var(--header-height);
     --radius-sm: 2px;
     --radius-md: 4px;
 
     /* Page backdrop — layered mesh (no bitmap) */
-    --bg-mesh:
-        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(201, 162, 39, 0.32) 0%, transparent 62%),
+    --bg-mesh: radial-gradient(ellipse 100% 60% at 50% -10%, rgba(201, 162, 39, 0.32) 0%, transparent 62%),
         radial-gradient(ellipse 50% 50% at 92% 28%, rgba(74, 143, 156, 0.22) 0%, transparent 58%),
         radial-gradient(ellipse 45% 45% at 8% 72%, rgba(58, 111, 122, 0.18) 0%, transparent 55%),
         radial-gradient(ellipse 55% 40% at 50% 105%, rgba(26, 34, 46, 0.85) 0%, transparent 60%),
@@ -79,6 +80,7 @@ html {
 
 html.has-supporters-bar {
     --donators-bar-active-height: var(--donators-bar-height);
+    --site-chrome-height: calc(var(--header-height) + var(--donators-bar-height));
 }
 
 html::after {
@@ -141,4 +143,18 @@ button:active {
     font-weight: 700;
     color: var(--color-text);
     font-family: var(--font-display);
+}
+
+@media (max-width: 768px) {
+    :root {
+        --header-height: var(--mobile-header-height);
+    }
+
+    html {
+        font-size: 14px;
+    }
+
+    .focused {
+        font-size: 1.5rem;
+    }
 }

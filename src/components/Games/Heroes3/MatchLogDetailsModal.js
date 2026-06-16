@@ -41,7 +41,9 @@ const MatchLogDetailsModal = ({ game, bracketContext = null, usersData = {}, onC
                     </h3>
                     <p className={classes.subtitle}>
                         {game.tournamentName || 'Tournament match'}
-                        {game.stage || bracketContext?.stageLabel ? ` · ${game.stage || bracketContext.stageLabel}` : ''}
+                        {game.stage || bracketContext?.stageLabel
+                            ? ` · ${game.stage || bracketContext.stageLabel}`
+                            : ''}
                     </p>
                 </div>
 

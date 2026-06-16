@@ -7,11 +7,7 @@ export const canRequestTournamentCommentator = (tournament) => {
         return false;
     }
 
-    return (
-        status === 'Started!' ||
-        status === 'Registration finished!' ||
-        isRegistrationOpen(status)
-    );
+    return status === 'Started!' || status === 'Registration finished!' || isRegistrationOpen(status);
 };
 
 export const getCommentatorRequestForUser = (tournament, firebaseUid) => {
@@ -46,10 +42,8 @@ export const getActiveCommentatorLogins = (tournament) =>
         .filter((commentator) => commentator.isCommentating && commentator.twitchLogin)
         .map((commentator) => commentator.twitchLogin);
 
-export const canManageCommentatorRequests = (
-    tournament,
-    { isAdmin, userNickName, firebaseUid }
-) => isAdmin || isTournamentCreator(tournament, userNickName, firebaseUid);
+export const canManageCommentatorRequests = (tournament, { isAdmin, userNickName, firebaseUid }) =>
+    isAdmin || isTournamentCreator(tournament, userNickName, firebaseUid);
 
 export const canToggleTournamentCommentating = (tournament, firebaseUid) => {
     const commentator = getApprovedCommentator(tournament, firebaseUid);

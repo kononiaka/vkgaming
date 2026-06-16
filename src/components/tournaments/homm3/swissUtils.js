@@ -125,8 +125,7 @@ export const hasPlayedBefore = (pairs, playerA, playerB) =>
     pairs.some(
         (pair) =>
             !pair.isBye &&
-            ((pair.team1 === playerA && pair.team2 === playerB) ||
-                (pair.team1 === playerB && pair.team2 === playerA))
+            ((pair.team1 === playerA && pair.team2 === playerB) || (pair.team1 === playerB && pair.team2 === playerA))
     );
 
 export const isSwissRoundComplete = (pairs, round) => {

@@ -2,12 +2,7 @@ import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import { authFetch } from '../../../api/authFetch';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import {
-    lookForUserId,
-    fetchLeaderboard,
-    snapshotLeaderboardRanks,
-    getTournamentPrizeLabel
-} from '../../../api/api';
+import { lookForUserId, fetchLeaderboard, snapshotLeaderboardRanks, getTournamentPrizeLabel } from '../../../api/api';
 import { resolveCountryCode } from '../../../utils/country';
 import AuthContext from '../../../store/auth-context';
 import { useAddTournament } from '../../../store/add-tournament-context';
@@ -31,7 +26,12 @@ import {
     isRegistrationOpen,
     requiresAttendancePayment
 } from '../../../utils/tournamentAttendance';
-import { hasPaidAttendance, startAttendanceCheckout, confirmAttendancePayment, waitForAttendancePayment } from '../../../api/tournamentAttendance';
+import {
+    hasPaidAttendance,
+    startAttendanceCheckout,
+    confirmAttendancePayment,
+    waitForAttendancePayment
+} from '../../../api/tournamentAttendance';
 import { startHostSeedCheckout, confirmHostSeedPayment } from '../../../api/tournamentHostFunding';
 import { canLeaveTournament, kickPlayerFromTournament, leaveTournament } from '../../../api/tournamentRegistration';
 import {
@@ -59,10 +59,7 @@ import {
     MIN_SWISS_PLAYERS,
     normalizeGameType
 } from './swissUtils';
-import {
-    createDoubleElimPlayoffPairs,
-    getDoubleElimStageLabels
-} from './loserBracketUtils';
+import { createDoubleElimPlayoffPairs, getDoubleElimStageLabels } from './loserBracketUtils';
 import {
     isGroupDrawGridComplete,
     orderPlayersFromWheelPairs,
@@ -95,23 +92,15 @@ const getTournamentViewLabel = (type) => {
     return 'View bracket';
 };
 
-const isScheduleTournamentType = (type) =>
-    type === 'league' || type === 'swiss' || type === 'champions-league';
+const isScheduleTournamentType = (type) => type === 'league' || type === 'swiss' || type === 'champions-league';
 
 const usesSpinningWheel = (tournament) =>
-    Boolean(
-        tournament?.randomBracket &&
-            (tournament.type === 'kick-off' || tournament.type === 'champions-league')
-    );
+    Boolean(tournament?.randomBracket && (tournament.type === 'kick-off' || tournament.type === 'champions-league'));
 
 const TournamentList = () => {
     const { tournamentId } = useParams();
     const navigate = useNavigate();
-    const {
-        openAddTournament,
-        isAddTournamentDisabled,
-        addTournamentHint
-    } = useAddTournament();
+    const { openAddTournament, isAddTournamentDisabled, addTournamentHint } = useAddTournament();
     const [searchParams, setSearchParams] = useSearchParams();
     const [tournaments, setTournaments] = useState([]);
     const [clickedId, setClickedId] = useState([]);
@@ -183,9 +172,7 @@ const TournamentList = () => {
 
     const fetchTournaments = async () => {
         try {
-            const response = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`
-            );
+            const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`);
             const data = await response.json();
             if (response.ok) {
                 const tournamentList = Object.keys(data)
@@ -338,14 +325,9 @@ const TournamentList = () => {
                 setTournamentStatus(tournament.status);
                 setTournamentWinners(tournament.winners || '');
 
-                if (
-                    tournament.status === 'Registration finished!' &&
-                    usesSpinningWheel(tournament)
-                ) {
+                if (tournament.status === 'Registration finished!' && usesSpinningWheel(tournament)) {
                     setTournamentPlayers(tournament.players || {});
-                    setSpinningWheelMode(
-                        tournament.type === 'champions-league' ? 'champions-league' : 'kickoff'
-                    );
+                    setSpinningWheelMode(tournament.type === 'champions-league' ? 'champions-league' : 'kickoff');
                     setShowSpinningWheel(true);
                     setShowDetails(false);
                 } else {
@@ -399,12 +381,9 @@ const TournamentList = () => {
                 return;
             }
 
-            const userResponse = await authFetch(
-                `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
-                {
-                    method: 'GET'
-                }
-            );
+            const userResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
+                method: 'GET'
+            });
 
             const data = await userResponse.json();
 
@@ -437,8 +416,7 @@ const TournamentList = () => {
 
             if (requiresAttendancePayment(tournamentData, options)) {
                 const isSelfRegistration =
-                    !!authCtx.userNickName &&
-                    matchedNickname.toLowerCase() === authCtx.userNickName.toLowerCase();
+                    !!authCtx.userNickName && matchedNickname.toLowerCase() === authCtx.userNickName.toLowerCase();
                 if (isSelfRegistration) {
                     const paid = await hasPaidAttendance(tourId);
                     if (!paid) {
@@ -473,16 +451,13 @@ const TournamentList = () => {
                 console.log('Tournament does not have a prepared bracket.');
             }
 
-            const response = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/players/.json`,
-                {
-                    method: 'POST',
-                    body: JSON.stringify(userData),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+            const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/players/.json`, {
+                method: 'POST',
+                body: JSON.stringify(userData),
+                headers: {
+                    'Content-Type': 'application/json'
                 }
-            );
+            });
 
             const isSelfRegistration =
                 !!authCtx.userNickName && matchedNickname.toLowerCase() === authCtx.userNickName.toLowerCase();
@@ -492,12 +467,7 @@ const TournamentList = () => {
             }
 
             if (response.ok && options.isAdminManagedAdd) {
-                authCtx.setNotificationShown(
-                    true,
-                    `${matchedNickname} added to the tournament.`,
-                    'success',
-                    4
-                );
+                authCtx.setNotificationShown(true, `${matchedNickname} added to the tournament.`, 'success', 4);
             }
 
             if (response.ok && +Object.keys(currentTournamentPlayers).length === +maxPlayers - 1) {
@@ -550,10 +520,7 @@ const TournamentList = () => {
         }
 
         const feeUsd = getAttendanceFeeUsd(tournament);
-        const refundNote =
-            feeUsd > 0
-                ? ` Your $${feeUsd} registration fee will not be refunded.`
-                : '';
+        const refundNote = feeUsd > 0 ? ` Your $${feeUsd} registration fee will not be refunded.` : '';
 
         if (
             !window.confirm(
@@ -569,12 +536,7 @@ const TournamentList = () => {
             authCtx.setNotificationShown(true, 'You left the tournament.', 'success', 5);
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not leave the tournament.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not leave the tournament.', 'error', 5);
         } finally {
             setLeavingTournamentId(null);
         }
@@ -592,9 +554,7 @@ const TournamentList = () => {
         }
 
         const userData = await response.json();
-        return (
-            extractTwitchLogin(userData?.twitch) || extractTwitchLogin(userData?.twitchDisplayName) || null
-        );
+        return extractTwitchLogin(userData?.twitch) || extractTwitchLogin(userData?.twitchDisplayName) || null;
     };
 
     const handleRequestCommentator = async (tournament) => {
@@ -623,20 +583,10 @@ const TournamentList = () => {
                 nickname: userNickName,
                 twitchLogin
             });
-            authCtx.setNotificationShown(
-                true,
-                'Commentator request sent. The host will review it.',
-                'success',
-                5
-            );
+            authCtx.setNotificationShown(true, 'Commentator request sent. The host will review it.', 'success', 5);
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not submit commentator request.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not submit commentator request.', 'error', 5);
         } finally {
             setCommentatorActionKey(null);
         }
@@ -655,12 +605,7 @@ const TournamentList = () => {
             authCtx.setNotificationShown(true, 'Commentator request withdrawn.', 'success', 4);
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not withdraw commentator request.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not withdraw commentator request.', 'error', 5);
         } finally {
             setCommentatorActionKey(null);
         }
@@ -674,12 +619,7 @@ const TournamentList = () => {
             authCtx.setNotificationShown(true, `${request.name} approved as commentator.`, 'success', 4);
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not approve commentator.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not approve commentator.', 'error', 5);
         } finally {
             setCommentatorActionKey(null);
         }
@@ -693,12 +633,7 @@ const TournamentList = () => {
             authCtx.setNotificationShown(true, `${requestName} request rejected.`, 'success', 4);
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not reject commentator request.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not reject commentator request.', 'error', 5);
         } finally {
             setCommentatorActionKey(null);
         }
@@ -717,20 +652,13 @@ const TournamentList = () => {
             await setTournamentCommentating(tournament.id, firebaseUid, commentator, isCommentating);
             authCtx.setNotificationShown(
                 true,
-                isCommentating
-                    ? 'You are now listed as commentating this cup.'
-                    : 'Commentating stopped for this cup.',
+                isCommentating ? 'You are now listed as commentating this cup.' : 'Commentating stopped for this cup.',
                 'success',
                 4
             );
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not update commentating status.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not update commentating status.', 'error', 5);
         } finally {
             setCommentatorActionKey(null);
         }
@@ -742,8 +670,7 @@ const TournamentList = () => {
         }
 
         const feeUsd = getAttendanceFeeUsd(tournament);
-        const refundNote =
-            feeUsd > 0 ? ' Their registration fee will not be refunded.' : '';
+        const refundNote = feeUsd > 0 ? ' Their registration fee will not be refunded.' : '';
 
         if (!window.confirm(`Remove "${playerName}" from "${tournament.name}"?${refundNote}`)) {
             return;
@@ -756,12 +683,7 @@ const TournamentList = () => {
             authCtx.setNotificationShown(true, `${playerName} was removed from the tournament.`, 'success', 4);
             await fetchTournaments();
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not remove the player.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not remove the player.', 'error', 5);
         } finally {
             setKickingPlayerKey(null);
         }
@@ -793,12 +715,7 @@ const TournamentList = () => {
                 nickname: userNickName
             });
         } catch (error) {
-            authCtx.setNotificationShown(
-                true,
-                error.message || 'Could not open prize pool checkout.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, error.message || 'Could not open prize pool checkout.', 'error', 5);
         } finally {
             setHostSeedCheckoutTournamentId(null);
         }
@@ -834,12 +751,7 @@ const TournamentList = () => {
                         7
                     );
                 } catch (error) {
-                    authCtx.setNotificationShown(
-                        true,
-                        error.message || 'Could not open payment checkout.',
-                        'error',
-                        5
-                    );
+                    authCtx.setNotificationShown(true, error.message || 'Could not open payment checkout.', 'error', 5);
                 } finally {
                     setAttendanceCheckoutTournamentId(null);
                 }
@@ -847,12 +759,7 @@ const TournamentList = () => {
             }
         }
 
-        await addUserTournament(
-            tournament.id,
-            userNickName,
-            tournament.players || {},
-            tournament.maxPlayers
-        );
+        await addUserTournament(tournament.id, userNickName, tournament.players || {}, tournament.maxPlayers);
     };
 
     const getSelfRegisterLabel = (tournament) => {
@@ -934,12 +841,7 @@ const TournamentList = () => {
                         break;
                     }
                     if (checkRegisterUser(userNickName, getTournamentPlayersObject(tournament))) {
-                        authCtx.setNotificationShown(
-                            true,
-                            'Registered for the tournament!',
-                            'success',
-                            5
-                        );
+                        authCtx.setNotificationShown(true, 'Registered for the tournament!', 'success', 5);
                     } else {
                         authCtx.setNotificationShown(
                             true,
@@ -1020,12 +922,7 @@ const TournamentList = () => {
                     return;
                 }
 
-                await addUserTournament(
-                    tournamentId,
-                    userNickName,
-                    tournament.players || {},
-                    tournament.maxPlayers
-                );
+                await addUserTournament(tournamentId, userNickName, tournament.players || {}, tournament.maxPlayers);
 
                 if (!cancelled) {
                     authCtx.setNotificationShown(true, 'Registered for the tournament!', 'success', 5);
@@ -1216,16 +1113,13 @@ const TournamentList = () => {
                 };
 
                 // Add to tournament
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/players/.json`,
-                    {
-                        method: 'POST',
-                        body: JSON.stringify(userData),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tourId}/players/.json`, {
+                    method: 'POST',
+                    body: JSON.stringify(userData),
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                );
+                });
 
                 // Check if tournament has prepared bracket and substitute TBD
                 const tournamentData = await getTournamentData(tourId);
@@ -1315,12 +1209,7 @@ const TournamentList = () => {
             }
 
             await fetchTournaments();
-            authCtx.setNotificationShown(
-                true,
-                `Tournament "${tournament.name}" deleted.`,
-                'success',
-                4
-            );
+            authCtx.setNotificationShown(true, `Tournament "${tournament.name}" deleted.`, 'success', 4);
         } catch (error) {
             console.error('Error deleting tournament:', error);
             authCtx.setNotificationShown(true, 'Failed to delete tournament.', 'error', 5);
@@ -1330,12 +1219,16 @@ const TournamentList = () => {
     };
 
     const handleStartLeague = async (leagueTournamentId) => {
-        if (!window.confirm('Generate league schedule and start the tournament?')) return;
+        if (!window.confirm('Generate league schedule and start the tournament?')) {
+            return;
+        }
         try {
             const response = await authFetch(
                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${leagueTournamentId}/.json`
             );
-            if (!response.ok) throw new Error('Failed to fetch tournament data');
+            if (!response.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
             const tournamentData = await response.json();
 
             const rawGameType = tournamentData.tournamentPlayoffGames || 'bo-1';
@@ -1437,16 +1330,15 @@ const TournamentList = () => {
                     headers: { 'Content-Type': 'application/json' }
                 }
             );
-            if (!bracketRes.ok) throw new Error('Failed to save league pairs');
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save league pairs');
+            }
 
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${leagueTournamentId}/status.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify('Started!'),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${leagueTournamentId}/status.json`, {
+                method: 'PUT',
+                body: JSON.stringify('Started!'),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
             alert(`League started! Generated ${leaguePairs.length} matches.`);
             window.location.reload();
@@ -1462,9 +1354,7 @@ const TournamentList = () => {
         }
 
         try {
-            const response = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/.json`
-            );
+            const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/.json`);
             if (!response.ok) {
                 throw new Error('Failed to fetch tournament data');
             }
@@ -1504,23 +1394,17 @@ const TournamentList = () => {
                 }
             );
 
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissTotalRounds.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(totalRounds),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissTotalRounds.json`, {
+                method: 'PUT',
+                body: JSON.stringify(totalRounds),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/status.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify('Started!'),
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/status.json`, {
+                method: 'PUT',
+                body: JSON.stringify('Started!'),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
             alert(`Swiss started! Round 1 of ${totalRounds} — ${swissPairs.length} matches.`);
             window.location.reload();
@@ -1543,14 +1427,11 @@ const TournamentList = () => {
             throw new Error('Failed to save group stage matches');
         }
 
-        await authFetch(
-            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/groups.json`,
-            {
-                method: 'PUT',
-                body: JSON.stringify(groups),
-                headers: { 'Content-Type': 'application/json' }
-            }
-        );
+        await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/groups.json`, {
+            method: 'PUT',
+            body: JSON.stringify(groups),
+            headers: { 'Content-Type': 'application/json' }
+        });
 
         await authFetch(
             `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/championsLeaguePhase.json`,
@@ -1561,14 +1442,11 @@ const TournamentList = () => {
             }
         );
 
-        await authFetch(
-            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/status.json`,
-            {
-                method: 'PUT',
-                body: JSON.stringify('Started!'),
-                headers: { 'Content-Type': 'application/json' }
-            }
-        );
+        await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/status.json`, {
+            method: 'PUT',
+            body: JSON.stringify('Started!'),
+            headers: { 'Content-Type': 'application/json' }
+        });
 
         alert(
             `Champions League started! ${groupCount} groups of 4 — ${groupPairs.length} group matches. Top 2 per group advance.`
@@ -1616,9 +1494,7 @@ const TournamentList = () => {
 
     const handleStartChampionsLeagueFromWheel = async (drawResult) => {
         try {
-            const response = await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/.json`
-            );
+            const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/.json`);
             if (!response.ok) {
                 throw new Error('Failed to fetch tournament data');
             }
@@ -1629,11 +1505,9 @@ const TournamentList = () => {
             );
             const prepared = isGroupDrawGridComplete(drawResult)
                 ? prepareChampionsLeagueFromDrawGrid(drawResult, tournamentData, playerList)
-                : prepareChampionsLeagueGroupStage(
-                      orderPlayersFromWheelPairs(drawResult, playerList),
-                      tournamentData,
-                      { shuffle: false }
-                  );
+                : prepareChampionsLeagueGroupStage(orderPlayersFromWheelPairs(drawResult, playerList), tournamentData, {
+                      shuffle: false
+                  });
 
             if (!prepared.validation.valid) {
                 alert(prepared.validation.message);
@@ -1738,14 +1612,11 @@ const TournamentList = () => {
                     throw new Error('Failed to update tournament bracket');
                 }
 
-                await authFetch(
-                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/stageLabels.json`,
-                    {
-                        method: 'PUT',
-                        body: JSON.stringify(getDoubleElimStageLabels(maxPlayers)),
-                        headers: { 'Content-Type': 'application/json' }
-                    }
-                );
+                await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/stageLabels.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(getDoubleElimStageLabels(maxPlayers)),
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
                 const statusResponse = await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/status.json`,
@@ -1922,16 +1793,13 @@ const TournamentList = () => {
             console.log('Tournament Bracket Updated successfully!');
 
             // Update tournament status to "Started!"
-            await authFetch(
-                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/status.json`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify('Started!'),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${clickedId}/status.json`, {
+                method: 'PUT',
+                body: JSON.stringify('Started!'),
+                headers: {
+                    'Content-Type': 'application/json'
                 }
-            );
+            });
             console.log('Tournament status updated to Started!');
 
             // Snapshot leaderboard rankings at the start of the tournament
@@ -2041,16 +1909,10 @@ const TournamentList = () => {
         setTournamentWinners(currentTournamentWinnersObject);
 
         // Check if this is a "Registration finished!" status and tournament has randomBracket enabled
-        if (
-            currentTournamentStatus === 'Registration finished!' &&
-            tournament &&
-            usesSpinningWheel(tournament)
-        ) {
+        if (currentTournamentStatus === 'Registration finished!' && tournament && usesSpinningWheel(tournament)) {
             setClickedId(currentTournamentId);
             setTournamentPlayers(tournament.players || {});
-            setSpinningWheelMode(
-                tournament.type === 'champions-league' ? 'champions-league' : 'kickoff'
-            );
+            setSpinningWheelMode(tournament.type === 'champions-league' ? 'champions-league' : 'kickoff');
             setShowSpinningWheel(true);
             navigate(`/tournaments/homm3/${currentTournamentId}`);
         } else {
@@ -2088,8 +1950,7 @@ const TournamentList = () => {
         }
         if (!isAdmin && !isPlayerVisibleTournament(tournament)) {
             const ownPendingFunding =
-                tournament.status === 'Pending funding' &&
-                isTournamentCreator(tournament, userNickName);
+                tournament.status === 'Pending funding' && isTournamentCreator(tournament, userNickName);
             if (!ownPendingFunding) {
                 return false;
             }
@@ -2102,8 +1963,7 @@ const TournamentList = () => {
                 return true;
             }
             return (
-                tournament.status === 'Pending funding' &&
-                (isTournamentCreator(tournament, userNickName) || isAdmin)
+                tournament.status === 'Pending funding' && (isTournamentCreator(tournament, userNickName) || isAdmin)
             );
         }
         if (statusFilter === 'registrationFinished') {
@@ -2321,10 +2181,17 @@ const TournamentList = () => {
                                                 {approvedCommentators.map((commentator) => {
                                                     const watchUrl = getTwitchWatchUrl(commentator.twitchLogin);
                                                     return (
-                                                        <li key={commentator.commentatorUid} className={classes.commentatorItem}>
-                                                            <span className={classes.commentatorName}>{commentator.name}</span>
+                                                        <li
+                                                            key={commentator.commentatorUid}
+                                                            className={classes.commentatorItem}
+                                                        >
+                                                            <span className={classes.commentatorName}>
+                                                                {commentator.name}
+                                                            </span>
                                                             {commentator.isCommentating ? (
-                                                                <span className={classes.commentatorLiveBadge}>Commentating</span>
+                                                                <span className={classes.commentatorLiveBadge}>
+                                                                    Commentating
+                                                                </span>
                                                             ) : null}
                                                             {watchUrl ? (
                                                                 <a
@@ -2361,7 +2228,9 @@ const TournamentList = () => {
 
                                         {commentatorRequest ? (
                                             <div className={classes.registrationActions}>
-                                                <div className={classes.registeredBadge}>Commentator request pending</div>
+                                                <div className={classes.registeredBadge}>
+                                                    Commentator request pending
+                                                </div>
                                                 <button
                                                     type="button"
                                                     className={`${classes.btn} ${classes.btnDanger}`}
@@ -2386,7 +2255,9 @@ const TournamentList = () => {
                                                                 ? classes.btnDanger
                                                                 : classes.btnSuccess
                                                         }`}
-                                                        disabled={commentatorActionKey === `${tournament.id}:commentating`}
+                                                        disabled={
+                                                            commentatorActionKey === `${tournament.id}:commentating`
+                                                        }
                                                         onClick={() =>
                                                             handleToggleCommentating(
                                                                 tournament,
@@ -2554,40 +2425,38 @@ const TournamentList = () => {
                                                     handleStartChampionsLeague(tournament.id);
                                                 }}
                                             >
-                                                {tournament.randomBracket
-                                                    ? 'Draw groups (wheel)'
-                                                    : 'Start group stage'}
+                                                {tournament.randomBracket ? 'Draw groups (wheel)' : 'Start group stage'}
                                             </button>
                                         )}
 
                                     {checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
-                                            <div className={classes.registrationActions}>
-                                                <div className={classes.registeredBadge}>You are registered</div>
-                                                {canLeaveTournament(tournament) && (
-                                                    <button
-                                                        type="button"
-                                                        className={`${classes.btn} ${classes.btnDanger}`}
-                                                        disabled={leavingTournamentId === tournament.id}
-                                                        onClick={() => handleLeaveTournament(tournament)}
-                                                    >
-                                                        {leavingTournamentId === tournament.id
-                                                            ? 'Leaving…'
-                                                            : 'Leave tournament'}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            countRegisteredPlayers(tournament) < tournament.maxPlayers &&
-                                            canShowSelfRegister(tournament) && (
+                                        <div className={classes.registrationActions}>
+                                            <div className={classes.registeredBadge}>You are registered</div>
+                                            {canLeaveTournament(tournament) && (
                                                 <button
-                                                    className={classes.btn}
-                                                    disabled={attendanceCheckoutTournamentId === tournament.id}
-                                                    onClick={() => handleSelfRegister(tournament)}
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnDanger}`}
+                                                    disabled={leavingTournamentId === tournament.id}
+                                                    onClick={() => handleLeaveTournament(tournament)}
                                                 >
-                                                    {getSelfRegisterLabel(tournament)}
+                                                    {leavingTournamentId === tournament.id
+                                                        ? 'Leaving…'
+                                                        : 'Leave tournament'}
                                                 </button>
-                                            )
-                                        )}
+                                            )}
+                                        </div>
+                                    ) : (
+                                        countRegisteredPlayers(tournament) < tournament.maxPlayers &&
+                                        canShowSelfRegister(tournament) && (
+                                            <button
+                                                className={classes.btn}
+                                                disabled={attendanceCheckoutTournamentId === tournament.id}
+                                                onClick={() => handleSelfRegister(tournament)}
+                                            >
+                                                {getSelfRegisterLabel(tournament)}
+                                            </button>
+                                        )
+                                    )}
                                 </div>
 
                                 {showDetails &&
@@ -2607,100 +2476,106 @@ const TournamentList = () => {
                                     registeredCount: countRegisteredPlayers(tournament),
                                     maxPlayers: tournament.maxPlayers
                                 }) && (
-                                        <div className={classes.inputGroup}>
-                                            <label htmlFor={`nickname-${tournament.id}`}>
-                                                {isTournamentCreator(tournament, userNickName) && !isAdmin
-                                                    ? 'Invite player by nickname'
-                                                    : "Player's Nickname"}
-                                            </label>
-                                            {!isAdmin && isTournamentCreator(tournament, userNickName) && (
-                                                <p className={classes.hostInviteHint}>
-                                                    Invited players join for free. Remaining seats can self-register
-                                                    {getAttendanceFeeUsd(tournament) > 0
-                                                        ? ` for $${getAttendanceFeeUsd(tournament)}.`
-                                                        : '.'}
-                                                </p>
-                                            )}
-                                            <input
-                                                type="text"
-                                                id={`nickname-${tournament.id}`}
-                                                ref={nicknameRef}
-                                                value={nicknameQuery}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setNicknameQuery(value);
-                                                    updateNicknameSuggestions(value, getTournamentPlayersObject(tournament));
-                                                }}
-                                                onFocus={() =>
-                                                    updateNicknameSuggestions(nicknameQuery, getTournamentPlayersObject(tournament))
-                                                }
-                                                onKeyDown={(e) => handleNicknameKeyDown(e, tournament)}
-                                                onBlur={() => {
-                                                    setTimeout(() => {
-                                                        setNicknameSuggestions([]);
-                                                        setActiveSuggestionIndex(-1);
-                                                    }, 120);
-                                                }}
-                                                autoComplete="off"
-                                                required
-                                            />
-                                            {nicknameSuggestions.length > 0 && (
-                                                <div className={classes.suggestionsList}>
-                                                    {nicknameSuggestions.map((nickname, index) => (
-                                                        <button
-                                                            key={nickname}
-                                                            type="button"
-                                                            className={
-                                                                index === activeSuggestionIndex
-                                                                    ? `${classes.suggestionItem} ${classes.suggestionItemActive}`
-                                                                    : classes.suggestionItem
-                                                            }
-                                                            onMouseDown={(e) => {
-                                                                e.preventDefault();
-                                                                setNicknameQuery(nickname);
-                                                                setNicknameSuggestions([]);
-                                                                setActiveSuggestionIndex(-1);
-                                                            }}
-                                                            onMouseEnter={() => setActiveSuggestionIndex(index)}
-                                                        >
-                                                            {nickname}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <div className={classes.adminActions}>
-                                                <button
-                                                    className={classes.btn}
-                                                    disabled={addingPlayerTournamentId === tournament.id}
-                                                    onClick={() => {
-                                                        const selectedNickname =
-                                                            activeSuggestionIndex >= 0
-                                                                ? nicknameSuggestions[activeSuggestionIndex]
-                                                                : nicknameQuery.trim();
-                                                        if (!selectedNickname) {
-                                                            return;
+                                    <div className={classes.inputGroup}>
+                                        <label htmlFor={`nickname-${tournament.id}`}>
+                                            {isTournamentCreator(tournament, userNickName) && !isAdmin
+                                                ? 'Invite player by nickname'
+                                                : "Player's Nickname"}
+                                        </label>
+                                        {!isAdmin && isTournamentCreator(tournament, userNickName) && (
+                                            <p className={classes.hostInviteHint}>
+                                                Invited players join for free. Remaining seats can self-register
+                                                {getAttendanceFeeUsd(tournament) > 0
+                                                    ? ` for $${getAttendanceFeeUsd(tournament)}.`
+                                                    : '.'}
+                                            </p>
+                                        )}
+                                        <input
+                                            type="text"
+                                            id={`nickname-${tournament.id}`}
+                                            ref={nicknameRef}
+                                            value={nicknameQuery}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setNicknameQuery(value);
+                                                updateNicknameSuggestions(
+                                                    value,
+                                                    getTournamentPlayersObject(tournament)
+                                                );
+                                            }}
+                                            onFocus={() =>
+                                                updateNicknameSuggestions(
+                                                    nicknameQuery,
+                                                    getTournamentPlayersObject(tournament)
+                                                )
+                                            }
+                                            onKeyDown={(e) => handleNicknameKeyDown(e, tournament)}
+                                            onBlur={() => {
+                                                setTimeout(() => {
+                                                    setNicknameSuggestions([]);
+                                                    setActiveSuggestionIndex(-1);
+                                                }, 120);
+                                            }}
+                                            autoComplete="off"
+                                            required
+                                        />
+                                        {nicknameSuggestions.length > 0 && (
+                                            <div className={classes.suggestionsList}>
+                                                {nicknameSuggestions.map((nickname, index) => (
+                                                    <button
+                                                        key={nickname}
+                                                        type="button"
+                                                        className={
+                                                            index === activeSuggestionIndex
+                                                                ? `${classes.suggestionItem} ${classes.suggestionItemActive}`
+                                                                : classes.suggestionItem
                                                         }
-                                                        addUserTournament(
-                                                            tournament.id,
-                                                            selectedNickname,
-                                                            getTournamentPlayersObject(tournament),
-                                                            tournament.maxPlayers,
-                                                            { isAdminManagedAdd: true }
-                                                        );
-                                                    }}
-                                                >
-                                                    {addingPlayerTournamentId === tournament.id ? (
-                                                        <span className={classes.loadingInline}>
-                                                            <span className={classes.spinner}></span>
-                                                            Adding...
-                                                        </span>
-                                                    ) : isTournamentCreator(tournament, userNickName) && !isAdmin ? (
-                                                        'Invite player'
-                                                    ) : (
-                                                        'Add player'
-                                                    )}
-                                                </button>
-                                                {isAdmin && (
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
+                                                            setNicknameQuery(nickname);
+                                                            setNicknameSuggestions([]);
+                                                            setActiveSuggestionIndex(-1);
+                                                        }}
+                                                        onMouseEnter={() => setActiveSuggestionIndex(index)}
+                                                    >
+                                                        {nickname}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className={classes.adminActions}>
+                                            <button
+                                                className={classes.btn}
+                                                disabled={addingPlayerTournamentId === tournament.id}
+                                                onClick={() => {
+                                                    const selectedNickname =
+                                                        activeSuggestionIndex >= 0
+                                                            ? nicknameSuggestions[activeSuggestionIndex]
+                                                            : nicknameQuery.trim();
+                                                    if (!selectedNickname) {
+                                                        return;
+                                                    }
+                                                    addUserTournament(
+                                                        tournament.id,
+                                                        selectedNickname,
+                                                        getTournamentPlayersObject(tournament),
+                                                        tournament.maxPlayers,
+                                                        { isAdminManagedAdd: true }
+                                                    );
+                                                }}
+                                            >
+                                                {addingPlayerTournamentId === tournament.id ? (
+                                                    <span className={classes.loadingInline}>
+                                                        <span className={classes.spinner}></span>
+                                                        Adding...
+                                                    </span>
+                                                ) : isTournamentCreator(tournament, userNickName) && !isAdmin ? (
+                                                    'Invite player'
+                                                ) : (
+                                                    'Add player'
+                                                )}
+                                            </button>
+                                            {isAdmin && (
                                                 <button
                                                     className={`${classes.btn} ${classes.btnDanger}`}
                                                     onClick={() =>
@@ -2713,10 +2588,10 @@ const TournamentList = () => {
                                                 >
                                                     Fill with random players
                                                 </button>
-                                                )}
-                                            </div>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
                                 {tournament.status === 'Registration finished!' && (
                                     <div className={classes.fullBanner}>
@@ -2760,7 +2635,9 @@ const TournamentList = () => {
                                                 const prize = getPrizeAmountForPlace(prizeBreakdown, place);
                                                 return (
                                                     <div key={place} className={classes.winnerItem}>
-                                                        <span className={`${classes.placeBadge} ${classes.placeBadgeLarge}`}>
+                                                        <span
+                                                            className={`${classes.placeBadge} ${classes.placeBadgeLarge}`}
+                                                        >
                                                             {getPlaceLabel(place)}
                                                         </span>
                                                         <span className={classes.placeLabel}>{place}</span>
@@ -2791,11 +2668,7 @@ const TournamentList = () => {
         return (
             <div className={classes.tournamentFullPage}>
                 <div className={classes.tournamentFullPageBar}>
-                    <button
-                        type="button"
-                        className={classes.tournamentBackBtn}
-                        onClick={closeTournamentView}
-                    >
+                    <button type="button" className={classes.tournamentBackBtn} onClick={closeTournamentView}>
                         ← Back to tournaments
                     </button>
                     <div className={classes.tournamentFullPageMeta}>

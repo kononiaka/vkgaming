@@ -4,7 +4,7 @@
 }
 
 .help_header p {
-    color: #FFD700;
+    color: #ffd700;
     font-size: 1.5rem;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     margin: 0;
@@ -52,7 +52,7 @@
 }
 
 .discord_logo_block a:hover {
-    color: #FFD700;
+    color: #ffd700;
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
@@ -90,7 +90,7 @@
 }
 
 .tg_logo_block a:hover {
-    color: #FFD700;
+    color: #ffd700;
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
@@ -128,6 +128,6 @@
 }
 
 .youtube_logo_block a:hover {
-    color: #FFD700;
+    color: #ffd700;
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }

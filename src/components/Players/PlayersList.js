@@ -24,9 +24,7 @@ const buildRegisteredPlayers = (usersData, hotaLeaderboard) =>
             }
 
             const nickname = user.enteredNickname;
-            const hotaRank = hotaLeaderboard
-                ? findHotaLeaderboardRank(nickname, hotaLeaderboard)
-                : null;
+            const hotaRank = hotaLeaderboard ? findHotaLeaderboardRank(nickname, hotaLeaderboard) : null;
 
             return {
                 id,
@@ -36,10 +34,7 @@ const buildRegisteredPlayers = (usersData, hotaLeaderboard) =>
                 cupGames: user.gamesPlayed?.heroes3?.total ?? 0,
                 hotaRank,
                 hotaRankLabel: hotaRank ? String(hotaRank) : '—',
-                siteStars:
-                    user.stars ||
-                    computeSiteStarsFromRank(hotaRank) ||
-                    SITE_STARS_MIN
+                siteStars: user.stars || computeSiteStarsFromRank(hotaRank) || SITE_STARS_MIN
             };
         })
         .filter(Boolean)
@@ -132,9 +127,8 @@ const PlayersList = () => {
         <div className={`${classes.leaderboard} data-page`}>
             <h2 className={classes.pageTitle}>Players</h2>
             <p className={classes.pageSubtitle}>
-                Registered Konoplay members — search by lobby nickname and open a profile for cups,
-                stats, and social links. Global HotA rankings live on the{' '}
-                <Link to="/leaderboard">Leaderboard</Link>.
+                Registered Konoplay members — search by lobby nickname and open a profile for cups, stats, and social
+                links. Global HotA rankings live on the <Link to="/leaderboard">Leaderboard</Link>.
             </p>
 
             <div className={classes.searchWrapper}>

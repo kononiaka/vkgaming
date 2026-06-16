@@ -16,8 +16,7 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
     useEffect(() => {
         let cancelled = false;
 
-        const konoplayRating =
-            player?.ratings != null && player.ratings !== '' ? String(player.ratings) : null;
+        const konoplayRating = player?.ratings != null && player.ratings !== '' ? String(player.ratings) : null;
 
         const setKonoplayFallback = () => {
             if (konoplayRating) {
@@ -129,11 +128,7 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
                     <span className={classes.name}>{player.name}</span>
                 </div>
                 <div className={classes.strengthRow}>
-                    {stars > 0 ? (
-                        <StarsComponent stars={stars} />
-                    ) : (
-                        <span className={classes.noStars}>Unrated</span>
-                    )}
+                    {stars > 0 ? <StarsComponent stars={stars} /> : <span className={classes.noStars}>Unrated</span>}
                     {eloDisplay != null && (
                         <span className={classes.rating}>
                             {eloDisplay.value} {eloDisplay.label}

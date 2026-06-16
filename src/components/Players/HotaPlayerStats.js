@@ -129,10 +129,7 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
         return [...profile.hero_stats].sort((a, b) => b.games - a.games);
     }, [profile?.hero_stats]);
 
-    const tradeStats = useMemo(
-        () => deriveHotaTradeStats(matches, state.playerId),
-        [matches, state.playerId]
-    );
+    const tradeStats = useMemo(() => deriveHotaTradeStats(matches, state.playerId), [matches, state.playerId]);
 
     if (!lobbyNickname?.trim()) {
         return null;
@@ -181,9 +178,7 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                 <p className={classes.message}>Loading HotA Meta data for {lobbyNickname}...</p>
             )}
 
-            {state.status === 'error' && (
-                <p className={classes.error}>HotA Meta lookup failed. Try again later.</p>
-            )}
+            {state.status === 'error' && <p className={classes.error}>HotA Meta lookup failed. Try again later.</p>}
 
             {state.status === 'not_found' && (
                 <div className={classes.messageBox}>
@@ -222,9 +217,7 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                         </div>
                         <div className={classes.summaryCard}>
                             <span className={classes.summaryLabel}>Games played</span>
-                            <span className={classes.summaryValue}>
-                                {summary?.games?.toLocaleString() ?? '—'}
-                            </span>
+                            <span className={classes.summaryValue}>{summary?.games?.toLocaleString() ?? '—'}</span>
                         </div>
                         <div className={classes.summaryCard}>
                             <span className={classes.summaryLabel}>Win rate</span>
@@ -235,22 +228,16 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                         <div className={classes.summaryCard}>
                             <span className={classes.summaryLabel}>Avg duration</span>
                             <span className={classes.summaryValue}>
-                                {summary?.avg_duration_min != null
-                                    ? `${summary.avg_duration_min}m`
-                                    : '—'}
+                                {summary?.avg_duration_min != null ? `${summary.avg_duration_min}m` : '—'}
                             </span>
                         </div>
                         <div className={classes.summaryCard}>
                             <span className={classes.summaryLabel}>Best win streak</span>
-                            <span className={classes.summaryValue}>
-                                {profile.streaks?.best_win_streak ?? '—'}
-                            </span>
+                            <span className={classes.summaryValue}>{profile.streaks?.best_win_streak ?? '—'}</span>
                         </div>
                         <div className={classes.summaryCard}>
                             <span className={classes.summaryLabel}>Worst loss streak</span>
-                            <span className={classes.summaryValue}>
-                                {profile.streaks?.worst_loss_streak ?? '—'}
-                            </span>
+                            <span className={classes.summaryValue}>{profile.streaks?.worst_loss_streak ?? '—'}</span>
                         </div>
                         <div className={classes.summaryCard}>
                             <span className={classes.summaryLabel}>Biggest rating swing</span>
@@ -264,9 +251,7 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                     {profile.streaks?.recent?.length > 0 && (
                         <div className={classes.subsection}>
                             <h4 className={classes.subsectionTitle}>Current form</h4>
-                            <p className={classes.subsectionNote}>
-                                Last {profile.streaks.recent.length} ranked games
-                            </p>
+                            <p className={classes.subsectionNote}>Last {profile.streaks.recent.length} ranked games</p>
                             <div className={classes.formRow}>
                                 {profile.streaks.recent.map((won, index) => (
                                     <span
@@ -463,9 +448,7 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                                                     <td>{opp.winrate?.toFixed(1)}%</td>
                                                     <td
                                                         className={
-                                                            opp.net_elo >= 0
-                                                                ? classes.positive
-                                                                : classes.negative
+                                                            opp.net_elo >= 0 ? classes.positive : classes.negative
                                                         }
                                                     >
                                                         {opp.net_elo > 0 ? `+${opp.net_elo}` : opp.net_elo}
@@ -482,9 +465,7 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                         <div className={classes.matchesHeader}>
                             <div>
                                 <h4 className={classes.subsectionTitle}>Recent ranked matches</h4>
-                                <p className={classes.subsectionNote}>
-                                    Latest up to 50 games from HotA Meta
-                                </p>
+                                <p className={classes.subsectionNote}>Latest up to 50 games from HotA Meta</p>
                             </div>
                             {heroOptions.length > 0 && (
                                 <label className={classes.filterLabel}>
@@ -528,37 +509,27 @@ const HotaPlayerStats = ({ lobbyNickname, hotaData, isPrimarySource = false }) =
                                     <tbody>
                                         {matches.map((match) => {
                                             const isP2 = match.side === 'p2';
-                                            const myFaction = isP2
-                                                ? match.p2_faction_name
-                                                : match.p1_faction_name;
+                                            const myFaction = isP2 ? match.p2_faction_name : match.p1_faction_name;
                                             const myHero = isP2 ? match.p2_hero_name : match.p1_hero_name;
                                             const opponent = isP2 ? match.p1_name : match.p2_name;
                                             const trade = isP2 ? match.p2_trade : match.p1_trade;
-                                            const postRating = isP2
-                                                ? match.p2_post_rating
-                                                : match.p1_post_rating;
+                                            const postRating = isP2 ? match.p2_post_rating : match.p1_post_rating;
 
                                             return (
                                                 <tr key={match.match_id}>
                                                     <td
                                                         className={
-                                                            match.result === 'win'
-                                                                ? classes.positive
-                                                                : classes.negative
+                                                            match.result === 'win' ? classes.positive : classes.negative
                                                         }
                                                     >
-                                                        {match.elo_delta > 0
-                                                            ? `+${match.elo_delta}`
-                                                            : match.elo_delta}
+                                                        {match.elo_delta > 0 ? `+${match.elo_delta}` : match.elo_delta}
                                                     </td>
                                                     <td>{formatFactionLabel(myFaction)}</td>
                                                     <td>{myHero}</td>
                                                     <td className={classes.vsCell}>vs</td>
                                                     <td>{opponent}</td>
                                                     <td>{match.map_name}</td>
-                                                    <td>
-                                                        {trade > 0 ? `+${trade}` : trade ?? '—'}
-                                                    </td>
+                                                    <td>{trade > 0 ? `+${trade}` : (trade ?? '—')}</td>
                                                     <td>{postRating}</td>
                                                     <td>{formatMatchDate(match.start_time_iso)}</td>
                                                 </tr>

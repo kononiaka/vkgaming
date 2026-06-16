@@ -3,8 +3,7 @@ import { authFetch } from '../api/authFetch';
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { fetchHeadToHeadStats } from '../utils/headToHeadStats';
 
-export const canShowHeadToHeadStats = (team1, team2) =>
-    Boolean(team1 && team2 && team1 !== 'TBD' && team2 !== 'TBD');
+export const canShowHeadToHeadStats = (team1, team2) => Boolean(team1 && team2 && team1 !== 'TBD' && team2 !== 'TBD');
 
 export function useHeadToHeadStats({ playoffPairs = [] } = {}) {
     const [stats, setStats] = useState(null);

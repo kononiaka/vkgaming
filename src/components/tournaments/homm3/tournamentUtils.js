@@ -1,9 +1,7 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 export const fetchTournaments = async (param) => {
     try {
-        const response = await fetch(
-            `${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`
-        );
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`);
 
         const data = await response.json();
 
@@ -32,9 +30,7 @@ export const fetchTournaments = async (param) => {
 
 export const fetchTournamentGames = async (tournamentId) => {
     let data;
-    const response = await fetch(
-        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`
-    );
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/.json`);
     console.log('response', response);
 
     if (response.ok) {

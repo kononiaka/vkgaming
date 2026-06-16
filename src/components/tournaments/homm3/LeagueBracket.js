@@ -202,15 +202,7 @@ const usePlayerAvatar = (name, player) => {
     return avatarUrl;
 };
 
-const SchedulePlayerCell = ({
-    name,
-    player,
-    stars,
-    place,
-    countryCode,
-    align = 'left',
-    isWinner = false
-}) => {
+const SchedulePlayerCell = ({ name, player, stars, place, countryCode, align = 'left', isWinner = false }) => {
     const avatarUrl = usePlayerAvatar(name, player);
     const isRight = align === 'right';
 
@@ -218,14 +210,14 @@ const SchedulePlayerCell = ({
         <img src={avatarUrl} alt="" className={classes.schedulePlayerAvatar} />
     ) : (
         <div className={classes.schedulePlayerAvatarFallback} aria-hidden="true">
-            {String(name || '?').charAt(0).toUpperCase()}
+            {String(name || '?')
+                .charAt(0)
+                .toUpperCase()}
         </div>
     );
 
     return (
-        <div
-            className={`${classes.schedulePlayerCell} ${isRight ? classes.schedulePlayerCellRight : ''}`}
-        >
+        <div className={`${classes.schedulePlayerCell} ${isRight ? classes.schedulePlayerCellRight : ''}`}>
             {countryCode ? (
                 <span className={classes.schedulePlayerFlag}>
                     <CountryFlag code={countryCode} size={16} />
@@ -237,9 +229,7 @@ const SchedulePlayerCell = ({
                 </div>
             ) : null}
             {avatar}
-            <span
-                className={`${classes.schedulePlayerName} ${isWinner ? classes.winnerName : ''}`}
-            >
+            <span className={`${classes.schedulePlayerName} ${isWinner ? classes.winnerName : ''}`}>
                 {!isRight && place ? <span className={classes.placeTag}>#{place}</span> : null}
                 {name}
                 {isRight && place ? <span className={classes.placeTag}>#{place}</span> : null}
@@ -299,11 +289,7 @@ const LeagueBracket = ({
     const hasGroups = groupLabels.length > 0;
     const scopedPairs = hasGroups ? pairs.filter((pair) => pair.group === activeGroup) : pairs;
     const scopedRegisteredPlayers = hasGroups
-        ? [
-              ...new Set(
-                  scopedPairs.flatMap((pair) => [pair.team1, pair.team2]).filter((name) => name && name !== 'TBD')
-              )
-          ]
+        ? [...new Set(scopedPairs.flatMap((pair) => [pair.team1, pair.team2]).filter((name) => name && name !== 'TBD'))]
         : registeredPlayers;
 
     // Fetch all users once and compute global leaderboard ranks (same as StartingPageContent)
@@ -426,9 +412,7 @@ const LeagueBracket = ({
     const total = scopedPairs.length;
 
     const getPlayerByName = (name) =>
-        name && name !== 'TBD'
-            ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
-            : null;
+        name && name !== 'TBD' ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null : null;
 
     const getPlayerStars = (name) => {
         for (const pair of scopedPairs) {
@@ -516,9 +500,7 @@ const LeagueBracket = ({
         setActiveTab('schedule');
         dayNavInitialized.current = false;
 
-        const dayIdx = roundGroups.findIndex(({ items }) =>
-            items.some(({ idx }) => idx === highlightPair.pairIndex)
-        );
+        const dayIdx = roundGroups.findIndex(({ items }) => items.some(({ idx }) => idx === highlightPair.pairIndex));
         if (dayIdx >= 0) {
             setActiveDayIndex(dayIdx);
         }
@@ -613,8 +595,7 @@ const LeagueBracket = ({
                                 <span className={classes.dayNavMeta}>
                                     {activeDayIndex + 1} / {dayCount}
                                     {' · '}
-                                    {activeRound.items.length}{' '}
-                                    {activeRound.items.length === 1 ? 'match' : 'matches'}
+                                    {activeRound.items.length} {activeRound.items.length === 1 ? 'match' : 'matches'}
                                 </span>
                             </div>
                             <button
@@ -630,165 +611,164 @@ const LeagueBracket = ({
                     )}
                     <div className={classes.schedule}>
                         {activeRound?.items.map(({ pair, idx }) => {
-                                const isBye = pair.isBye || pair.team2 === 'BYE';
-                                const isFinished = Boolean(pair.winner);
-                                const showBtn =
-                                    !isBye && canViewReportButton ? canViewReportButton(pair) : false;
-                                const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
-                                const inProgressGames = !isFinished
-                                    ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
-                                    : [];
-                                const isInProgress = inProgressGames.length > 0;
+                            const isBye = pair.isBye || pair.team2 === 'BYE';
+                            const isFinished = Boolean(pair.winner);
+                            const showBtn = !isBye && canViewReportButton ? canViewReportButton(pair) : false;
+                            const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
+                            const inProgressGames = !isFinished
+                                ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
+                                : [];
+                            const isInProgress = inProgressGames.length > 0;
 
-                                const getPlayer = (name) =>
-                                    name && name !== 'TBD'
-                                        ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
-                                        : null;
+                            const getPlayer = (name) =>
+                                name && name !== 'TBD'
+                                    ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
+                                    : null;
 
-                                const getLatestRating = (ratingsStr) => {
-                                    if (!ratingsStr) {
-                                        return 0;
-                                    }
-                                    const str = String(ratingsStr);
-                                    if (str.includes(',')) {
-                                        return parseFloat(str.split(',').at(-1)) || 0;
-                                    }
-                                    return parseFloat(str) || 0;
-                                };
+                            const getLatestRating = (ratingsStr) => {
+                                if (!ratingsStr) {
+                                    return 0;
+                                }
+                                const str = String(ratingsStr);
+                                if (str.includes(',')) {
+                                    return parseFloat(str.split(',').at(-1)) || 0;
+                                }
+                                return parseFloat(str) || 0;
+                            };
 
-                                const p1 = getPlayer(pair.team1);
-                                const p2 = getPlayer(pair.team2);
+                            const p1 = getPlayer(pair.team1);
+                            const p2 = getPlayer(pair.team2);
 
-                                const stars1 =
-                                    pair.stars1 != null
-                                        ? (typeof pair.stars1 === 'string' && pair.stars1.includes(',')
-                                              ? parseFloat(pair.stars1.split(',').at(-1))
-                                              : parseFloat(pair.stars1)) || 0
-                                        : parseFloat(p1?.stars) || 0;
-                                const stars2 =
-                                    pair.stars2 != null
-                                        ? (typeof pair.stars2 === 'string' && pair.stars2.includes(',')
-                                              ? parseFloat(pair.stars2.split(',').at(-1))
-                                              : parseFloat(pair.stars2)) || 0
-                                        : parseFloat(p2?.stars) || 0;
+                            const stars1 =
+                                pair.stars1 != null
+                                    ? (typeof pair.stars1 === 'string' && pair.stars1.includes(',')
+                                          ? parseFloat(pair.stars1.split(',').at(-1))
+                                          : parseFloat(pair.stars1)) || 0
+                                    : parseFloat(p1?.stars) || 0;
+                            const stars2 =
+                                pair.stars2 != null
+                                    ? (typeof pair.stars2 === 'string' && pair.stars2.includes(',')
+                                          ? parseFloat(pair.stars2.split(',').at(-1))
+                                          : parseFloat(pair.stars2)) || 0
+                                    : parseFloat(p2?.stars) || 0;
 
-                                const place1 = rankByNickname[pair.team1] || p1?.placeInLeaderboard || null;
-                                const place2 = rankByNickname[pair.team2] || p2?.placeInLeaderboard || null;
+                            const place1 = rankByNickname[pair.team1] || p1?.placeInLeaderboard || null;
+                            const place2 = rankByNickname[pair.team2] || p2?.placeInLeaderboard || null;
 
-                                const rating1 = getLatestRating(pair.ratings1 ?? p1?.ratings);
-                                const rating2 = getLatestRating(pair.ratings2 ?? p2?.ratings);
+                            const rating1 = getLatestRating(pair.ratings1 ?? p1?.ratings);
+                            const rating2 = getLatestRating(pair.ratings2 ?? p2?.ratings);
 
-                                const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
-                                const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
-                                const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
-                                const isHighlighted =
-                                    highlightPair?.pairIndex === idx &&
-                                    (highlightPair?.stageIndex ?? storageStageIndex) === storageStageIndex;
+                            const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
+                            const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
+                            const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
+                            const isHighlighted =
+                                highlightPair?.pairIndex === idx &&
+                                (highlightPair?.stageIndex ?? storageStageIndex) === storageStageIndex;
 
-                                return (
-                                    <div
-                                        key={idx}
-                                        id={`pair-s${storageStageIndex}-p${idx}`}
-                                        className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
-                                    >
-                                        <div className={classes.teamCell}>
-                                            <SchedulePlayerCell
-                                                name={pair.team1}
-                                                player={p1}
-                                                stars={stars1}
-                                                place={place1}
-                                                countryCode={country1}
-                                                isWinner={pair.winner === pair.team1}
-                                            />
-                                        </div>
-
-                                        <div className={classes.centerBlock}>
-                                            {isBye ? (
-                                                <span className={classes.vs}>BYE</span>
-                                            ) : isFinished ? (
-                                                <span className={classes.score}>
-                                                    {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
-                                                </span>
-                                            ) : isInProgress ? (
-                                                <span className={classes.liveTag}>LIVE</span>
-                                            ) : (
-                                                <span className={classes.vs}>vs</span>
-                                            )}
-                                            {!isFinished && !isBye && (
-                                                <span className={classes.predictionRow}>
-                                                    {prediction.team1}% / {prediction.team2}%
-                                                </span>
-                                            )}
-                                            {showBtn && (
-                                                <button
-                                                    className={`${classes.reportBtn} ${isFinished ? classes.reReportBtn : ''}`}
-                                                    onClick={() => onSelectPair(idx)}
-                                                    title={isFinished ? 'Re-report result' : 'Report result'}
-                                                >
-                                                    {isFinished ? 'Edit' : 'Report'}
-                                                </button>
-                                            )}
-                                            {(pair.scheduledAt || canSchedule) && onSaveSchedule && (
-                                                <div className={classes.scheduleControl}>
-                                                    <MatchScheduleControl
-                                                        scheduledAt={pair.scheduledAt}
-                                                        scheduledBy={pair.scheduledBy}
-                                                        canEdit={canSchedule}
-                                                        onSave={(iso) => onSaveSchedule(idx, iso)}
-                                                        compact
-                                                        showMissingHint={canSchedule}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
-                                            <SchedulePlayerCell
-                                                name={pair.team2}
-                                                player={p2}
-                                                stars={stars2}
-                                                place={place2}
-                                                countryCode={country2}
-                                                align="right"
-                                                isWinner={pair.winner === pair.team2}
-                                            />
-                                        </div>
-
-                                        {isInProgress &&
-                                            inProgressGames.map((game, gIdx) => (
-                                                <div key={gIdx} className={classes.gameDetail}>
-                                                    <div className={classes.castleCard}>
-                                                        {getCastleImage(game.castle1) && (
-                                                            <img
-                                                                src={getCastleImage(game.castle1)}
-                                                                alt={game.castle1}
-                                                                className={classes.castleImg}
-                                                            />
-                                                        )}
-                                                        <div className={classes.castleName}>{game.castle1 || '—'}</div>
-                                                        <div className={classes.goldRow}>Gold: {game.gold1 ?? 0}</div>
-                                                        {renderRestartTokens(game.restart1_111, game.restart1_112)}
-                                                    </div>
-                                                    <div className={classes.gameDetailCenter}>
-                                                        Game {(game.gameId ?? gIdx) + 1}
-                                                    </div>
-                                                    <div className={`${classes.castleCard} ${classes.castleCardRight}`}>
-                                                        {getCastleImage(game.castle2) && (
-                                                            <img
-                                                                src={getCastleImage(game.castle2)}
-                                                                alt={game.castle2}
-                                                                className={classes.castleImg}
-                                                            />
-                                                        )}
-                                                        <div className={classes.castleName}>{game.castle2 || '—'}</div>
-                                                        <div className={classes.goldRow}>Gold: {game.gold2 ?? 0}</div>
-                                                        {renderRestartTokens(game.restart2_111, game.restart2_112)}
-                                                    </div>
-                                                </div>
-                                            ))}
+                            return (
+                                <div
+                                    key={idx}
+                                    id={`pair-s${storageStageIndex}-p${idx}`}
+                                    className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
+                                >
+                                    <div className={classes.teamCell}>
+                                        <SchedulePlayerCell
+                                            name={pair.team1}
+                                            player={p1}
+                                            stars={stars1}
+                                            place={place1}
+                                            countryCode={country1}
+                                            isWinner={pair.winner === pair.team1}
+                                        />
                                     </div>
-                                );
-                            })}
+
+                                    <div className={classes.centerBlock}>
+                                        {isBye ? (
+                                            <span className={classes.vs}>BYE</span>
+                                        ) : isFinished ? (
+                                            <span className={classes.score}>
+                                                {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
+                                            </span>
+                                        ) : isInProgress ? (
+                                            <span className={classes.liveTag}>LIVE</span>
+                                        ) : (
+                                            <span className={classes.vs}>vs</span>
+                                        )}
+                                        {!isFinished && !isBye && (
+                                            <span className={classes.predictionRow}>
+                                                {prediction.team1}% / {prediction.team2}%
+                                            </span>
+                                        )}
+                                        {showBtn && (
+                                            <button
+                                                className={`${classes.reportBtn} ${isFinished ? classes.reReportBtn : ''}`}
+                                                onClick={() => onSelectPair(idx)}
+                                                title={isFinished ? 'Re-report result' : 'Report result'}
+                                            >
+                                                {isFinished ? 'Edit' : 'Report'}
+                                            </button>
+                                        )}
+                                        {(pair.scheduledAt || canSchedule) && onSaveSchedule && (
+                                            <div className={classes.scheduleControl}>
+                                                <MatchScheduleControl
+                                                    scheduledAt={pair.scheduledAt}
+                                                    scheduledBy={pair.scheduledBy}
+                                                    canEdit={canSchedule}
+                                                    onSave={(iso) => onSaveSchedule(idx, iso)}
+                                                    compact
+                                                    showMissingHint={canSchedule}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
+                                        <SchedulePlayerCell
+                                            name={pair.team2}
+                                            player={p2}
+                                            stars={stars2}
+                                            place={place2}
+                                            countryCode={country2}
+                                            align="right"
+                                            isWinner={pair.winner === pair.team2}
+                                        />
+                                    </div>
+
+                                    {isInProgress &&
+                                        inProgressGames.map((game, gIdx) => (
+                                            <div key={gIdx} className={classes.gameDetail}>
+                                                <div className={classes.castleCard}>
+                                                    {getCastleImage(game.castle1) && (
+                                                        <img
+                                                            src={getCastleImage(game.castle1)}
+                                                            alt={game.castle1}
+                                                            className={classes.castleImg}
+                                                        />
+                                                    )}
+                                                    <div className={classes.castleName}>{game.castle1 || '—'}</div>
+                                                    <div className={classes.goldRow}>Gold: {game.gold1 ?? 0}</div>
+                                                    {renderRestartTokens(game.restart1_111, game.restart1_112)}
+                                                </div>
+                                                <div className={classes.gameDetailCenter}>
+                                                    Game {(game.gameId ?? gIdx) + 1}
+                                                </div>
+                                                <div className={`${classes.castleCard} ${classes.castleCardRight}`}>
+                                                    {getCastleImage(game.castle2) && (
+                                                        <img
+                                                            src={getCastleImage(game.castle2)}
+                                                            alt={game.castle2}
+                                                            className={classes.castleImg}
+                                                        />
+                                                    )}
+                                                    <div className={classes.castleName}>{game.castle2 || '—'}</div>
+                                                    <div className={classes.goldRow}>Gold: {game.gold2 ?? 0}</div>
+                                                    {renderRestartTokens(game.restart2_111, game.restart2_112)}
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                            );
+                        })}
                         {scopedPairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
                     </div>
                 </>
@@ -810,8 +790,7 @@ const LeagueBracket = ({
                         </thead>
                         <tbody>
                             {standings.map((s, i) => {
-                                const isKnockoutQualifier =
-                                    hasGroups && i < CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP;
+                                const isKnockoutQualifier = hasGroups && i < CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP;
                                 const rowClass = [
                                     isKnockoutQualifier ? classes.qualifierRow : '',
                                     !hasGroups && i === 0 && s.played > 0 ? classes.leader : ''

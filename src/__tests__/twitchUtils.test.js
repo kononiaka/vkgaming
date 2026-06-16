@@ -1,8 +1,4 @@
-import {
-    extractTwitchLogin,
-    getTwitchWatchUrl,
-    pickMatchStreamLogin
-} from '../utils/twitchUtils';
+import { extractTwitchLogin, getTwitchWatchUrl, pickMatchStreamLogin } from '../utils/twitchUtils';
 
 describe('twitchUtils', () => {
     test('extracts login from twitch URL', () => {

@@ -54,9 +54,7 @@ const completeGroupStage = (pairs, groups) => {
 };
 
 const markRoundWinners = (pairs, round, pickTeam = 'team1') =>
-    pairs.map((pair) =>
-        Number(pair.round) === Number(round) ? { ...pair, winner: pair[pickTeam] } : pair
-    );
+    pairs.map((pair) => (Number(pair.round) === Number(round) ? { ...pair, winner: pair[pickTeam] } : pair));
 
 describe('tournament format E2E flows', () => {
     describe('Swiss system', () => {
@@ -178,21 +176,16 @@ describe('tournament format E2E flows', () => {
                 ['P7', 'P8']
             ];
             const ordered = orderPlayersFromWheelPairs(wheelPairs, eight);
-            expect(ordered.map((player) => player.name)).toEqual([
-                'P1',
-                'P2',
-                'P3',
-                'P4',
-                'P5',
-                'P6',
-                'P7',
-                'P8'
-            ]);
+            expect(ordered.map((player) => player.name)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']);
 
-            const prepared = prepareChampionsLeagueGroupStage(ordered, {
-                maxPlayers: 8,
-                tournamentPlayoffGames: 'bo-1'
-            }, { shuffle: false });
+            const prepared = prepareChampionsLeagueGroupStage(
+                ordered,
+                {
+                    maxPlayers: 8,
+                    tournamentPlayoffGames: 'bo-1'
+                },
+                { shuffle: false }
+            );
 
             expect(prepared.validation.valid).toBe(true);
             expect(prepared.groups.A.map((player) => player.name)).toEqual(['P1', 'P2', 'P3', 'P4']);

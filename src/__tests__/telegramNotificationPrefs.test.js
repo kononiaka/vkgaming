@@ -1,7 +1,4 @@
-import {
-    collectFollowablePlayers,
-    mergeTelegramNotificationPrefs
-} from '../utils/telegramNotificationPrefs';
+import { collectFollowablePlayers, mergeTelegramNotificationPrefs } from '../utils/telegramNotificationPrefs';
 
 describe('telegramNotificationPrefs', () => {
     test('mergeTelegramNotificationPrefs fills defaults', () => {

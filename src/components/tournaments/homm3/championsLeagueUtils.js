@@ -4,11 +4,9 @@ export const CHAMPIONS_LEAGUE_GROUP_SIZE = 4;
 export const CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP = 2;
 export const CHAMPIONS_LEAGUE_SIZES = [8, 16, 32];
 
-export const isChampionsLeagueSize = (maxPlayers) =>
-    CHAMPIONS_LEAGUE_SIZES.includes(Number(maxPlayers));
+export const isChampionsLeagueSize = (maxPlayers) => CHAMPIONS_LEAGUE_SIZES.includes(Number(maxPlayers));
 
-export const getChampionsLeagueGroupCount = (maxPlayers) =>
-    Number(maxPlayers) / CHAMPIONS_LEAGUE_GROUP_SIZE;
+export const getChampionsLeagueGroupCount = (maxPlayers) => Number(maxPlayers) / CHAMPIONS_LEAGUE_GROUP_SIZE;
 
 export const getKnockoutPlayerCount = (maxPlayers) =>
     getChampionsLeagueGroupCount(maxPlayers) * CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP;
@@ -23,9 +21,7 @@ export const mapSnakeDrawIndexToSlot = (drawIndex, groupCount) => ({
 
 export const createEmptyGroupDrawGrid = (playerCount) => {
     const groupCount = playerCount / CHAMPIONS_LEAGUE_GROUP_SIZE;
-    return Array.from({ length: groupCount }, () =>
-        Array.from({ length: CHAMPIONS_LEAGUE_GROUP_SIZE }, () => 'TBD')
-    );
+    return Array.from({ length: groupCount }, () => Array.from({ length: CHAMPIONS_LEAGUE_GROUP_SIZE }, () => 'TBD'));
 };
 
 export const isGroupDrawGrid = (value) =>
@@ -69,9 +65,7 @@ export const buildGroupsFromDrawGrid = (grid, playerList) => {
     const groups = {};
 
     labels.forEach((label, groupIndex) => {
-        groups[label] = grid[groupIndex]
-            .map((name) => byName.get(name))
-            .filter((player) => player && player.name);
+        groups[label] = grid[groupIndex].map((name) => byName.get(name)).filter((player) => player && player.name);
     });
 
     return groups;
@@ -301,8 +295,7 @@ export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
         .sort((a, b) => b.points - a.points || b.wins - a.wins || a.name.localeCompare(b.name));
 };
 
-export const isChampionsLeagueGroupStageComplete = (pairs) =>
-    pairs.length > 0 && pairs.every((pair) => pair.winner);
+export const isChampionsLeagueGroupStageComplete = (pairs) => pairs.length > 0 && pairs.every((pair) => pair.winner);
 
 export const getQualifiedPlayers = (groups, pairs) => {
     const qualifiers = [];
@@ -327,12 +320,8 @@ export const getQualifiedPlayers = (groups, pairs) => {
 
 /** Pair group winners vs runners-up from different groups (classic CL draw). */
 export const pairKnockoutQualifiers = (qualifiers) => {
-    const winners = qualifiers
-        .filter((player) => player.place === 1)
-        .sort((a, b) => a.group.localeCompare(b.group));
-    const runners = qualifiers
-        .filter((player) => player.place === 2)
-        .sort((a, b) => a.group.localeCompare(b.group));
+    const winners = qualifiers.filter((player) => player.place === 1).sort((a, b) => a.group.localeCompare(b.group));
+    const runners = qualifiers.filter((player) => player.place === 2).sort((a, b) => a.group.localeCompare(b.group));
 
     const usedRunners = new Set();
     const ordered = [];
@@ -341,8 +330,7 @@ export const pairKnockoutQualifiers = (qualifiers) => {
         let runner =
             runners.find((candidate) => candidate.group !== winner.group && !usedRunners.has(candidate.name)) ||
             runners.find(
-                (candidate, runnerIndex) =>
-                    !usedRunners.has(candidate.name) && runnerIndex !== index % runners.length
+                (candidate, runnerIndex) => !usedRunners.has(candidate.name) && runnerIndex !== index % runners.length
             ) ||
             runners.find((candidate) => !usedRunners.has(candidate.name));
 
@@ -357,7 +345,7 @@ export const pairKnockoutQualifiers = (qualifiers) => {
     return ordered;
 };
 
-const getPairsCountForKnockoutStage = (stageName, knockoutSize) => {
+const getPairsCountForKnockoutStage = (stageName, _knockoutSize) => {
     const map = {
         '1/16 Final': 16,
         '1/8 Final': 8,

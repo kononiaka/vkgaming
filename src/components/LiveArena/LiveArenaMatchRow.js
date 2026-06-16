@@ -15,9 +15,7 @@ const LiveArenaMatchRow = ({ match, liveLogins = new Set(), showWatch = true }) 
     const scheduleLabel = formatMatchSchedule(match.scheduledAt || match.tournamentDate) || 'Time TBD';
 
     return (
-        <article
-            className={`${classes.matchRow} ${isOnAir || isMapLive ? classes.matchRowLive : ''}`}
-        >
+        <article className={`${classes.matchRow} ${isOnAir || isMapLive ? classes.matchRowLive : ''}`}>
             <div className={classes.matchRowMeta}>
                 {(isOnAir || isMapLive) && <span className={classes.onAirBadge}>ON AIR</span>}
                 <span className={classes.matchTournament}>{match.tournamentName}</span>
@@ -28,15 +26,11 @@ const LiveArenaMatchRow = ({ match, liveLogins = new Set(), showWatch = true }) 
                 <div className={classes.matchPlayer}>
                     <CountryFlag code={match.team1CountryCode} size={16} />
                     <span className={classes.matchPlayerName}>{match.team1}</span>
-                    {match.team1Stars > 0 && (
-                        <StarsComponent stars={match.team1Stars} />
-                    )}
+                    {match.team1Stars > 0 && <StarsComponent stars={match.team1Stars} />}
                 </div>
                 <span className={classes.matchVs}>vs</span>
                 <div className={classes.matchPlayer}>
-                    {match.team2Stars > 0 && (
-                        <StarsComponent stars={match.team2Stars} />
-                    )}
+                    {match.team2Stars > 0 && <StarsComponent stars={match.team2Stars} />}
                     <span className={classes.matchPlayerName}>{match.team2}</span>
                     <CountryFlag code={match.team2CountryCode} size={16} />
                 </div>

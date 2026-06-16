@@ -35,8 +35,8 @@
             1,
             {
                 "ignoreRestSiblings": true,
-                "argsIgnorePattern": "res|next|^err|^nlapi|define|^log",
-                "varsIgnorePattern": "^log"
+                "argsIgnorePattern": "res|next|^err|^_|^nlapi|define|^log",
+                "varsIgnorePattern": "^_|^log|^React$"
             }
         ],
         "no-undef": [
@@ -111,7 +111,8 @@
         "curly": "warn",
         "eqeqeq": [
             "warn",
-            "always"
+            "always",
+            { "null": "ignore" }
         ],
         "no-redeclare": "warn",
         "no-throw-literal": "warn",

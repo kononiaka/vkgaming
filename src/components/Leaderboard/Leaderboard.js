@@ -74,9 +74,7 @@ const applyKonoplayStars = (players) => {
     }
 
     const highestRating = players[0].ratings;
-    const lowestRating = Math.min(
-        ...players.filter((player) => player.ratings > 0).map((player) => player.ratings)
-    );
+    const lowestRating = Math.min(...players.filter((player) => player.ratings > 0).map((player) => player.ratings));
 
     return players.map((player) => ({
         ...player,
@@ -146,9 +144,7 @@ const buildOffLeaderboardRegisteredPlayers = async (konoplayByNickname, hotaUser
 };
 
 const buildRegisteredBottomPlayers = (hotaPlayers, offLeaderboardPlayers) => {
-    const fromLeaderboard = hotaPlayers.filter(
-        (player) => player.isRegistered && player.rank > TOP_TABLE_COUNT
-    );
+    const fromLeaderboard = hotaPlayers.filter((player) => player.isRegistered && player.rank > TOP_TABLE_COUNT);
 
     const combined = [...fromLeaderboard, ...offLeaderboardPlayers];
 
@@ -190,9 +186,7 @@ const Leaderboard = () => {
                 setKonoplayPlayers(buildKonoplayLeaderboard(usersData));
 
                 try {
-                    const metaResponse = await fetch(
-                        `${FIREBASE_DATABASE_URL}/meta/lastRankSnapshot.json`
-                    );
+                    const metaResponse = await fetch(`${FIREBASE_DATABASE_URL}/meta/lastRankSnapshot.json`);
                     if (metaResponse.ok) {
                         const metaData = await metaResponse.json();
                         setLastRankSnapshot(metaData);
@@ -216,9 +210,7 @@ const Leaderboard = () => {
                     }));
 
                     setHotaPlayers(hotaWithSiteStars);
-                    setRegisteredBottomPlayers(
-                        buildRegisteredBottomPlayers(hotaWithSiteStars, offLeaderboardPlayers)
-                    );
+                    setRegisteredBottomPlayers(buildRegisteredBottomPlayers(hotaWithSiteStars, offLeaderboardPlayers));
                     setUsingHota(true);
 
                     const avatarTargets = [...hotaWithSiteStars, ...offLeaderboardPlayers]
@@ -445,8 +437,7 @@ const Leaderboard = () => {
     const formatRankLabel = (player) => player.rankLabel || (player.rank != null ? String(player.rank) : '—');
 
     const isCurrentUserRow = (player) =>
-        authCtx.userNickName &&
-        player.username?.toLowerCase() === authCtx.userNickName.toLowerCase();
+        authCtx.userNickName && player.username?.toLowerCase() === authCtx.userNickName.toLowerCase();
 
     const renderDataRow = (player, { highlightCurrent = true } = {}) => {
         const rowClass = [
@@ -457,15 +448,31 @@ const Leaderboard = () => {
             .join(' ');
 
         return (
-            <tr key={`${player.username}-${player.rankLabel || player.rank || 'off'}`} className={rowClass || undefined}>
-                <td className={classes.rankCol}>{formatRankLabel(player)}</td>
-                <td>{renderPlayerLink(player)}</td>
-                <td>{player.rating ?? '—'}</td>
-                <td>{player.games ?? '—'}</td>
-                {usingHota && <td>{player.winrate != null ? `${player.winrate}%` : '—'}</td>}
-                {usingHota && <td>{player.peakRating ?? '—'}</td>}
-                {!usingHota && <td>{getRankChangeIndicator(player.rank, player.previousRank)}</td>}
-                <td>
+            <tr
+                key={`${player.username}-${player.rankLabel || player.rank || 'off'}`}
+                className={rowClass || undefined}
+            >
+                <td className={`${classes.rankCol} ${classes.mobileHide}`}>{formatRankLabel(player)}</td>
+                <td className={`${classes.colPlayer} ${classes.mobileHide}`}>{renderPlayerLink(player)}</td>
+                <td className={classes.colRating}>
+                    <div className={classes.mobileRatingCell}>
+                        <div className={classes.mobilePlayerName}>{renderPlayerLink(player)}</div>
+                        <div className={classes.mobileRatingValue}>{player.rating ?? '—'}</div>
+                    </div>
+                </td>
+                <td className={`${classes.mobileHide} ${classes.colGames}`}>{player.games ?? '—'}</td>
+                {usingHota && (
+                    <td className={`${classes.mobileHide} ${classes.colWinRate}`}>
+                        {player.winrate != null ? `${player.winrate}%` : '—'}
+                    </td>
+                )}
+                {usingHota && (
+                    <td className={`${classes.mobileHide} ${classes.colPeak}`}>{player.peakRating ?? '—'}</td>
+                )}
+                {!usingHota && (
+                    <td className={classes.mobileHide}>{getRankChangeIndicator(player.rank, player.previousRank)}</td>
+                )}
+                <td className={classes.colStars}>
                     <StarsComponent stars={player.siteStars ?? SITE_STARS_MIN} />
                 </td>
             </tr>
@@ -543,8 +550,7 @@ const Leaderboard = () => {
     const hasSearchTerm = normalizedSearchTerm.length > 0;
     const matchedPlayer = matchedPlayerIndex >= 0 ? displayPlayers[matchedPlayerIndex] : null;
     const contextStartIndex = matchedPlayerIndex >= 0 ? Math.max(0, matchedPlayerIndex - 4) : 0;
-    const contextEndIndex =
-        matchedPlayerIndex >= 0 ? Math.min(displayPlayers.length - 1, matchedPlayerIndex + 5) : -1;
+    const contextEndIndex = matchedPlayerIndex >= 0 ? Math.min(displayPlayers.length - 1, matchedPlayerIndex + 5) : -1;
     const searchContextPlayers =
         matchedPlayerIndex >= 0 ? displayPlayers.slice(contextStartIndex, contextEndIndex + 1) : [];
 
@@ -565,9 +571,8 @@ const Leaderboard = () => {
             <div className={classes.starsLegend}>
                 <StarsComponent stars={SITE_STARS_MAX} />
                 <div className={classes.starsLegendText}>
-                    <strong>Site stars</strong> — Konoplay skill tier (
-                    {SITE_STARS_MIN}–{SITE_STARS_MAX} scale). Top 50 earns {SITE_STARS_TOP50_MIN}–
-                    {SITE_STARS_MAX} stars by rank
+                    <strong>Site stars</strong> — Konoplay skill tier ({SITE_STARS_MIN}–{SITE_STARS_MAX} scale). Top 50
+                    earns {SITE_STARS_TOP50_MIN}–{SITE_STARS_MAX} stars by rank
                     {usingHota ? ' on HotA Meta' : ', based on cup ratings'}.
                 </div>
             </div>
@@ -614,12 +619,12 @@ const Leaderboard = () => {
                     <table className={classes.searchTable}>
                         <thead>
                             <tr>
-                                <th>Rank</th>
-                                <th>Player</th>
+                                <th className={classes.mobileHide}>Rank</th>
+                                <th className={classes.mobileHide}>Player</th>
                                 <th>Rating</th>
-                                <th>Games</th>
-                                {usingHota && <th>Win rate</th>}
-                                {!usingHota && <th>Change</th>}
+                                <th className={classes.mobileHide}>Games</th>
+                                {usingHota && <th className={classes.mobileHide}>Win rate</th>}
+                                {!usingHota && <th className={classes.mobileHide}>Change</th>}
                                 <th>Site stars</th>
                             </tr>
                         </thead>
@@ -629,16 +634,34 @@ const Leaderboard = () => {
                                 const isCurrentPlayer = globalIndex === matchedPlayerIndex;
 
                                 return (
-                                    <tr key={`${player.username}-${globalIndex}`} className={isCurrentPlayer ? classes.currentPlayerRow : ''}>
-                                        <td>{formatRankLabel(player)}</td>
-                                        <td>{renderPlayerLink(player)}</td>
-                                        <td>{player.rating}</td>
-                                        <td>{player.games}</td>
-                                        {usingHota && <td>{player.winrate != null ? `${player.winrate}%` : '—'}</td>}
-                                        {!usingHota && (
-                                            <td>{getRankChangeIndicator(globalIndex + 1, player.previousRank)}</td>
+                                    <tr
+                                        key={`${player.username}-${globalIndex}`}
+                                        className={isCurrentPlayer ? classes.currentPlayerRow : ''}
+                                    >
+                                        <td className={classes.mobileHide}>{formatRankLabel(player)}</td>
+                                        <td className={`${classes.mobileHide} ${classes.colPlayer}`}>
+                                            {renderPlayerLink(player)}
+                                        </td>
+                                        <td className={classes.colRating}>
+                                            <div className={classes.mobileRatingCell}>
+                                                <div className={classes.mobilePlayerName}>
+                                                    {renderPlayerLink(player)}
+                                                </div>
+                                                <div className={classes.mobileRatingValue}>{player.rating}</div>
+                                            </div>
+                                        </td>
+                                        <td className={classes.mobileHide}>{player.games}</td>
+                                        {usingHota && (
+                                            <td className={classes.mobileHide}>
+                                                {player.winrate != null ? `${player.winrate}%` : '—'}
+                                            </td>
                                         )}
-                                        <td>
+                                        {!usingHota && (
+                                            <td className={classes.mobileHide}>
+                                                {getRankChangeIndicator(globalIndex + 1, player.previousRank)}
+                                            </td>
+                                        )}
+                                        <td className={classes.colStars}>
                                             <StarsComponent stars={player.siteStars ?? SITE_STARS_MIN} />
                                         </td>
                                     </tr>
@@ -663,16 +686,16 @@ const Leaderboard = () => {
                     <table className={classes.dataTable}>
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Player</th>
-                                <th>Rating</th>
-                                <th>Games</th>
-                                {usingHota && <th>Win rate</th>}
-                                {usingHota && <th>Peak</th>}
-                                {!usingHota && <th>Change</th>}
-                                <th>
+                                <th className={classes.mobileHide}>#</th>
+                                <th className={`${classes.colPlayer} ${classes.mobileHide}`}>Player</th>
+                                <th className={classes.colRating}>Rating</th>
+                                <th className={classes.mobileHide}>Games</th>
+                                {usingHota && <th className={classes.mobileHide}>Win rate</th>}
+                                {usingHota && <th className={classes.mobileHide}>Peak</th>}
+                                {!usingHota && <th className={classes.mobileHide}>Change</th>}
+                                <th className={classes.colStars}>
                                     Site stars
-                                    <span className={classes.columnHint}>
+                                    <span className={`${classes.columnHint} ${classes.mobileHide}`}>
                                         {' '}
                                         (max {SITE_STARS_MAX})
                                     </span>
@@ -687,32 +710,30 @@ const Leaderboard = () => {
                             <div className={classes.sectionHeader}>
                                 <h3 className={classes.sectionTitle}>Registered Konoplay players</h3>
                                 <p className={classes.sectionNote}>
-                                    Site members outside the top {TOP_TABLE_COUNT}. Rank is their real HotA
-                                    position — climb the ladder and check back after ranked games.
+                                    Site members outside the top {TOP_TABLE_COUNT}. Rank is their real HotA position —
+                                    climb the ladder and check back after ranked games.
                                 </p>
                             </div>
 
                             <table className={classes.dataTable}>
                                 <thead>
                                     <tr>
-                                        <th>#</th>
-                                        <th>Player</th>
-                                        <th>Rating</th>
-                                        <th>Games</th>
-                                        <th>Win rate</th>
-                                        <th>Peak</th>
-                                        <th>
+                                        <th className={classes.mobileHide}>#</th>
+                                        <th className={`${classes.colPlayer} ${classes.mobileHide}`}>Player</th>
+                                        <th className={classes.colRating}>Rating</th>
+                                        <th className={classes.mobileHide}>Games</th>
+                                        <th className={classes.mobileHide}>Win rate</th>
+                                        <th className={classes.mobileHide}>Peak</th>
+                                        <th className={classes.colStars}>
                                             Site stars
-                                            <span className={classes.columnHint}>
+                                            <span className={`${classes.columnHint} ${classes.mobileHide}`}>
                                                 {' '}
                                                 (max {SITE_STARS_MAX})
                                             </span>
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {registeredBottomPlayers.map((player) => renderDataRow(player))}
-                                </tbody>
+                                <tbody>{registeredBottomPlayers.map((player) => renderDataRow(player))}</tbody>
                             </table>
                         </section>
                     )}

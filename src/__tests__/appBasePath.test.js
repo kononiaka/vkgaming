@@ -69,8 +69,7 @@ describe('appBasePath', () => {
     });
 
     test('getTwitchRedirectUri uses configured production callback when not on github.io', () => {
-        process.env.REACT_APP_TWITCH_REDIRECT_URI =
-            'https://konoplay.com/auth/twitch/callback';
+        process.env.REACT_APP_TWITCH_REDIRECT_URI = 'https://konoplay.com/auth/twitch/callback';
         expect(getTwitchRedirectUri()).toBe('https://konoplay.com/auth/twitch/callback');
     });
 

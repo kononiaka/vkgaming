@@ -28,25 +28,19 @@ const PlayerTournamentsSection = ({
                                 >
                                     {tournament.statusLabel}
                                 </span>
-                                {tournament.isPrivate ? (
-                                    <span className={classes.privateTag}>Private</span>
-                                ) : null}
+                                {tournament.isPrivate ? <span className={classes.privateTag}>Private</span> : null}
                             </div>
                             <h3 className={classes.name}>{tournament.name}</h3>
                             <div className={classes.metaRow}>
                                 {tournament.typeLabel ? (
                                     <span className={classes.meta}>{tournament.typeLabel}</span>
                                 ) : null}
-                                {tournament.date ? (
-                                    <span className={classes.meta}>{tournament.date}</span>
-                                ) : null}
+                                {tournament.date ? <span className={classes.meta}>{tournament.date}</span> : null}
                             </div>
                             {tournament.prizePoolLabel ? (
                                 <p className={classes.prizePool}>{tournament.prizePoolLabel}</p>
                             ) : null}
-                            {tournament.resultLabel ? (
-                                <p className={classes.result}>{tournament.resultLabel}</p>
-                            ) : null}
+                            {tournament.resultLabel ? <p className={classes.result}>{tournament.resultLabel}</p> : null}
                         </Link>
                     </li>
                 ))}

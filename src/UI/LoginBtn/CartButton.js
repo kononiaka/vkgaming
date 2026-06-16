@@ -17,7 +17,9 @@ const CartButton = () => {
                 try {
                     const userNickName = localStorage.getItem('userName');
                     const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
-                    if (!response.ok) return;
+                    if (!response.ok) {
+                        return;
+                    }
                     const data = await response.json();
 
                     const user = Object.values(data).find((u) => u.enteredNickname === userNickName);

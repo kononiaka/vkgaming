@@ -5,15 +5,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import {
-    FIREBASE_DATABASE_URL,
-    FIREBASE_FUNCTIONS_BASE,
-    FIREBASE_PROJECT_ID
-} from '../config/firebase';
+import { FIREBASE_DATABASE_URL, FIREBASE_FUNCTIONS_BASE, FIREBASE_PROJECT_ID } from '../config/firebase';
 import { getTwitchEmbedUrl, getTwitchWatchUrl } from '../utils/twitchUtils';
 
-const readRepoFile = (relativePath) =>
-    fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+const readRepoFile = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
 
 const REQUIRED_ENV_KEYS = [
     'REACT_APP_FIREBASE_API_KEY',
@@ -58,9 +53,7 @@ describe('production readiness — codebase wiring', () => {
     });
 
     test('tournament format utilities are present', () => {
-        expect(fs.existsSync(path.join(process.cwd(), 'src/components/tournaments/homm3/swissUtils.js'))).toBe(
-            true
-        );
+        expect(fs.existsSync(path.join(process.cwd(), 'src/components/tournaments/homm3/swissUtils.js'))).toBe(true);
         expect(
             fs.existsSync(path.join(process.cwd(), 'src/components/tournaments/homm3/championsLeagueUtils.js'))
         ).toBe(true);

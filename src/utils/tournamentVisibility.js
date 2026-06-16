@@ -48,10 +48,7 @@ export const canInviteTournamentPlayers = (
     return isAdmin || isTournamentCreator(tournament, userNickName, firebaseUid);
 };
 
-export const canKickTournamentPlayer = (
-    tournament,
-    { isAdmin, userNickName, firebaseUid = getFirebaseUid() }
-) => {
+export const canKickTournamentPlayer = (tournament, { isAdmin, userNickName, firebaseUid = getFirebaseUid() }) => {
     if (!tournament || !isRegistrationOpen(tournament.status)) {
         return false;
     }
@@ -65,11 +62,7 @@ export const isPlayerVisibleTournament = (tournament) => {
     }
 
     const status = tournament?.status;
-    return (
-        status === 'Registration' ||
-        status === 'Registration Started' ||
-        status === 'Started!'
-    );
+    return status === 'Registration' || status === 'Registration Started' || status === 'Started!';
 };
 
 export const isStrictCastlePickEnabled = (tournament) => Boolean(tournament?.strictCastlePick);

@@ -258,6 +258,32 @@
     font-variant-numeric: tabular-nums;
 }
 
+.colRating {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--color-gold);
+}
+
+.mobileRatingCell {
+    display: block;
+}
+
+.mobilePlayerName {
+    display: none;
+}
+
+.mobileRatingValue {
+    display: inline;
+}
+
+.colStars {
+    width: 7.5rem;
+}
+
+.mobileHide {
+    /* visible on desktop */
+}
+
 .gold td {
     background: rgba(201, 162, 39, 0.1) !important;
 }
@@ -368,13 +394,52 @@
         font-size: 0.85rem;
     }
 
-    .dataTable {
+    .dataTable,
+    .searchTable {
         font-size: 0.8rem;
     }
 
     .dataTable th,
-    .dataTable td {
+    .dataTable td,
+    .searchTable th,
+    .searchTable td {
         padding: 0.5rem 0.6rem;
+    }
+
+    .mobileHide {
+        display: none;
+    }
+
+    .mobilePlayerName {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .mobilePlayerName .playerLink {
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .mobilePlayerName .playerAvatar {
+        width: 24px;
+        height: 24px;
+    }
+
+    .mobileRatingValue {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-gold);
+    }
+
+    .colRating {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .colStars {
+        width: auto;
+        text-align: center;
     }
 
     .toolbar {

@@ -3,12 +3,7 @@ import { Link } from 'react-router-dom';
 import { fetchLiveTournamentPrizePools } from '../../utils/prizePoolData';
 import classes from './PrizePoolPanel.module.css';
 
-const PrizePoolPanel = ({
-    compact = false,
-    className = '',
-    showSupportButton = true,
-    showNote = true
-}) => {
+const PrizePoolPanel = ({ compact = false, className = '', showSupportButton = true, showNote = true }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -60,8 +55,7 @@ const PrizePoolPanel = ({
                 <p className={classes.loading}>Loading prize pools…</p>
             ) : entries.length === 0 ? (
                 <p className={classes.empty}>
-                    No open tournaments right now. When registration opens or a cup goes live, prize pools appear
-                    here.
+                    No open tournaments right now. When registration opens or a cup goes live, prize pools appear here.
                 </p>
             ) : (
                 <div className={classes.list}>
@@ -76,10 +70,7 @@ const PrizePoolPanel = ({
                                 <span className={classes.statusBadge}>{entry.statusLabel}</span>
                             </div>
                             <div className={classes.progressTrack} aria-hidden="true">
-                                <div
-                                    className={classes.progressFill}
-                                    style={{ width: `${entry.progressPct}%` }}
-                                />
+                                <div className={classes.progressFill} style={{ width: `${entry.progressPct}%` }} />
                                 <span className={classes.progressLabel}>Collected {entry.collectedLabel}</span>
                             </div>
                         </article>
@@ -87,9 +78,7 @@ const PrizePoolPanel = ({
                 </div>
             )}
 
-            {showNote ? (
-                <p className={classes.note}>90% of every donation goes to active cup prize pools.</p>
-            ) : null}
+            {showNote ? <p className={classes.note}>90% of every donation goes to active cup prize pools.</p> : null}
         </section>
     );
 };

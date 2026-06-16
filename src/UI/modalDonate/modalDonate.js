@@ -118,9 +118,7 @@ const ModalDonate = (props) => {
             <p className={classes.donate_title}>
                 via Card (Stripe — Visa / Mastercard / Apple Pay / Google Pay / BLIK)
             </p>
-            <p className={classes.customNote}>
-                Enter any amount — minimum ${MIN_STRIPE_DONATION_USD} via card.
-            </p>
+            <p className={classes.customNote}>Enter any amount — minimum ${MIN_STRIPE_DONATION_USD} via card.</p>
             <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
                 <div className={classes.stripeRow}>
                     <div className={classes.amountField}>

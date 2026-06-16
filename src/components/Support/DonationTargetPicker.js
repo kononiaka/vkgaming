@@ -2,10 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loadDonationTargetTournamentIds, saveDonationTargetTournamentIds } from '../../api/donationTargets';
 import { getFirebaseUid } from '../../api/authFetch';
-import {
-    fetchDonatableTournamentPools,
-    resolveDonationTargetIds
-} from '../../utils/prizePoolData';
+import { fetchDonatableTournamentPools, resolveDonationTargetIds } from '../../utils/prizePoolData';
 import classes from './DonationTargetPicker.module.css';
 
 const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false }) => {
@@ -93,9 +90,7 @@ const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false
             <div className={classes.panelHeader}>
                 <div>
                     <h2 className={classes.title}>Choose cups to support</h2>
-                    <p className={classes.subtitle}>
-                        90% of your donation is split equally among the selected cups.
-                    </p>
+                    <p className={classes.subtitle}>90% of your donation is split equally among the selected cups.</p>
                 </div>
                 {entries.length > 0 ? (
                     <div className={classes.bulkActions}>
@@ -146,9 +141,7 @@ const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false
                                             className={classes.progressFill}
                                             style={{ width: `${entry.progressPct}%` }}
                                         />
-                                        <span className={classes.progressLabel}>
-                                            Collected {entry.collectedLabel}
-                                        </span>
+                                        <span className={classes.progressLabel}>Collected {entry.collectedLabel}</span>
                                     </span>
                                 </span>
                             </label>

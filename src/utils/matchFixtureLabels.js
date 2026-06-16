@@ -35,9 +35,9 @@ export const resolveLeagueRound = (tournament, pair) => {
 
     const playerNames = [
         ...new Set(
-            stagePairs.flatMap((stagePair) => [stagePair.team1, stagePair.team2]).filter(
-                (name) => name && name !== 'TBD' && name !== 'null'
-            )
+            stagePairs
+                .flatMap((stagePair) => [stagePair.team1, stagePair.team2])
+                .filter((name) => name && name !== 'TBD' && name !== 'null')
         )
     ];
     const roundMap = buildLeagueRoundMap(playerNames);
@@ -118,9 +118,7 @@ export const buildMatchBannerLabel = ({
     }
 
     const parts = [tournamentName, typeLabel, resolvedStageLabel].filter(Boolean);
-    const deduped = parts.filter(
-        (part, index) => index === 0 || part.toLowerCase() !== parts[index - 1].toLowerCase()
-    );
+    const deduped = parts.filter((part, index) => index === 0 || part.toLowerCase() !== parts[index - 1].toLowerCase());
 
     return deduped.join(' · ');
 };

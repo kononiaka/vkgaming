@@ -63,9 +63,7 @@ export async function deleteTournament(tournamentId) {
 
 export async function getTournamentData(tournamentId) {
     try {
-        const response = await fetch(
-            `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`
-        );
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`);
 
         if (!response.ok) {
             throw new Error(`Failed to fetch tournament data for ID: ${tournamentId}`);

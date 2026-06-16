@@ -316,3 +316,30 @@
     color: var(--color-gold-dim);
     font-weight: 600;
 }
+
+@media (max-width: 768px) {
+    .buttonGroup {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+        gap: 0.5rem;
+        margin-left: 0;
+    }
+
+    .button {
+        width: 100%;
+        text-align: center;
+        padding: 0.65rem 1rem;
+    }
+
+    .textButton {
+        flex: 1 1 calc(50% - 0.25rem);
+        min-width: 0;
+    }
+
+    .statBox.starsBox {
+        width: 100%;
+        max-width: none;
+        justify-content: center;
+    }
+}

@@ -19,10 +19,7 @@ import {
     HOST_SEED_POOL_SHARE,
     MIN_HOST_SEED_USD
 } from '../../utils/prizePoolData';
-import {
-    fundTournamentFromHostBalance,
-    startHostSeedCheckout
-} from '../../api/tournamentHostFunding';
+import { fundTournamentFromHostBalance, startHostSeedCheckout } from '../../api/tournamentHostFunding';
 import { addCreatorToTournament } from '../../api/tournamentRegistration';
 import { MIN_SWISS_PLAYERS } from '../../components/tournaments/homm3/swissUtils';
 import {
@@ -66,12 +63,9 @@ const Bracket = (props) => {
     const showBracketOptions = isKickOff || isChampionsLeague;
     const parsedFundingGoal = Number(fundingGoalUsd);
     const fundingGoalInvalid =
-        fundingGoalUsd !== '' &&
-        (!Number.isFinite(parsedFundingGoal) || parsedFundingGoal < MIN_HOST_SEED_USD);
+        fundingGoalUsd !== '' && (!Number.isFinite(parsedFundingGoal) || parsedFundingGoal < MIN_HOST_SEED_USD);
     const hasValidFundingGoal =
-        fundingGoalUsd !== '' &&
-        Number.isFinite(parsedFundingGoal) &&
-        parsedFundingGoal >= MIN_HOST_SEED_USD;
+        fundingGoalUsd !== '' && Number.isFinite(parsedFundingGoal) && parsedFundingGoal >= MIN_HOST_SEED_USD;
     const minPlayersRequired = isSwiss
         ? MIN_SWISS_PLAYERS
         : isChampionsLeague
@@ -79,9 +73,7 @@ const Bracket = (props) => {
           : MIN_TOURNAMENT_PLAYERS;
     const parsedMaxPlayers = Number(maxPlayers);
     const maxPlayersBelowMin =
-        maxPlayers !== '' &&
-        Number.isFinite(parsedMaxPlayers) &&
-        parsedMaxPlayers < minPlayersRequired;
+        maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && parsedMaxPlayers < minPlayersRequired;
     const championsLeagueSizeInvalid =
         isChampionsLeague &&
         maxPlayers !== '' &&
@@ -93,10 +85,7 @@ const Bracket = (props) => {
         parsedMaxPlayers >= minPlayersRequired &&
         (!isChampionsLeague || isChampionsLeagueSize(parsedMaxPlayers));
     const loserBracketSizeInvalid =
-        loserBracket &&
-        maxPlayers !== '' &&
-        Number.isFinite(parsedMaxPlayers) &&
-        !isDoubleElimSize(parsedMaxPlayers);
+        loserBracket && maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && !isDoubleElimSize(parsedMaxPlayers);
     const canCreateTournament =
         hasValidFundingGoal &&
         isMaxPlayersValid &&
@@ -214,7 +203,12 @@ const Bracket = (props) => {
         }
 
         if (attendanceFeeInvalid) {
-            authCtx.setNotificationShown(true, 'Enter a valid attendance fee (USD). Use 0 for free entry.', 'warning', 5);
+            authCtx.setNotificationShown(
+                true,
+                'Enter a valid attendance fee (USD). Use 0 for free entry.',
+                'warning',
+                5
+            );
             return;
         }
 
@@ -237,10 +231,7 @@ const Bracket = (props) => {
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
             tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
             tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
-            randomBracket:
-                isLeague || isSwiss
-                    ? false
-                    : showBracketOptions && randomBracketRef.current.checked,
+            randomBracket: isLeague || isSwiss ? false : showBracketOptions && randomBracketRef.current.checked,
             loserBracket: isKickOff && loserBracket,
             strictCastlePick,
             championsLeaguePhase: isChampionsLeague ? 'group' : null,
@@ -345,12 +336,7 @@ const Bracket = (props) => {
                 return;
             }
 
-            authCtx.setNotificationShown(
-                true,
-                `Tournament "${name}" created.`,
-                'success',
-                5
-            );
+            authCtx.setNotificationShown(true, `Tournament "${name}" created.`, 'success', 5);
 
             props.onClose();
             window.location.href = '/tournaments/homm3';
@@ -374,311 +360,306 @@ const Bracket = (props) => {
                 </header>
 
                 <div className={classes.body}>
-
-                        <section className={classes.section}>
-                            <h3 className={classes.sectionTitle}>Basics</h3>
-                            <div className={classes.grid}>
-                                <div className={`${classes.field} ${classes.fieldWide}`}>
-                                    <label className={classes.label} htmlFor="tournamentName">
-                                        Tournament name
-                                    </label>
-                                    <input
-                                        id="tournamentName"
-                                        className={classes.input}
-                                        value={tournamentName}
-                                        onChange={(event) => setTournamentName(event.target.value)}
-                                        placeholder="e.g. June Kick-off Cup"
-                                    />
-                                </div>
-                                <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentType">
-                                        Type
-                                    </label>
-                                    <select
-                                        id="tournamentType"
-                                        className={classes.select}
-                                        value={tournamentType}
-                                        onChange={handleTournamentTypeChange}
-                                    >
-                                        {tournamentTypeOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {isSwiss && (
-                                        <p className={classes.fieldHint}>
-                                            Minimum {MIN_SWISS_PLAYERS} players. Pairings follow standings each round
-                                            (typically log₂ of player count rounds).
-                                        </p>
-                                    )}
-                                    {isChampionsLeague && (
-                                        <p className={classes.fieldHint}>
-                                            Groups of {CHAMPIONS_LEAGUE_GROUP_SIZE}, top {CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP}{' '}
-                                            advance. Requires exactly {CHAMPIONS_LEAGUE_SIZES.join(', ')} players.
-                                        </p>
-                                    )}
-                                </div>
-                                <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentDate">
-                                        Start date
-                                    </label>
-                                    <input
-                                        type="datetime-local"
-                                        id="tournamentDate"
-                                        className={classes.input}
-                                        value={date}
-                                        onChange={(e) => setDate(e.target.value)}
-                                        step={1800}
-                                    />
-                                </div>
-                                <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentPlayers">
-                                        Max players
-                                    </label>
-                                    {isChampionsLeague ? (
-                                        <select
-                                            id="tournamentPlayers"
-                                            className={classes.select}
-                                            value={championsLeagueMaxPlayers}
-                                            onChange={(event) => setMaxPlayers(event.target.value)}
-                                        >
-                                            {championsLeaguePlayerOptions.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            id="tournamentPlayers"
-                                            className={`${classes.input} ${
-                                                maxPlayersBelowMin ? classes.inputError : ''
-                                            }`}
-                                            type="number"
-                                            min={minPlayersRequired}
-                                            value={maxPlayers}
-                                            onChange={(event) => setMaxPlayers(event.target.value)}
-                                        />
-                                    )}
-                                    {isSwiss && (
-                                        <p className={classes.fieldHint}>
-                                            Swiss requires at least {MIN_SWISS_PLAYERS} registered players to start.
-                                        </p>
-                                    )}
-                                    {isChampionsLeague && (
-                                        <p className={classes.fieldHint}>
-                                            Must register exactly {championsLeagueMaxPlayers} players — no more, no
-                                            less.
-                                        </p>
-                                    )}
-                                    {!isChampionsLeague && maxPlayersBelowMin && (
-                                        <p className={classes.fieldError}>
-                                            {isSwiss
-                                                ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} max players.`
-                                                : 'Max players must be at least 2.'}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className={classes.section}>
-                            <h3 className={classes.sectionTitle}>Prizes &amp; format</h3>
-                            <div className={classes.grid}>
-                                <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentFundingGoalUsd">
-                                        Prize pool goal (USD)
-                                    </label>
-                                    <input
-                                        id="tournamentFundingGoalUsd"
-                                        className={`${classes.input} ${fundingGoalInvalid ? classes.inputError : ''}`}
-                                        type="number"
-                                        min={MIN_HOST_SEED_USD}
-                                        step="1"
-                                        value={fundingGoalUsd}
-                                        onChange={handleFundingGoalChange}
-                                        placeholder={`e.g. ${DEFAULT_FUNDING_GOAL_USD}`}
-                                    />
-                                    <p className={classes.fieldHint}>
-                                        You pay this at creation. {Math.round(HOST_SEED_POOL_SHARE * 100)}% (
-                                        {formatFundingUsd(getHostSeedPoolPreview(parsedFundingGoal || 0))}) goes to the pool. Winners paid 60% / 30% / 10%
-                                        when the cup ends.
-                                    </p>
-                                </div>
-                                <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentAttendanceFeeUsd">
-                                        Self-registration fee (USD)
-                                    </label>
-                                    <input
-                                        id="tournamentAttendanceFeeUsd"
-                                        className={`${classes.input} ${attendanceFeeInvalid ? classes.inputError : ''}`}
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={attendanceFeeUsd}
-                                        onChange={handleAttendanceFeeChange}
-                                        placeholder="0 = free"
-                                    />
-                                    <p className={classes.fieldHint}>
-                                        Paid by players who register themselves. 100% goes to this cup&apos;s prize pool.
-                                        Admins can still add players for free.
-                                    </p>
-                                </div>
-                                <div className={classes.field}>
-                                    <label className={classes.label} htmlFor="tournamentPlayoffGames">
-                                        {isScheduleFormat ? 'Match type' : 'Playoff games'}
-                                    </label>
-                                    <select
-                                        id="tournamentPlayoffGames"
-                                        className={classes.select}
-                                        defaultValue="1"
-                                        ref={tournamentPlayoffGames}
-                                    >
-                                        {(isLeague || isChampionsLeague
-                                            ? leagueGameCountOptions
-                                            : playoffGameCountOptions
-                                        ).map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className={`${classes.field} ${hideKnockoutStageGames ? classes.hidden : ''}`}>
-                                    <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
-                                        Final games
-                                    </label>
-                                    <select
-                                        id="tournamentPlayoffGamesFinal"
-                                        className={classes.select}
-                                        defaultValue="1"
-                                        ref={tournamentPlayoffGamesFinal}
-                                    >
-                                        {playoffGameCountOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div
-                                    className={`${classes.field} ${
-                                        hideKnockoutStageGames || loserBracket ? classes.hidden : ''
-                                    }`}
-                                >
-                                    <label className={classes.label} htmlFor="tournamentPlayoffGamesThirdPlace">
-                                        Third place games
-                                    </label>
-                                    <select
-                                        id="tournamentPlayoffGamesThirdPlace"
-                                        className={classes.select}
-                                        defaultValue="1"
-                                        ref={tournamentPlayoffGamesThirdPlace}
-                                    >
-                                        {playoffGameCountOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className={`${classes.field} ${showBracketOptions ? '' : classes.hidden}`}>
-                                    <span className={classes.label}>
-                                        {isChampionsLeague ? 'Group draw' : 'Bracket'}
-                                    </span>
-                                    <label className={classes.checkLabel} htmlFor="randomBracket">
-                                        <input
-                                            type="checkbox"
-                                            id="randomBracket"
-                                            ref={randomBracketRef}
-                                            defaultChecked
-                                        />
-                                        {isChampionsLeague
-                                            ? 'Spinning wheel (group draw)'
-                                            : 'Spinning wheel (random bracket)'}
-                                    </label>
-                                    {isChampionsLeague && (
-                                        <p className={classes.fieldHint}>
-                                            Optional. When enabled, the admin draws groups with the wheel before the
-                                            group stage. When off, groups are shuffled automatically.
-                                        </p>
-                                    )}
-                                    {isKickOff && (
-                                        <label className={classes.checkLabel} htmlFor="loserBracket">
-                                            <input
-                                                type="checkbox"
-                                                id="loserBracket"
-                                                checked={loserBracket}
-                                                onChange={(event) => setLoserBracket(event.target.checked)}
-                                            />
-                                            Loser bracket (double elimination)
-                                        </label>
-                                    )}
-                                    {loserBracket && (
-                                        <p className={classes.fieldHint}>
-                                            Double elimination for {DOUBLE_ELIM_SIZES.join(', ')} players. Losers get a
-                                            second chance via the lower bracket; grand final decides the champion.
-                                        </p>
-                                    )}
-                                    {loserBracketSizeInvalid && (
-                                        <p className={classes.fieldError}>
-                                            Loser bracket requires max players: {DOUBLE_ELIM_SIZES.join(', ')}.
-                                        </p>
-                                    )}
-                                </div>
-                                <div className={classes.field}>
-                                    <span className={classes.label}>Castle picks</span>
-                                    <label className={classes.checkLabel} htmlFor="strictCastlePick">
-                                        <input
-                                            type="checkbox"
-                                            id="strictCastlePick"
-                                            checked={strictCastlePick}
-                                            onChange={(event) => setStrictCastlePick(event.target.checked)}
-                                        />
-                                        Strict castle pick
-                                    </label>
-                                    <p className={classes.fieldHint}>
-                                        When enabled, admins can open the Available Castles panel in the bracket and
-                                        players see castle availability colors while reporting games (11/12 rule).
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className={classes.section}>
-                            <h3 className={classes.sectionTitle}>Visibility</h3>
-                            <div className={classes.visibilityPanel}>
-                                <label className={classes.checkLabel} htmlFor="tournamentPublic">
-                                    <input
-                                        type="checkbox"
-                                        id="tournamentPublic"
-                                        checked={isPublicTournament}
-                                        onChange={(event) => setIsPublicTournament(event.target.checked)}
-                                    />
-                                    Public tournament
+                    <section className={classes.section}>
+                        <h3 className={classes.sectionTitle}>Basics</h3>
+                        <div className={classes.grid}>
+                            <div className={`${classes.field} ${classes.fieldWide}`}>
+                                <label className={classes.label} htmlFor="tournamentName">
+                                    Tournament name
                                 </label>
-                                <p className={classes.visibilityHint}>
-                                    {isPublicTournament
-                                        ? 'Visible on the site and announced in Telegram @vkgamingplay.'
-                                        : 'Private draft — only admins see it; no Telegram announcement.'}
+                                <input
+                                    id="tournamentName"
+                                    className={classes.input}
+                                    value={tournamentName}
+                                    onChange={(event) => setTournamentName(event.target.value)}
+                                    placeholder="e.g. June Kick-off Cup"
+                                />
+                            </div>
+                            <div className={classes.field}>
+                                <label className={classes.label} htmlFor="tournamentType">
+                                    Type
+                                </label>
+                                <select
+                                    id="tournamentType"
+                                    className={classes.select}
+                                    value={tournamentType}
+                                    onChange={handleTournamentTypeChange}
+                                >
+                                    {tournamentTypeOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {isSwiss && (
+                                    <p className={classes.fieldHint}>
+                                        Minimum {MIN_SWISS_PLAYERS} players. Pairings follow standings each round
+                                        (typically log₂ of player count rounds).
+                                    </p>
+                                )}
+                                {isChampionsLeague && (
+                                    <p className={classes.fieldHint}>
+                                        Groups of {CHAMPIONS_LEAGUE_GROUP_SIZE}, top{' '}
+                                        {CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} advance. Requires exactly{' '}
+                                        {CHAMPIONS_LEAGUE_SIZES.join(', ')} players.
+                                    </p>
+                                )}
+                            </div>
+                            <div className={classes.field}>
+                                <label className={classes.label} htmlFor="tournamentDate">
+                                    Start date
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    id="tournamentDate"
+                                    className={classes.input}
+                                    value={date}
+                                    onChange={(e) => setDate(e.target.value)}
+                                    step={1800}
+                                />
+                            </div>
+                            <div className={classes.field}>
+                                <label className={classes.label} htmlFor="tournamentPlayers">
+                                    Max players
+                                </label>
+                                {isChampionsLeague ? (
+                                    <select
+                                        id="tournamentPlayers"
+                                        className={classes.select}
+                                        value={championsLeagueMaxPlayers}
+                                        onChange={(event) => setMaxPlayers(event.target.value)}
+                                    >
+                                        {championsLeaguePlayerOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        id="tournamentPlayers"
+                                        className={`${classes.input} ${maxPlayersBelowMin ? classes.inputError : ''}`}
+                                        type="number"
+                                        min={minPlayersRequired}
+                                        value={maxPlayers}
+                                        onChange={(event) => setMaxPlayers(event.target.value)}
+                                    />
+                                )}
+                                {isSwiss && (
+                                    <p className={classes.fieldHint}>
+                                        Swiss requires at least {MIN_SWISS_PLAYERS} registered players to start.
+                                    </p>
+                                )}
+                                {isChampionsLeague && (
+                                    <p className={classes.fieldHint}>
+                                        Must register exactly {championsLeagueMaxPlayers} players — no more, no less.
+                                    </p>
+                                )}
+                                {!isChampionsLeague && maxPlayersBelowMin && (
+                                    <p className={classes.fieldError}>
+                                        {isSwiss
+                                            ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} max players.`
+                                            : 'Max players must be at least 2.'}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className={classes.section}>
+                        <h3 className={classes.sectionTitle}>Prizes &amp; format</h3>
+                        <div className={classes.grid}>
+                            <div className={classes.field}>
+                                <label className={classes.label} htmlFor="tournamentFundingGoalUsd">
+                                    Prize pool goal (USD)
+                                </label>
+                                <input
+                                    id="tournamentFundingGoalUsd"
+                                    className={`${classes.input} ${fundingGoalInvalid ? classes.inputError : ''}`}
+                                    type="number"
+                                    min={MIN_HOST_SEED_USD}
+                                    step="1"
+                                    value={fundingGoalUsd}
+                                    onChange={handleFundingGoalChange}
+                                    placeholder={`e.g. ${DEFAULT_FUNDING_GOAL_USD}`}
+                                />
+                                <p className={classes.fieldHint}>
+                                    You pay this at creation. {Math.round(HOST_SEED_POOL_SHARE * 100)}% (
+                                    {formatFundingUsd(getHostSeedPoolPreview(parsedFundingGoal || 0))}) goes to the
+                                    pool. Winners paid 60% / 30% / 10% when the cup ends.
                                 </p>
                             </div>
-                        </section>
-
-                        <div className={classes.actions}>
-                            <button
-                                type="button"
-                                className={classes.primaryBtn}
-                                onClick={handleSave}
-                                disabled={isSaving || !canCreateTournament}
+                            <div className={classes.field}>
+                                <label className={classes.label} htmlFor="tournamentAttendanceFeeUsd">
+                                    Self-registration fee (USD)
+                                </label>
+                                <input
+                                    id="tournamentAttendanceFeeUsd"
+                                    className={`${classes.input} ${attendanceFeeInvalid ? classes.inputError : ''}`}
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={attendanceFeeUsd}
+                                    onChange={handleAttendanceFeeChange}
+                                    placeholder="0 = free"
+                                />
+                                <p className={classes.fieldHint}>
+                                    Paid by players who register themselves. 100% goes to this cup&apos;s prize pool.
+                                    Admins can still add players for free.
+                                </p>
+                            </div>
+                            <div className={classes.field}>
+                                <label className={classes.label} htmlFor="tournamentPlayoffGames">
+                                    {isScheduleFormat ? 'Match type' : 'Playoff games'}
+                                </label>
+                                <select
+                                    id="tournamentPlayoffGames"
+                                    className={classes.select}
+                                    defaultValue="1"
+                                    ref={tournamentPlayoffGames}
+                                >
+                                    {(isLeague || isChampionsLeague
+                                        ? leagueGameCountOptions
+                                        : playoffGameCountOptions
+                                    ).map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={`${classes.field} ${hideKnockoutStageGames ? classes.hidden : ''}`}>
+                                <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
+                                    Final games
+                                </label>
+                                <select
+                                    id="tournamentPlayoffGamesFinal"
+                                    className={classes.select}
+                                    defaultValue="1"
+                                    ref={tournamentPlayoffGamesFinal}
+                                >
+                                    {playoffGameCountOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div
+                                className={`${classes.field} ${
+                                    hideKnockoutStageGames || loserBracket ? classes.hidden : ''
+                                }`}
                             >
-                                {isSaving ? 'Creating…' : 'Create tournament'}
-                            </button>
-                            <button type="button" className={classes.secondaryBtn} onClick={props.onClose} disabled={isSaving}>
-                                Cancel
-                            </button>
+                                <label className={classes.label} htmlFor="tournamentPlayoffGamesThirdPlace">
+                                    Third place games
+                                </label>
+                                <select
+                                    id="tournamentPlayoffGamesThirdPlace"
+                                    className={classes.select}
+                                    defaultValue="1"
+                                    ref={tournamentPlayoffGamesThirdPlace}
+                                >
+                                    {playoffGameCountOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={`${classes.field} ${showBracketOptions ? '' : classes.hidden}`}>
+                                <span className={classes.label}>{isChampionsLeague ? 'Group draw' : 'Bracket'}</span>
+                                <label className={classes.checkLabel} htmlFor="randomBracket">
+                                    <input type="checkbox" id="randomBracket" ref={randomBracketRef} defaultChecked />
+                                    {isChampionsLeague
+                                        ? 'Spinning wheel (group draw)'
+                                        : 'Spinning wheel (random bracket)'}
+                                </label>
+                                {isChampionsLeague && (
+                                    <p className={classes.fieldHint}>
+                                        Optional. When enabled, the admin draws groups with the wheel before the group
+                                        stage. When off, groups are shuffled automatically.
+                                    </p>
+                                )}
+                                {isKickOff && (
+                                    <label className={classes.checkLabel} htmlFor="loserBracket">
+                                        <input
+                                            type="checkbox"
+                                            id="loserBracket"
+                                            checked={loserBracket}
+                                            onChange={(event) => setLoserBracket(event.target.checked)}
+                                        />
+                                        Loser bracket (double elimination)
+                                    </label>
+                                )}
+                                {loserBracket && (
+                                    <p className={classes.fieldHint}>
+                                        Double elimination for {DOUBLE_ELIM_SIZES.join(', ')} players. Losers get a
+                                        second chance via the lower bracket; grand final decides the champion.
+                                    </p>
+                                )}
+                                {loserBracketSizeInvalid && (
+                                    <p className={classes.fieldError}>
+                                        Loser bracket requires max players: {DOUBLE_ELIM_SIZES.join(', ')}.
+                                    </p>
+                                )}
+                            </div>
+                            <div className={classes.field}>
+                                <span className={classes.label}>Castle picks</span>
+                                <label className={classes.checkLabel} htmlFor="strictCastlePick">
+                                    <input
+                                        type="checkbox"
+                                        id="strictCastlePick"
+                                        checked={strictCastlePick}
+                                        onChange={(event) => setStrictCastlePick(event.target.checked)}
+                                    />
+                                    Strict castle pick
+                                </label>
+                                <p className={classes.fieldHint}>
+                                    When enabled, admins can open the Available Castles panel in the bracket and players
+                                    see castle availability colors while reporting games (11/12 rule).
+                                </p>
+                            </div>
                         </div>
+                    </section>
+
+                    <section className={classes.section}>
+                        <h3 className={classes.sectionTitle}>Visibility</h3>
+                        <div className={classes.visibilityPanel}>
+                            <label className={classes.checkLabel} htmlFor="tournamentPublic">
+                                <input
+                                    type="checkbox"
+                                    id="tournamentPublic"
+                                    checked={isPublicTournament}
+                                    onChange={(event) => setIsPublicTournament(event.target.checked)}
+                                />
+                                Public tournament
+                            </label>
+                            <p className={classes.visibilityHint}>
+                                {isPublicTournament
+                                    ? 'Visible on the site and announced in Telegram @vkgamingplay.'
+                                    : 'Private draft — only admins see it; no Telegram announcement.'}
+                            </p>
+                        </div>
+                    </section>
+
+                    <div className={classes.actions}>
+                        <button
+                            type="button"
+                            className={classes.primaryBtn}
+                            onClick={handleSave}
+                            disabled={isSaving || !canCreateTournament}
+                        >
+                            {isSaving ? 'Creating…' : 'Create tournament'}
+                        </button>
+                        <button
+                            type="button"
+                            className={classes.secondaryBtn}
+                            onClick={props.onClose}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </Modal>

@@ -18,6 +18,7 @@ import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
 import SupportPage from './pages/SupportPage';
 import HelpPage from './pages/HelpPage';
+import ReportBugPage from './pages/ReportBugPage';
 import RulesPage from './pages/RulesPage';
 import LiveArenaPage from './pages/LiveArenaPage';
 import MatchCenterPage from './pages/MatchCenterPage';
@@ -46,14 +47,12 @@ function App() {
                     <Route path="/leaderboard" element={<Leaderboard />} />
                     <Route path="/support" element={<SupportPage />} />
                     <Route path="/help" element={<HelpPage />} />
+                    <Route path="/report-bug" element={<ReportBugPage />} />
                     <Route path="/rules" element={<RulesPage />} />
                     <Route path="/players" element={<PlayersList />} />
                     <Route path="/players/:id" element={<Players />} />
                     <Route path="/" element={<HomePage />} />
-                    <Route
-                        path="/live/match/:tournamentId/:stageIndex/:pairIndex"
-                        element={<MatchCenterPage />}
-                    />
+                    <Route path="/live/match/:tournamentId/:stageIndex/:pairIndex" element={<MatchCenterPage />} />
                     <Route path="/live" element={<LiveArenaPage />} />
                     <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
                     {!authCtx.isLogged && <Route path="/auth" element={<AuthPage />} />}

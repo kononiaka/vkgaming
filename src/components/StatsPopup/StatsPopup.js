@@ -10,12 +10,7 @@ const StatsPopup = ({ stats, loading = false, onClose }) => {
     return (
         <div className={classes.backdrop} onClick={loading ? undefined : onClose}>
             <div className={classes.popup} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-                <button
-                    type="button"
-                    className={classes.closeButton}
-                    onClick={onClose}
-                    aria-label="Close stats"
-                >
+                <button type="button" className={classes.closeButton} onClick={onClose} aria-label="Close stats">
                     ×
                 </button>
                 <div className={classes.header}>
@@ -27,10 +22,7 @@ const StatsPopup = ({ stats, loading = false, onClose }) => {
                         {!loading && stats.source ? (
                             <>
                                 {' '}
-                                ·{' '}
-                                <span className={classes.sourceBadge}>
-                                    {getHeadToHeadSourceLabel(stats.source)}
-                                </span>
+                                · <span className={classes.sourceBadge}>{getHeadToHeadSourceLabel(stats.source)}</span>
                             </>
                         ) : null}
                     </p>
@@ -87,8 +79,7 @@ const StatsPopup = ({ stats, loading = false, onClose }) => {
                                         {stats.last5Games.map((game, idx) => (
                                             <li key={game.date + idx}>
                                                 {new Date(game.date).toLocaleDateString()} — {game.opponent1} vs{' '}
-                                                {game.opponent2}: <em>{game.score}</em> (Winner:{' '}
-                                                <b>{game.winner}</b>)
+                                                {game.opponent2}: <em>{game.score}</em> (Winner: <b>{game.winner}</b>)
                                                 {game.id && (
                                                     <>
                                                         {' — '}

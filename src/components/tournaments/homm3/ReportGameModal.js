@@ -417,93 +417,93 @@ const ReportGameModal = ({
         }
 
         const fetchAndCalculate = async () => {
-                try {
-                    const apiCastles = await fetchCastlesList();
-                    const stats = calculateAvailableCastles(apiCastles, playoffPairs);
-                    setAvailableCastles(stats);
+            try {
+                const apiCastles = await fetchCastlesList();
+                const stats = calculateAvailableCastles(apiCastles, playoffPairs);
+                setAvailableCastles(stats);
 
-                    // For series matches: check if any game hasn't started
-                    let shouldAutoMark = false;
-                    if (isSeriesMatch && pair.games) {
-                        const hasUnstartedGame = pair.games.some(
-                            (g) => !g.castle1 || !g.castle2 || g.gameStatus === 'Not Started'
-                        );
-                        shouldAutoMark = hasUnstartedGame;
-                        console.log('Series match has unstarted game?', shouldAutoMark);
-                    }
+                // For series matches: check if any game hasn't started
+                let shouldAutoMark = false;
+                if (isSeriesMatch && pair.games) {
+                    const hasUnstartedGame = pair.games.some(
+                        (g) => !g.castle1 || !g.castle2 || g.gameStatus === 'Not Started'
+                    );
+                    shouldAutoMark = hasUnstartedGame;
+                    console.log('Series match has unstarted game?', shouldAutoMark);
+                }
 
-                    if (shouldAutoMark) {
-                        // Check each game and apply 11/12 logic to unstarted ones
-                        if (pair.games && pair.games.length > 0) {
-                            pair.games.forEach((game, idx) => {
-                                // Only apply 11/12 logic to games that are "Not Started!" AND have no castles selected
-                                // Skip "Processed" or any other finished games
-                                const isGameNotStarted = game.gameStatus && game.gameStatus.trim() === 'Not Started!';
-                                const noCastlesSelected = !game.castle1 || !game.castle2;
-                                const isGameProcessed = game.gameStatus && game.gameStatus.trim() === 'Processed';
+                if (shouldAutoMark) {
+                    // Check each game and apply 11/12 logic to unstarted ones
+                    if (pair.games && pair.games.length > 0) {
+                        pair.games.forEach((game, idx) => {
+                            // Only apply 11/12 logic to games that are "Not Started!" AND have no castles selected
+                            // Skip "Processed" or any other finished games
+                            const isGameNotStarted = game.gameStatus && game.gameStatus.trim() === 'Not Started!';
+                            const noCastlesSelected = !game.castle1 || !game.castle2;
+                            const isGameProcessed = game.gameStatus && game.gameStatus.trim() === 'Processed';
 
-                                console.log(
-                                    `Game ${idx}: gameStatus='${game.gameStatus}', castle1=${game.castle1}, castle2=${game.castle2}, notStarted=${isGameNotStarted}, noCastlesSelected=${noCastlesSelected}, processed=${isGameProcessed}`
+                            console.log(
+                                `Game ${idx}: gameStatus='${game.gameStatus}', castle1=${game.castle1}, castle2=${game.castle2}, notStarted=${isGameNotStarted}, noCastlesSelected=${noCastlesSelected}, processed=${isGameProcessed}`
+                            );
+
+                            if (isGameNotStarted && noCastlesSelected && !isGameProcessed) {
+                                // On fresh game load, assume no manual marks and proceed with 11/12 detection
+                                const gameCounts = {};
+                                castles.forEach((castle) => {
+                                    const castleData = stats.find((c) => c.name === castle);
+                                    const total = castleData?.total || 0;
+                                    const liveGames = castleData?.liveGames || 0;
+                                    gameCounts[castle] = total + liveGames;
+                                });
+
+                                const minCount = Math.min(...Object.values(gameCounts));
+                                const maxCount = Math.max(...Object.values(gameCounts));
+                                const castlesWithMaxCount = Object.keys(gameCounts).filter(
+                                    (castle) => gameCounts[castle] === maxCount
                                 );
 
-                                if (isGameNotStarted && noCastlesSelected && !isGameProcessed) {
-                                    // On fresh game load, assume no manual marks and proceed with 11/12 detection
-                                    const gameCounts = {};
-                                    castles.forEach((castle) => {
-                                        const castleData = stats.find((c) => c.name === castle);
-                                        const total = castleData?.total || 0;
-                                        const liveGames = castleData?.liveGames || 0;
-                                        gameCounts[castle] = total + liveGames;
-                                    });
+                                console.log(
+                                    `Game ${idx} 11/12 check: castlesWithMaxCount.length=${castlesWithMaxCount.length}, minCount=${minCount}, maxCount=${maxCount}, gameCounts=`,
+                                    gameCounts
+                                );
 
-                                    const minCount = Math.min(...Object.values(gameCounts));
-                                    const maxCount = Math.max(...Object.values(gameCounts));
-                                    const castlesWithMaxCount = Object.keys(gameCounts).filter(
-                                        (castle) => gameCounts[castle] === maxCount
-                                    );
+                                // Check for 11/12 degenerate state: 11 castles with same count, 1 with different count
+                                // This can be either 11 with max and 1 with min, or 11 with min and 1 with max
+                                const castlesWithMinCount = Object.keys(gameCounts).filter(
+                                    (castle) => gameCounts[castle] === minCount
+                                );
 
+                                const is11MaxAnd1Min =
+                                    castlesWithMaxCount.length === 11 &&
+                                    castlesWithMinCount.length === 1 &&
+                                    maxCount > minCount;
+                                const is11MinAnd1Max =
+                                    castlesWithMinCount.length === 11 &&
+                                    castlesWithMaxCount.length === 1 &&
+                                    maxCount > minCount;
+
+                                // If 11 castles have max count or 11 castles have min count, clear all marks (11/12 state detected)
+                                if (is11MaxAnd1Min || is11MinAnd1Max) {
                                     console.log(
-                                        `Game ${idx} 11/12 check: castlesWithMaxCount.length=${castlesWithMaxCount.length}, minCount=${minCount}, maxCount=${maxCount}, gameCounts=`,
-                                        gameCounts
+                                        `11/12 state detected in Game ${idx + 1}! Clearing marks. Max count: ${maxCount}, Min count: ${minCount}, is11Max=${is11MaxAnd1Min}, is11Min=${is11MinAnd1Max}`
                                     );
-
-                                    // Check for 11/12 degenerate state: 11 castles with same count, 1 with different count
-                                    // This can be either 11 with max and 1 with min, or 11 with min and 1 with max
-                                    const castlesWithMinCount = Object.keys(gameCounts).filter(
-                                        (castle) => gameCounts[castle] === minCount
-                                    );
-
-                                    const is11MaxAnd1Min =
-                                        castlesWithMaxCount.length === 11 &&
-                                        castlesWithMinCount.length === 1 &&
-                                        maxCount > minCount;
-                                    const is11MinAnd1Max =
-                                        castlesWithMinCount.length === 11 &&
-                                        castlesWithMaxCount.length === 1 &&
-                                        maxCount > minCount;
-
-                                    // If 11 castles have max count or 11 castles have min count, clear all marks (11/12 state detected)
-                                    if (is11MaxAnd1Min || is11MinAnd1Max) {
-                                        console.log(
-                                            `11/12 state detected in Game ${idx + 1}! Clearing marks. Max count: ${maxCount}, Min count: ${minCount}, is11Max=${is11MaxAnd1Min}, is11Min=${is11MinAnd1Max}`
-                                        );
-                                        const clearMarks = {};
-                                        castles.forEach((castle) => {
-                                            clearMarks[castle] = null;
-                                        });
-                                        setCastleMarkOverrides(clearMarks);
-                                    }
-                                } else {
-                                    console.log(`⊘ Game ${idx} (status: ${game.gameStatus}) - skipping 11/12 check`);
+                                    const clearMarks = {};
+                                    castles.forEach((castle) => {
+                                        clearMarks[castle] = null;
+                                    });
+                                    setCastleMarkOverrides(clearMarks);
                                 }
-                            });
-                        }
+                            } else {
+                                console.log(`⊘ Game ${idx} (status: ${game.gameStatus}) - skipping 11/12 check`);
+                            }
+                        });
                     }
-                } catch (error) {
-                    console.error('Error fetching castles:', error);
                 }
-            };
-            fetchAndCalculate();
+            } catch (error) {
+                console.error('Error fetching castles:', error);
+            }
+        };
+        fetchAndCalculate();
     }, [playoffPairs, pair, strictCastlePick]);
 
     // Reset castle marks when pair changes (new game opened)
@@ -781,8 +781,8 @@ const ReportGameModal = ({
 
                 {mockMode && (
                     <div className={classes.mockModeBanner}>
-                        Test mode — saves bracket and promotions only. Global castle totals, availability
-                        counts, ELO, and player stats are not updated.
+                        Test mode — saves bracket and promotions only. Global castle totals, availability counts, ELO,
+                        and player stats are not updated.
                     </div>
                 )}
 
@@ -829,442 +829,466 @@ const ReportGameModal = ({
                             {/* Series match game results */}
                             {gameResults.map((game, idx) => (
                                 <div key={idx} className={classes.gameBlock}>
-                                <div
-                                    id={`report-game-section-${idx}`}
-                                    className={classes.gameSection}
-                                    style={{
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        display:
-                                            (!game.castle1 &&
-                                                !game.castle2 &&
-                                                !game.winner &&
-                                                Math.max(score1, score2) >= requiredWins) ||
-                                            idx >= Math.min(score1, score2) + requiredWins
-                                                ? 'none'
-                                                : undefined
-                                    }}
-                                >
-                                    {/* Left Side Background - Player 1 for this game */}
                                     <div
-                                        className={classes.gameBgLeft}
+                                        id={`report-game-section-${idx}`}
+                                        className={classes.gameSection}
                                         style={{
-                                            backgroundImage: game.castle1
-                                                ? `linear-gradient(to right, rgba(139, 0, 0, ${game.color1 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${game.color1 === 'red' ? '0.03' : '0'})), linear-gradient(to right, rgba(0, 0, 139, ${game.color1 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${game.color1 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(game.castle1)})`
-                                                : game.color1 === 'red'
-                                                  ? 'linear-gradient(to right, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
-                                                  : 'linear-gradient(to right, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
-                                            backgroundSize: game.castle1 ? 'auto, auto, cover' : 'auto',
-                                            backgroundPosition: game.castle1 ? 'left, left, left' : 'left'
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            display:
+                                                (!game.castle1 &&
+                                                    !game.castle2 &&
+                                                    !game.winner &&
+                                                    Math.max(score1, score2) >= requiredWins) ||
+                                                idx >= Math.min(score1, score2) + requiredWins
+                                                    ? 'none'
+                                                    : undefined
                                         }}
-                                    />
-                                    {/* Right Side Background - Player 2 for this game */}
-                                    <div
-                                        className={classes.gameBgRight}
-                                        style={{
-                                            backgroundImage: game.castle2
-                                                ? `linear-gradient(to left, rgba(139, 0, 0, ${game.color2 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${game.color2 === 'red' ? '0.03' : '0'})), linear-gradient(to left, rgba(0, 0, 139, ${game.color2 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${game.color2 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(game.castle2)})`
-                                                : game.color2 === 'red'
-                                                  ? 'linear-gradient(to left, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
-                                                  : 'linear-gradient(to left, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
-                                            backgroundSize: game.castle2 ? 'auto, auto, cover' : 'auto',
-                                            backgroundPosition: game.castle2 ? 'right, right, right' : 'right'
-                                        }}
-                                    />
-                                    {/* Center Divider for this game */}
-                                    <div className={classes.gameDivider} />
-                                    <h3 className={`${classes.gameTitle} ${classes.layered}`}>
-                                        Game {idx + 1}
-                                    </h3>
-
-                                    {/* Compact Score/Winner Section with Color Toggle */}
-                                    <div className={`${classes.formGroup} ${classes.layered}`}>
+                                    >
+                                        {/* Left Side Background - Player 1 for this game */}
                                         <div
-                                            className={`${classes.scoreBar} ${
-                                                game.color1 === 'red' ? classes.scoreBarRedLead : classes.scoreBarBlueLead
-                                            }`}
-                                        >
-                                            <div className={classes.playerRow}>
-                                                <div
-                                                    className={classes.flagToggle}
-                                                    onClick={() => {
-                                                        const updated = [...gameResults];
-                                                        const newColor = game.color1 === 'red' ? 'blue' : 'red';
-                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                                        updated[idx] = {
-                                                            ...updated[idx],
-                                                            color1: newColor,
-                                                            color2: oppositeColor
-                                                        };
-                                                        setGameResults(updated);
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={game.color1 === 'red' ? redFlagImg : blueFlagImg}
-                                                        alt={game.color1 === 'red' ? 'Red flag' : 'Blue flag'}
-                                                        className={`${classes.flagImg} ${
-                                                            game.color1 === 'red' ? classes.flagImgRed : classes.flagImgBlue
+                                            className={classes.gameBgLeft}
+                                            style={{
+                                                backgroundImage: game.castle1
+                                                    ? `linear-gradient(to right, rgba(139, 0, 0, ${game.color1 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${game.color1 === 'red' ? '0.03' : '0'})), linear-gradient(to right, rgba(0, 0, 139, ${game.color1 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${game.color1 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(game.castle1)})`
+                                                    : game.color1 === 'red'
+                                                      ? 'linear-gradient(to right, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
+                                                      : 'linear-gradient(to right, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
+                                                backgroundSize: game.castle1 ? 'auto, auto, cover' : 'auto',
+                                                backgroundPosition: game.castle1 ? 'left, left, left' : 'left'
+                                            }}
+                                        />
+                                        {/* Right Side Background - Player 2 for this game */}
+                                        <div
+                                            className={classes.gameBgRight}
+                                            style={{
+                                                backgroundImage: game.castle2
+                                                    ? `linear-gradient(to left, rgba(139, 0, 0, ${game.color2 === 'red' ? '0.12' : '0'}), rgba(139, 0, 0, ${game.color2 === 'red' ? '0.03' : '0'})), linear-gradient(to left, rgba(0, 0, 139, ${game.color2 === 'blue' ? '0.12' : '0'}), rgba(0, 0, 139, ${game.color2 === 'blue' ? '0.03' : '0'})), url(${getCastleImageUrl(game.castle2)})`
+                                                    : game.color2 === 'red'
+                                                      ? 'linear-gradient(to left, rgba(139, 0, 0, 0.12), rgba(139, 0, 0, 0.03))'
+                                                      : 'linear-gradient(to left, rgba(0, 0, 139, 0.12), rgba(0, 0, 139, 0.03))',
+                                                backgroundSize: game.castle2 ? 'auto, auto, cover' : 'auto',
+                                                backgroundPosition: game.castle2 ? 'right, right, right' : 'right'
+                                            }}
+                                        />
+                                        {/* Center Divider for this game */}
+                                        <div className={classes.gameDivider} />
+                                        <h3 className={`${classes.gameTitle} ${classes.layered}`}>Game {idx + 1}</h3>
+
+                                        {/* Compact Score/Winner Section with Color Toggle */}
+                                        <div className={`${classes.formGroup} ${classes.layered}`}>
+                                            <div
+                                                className={`${classes.scoreBar} ${
+                                                    game.color1 === 'red'
+                                                        ? classes.scoreBarRedLead
+                                                        : classes.scoreBarBlueLead
+                                                }`}
+                                            >
+                                                <div className={classes.playerRow}>
+                                                    <div
+                                                        className={classes.flagToggle}
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            const newColor = game.color1 === 'red' ? 'blue' : 'red';
+                                                            const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                color1: newColor,
+                                                                color2: oppositeColor
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={game.color1 === 'red' ? redFlagImg : blueFlagImg}
+                                                            alt={game.color1 === 'red' ? 'Red flag' : 'Blue flag'}
+                                                            className={`${classes.flagImg} ${
+                                                                game.color1 === 'red'
+                                                                    ? classes.flagImgRed
+                                                                    : classes.flagImgBlue
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                    <div
+                                                        onClick={() => {
+                                                            if (game.gameStatus?.trim() !== 'Processed') {
+                                                                handleGameResultChange(
+                                                                    idx,
+                                                                    'winner',
+                                                                    game.winner === pair.team1 ? '' : pair.team1
+                                                                );
+                                                            }
+                                                        }}
+                                                        className={`${classes.winnerPick} ${
+                                                            game.winner === pair.team1 ? classes.winnerPickSelected : ''
+                                                        } ${
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? classes.winnerPickDisabled
+                                                                : ''
+                                                        }`}
+                                                    >
+                                                        {pair.team1}
+                                                    </div>
+                                                </div>
+
+                                                <div className={classes.scoreRow}>
+                                                    <div className={classes.scoreValue}>{score1}</div>
+                                                    <div className={classes.scoreDivider}>⚔️</div>
+                                                    <div className={classes.scoreValue}>{score2}</div>
+                                                </div>
+
+                                                <div className={`${classes.playerRow} ${classes.playerRowEnd}`}>
+                                                    <div
+                                                        onClick={() => {
+                                                            if (game.gameStatus?.trim() !== 'Processed') {
+                                                                handleGameResultChange(
+                                                                    idx,
+                                                                    'winner',
+                                                                    game.winner === pair.team2 ? '' : pair.team2
+                                                                );
+                                                            }
+                                                        }}
+                                                        className={`${classes.winnerPick} ${
+                                                            game.winner === pair.team2 ? classes.winnerPickSelected : ''
+                                                        } ${
+                                                            game.gameStatus?.trim() === 'Processed'
+                                                                ? classes.winnerPickDisabled
+                                                                : ''
+                                                        }`}
+                                                    >
+                                                        {pair.team2}
+                                                    </div>
+                                                    <div
+                                                        className={classes.flagToggle}
+                                                        onClick={() => {
+                                                            const updated = [...gameResults];
+                                                            const newColor = game.color2 === 'red' ? 'blue' : 'red';
+                                                            const oppositeColor = newColor === 'red' ? 'blue' : 'red';
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                color2: newColor,
+                                                                color1: oppositeColor
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={game.color2 === 'red' ? redFlagImg : blueFlagImg}
+                                                            alt={game.color2 === 'red' ? 'Red flag' : 'Blue flag'}
+                                                            className={`${classes.flagImg} ${
+                                                                game.color2 === 'red'
+                                                                    ? classes.flagImgRed
+                                                                    : classes.flagImgBlue
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Gold Input for BO-3 */}
+                                        <div className={`${classes.formGroup} ${classes.layered}`}>
+                                            <label className={classes.centerLabel}>Gold:</label>
+                                            <div className={classes.goldRow}>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <input
+                                                        type="number"
+                                                        step="100"
+                                                        value={game.gold1 || 0}
+                                                        disabled={game.gameStatus?.trim() === 'Processed'}
+                                                        onChange={(e) => {
+                                                            const value = parseInt(e.target.value) || 0;
+                                                            const updated = [...gameResults];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                gold1: value,
+                                                                gold2: -value
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        className={`${classes.goldInput} ${
+                                                            game.gold1 > 0
+                                                                ? classes.goldPositive
+                                                                : game.gold1 < 0
+                                                                  ? classes.goldNegative
+                                                                  : ''
                                                         }`}
                                                     />
                                                 </div>
-                                                <div
-                                                    onClick={() => {
-                                                        if (game.gameStatus?.trim() !== 'Processed') {
-                                                            handleGameResultChange(
-                                                                idx,
-                                                                'winner',
-                                                                game.winner === pair.team1 ? '' : pair.team1
-                                                            );
-                                                        }
-                                                    }}
-                                                    className={`${classes.winnerPick} ${
-                                                        game.winner === pair.team1 ? classes.winnerPickSelected : ''
-                                                    } ${
-                                                        game.gameStatus?.trim() === 'Processed'
-                                                            ? classes.winnerPickDisabled
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    {pair.team1}
-                                                </div>
-                                            </div>
-
-                                            <div className={classes.scoreRow}>
-                                                <div className={classes.scoreValue}>{score1}</div>
+                                                <img src={goldImg} alt="Gold" className={classes.goldIcon} />
                                                 <div className={classes.scoreDivider}>⚔️</div>
-                                                <div className={classes.scoreValue}>{score2}</div>
-                                            </div>
-
-                                            <div className={`${classes.playerRow} ${classes.playerRowEnd}`}>
-                                                <div
-                                                    onClick={() => {
-                                                        if (game.gameStatus?.trim() !== 'Processed') {
-                                                            handleGameResultChange(
-                                                                idx,
-                                                                'winner',
-                                                                game.winner === pair.team2 ? '' : pair.team2
-                                                            );
-                                                        }
-                                                    }}
-                                                    className={`${classes.winnerPick} ${
-                                                        game.winner === pair.team2 ? classes.winnerPickSelected : ''
-                                                    } ${
-                                                        game.gameStatus?.trim() === 'Processed'
-                                                            ? classes.winnerPickDisabled
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    {pair.team2}
-                                                </div>
-                                                <div
-                                                    className={classes.flagToggle}
-                                                    onClick={() => {
-                                                        const updated = [...gameResults];
-                                                        const newColor = game.color2 === 'red' ? 'blue' : 'red';
-                                                        const oppositeColor = newColor === 'red' ? 'blue' : 'red';
-                                                        updated[idx] = {
-                                                            ...updated[idx],
-                                                            color2: newColor,
-                                                            color1: oppositeColor
-                                                        };
-                                                        setGameResults(updated);
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={game.color2 === 'red' ? redFlagImg : blueFlagImg}
-                                                        alt={game.color2 === 'red' ? 'Red flag' : 'Blue flag'}
-                                                        className={`${classes.flagImg} ${
-                                                            game.color2 === 'red' ? classes.flagImgRed : classes.flagImgBlue
+                                                <img src={goldImg} alt="Gold" className={classes.goldIcon} />
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div className={classes.goldPlayerLabel}>{pair.team2}</div>
+                                                    <input
+                                                        type="number"
+                                                        value={game.gold2 || 0}
+                                                        disabled={game.gameStatus?.trim() === 'Processed'}
+                                                        onChange={(e) => {
+                                                            const value = parseInt(e.target.value) || 0;
+                                                            const updated = [...gameResults];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                gold2: value,
+                                                                gold1: -value
+                                                            };
+                                                            setGameResults(updated);
+                                                        }}
+                                                        className={`${classes.goldInput} ${
+                                                            game.gold2 > 0
+                                                                ? classes.goldPositive
+                                                                : game.gold2 < 0
+                                                                  ? classes.goldNegative
+                                                                  : ''
                                                         }`}
                                                     />
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Gold Input for BO-3 */}
-                                    <div className={`${classes.formGroup} ${classes.layered}`}>
-                                        <label className={classes.centerLabel}>Gold:</label>
-                                        <div className={classes.goldRow}>
-                                            <div style={{ textAlign: 'center' }}>
-                                                <input
-                                                    type="number"
-                                                    step="100"
-                                                    value={game.gold1 || 0}
-                                                    disabled={game.gameStatus?.trim() === 'Processed'}
-                                                    onChange={(e) => {
-                                                        const value = parseInt(e.target.value) || 0;
-                                                        const updated = [...gameResults];
-                                                        updated[idx] = { ...updated[idx], gold1: value, gold2: -value };
-                                                        setGameResults(updated);
-                                                    }}
-                                                    className={`${classes.goldInput} ${
-                                                        game.gold1 > 0
-                                                            ? classes.goldPositive
-                                                            : game.gold1 < 0
-                                                              ? classes.goldNegative
-                                                              : ''
-                                                    }`}
-                                                />
-                                            </div>
-                                            <img src={goldImg} alt="Gold" className={classes.goldIcon} />
-                                            <div className={classes.scoreDivider}>⚔️</div>
-                                            <img src={goldImg} alt="Gold" className={classes.goldIcon} />
-                                            <div style={{ textAlign: 'center' }}>
-                                                <div className={classes.goldPlayerLabel}>{pair.team2}</div>
-                                                <input
-                                                    type="number"
-                                                    value={game.gold2 || 0}
-                                                    disabled={game.gameStatus?.trim() === 'Processed'}
-                                                    onChange={(e) => {
-                                                        const value = parseInt(e.target.value) || 0;
-                                                        const updated = [...gameResults];
-                                                        updated[idx] = { ...updated[idx], gold2: value, gold1: -value };
-                                                        setGameResults(updated);
-                                                    }}
-                                                    className={`${classes.goldInput} ${
-                                                        game.gold2 > 0
-                                                            ? classes.goldPositive
-                                                            : game.gold2 < 0
-                                                              ? classes.goldNegative
-                                                              : ''
-                                                    }`}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Restarts Input for BO-3 */}
-                                    <div className={`${classes.formGroup} ${classes.layered}`}>
-                                        <label className={classes.centerLabel}>Restarts:</label>
-                                        <div className={classes.dualRow}>
-                                            <div className={classes.playerColumn}>
-                                                <div className={classes.goldPlayerLabel}>{pair.team1}</div>
-                                                <div className={classes.restartGroup}>
-                                                    {[0, 1].map((boxIdx) => {
-                                                        const isUsed = (game.restart1_111 || 0) > boxIdx;
-                                                        const isDisabled =
-                                                            (game.restart1_112 || 0) > 0 ||
-                                                            game.gameStatus?.trim() === 'Processed';
-                                                        return (
-                                                            <RestartBox
-                                                                key={`p1-111-${boxIdx}`}
-                                                                code="111"
-                                                                isUsed={isUsed}
-                                                                isDisabled={isDisabled}
-                                                                showMark={isUsed}
-                                                                onClick={() => {
-                                                                    if (isDisabled) {
-                                                                        return;
-                                                                    }
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart1_111 || 0;
-                                                                    if (isUsed) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart1_111: current - 1
-                                                                        };
-                                                                    } else if (current < 2) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart1_111: current + 1
-                                                                        };
-                                                                    }
-                                                                    setGameResults(updated);
-                                                                }}
-                                                            />
-                                                        );
-                                                    })}
-                                                    <RestartBox
-                                                        code="112"
-                                                        isUsed={(game.restart1_112 || 0) === 1}
-                                                        isDisabled={
-                                                            (game.restart1_111 || 0) > 0 ||
-                                                            game.gameStatus?.trim() === 'Processed'
-                                                        }
-                                                        showMark={
-                                                            (game.restart1_112 || 0) === 1 ||
-                                                            (game.restart1_111 || 0) > 0
-                                                        }
-                                                        blockPointer={(game.restart1_111 || 0) > 0}
-                                                        onClick={() => {
-                                                            const updated = [...gameResults];
-                                                            const current = updated[idx].restart1_112 || 0;
-                                                            const is111Used = (updated[idx].restart1_111 || 0) > 0;
-                                                            if (is111Used || game.gameStatus?.trim() === 'Processed') {
-                                                                return;
+                                        {/* Restarts Input for BO-3 */}
+                                        <div className={`${classes.formGroup} ${classes.layered}`}>
+                                            <label className={classes.centerLabel}>Restarts:</label>
+                                            <div className={classes.dualRow}>
+                                                <div className={classes.playerColumn}>
+                                                    <div className={classes.goldPlayerLabel}>{pair.team1}</div>
+                                                    <div className={classes.restartGroup}>
+                                                        {[0, 1].map((boxIdx) => {
+                                                            const isUsed = (game.restart1_111 || 0) > boxIdx;
+                                                            const isDisabled =
+                                                                (game.restart1_112 || 0) > 0 ||
+                                                                game.gameStatus?.trim() === 'Processed';
+                                                            return (
+                                                                <RestartBox
+                                                                    key={`p1-111-${boxIdx}`}
+                                                                    code="111"
+                                                                    isUsed={isUsed}
+                                                                    isDisabled={isDisabled}
+                                                                    showMark={isUsed}
+                                                                    onClick={() => {
+                                                                        if (isDisabled) {
+                                                                            return;
+                                                                        }
+                                                                        const updated = [...gameResults];
+                                                                        const current = updated[idx].restart1_111 || 0;
+                                                                        if (isUsed) {
+                                                                            updated[idx] = {
+                                                                                ...updated[idx],
+                                                                                restart1_111: current - 1
+                                                                            };
+                                                                        } else if (current < 2) {
+                                                                            updated[idx] = {
+                                                                                ...updated[idx],
+                                                                                restart1_111: current + 1
+                                                                            };
+                                                                        }
+                                                                        setGameResults(updated);
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                        <RestartBox
+                                                            code="112"
+                                                            isUsed={(game.restart1_112 || 0) === 1}
+                                                            isDisabled={
+                                                                (game.restart1_111 || 0) > 0 ||
+                                                                game.gameStatus?.trim() === 'Processed'
                                                             }
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                restart1_112: current === 1 ? 0 : 1
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className={classes.playerColumn}>
-                                                <div className={classes.goldPlayerLabel}>{pair.team2}</div>
-                                                <div className={classes.restartGroup}>
-                                                    {[0, 1].map((boxIdx) => {
-                                                        const isUsed = (game.restart2_111 || 0) > boxIdx;
-                                                        const isDisabled =
-                                                            (game.restart2_112 || 0) > 0 ||
-                                                            game.gameStatus?.trim() === 'Processed';
-                                                        return (
-                                                            <RestartBox
-                                                                key={`p2-111-${boxIdx}`}
-                                                                code="111"
-                                                                isUsed={isUsed}
-                                                                isDisabled={isDisabled}
-                                                                showMark={isUsed}
-                                                                onClick={() => {
-                                                                    if (isDisabled) {
-                                                                        return;
-                                                                    }
-                                                                    const updated = [...gameResults];
-                                                                    const current = updated[idx].restart2_111 || 0;
-                                                                    if (isUsed) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart2_111: current - 1
-                                                                        };
-                                                                    } else if (current < 2) {
-                                                                        updated[idx] = {
-                                                                            ...updated[idx],
-                                                                            restart2_111: current + 1
-                                                                        };
-                                                                    }
-                                                                    setGameResults(updated);
-                                                                }}
-                                                            />
-                                                        );
-                                                    })}
-                                                    <RestartBox
-                                                        code="112"
-                                                        isUsed={(game.restart2_112 || 0) === 1}
-                                                        isDisabled={
-                                                            (game.restart2_111 || 0) > 0 ||
-                                                            game.gameStatus?.trim() === 'Processed'
-                                                        }
-                                                        showMark={
-                                                            (game.restart2_112 || 0) === 1 ||
-                                                            (game.restart2_111 || 0) > 0
-                                                        }
-                                                        blockPointer={(game.restart2_111 || 0) > 0}
-                                                        onClick={() => {
-                                                            const updated = [...gameResults];
-                                                            const current = updated[idx].restart2_112 || 0;
-                                                            const is111Used = (updated[idx].restart2_111 || 0) > 0;
-                                                            if (is111Used || game.gameStatus?.trim() === 'Processed') {
-                                                                return;
+                                                            showMark={
+                                                                (game.restart1_112 || 0) === 1 ||
+                                                                (game.restart1_111 || 0) > 0
                                                             }
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                restart2_112: current === 1 ? 0 : 1
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                    />
+                                                            blockPointer={(game.restart1_111 || 0) > 0}
+                                                            onClick={() => {
+                                                                const updated = [...gameResults];
+                                                                const current = updated[idx].restart1_112 || 0;
+                                                                const is111Used = (updated[idx].restart1_111 || 0) > 0;
+                                                                if (
+                                                                    is111Used ||
+                                                                    game.gameStatus?.trim() === 'Processed'
+                                                                ) {
+                                                                    return;
+                                                                }
+                                                                updated[idx] = {
+                                                                    ...updated[idx],
+                                                                    restart1_112: current === 1 ? 0 : 1
+                                                                };
+                                                                setGameResults(updated);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className={classes.playerColumn}>
+                                                    <div className={classes.goldPlayerLabel}>{pair.team2}</div>
+                                                    <div className={classes.restartGroup}>
+                                                        {[0, 1].map((boxIdx) => {
+                                                            const isUsed = (game.restart2_111 || 0) > boxIdx;
+                                                            const isDisabled =
+                                                                (game.restart2_112 || 0) > 0 ||
+                                                                game.gameStatus?.trim() === 'Processed';
+                                                            return (
+                                                                <RestartBox
+                                                                    key={`p2-111-${boxIdx}`}
+                                                                    code="111"
+                                                                    isUsed={isUsed}
+                                                                    isDisabled={isDisabled}
+                                                                    showMark={isUsed}
+                                                                    onClick={() => {
+                                                                        if (isDisabled) {
+                                                                            return;
+                                                                        }
+                                                                        const updated = [...gameResults];
+                                                                        const current = updated[idx].restart2_111 || 0;
+                                                                        if (isUsed) {
+                                                                            updated[idx] = {
+                                                                                ...updated[idx],
+                                                                                restart2_111: current - 1
+                                                                            };
+                                                                        } else if (current < 2) {
+                                                                            updated[idx] = {
+                                                                                ...updated[idx],
+                                                                                restart2_111: current + 1
+                                                                            };
+                                                                        }
+                                                                        setGameResults(updated);
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                        <RestartBox
+                                                            code="112"
+                                                            isUsed={(game.restart2_112 || 0) === 1}
+                                                            isDisabled={
+                                                                (game.restart2_111 || 0) > 0 ||
+                                                                game.gameStatus?.trim() === 'Processed'
+                                                            }
+                                                            showMark={
+                                                                (game.restart2_112 || 0) === 1 ||
+                                                                (game.restart2_111 || 0) > 0
+                                                            }
+                                                            blockPointer={(game.restart2_111 || 0) > 0}
+                                                            onClick={() => {
+                                                                const updated = [...gameResults];
+                                                                const current = updated[idx].restart2_112 || 0;
+                                                                const is111Used = (updated[idx].restart2_111 || 0) > 0;
+                                                                if (
+                                                                    is111Used ||
+                                                                    game.gameStatus?.trim() === 'Processed'
+                                                                ) {
+                                                                    return;
+                                                                }
+                                                                updated[idx] = {
+                                                                    ...updated[idx],
+                                                                    restart2_112: current === 1 ? 0 : 1
+                                                                };
+                                                                setGameResults(updated);
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className={`${classes.formGroup} ${classes.layered}`}>
-                                        <label className={classes.centerLabel}>Castles:</label>
-                                        <div className={classes.castleDualRow}>
-                                            <div className={classes.playerColumn}>
-                                                <div className={classes.goldPlayerLabel}>{pair.team1}</div>
-                                                <div className={classes.castleGrid}>
-                                                    {castles.map((c) => {
-                                                        const isSelected = game.castle1 === c;
-                                                        const isGameProcessed =
-                                                            game.gameStatus && game.gameStatus.trim() === 'Processed';
-                                                        const isBanned = (game.bannedCastles1 || []).includes(c);
-                                                        return (
-                                                            <CastleTile
-                                                                key={c}
-                                                                castleName={c}
-                                                                isSelected={isSelected}
-                                                                isBanned={isBanned}
-                                                                isDisabled={isGameProcessed}
-                                                                hasSelection={Boolean(game.castle1)}
-                                                                onToggle={() => {
-                                                                    if (isGameProcessed) {
-                                                                        return;
-                                                                    }
-                                                                    const updated = [...gameResults];
-                                                                    const g = updated[idx];
-                                                                    const banned = g.bannedCastles1 || [];
-                                                                    if (isBanned) {
-                                                                        updated[idx] = {
-                                                                            ...g,
-                                                                            bannedCastles1: banned.filter((x) => x !== c)
-                                                                        };
-                                                                    } else if (isSelected) {
-                                                                        updated[idx] = {
-                                                                            ...g,
-                                                                            castle1: '',
-                                                                            bannedCastles1: [...banned, c]
-                                                                        };
-                                                                    } else {
-                                                                        updated[idx] = { ...g, castle1: c };
-                                                                    }
-                                                                    setGameResults(updated);
-                                                                }}
-                                                            />
-                                                        );
-                                                    })}
+                                        <div className={`${classes.formGroup} ${classes.layered}`}>
+                                            <label className={classes.centerLabel}>Castles:</label>
+                                            <div className={classes.castleDualRow}>
+                                                <div className={classes.playerColumn}>
+                                                    <div className={classes.goldPlayerLabel}>{pair.team1}</div>
+                                                    <div className={classes.castleGrid}>
+                                                        {castles.map((c) => {
+                                                            const isSelected = game.castle1 === c;
+                                                            const isGameProcessed =
+                                                                game.gameStatus &&
+                                                                game.gameStatus.trim() === 'Processed';
+                                                            const isBanned = (game.bannedCastles1 || []).includes(c);
+                                                            return (
+                                                                <CastleTile
+                                                                    key={c}
+                                                                    castleName={c}
+                                                                    isSelected={isSelected}
+                                                                    isBanned={isBanned}
+                                                                    isDisabled={isGameProcessed}
+                                                                    hasSelection={Boolean(game.castle1)}
+                                                                    onToggle={() => {
+                                                                        if (isGameProcessed) {
+                                                                            return;
+                                                                        }
+                                                                        const updated = [...gameResults];
+                                                                        const g = updated[idx];
+                                                                        const banned = g.bannedCastles1 || [];
+                                                                        if (isBanned) {
+                                                                            updated[idx] = {
+                                                                                ...g,
+                                                                                bannedCastles1: banned.filter(
+                                                                                    (x) => x !== c
+                                                                                )
+                                                                            };
+                                                                        } else if (isSelected) {
+                                                                            updated[idx] = {
+                                                                                ...g,
+                                                                                castle1: '',
+                                                                                bannedCastles1: [...banned, c]
+                                                                            };
+                                                                        } else {
+                                                                            updated[idx] = { ...g, castle1: c };
+                                                                        }
+                                                                        setGameResults(updated);
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className={classes.playerColumn}>
-                                                <div className={classes.goldPlayerLabel}>{pair.team2}</div>
-                                                <div className={classes.castleGrid}>
-                                                    {castles.map((c) => {
-                                                        const isSelected = game.castle2 === c;
-                                                        const isGameProcessed =
-                                                            game.gameStatus && game.gameStatus.trim() === 'Processed';
-                                                        const isBanned = (game.bannedCastles2 || []).includes(c);
-                                                        return (
-                                                            <CastleTile
-                                                                key={c}
-                                                                castleName={c}
-                                                                isSelected={isSelected}
-                                                                isBanned={isBanned}
-                                                                isDisabled={isGameProcessed}
-                                                                hasSelection={Boolean(game.castle2)}
-                                                                onToggle={() => {
-                                                                    if (isGameProcessed) {
-                                                                        return;
-                                                                    }
-                                                                    const updated = [...gameResults];
-                                                                    const g = updated[idx];
-                                                                    const banned = g.bannedCastles2 || [];
-                                                                    if (isBanned) {
-                                                                        updated[idx] = {
-                                                                            ...g,
-                                                                            bannedCastles2: banned.filter((x) => x !== c)
-                                                                        };
-                                                                    } else if (isSelected) {
-                                                                        updated[idx] = {
-                                                                            ...g,
-                                                                            castle2: '',
-                                                                            bannedCastles2: [...banned, c]
-                                                                        };
-                                                                    } else {
-                                                                        updated[idx] = { ...g, castle2: c };
-                                                                    }
-                                                                    setGameResults(updated);
-                                                                }}
-                                                            />
-                                                        );
-                                                    })}
+                                                <div className={classes.playerColumn}>
+                                                    <div className={classes.goldPlayerLabel}>{pair.team2}</div>
+                                                    <div className={classes.castleGrid}>
+                                                        {castles.map((c) => {
+                                                            const isSelected = game.castle2 === c;
+                                                            const isGameProcessed =
+                                                                game.gameStatus &&
+                                                                game.gameStatus.trim() === 'Processed';
+                                                            const isBanned = (game.bannedCastles2 || []).includes(c);
+                                                            return (
+                                                                <CastleTile
+                                                                    key={c}
+                                                                    castleName={c}
+                                                                    isSelected={isSelected}
+                                                                    isBanned={isBanned}
+                                                                    isDisabled={isGameProcessed}
+                                                                    hasSelection={Boolean(game.castle2)}
+                                                                    onToggle={() => {
+                                                                        if (isGameProcessed) {
+                                                                            return;
+                                                                        }
+                                                                        const updated = [...gameResults];
+                                                                        const g = updated[idx];
+                                                                        const banned = g.bannedCastles2 || [];
+                                                                        if (isBanned) {
+                                                                            updated[idx] = {
+                                                                                ...g,
+                                                                                bannedCastles2: banned.filter(
+                                                                                    (x) => x !== c
+                                                                                )
+                                                                            };
+                                                                        } else if (isSelected) {
+                                                                            updated[idx] = {
+                                                                                ...g,
+                                                                                castle2: '',
+                                                                                bannedCastles2: [...banned, c]
+                                                                            };
+                                                                        } else {
+                                                                            updated[idx] = { ...g, castle2: c };
+                                                                        }
+                                                                        setGameResults(updated);
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    {/* <div className={`${classes.formGroup} ${classes.layered}`}>
+                                        {/* <div className={`${classes.formGroup} ${classes.layered}`}>
                                         <label>Winner:</label>
                                         <div
                                             style={{
@@ -1376,24 +1400,24 @@ const ReportGameModal = ({
                                             </div>
                                         </div>
                                     </div> */}
-                                </div>
-                                <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
-                                    <label className={classes.restartConfirmationLabel}>
-                                        <input
-                                            type="checkbox"
-                                            checked={game.restartsFinished || false}
-                                            onChange={(e) => {
-                                                const updated = [...gameResults];
-                                                updated[idx] = {
-                                                    ...updated[idx],
-                                                    restartsFinished: e.target.checked
-                                                };
-                                                setGameResults(updated);
-                                            }}
-                                        />
-                                        Restarts finished / main game started
-                                    </label>
-                                </div>
+                                    </div>
+                                    <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
+                                        <label className={classes.restartConfirmationLabel}>
+                                            <input
+                                                type="checkbox"
+                                                checked={game.restartsFinished || false}
+                                                onChange={(e) => {
+                                                    const updated = [...gameResults];
+                                                    updated[idx] = {
+                                                        ...updated[idx],
+                                                        restartsFinished: e.target.checked
+                                                    };
+                                                    setGameResults(updated);
+                                                }}
+                                            />
+                                            Restarts finished / main game started
+                                        </label>
+                                    </div>
                                 </div>
                             ))}
                         </div>

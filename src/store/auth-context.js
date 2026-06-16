@@ -1,15 +1,15 @@
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { authFetch, getAuthToken } from '../api/authFetch';
+import { refreshFirebaseAuthToken } from '../api/firebaseAuth';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-const FIREBASE_API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
 const SESSION_DURATION_MS = 6 * 60 * 60 * 1000;
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 const AuthContext = React.createContext({
     token: '',
     isLogged: false,
-    login: (token) => {},
+    login: (_token) => {},
     logout: () => {},
     updateUserNickName: () => {},
     notificationShown: false,
@@ -201,40 +201,62 @@ export const AuthContextProvider = (props) => {
 
     const refreshAuthToken = useCallback(async () => {
         const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken || !FIREBASE_API_KEY) {
+        if (!refreshToken) {
             return false;
         }
 
         try {
-            const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    grant_type: 'refresh_token',
-                    refresh_token: refreshToken
-                })
-            });
-
-            if (!response.ok) {
-                return false;
-            }
-
-            const data = await response.json();
-            const newToken = data.id_token;
+            const data = await refreshFirebaseAuthToken(refreshToken);
+            const newToken = data.idToken;
             if (!newToken) {
                 return false;
             }
 
             setToken(newToken);
             localStorage.setItem('token', newToken);
-            if (data.refresh_token) {
-                localStorage.setItem('refreshToken', data.refresh_token);
+            if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
             }
 
             return true;
         } catch (error) {
-            console.error('Error refreshing auth token:', error);
-            return false;
+            const apiKey = process.env.REACT_APP_FIREBASE_API_KEY;
+            if (!apiKey) {
+                console.error('Error refreshing auth token:', error);
+                return false;
+            }
+
+            try {
+                const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: refreshToken
+                    })
+                });
+
+                if (!response.ok) {
+                    return false;
+                }
+
+                const data = await response.json();
+                const newToken = data.id_token;
+                if (!newToken) {
+                    return false;
+                }
+
+                setToken(newToken);
+                localStorage.setItem('token', newToken);
+                if (data.refresh_token) {
+                    localStorage.setItem('refreshToken', data.refresh_token);
+                }
+
+                return true;
+            } catch (fallbackError) {
+                console.error('Error refreshing auth token:', fallbackError);
+                return false;
+            }
         }
     }, []);
 

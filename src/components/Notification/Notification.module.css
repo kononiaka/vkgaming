@@ -21,17 +21,23 @@
 
 .success {
     border-color: rgba(74, 143, 156, 0.55);
-    box-shadow: var(--shadow-panel), inset 3px 0 0 var(--color-teal);
+    box-shadow:
+        var(--shadow-panel),
+        inset 3px 0 0 var(--color-teal);
 }
 
 .error {
     border-color: rgba(168, 92, 92, 0.5);
-    box-shadow: var(--shadow-panel), inset 3px 0 0 #a85c5c;
+    box-shadow:
+        var(--shadow-panel),
+        inset 3px 0 0 #a85c5c;
 }
 
 .warning {
     border-color: rgba(201, 162, 39, 0.55);
-    box-shadow: var(--shadow-panel), inset 3px 0 0 var(--color-gold);
+    box-shadow:
+        var(--shadow-panel),
+        inset 3px 0 0 var(--color-gold);
 }
 
 .iconWrapper {

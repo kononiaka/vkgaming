@@ -30,12 +30,7 @@ const Support = () => {
 
     const ensureSelection = () => {
         if (selectedTournamentIds.length === 0) {
-            authCtx.setNotificationShown(
-                true,
-                'Select at least one cup to support before donating.',
-                'warning',
-                5
-            );
+            authCtx.setNotificationShown(true, 'Select at least one cup to support before donating.', 'warning', 5);
             return false;
         }
         return true;
@@ -141,16 +136,14 @@ const Support = () => {
             <header className={classes.pageHeader}>
                 <div>
                     <h1 className={classes.pageTitle}>Support</h1>
-                    <p className={classes.pageSubtitle}>
-                        Back the project and fund live tournament prize pools.
-                    </p>
+                    <p className={classes.pageSubtitle}>Back the project and fund live tournament prize pools.</p>
                 </div>
             </header>
 
             <section className={classes.infoPanel}>
                 <p className={classes.infoLead}>
-                    <strong>90%</strong> of donations go to the cups you select below.{' '}
-                    <strong>10%</strong> supports platform development.
+                    <strong>90%</strong> of donations go to the cups you select below. <strong>10%</strong> supports
+                    platform development.
                 </p>
                 <p className={classes.infoDetail}>
                     Donations are tracked on your account after payment via both providers.
@@ -258,14 +251,9 @@ const Support = () => {
                     </section>
 
                     <p className={classes.studioCredit}>
-                        Ideas or feedback? Email{' '}
-                        <a href="mailto:kononiaka.vladimir@gmail.com">kononiaka.vladimir@gmail.com</a>
-                        {' '}or visit{' '}
-                        <a
-                            href="https://www.facebook.com/groups/grafwebstudio"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
+                        Website bug? <Link to="/report-bug">Report it here</Link>. Ideas or feedback? Email{' '}
+                        <a href="mailto:kononiaka.vladimir@gmail.com">kononiaka.vladimir@gmail.com</a> or visit{' '}
+                        <a href="https://www.facebook.com/groups/grafwebstudio" target="_blank" rel="noreferrer">
                             Graf Studio
                         </a>
                         .

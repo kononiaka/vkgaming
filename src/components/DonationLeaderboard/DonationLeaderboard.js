@@ -66,9 +66,7 @@ const DonationLeaderboard = ({
                     donorStats.push({
                         nickname,
                         totalDonated,
-                        donationCount: hasTracked
-                            ? Number(userData.donationCount) || 1
-                            : legacy?.donationCount || 1,
+                        donationCount: hasTracked ? Number(userData.donationCount) || 1 : legacy?.donationCount || 1,
                         lastDonation: userData.lastDonationAt
                             ? new Date(userData.lastDonationAt).getTime()
                             : legacy?.lastDonation || 0
@@ -87,8 +85,7 @@ const DonationLeaderboard = ({
         fetchDonationData();
     }, [limit]);
 
-    const rootClass =
-        variant === 'panel' ? `${classes.leaderboard} ${classes.leaderboardPanel}` : classes.leaderboard;
+    const rootClass = variant === 'panel' ? `${classes.leaderboard} ${classes.leaderboardPanel}` : classes.leaderboard;
 
     if (loading) {
         return (

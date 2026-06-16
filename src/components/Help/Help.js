@@ -46,8 +46,15 @@ const Help = () => (
 
         <section className={classes.infoPanel}>
             <p className={classes.infoLead}>
-                For account issues, include your konoplay nickname. For payment questions, mention the provider you
-                used (Donation Alerts, Stripe, or MonoBank).
+                For account issues, include your konoplay nickname. For payment questions, mention the provider you used
+                (Donation Alerts, Stripe, or MonoBank).
+            </p>
+            <p className={classes.infoLead}>
+                Found a website bug? Use the{' '}
+                <Link to="/report-bug" className={classes.inlineLink}>
+                    Report bug
+                </Link>{' '}
+                form — it captures the page URL automatically.
             </p>
         </section>
 
@@ -58,12 +65,7 @@ const Help = () => (
                     <div className={classes.channelBody}>
                         <h2 className={classes.channelName}>{channel.name}</h2>
                         <p className={classes.channelDesc}>{channel.description}</p>
-                        <a
-                            href={channel.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={classes.channelLink}
-                        >
+                        <a href={channel.href} target="_blank" rel="noreferrer" className={classes.channelLink}>
                             {channel.label}
                         </a>
                     </div>

@@ -1,10 +1,11 @@
 .player_bracket {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.5rem 0.75rem;
     width: 100%;
     min-width: 0;
-    padding: 0.45rem 0.55rem;
+    padding: 0.65rem 0.75rem;
     border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -25,6 +26,133 @@
 
 .playerLoser {
     opacity: 0.72;
+}
+
+.playerIdentity {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 0;
+    flex: 1;
+}
+
+.playerPortraitCol {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.playerTopRow {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    width: 100%;
+}
+
+.playerFlagInline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding-bottom: 1.15rem;
+}
+
+.playerOutcome {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.playerMeta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    width: 100%;
+    max-width: 118px;
+    text-align: center;
+}
+
+.portraitSlot {
+    position: relative;
+    width: 58px;
+    height: 72px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.portraitWrap {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.portraitImage,
+.portraitFallback {
+    width: 58px;
+    height: 58px;
+    border-radius: 8px;
+    border: 2px solid rgba(201, 162, 39, 0.45);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+    object-fit: cover;
+    background: rgba(18, 28, 44, 0.9);
+    display: block;
+}
+
+.portraitFallback {
+    display: grid;
+    place-items: center;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--color-gold);
+}
+
+.starsOnPortrait {
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+
+.starsOnPortrait img {
+    height: 20px !important;
+    width: auto;
+    display: block;
+}
+
+.playerNameUnder {
+    display: block;
+    width: 100%;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a.playerNameUnder:hover {
+    color: var(--color-gold-bright);
 }
 
 .playerRow {
@@ -68,70 +196,14 @@
 .playerFlag {
     display: inline-flex;
     align-items: center;
-    flex-shrink: 0;
-    line-height: 1;
-}
-
-.playerStarsBracket {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-    min-width: 5.5rem;
-    margin-left: 0.2rem;
-}
-
-.playerStars {
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 0.78rem;
     line-height: 1;
-    min-width: 4.5rem;
 }
 
-.playerAvatar {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-    border: 1px solid rgba(201, 162, 39, 0.35);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-}
-
+.playerAvatar,
 .playerAvatarFallback {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--color-gold-dim);
-    background: rgba(201, 162, 39, 0.1);
-    border: 1px solid rgba(201, 162, 39, 0.25);
-}
-
-.playerName {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 600;
-    font-size: 0.88rem;
-    color: var(--color-text);
-    text-decoration: none;
-    transition: color 0.15s ease;
-}
-
-a.playerName:hover {
-    color: var(--color-gold-bright);
+    display: none;
 }
 
 .playerNameHint {
@@ -142,16 +214,15 @@ a.playerName:hover {
 }
 
 .leaderboardPlace {
-    flex: 0 0 auto;
     color: var(--color-gold-dim);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
 }
 
 .playerCastles {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 0.35rem;
     flex-shrink: 0;
 }
@@ -349,16 +420,15 @@ a.playerName:hover {
 
 @media (max-width: 900px) {
     .player_bracket {
-        flex-wrap: wrap;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
     }
 
-    .playerCastles {
-        width: 100%;
-        justify-content: flex-start;
-        padding-left: 1.5rem;
+    .playerTopRow {
+        gap: 0.5rem;
     }
 
-    .scoreBox {
-        margin-left: auto;
+    .playerMeta {
+        max-width: 140px;
     }
 }

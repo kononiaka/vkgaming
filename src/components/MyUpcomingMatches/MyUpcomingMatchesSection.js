@@ -3,11 +3,7 @@ import { getCastleImage } from '../../utils/castleImages';
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
 import classes from './MyUpcomingMatchesSection.module.css';
 
-const MyUpcomingMatchesSection = ({
-    matches = [],
-    title = 'My upcoming matches',
-    className = ''
-}) => {
+const MyUpcomingMatchesSection = ({ matches = [], title = 'My upcoming matches', className = '' }) => {
     if (!matches.length) {
         return null;
     }

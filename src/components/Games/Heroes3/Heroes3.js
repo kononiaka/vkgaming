@@ -4,10 +4,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import AuthContext from '../../../store/auth-context';
 import { useAddGame } from '../../../store/add-game-context';
 import MatchLogDetailsModal from './MatchLogDetailsModal';
-import {
-    findBracketMatchForGame,
-    normalizeMatchLogGame
-} from '../../../utils/matchLogDetails';
+import { findBracketMatchForGame, normalizeMatchLogGame } from '../../../utils/matchLogDetails';
 import classes from './Heroes3.module.css';
 
 const Heroes3Games = () => {
@@ -210,7 +207,11 @@ const Heroes3Games = () => {
                                 {tournamentSuggestions.length > 0 && (
                                     <ul className={classes.suggestionsList} role="listbox">
                                         {tournamentSuggestions.map((name, index) => (
-                                            <li key={name} role="option" aria-selected={index === activeTournamentIndex}>
+                                            <li
+                                                key={name}
+                                                role="option"
+                                                aria-selected={index === activeTournamentIndex}
+                                            >
                                                 <button
                                                     type="button"
                                                     className={`${classes.suggestionItem} ${
@@ -258,9 +259,7 @@ const Heroes3Games = () => {
                             </select>
                         </div>
                     </div>
-                    {sortedGames.length === 0 && (
-                        <p className={classes.noResults}>No matches match your filters.</p>
-                    )}
+                    {sortedGames.length === 0 && <p className={classes.noResults}>No matches match your filters.</p>}
                     <div className={classes.gamesList}>
                         {sortedGames.map((game) => (
                             <button

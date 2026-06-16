@@ -205,6 +205,13 @@
     z-index: 1;
 }
 
+.knockoutPlayersStack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
 .game-block:hover {
     border-color: rgba(201, 162, 39, 0.28);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
@@ -212,7 +219,9 @@
 
 .game-blockHighlighted {
     outline: 2px solid rgba(201, 162, 39, 0.65);
-    box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.25), 0 0 24px rgba(201, 162, 39, 0.18);
+    box-shadow:
+        0 0 0 1px rgba(201, 162, 39, 0.25),
+        0 0 24px rgba(201, 162, 39, 0.18);
 }
 
 .game-block:last-child {
@@ -319,6 +328,16 @@
     gap: 0.5rem;
 }
 
+.knockoutColumnsMobile {
+    flex-direction: column;
+    gap: 0;
+}
+
+.knockoutColumnsMobile .bracket-stage-single {
+    width: 100%;
+    padding: 0 0.35rem 1rem;
+}
+
 .knockoutColumnTitle {
     color: var(--color-gold);
     text-align: center;
@@ -345,13 +364,6 @@
     align-items: center;
     gap: 0.85rem;
     width: 100%;
-}
-
-.knockoutPlayersStack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    min-width: 0;
 }
 
 .knockoutMatchActions {
@@ -842,5 +854,37 @@
     .headerSideEnd {
         min-width: 0;
         align-items: stretch;
+    }
+
+    .knockoutNav {
+        gap: 0.65rem;
+        padding: 0.5rem 0.35rem;
+    }
+
+    .knockoutNavCenter {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .knockoutNavBtn {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.1rem;
+    }
+
+    .knockoutDots {
+        margin-bottom: 1.25rem;
+    }
+
+    .knockoutConnector {
+        display: none;
+    }
+
+    .bracket-stage-single {
+        padding: 0 0.35rem 1rem;
+    }
+
+    .game-block {
+        padding: 0.85rem 0.75rem 1rem;
     }
 }

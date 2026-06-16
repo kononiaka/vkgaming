@@ -184,9 +184,7 @@ export const resolveMatchLogRecordingLinks = (game, bracketContext = null, users
     }
 
     [game.opponent1, game.opponent2].forEach((nickname) => {
-        const user = Object.values(usersData || {}).find((entry) =>
-            namesMatch(entry?.enteredNickname, nickname)
-        );
+        const user = Object.values(usersData || {}).find((entry) => namesMatch(entry?.enteredNickname, nickname));
         registerLogin(user?.twitch);
         registerLogin(user?.twitchDisplayName);
     });
@@ -221,10 +219,7 @@ export const buildMatchLogMapRows = (game) => {
 
     return maps.map((mapGame, index) => {
         const restarts =
-            mapGame.restart1_111 ||
-            mapGame.restart1_112 ||
-            mapGame.restart2_111 ||
-            mapGame.restart2_112
+            mapGame.restart1_111 || mapGame.restart1_112 || mapGame.restart2_111 || mapGame.restart2_112
                 ? `${mapGame.restart1_111 || 0}/${mapGame.restart1_112 || 0} · ${mapGame.restart2_111 || 0}/${mapGame.restart2_112 || 0}`
                 : null;
 

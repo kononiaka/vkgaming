@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Redirecting to Konoplay…</title>
+        <script>
+            var target =
+                'https://kononiaka.github.io/auth/twitch/callback' +
+                window.location.search +
+                window.location.hash;
+            window.location.replace(target);
+        </script>
+    </head>
+    <body>
+        <p>Redirecting to <a id="link" href="https://kononiaka.github.io/auth/twitch/callback">Konoplay</a>…</p>
+        <script>
+            document.getElementById('link').href +=
+                window.location.search + window.location.hash;
+        </script>
+    </body>
+</html>

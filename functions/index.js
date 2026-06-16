@@ -1190,12 +1190,111 @@ exports.hotaLeaderboard = functions.https.onCall(async (data) => {
     return { leaderboard: Array.isArray(leaderboard) ? leaderboard : [] };
 });
 
+const { GoogleAuth } = require('google-auth-library');
+
+const FIREBASE_PROJECT_ID = process.env.GCLOUD_PROJECT || 'test-prod-app-81915';
+
+async function getGoogleAccessToken(scopes) {
+    const auth = new GoogleAuth({ scopes });
+    const client = await auth.getClient();
+    const accessTokenResponse = await client.getAccessToken();
+    const token = accessTokenResponse.token;
+
+    if (!token) {
+        throw new Error('Failed to obtain Google access token');
+    }
+
+    return token;
+}
+
+function getUidFromIdToken(idToken) {
+    if (!idToken) {
+        return null;
+    }
+
+    try {
+        const payload = idToken.split('.')[1];
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = JSON.parse(Buffer.from(normalized, 'base64').toString('utf8'));
+        return decoded.user_id || decoded.sub || null;
+    } catch {
+        return null;
+    }
+}
+
+async function exchangeCustomTokenForSession(customToken) {
+    const accessToken = await getGoogleAccessToken(['https://www.googleapis.com/auth/identitytoolkit']);
+    const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            'X-Goog-User-Project': FIREBASE_PROJECT_ID
+        },
+        body: JSON.stringify({ token: customToken, returnSecureToken: true })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = payload?.error?.message || `Firebase sign-in failed (${response.status})`;
+        throw new Error(message);
+    }
+
+    return {
+        idToken: payload.idToken,
+        refreshToken: payload.refreshToken,
+        localId: payload.localId || getUidFromIdToken(payload.idToken)
+    };
+}
+
+async function refreshFirebaseSession(refreshToken) {
+    const accessToken = await getGoogleAccessToken(['https://www.googleapis.com/auth/securetoken']);
+
+    const response = await fetch('https://securetoken.googleapis.com/v1/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Bearer ${accessToken}`,
+            'X-Goog-User-Project': FIREBASE_PROJECT_ID
+        },
+        body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken
+        })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = payload?.error?.message || 'Token refresh failed';
+        throw new Error(message);
+    }
+
+    return {
+        idToken: payload.id_token,
+        refreshToken: payload.refresh_token || refreshToken
+    };
+}
+
+exports.refreshAuthToken = functions.https.onCall(async (data) => {
+    const refreshToken = String(data?.refreshToken || '').trim();
+    if (!refreshToken) {
+        throw new functions.https.HttpsError('invalid-argument', 'refreshToken is required');
+    }
+
+    try {
+        return await refreshFirebaseSession(refreshToken);
+    } catch (error) {
+        console.error('refreshAuthToken failed:', error);
+        throw new functions.https.HttpsError('internal', error.message || 'Token refresh failed');
+    }
+});
+
 //
 // Required Firebase config:
 //   firebase functions:config:set twitch.client_id="..." twitch.client_secret="..."
 //
 // Request body: { "data": { "code": "...", "redirectUri": "..." } }
-// Response:     { "result": { "customToken", "displayName", "profileImageUrl", "dbUserId" } }
+// Response:     { "result": { "idToken", "refreshToken", "localId", "displayName", "profileImageUrl", "dbUserId" } }
 // ---------------------------------------------------------------------------
 exports.twitchAuth = functions.https.onCall(async (data, context) => {
     try {
@@ -1336,7 +1435,16 @@ exports.twitchAuth = functions.https.onCall(async (data, context) => {
             dbUserId
         });
 
-        return { customToken, displayName: storedNickname, profileImageUrl, dbUserId };
+        const session = await exchangeCustomTokenForSession(customToken);
+
+        return {
+            idToken: session.idToken,
+            refreshToken: session.refreshToken,
+            localId: session.localId,
+            displayName: storedNickname,
+            profileImageUrl,
+            dbUserId
+        };
     } catch (err) {
         console.error('twitchAuth failed:', err);
         if (err instanceof functions.https.HttpsError) {
@@ -1515,6 +1623,85 @@ exports.deleteAccount = functions.https.onCall(async (data, context) => {
         console.error('deleteAccount failed:', err);
         throw new functions.https.HttpsError('internal', err.message || 'Account deletion failed.');
     }
+});
+
+exports.reportBug = functions.https.onCall(async (data, context) => {
+    const summary = String(data?.summary || '').trim();
+    const description = String(data?.description || '').trim();
+    const steps = String(data?.steps || '').trim();
+    const pageUrl = String(data?.pageUrl || '').trim();
+    const userAgent = String(data?.userAgent || '').trim();
+    const screenSize = String(data?.screenSize || '').trim();
+    const reporterNickname = String(data?.reporterNickname || '').trim();
+    const reporterUid = String(data?.reporterUid || '').trim();
+    const severity = String(data?.severity || 'normal').trim();
+
+    const allowedSeverity = new Set(['low', 'normal', 'high']);
+    if (!allowedSeverity.has(severity)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid severity value');
+    }
+
+    if (summary.length < 5 || summary.length > 160) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Summary must be between 5 and 160 characters'
+        );
+    }
+
+    if (description.length < 10 || description.length > 4000) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Description must be between 10 and 4000 characters'
+        );
+    }
+
+    if (steps.length > 2000) {
+        throw new functions.https.HttpsError('invalid-argument', 'Steps to reproduce are too long');
+    }
+
+    if (pageUrl.length > 500) {
+        throw new functions.https.HttpsError('invalid-argument', 'Page URL is too long');
+    }
+
+    const reportRef = db.ref('bugReports').push();
+    const report = {
+        summary,
+        description,
+        steps: steps || null,
+        pageUrl: pageUrl || null,
+        userAgent: userAgent || null,
+        screenSize: screenSize || null,
+        reporterNickname: reporterNickname || 'Anonymous',
+        reporterUid: reporterUid || null,
+        severity,
+        status: 'open',
+        source: 'web',
+        createdAt: new Date().toISOString()
+    };
+
+    await reportRef.set(report);
+
+    try {
+        const { sendTelegramMessage, escapeHtml, getTelegramConfig } = require('./telegram');
+        const siteUrl = getTelegramConfig().siteUrl;
+        const adminLink = `${siteUrl}/#/report-bug`;
+        const lines = [
+            '🐛 <b>Bug report</b>',
+            `<b>${escapeHtml(summary)}</b>`,
+            escapeHtml(description.slice(0, 600)),
+            pageUrl ? `Page: ${escapeHtml(pageUrl)}` : null,
+            `Reporter: ${escapeHtml(reporterNickname || 'Anonymous')}`,
+            `Severity: ${escapeHtml(severity)}`,
+            `ID: ${reportRef.key}`,
+            adminLink ? `Form: ${escapeHtml(adminLink)}` : null
+        ].filter(Boolean);
+
+        await sendTelegramMessage(lines.join('\n'), { parseMode: 'HTML' });
+    } catch (notifyError) {
+        console.error('reportBug telegram notification failed:', notifyError);
+    }
+
+    return { reportId: reportRef.key };
 });
 
 // Telegram channel notifications (@vkgamingplay) — see telegramNotifications.js

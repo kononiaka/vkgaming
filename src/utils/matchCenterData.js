@@ -67,12 +67,12 @@ export const isGameSessionActive = (game) => {
 
     return Boolean(
         game.restartsFinished === false ||
-        game.restart1_111 ||
-        game.restart1_112 ||
-        game.restart2_111 ||
-        game.restart2_112 ||
-        game.gold1 ||
-        game.gold2
+            game.restart1_111 ||
+            game.restart1_112 ||
+            game.restart2_111 ||
+            game.restart2_112 ||
+            game.gold1 ||
+            game.gold2
     );
 };
 
@@ -121,9 +121,7 @@ const enrichPair = (pair, context) => {
     const team2Ready = pair.team2 && pair.team2 !== 'TBD' && pair.team2 !== 'null';
 
     const team1TwitchLogin =
-        extractTwitchLogin(pair.streamLogin) ||
-        twitchByNickname[pair.team1] ||
-        extractTwitchLogin(team1Player?.twitch);
+        extractTwitchLogin(pair.streamLogin) || twitchByNickname[pair.team1] || extractTwitchLogin(team1Player?.twitch);
     const team2TwitchLogin = twitchByNickname[pair.team2] || extractTwitchLogin(team2Player?.twitch);
     const streamLogin =
         extractTwitchLogin(commentatorStreamLogin) ||

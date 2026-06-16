@@ -7,6 +7,24 @@ import { getAppHashUrl, getTwitchRedirectUri } from '../../utils/appBasePath';
 const TWITCH_AUTH_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/twitchAuth`;
 const FIREBASE_API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
 
+const signInWithCustomTokenInBrowser = async (customToken) => {
+    const signInRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${FIREBASE_API_KEY}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: customToken, returnSecureToken: true })
+        }
+    );
+
+    if (!signInRes.ok) {
+        const errData = await signInRes.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || 'Firebase sign-in failed');
+    }
+
+    return signInRes.json();
+};
+
 const TwitchCallback = () => {
     const authCtx = useContext(AuthContext);
     const handled = useRef(false);
@@ -38,7 +56,6 @@ const TwitchCallback = () => {
             return;
         }
 
-        // CSRF — verify state matches what we stored before redirect
         const savedState = sessionStorage.getItem('twitch_oauth_state');
         sessionStorage.removeItem('twitch_oauth_state');
         if (!savedState || savedState !== state) {
@@ -53,7 +70,6 @@ const TwitchCallback = () => {
 
         const doAuth = async () => {
             try {
-                // 1. Call Cloud Function to exchange code → Firebase custom token
                 const fnRes = await fetch(TWITCH_AUTH_FUNCTION_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -67,36 +83,28 @@ const TwitchCallback = () => {
                 }
 
                 const { result } = await fnRes.json();
-                const { customToken, displayName, dbUserId } = result;
+                const { idToken, refreshToken, localId, displayName, dbUserId, customToken } = result;
 
-                if (!customToken) {
-                    throw new Error('Twitch auth response missing custom token');
+                let sessionIdToken = idToken;
+                let sessionLocalId = localId;
+                let sessionRefreshToken = refreshToken;
+
+                if ((!sessionIdToken || !sessionLocalId) && customToken) {
+                    const signInData = await signInWithCustomTokenInBrowser(customToken);
+                    sessionIdToken = signInData.idToken;
+                    sessionLocalId = signInData.localId;
+                    sessionRefreshToken = signInData.refreshToken;
                 }
 
-                const signInRes = await fetch(
-                    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${FIREBASE_API_KEY}`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token: customToken, returnSecureToken: true })
-                    }
-                );
-
-                if (!signInRes.ok) {
-                    const errData = await signInRes.json().catch(() => ({}));
-                    throw new Error(errData?.error?.message || 'Firebase sign-in failed');
+                if (!sessionIdToken || !sessionLocalId) {
+                    throw new Error('Twitch auth response missing session tokens');
                 }
 
-                const signInData = await signInRes.json();
+                authCtx.login(sessionIdToken, displayName, sessionLocalId, sessionRefreshToken);
 
-                authCtx.login(signInData.idToken, displayName, signInData.localId, signInData.refreshToken);
-
-                // 4. Track daily login date
                 if (dbUserId) {
                     try {
-                        const userSnap = await fetch(
-                            `${FIREBASE_DATABASE_URL}/users/${dbUserId}.json`
-                        );
+                        const userSnap = await fetch(`${FIREBASE_DATABASE_URL}/users/${dbUserId}.json`);
                         const userData = await userSnap.json();
                         const today = new Date().toISOString().slice(0, 10);
                         if (userData && userData.lastLoginDate !== today) {

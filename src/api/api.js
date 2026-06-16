@@ -28,9 +28,7 @@ export const getTournamentPrizeLabel = (tournament) => {
 // Progress tracking for tournament games
 export async function getGameProgress(gameId) {
     try {
-        const response = await fetch(
-            `${FIREBASE_DATABASE_URL}/games/heroes3/${gameId}/progress.json`
-        );
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/games/heroes3/${gameId}/progress.json`);
         if (!response.ok) {
             return null;
         }
@@ -43,14 +41,11 @@ export async function getGameProgress(gameId) {
 
 export async function setGameProgress(gameId, progress) {
     try {
-        const response = await authFetch(
-            `${FIREBASE_DATABASE_URL}/games/heroes3/${gameId}/progress.json`,
-            {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(progress)
-            }
-        );
+        const response = await authFetch(`${FIREBASE_DATABASE_URL}/games/heroes3/${gameId}/progress.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(progress)
+        });
         return response.ok;
     } catch (e) {
         console.error('Error setting game progress:', e);
@@ -254,27 +249,24 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
                 // Skip redundant confirmation - user already confirmed in updatePlayerRatings()
                 // Directly update the database for both winner and loser
                 try {
-                    const userResponse = await authFetch(
-                        `${FIREBASE_DATABASE_URL}/users/${userId}.json`,
-                        {
-                            method: 'PATCH',
-                            body: JSON.stringify({
-                                gamesPlayed: {
-                                    heroes3: {
-                                        total: games.heroes3.total + 1,
-                                        win: userId === winner ? games.heroes3.win + 1 : games.heroes3.win,
-                                        lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
-                                    }
-                                },
-                                ratings: updatedRatings
-                                // NOTE: Stars are NOT updated here - only at tournament end
-                                // This preserves tournament entry stars throughout the tournament
-                            }),
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
+                    const userResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            gamesPlayed: {
+                                heroes3: {
+                                    total: games.heroes3.total + 1,
+                                    win: userId === winner ? games.heroes3.win + 1 : games.heroes3.win,
+                                    lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
+                                }
+                            },
+                            ratings: updatedRatings
+                            // NOTE: Stars are NOT updated here - only at tournament end
+                            // This preserves tournament entry stars throughout the tournament
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
                         }
-                    );
+                    });
                     if (userResponse.ok) {
                         console.log(`✓ ${team} rating updated successfully to ${safeScoreToAdd.toFixed(2)}`);
                     } else {
@@ -308,7 +300,7 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
     }
 };
 
-export const findByName = (data, nickname, newRating) => {
+export const findByName = (data, nickname, _newRating) => {
     for (let key in data) {
         if (data[key].name === nickname) {
             // data[key].ratings = newRating;
@@ -381,9 +373,7 @@ export const lookForUserPrevScore = async (userId) => {
 
 export const fetchCastlesList = async () => {
     try {
-        const response = await fetch(
-            `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles.json`
-        );
+        const response = await fetch(`${FIREBASE_DATABASE_URL}/statistic/heroes3/castles.json`);
         const data = await response.json();
 
         let castles = Object.entries(data).map(([id, castle]) => ({
@@ -405,12 +395,9 @@ export const fetchCastlesList = async () => {
 
 export const lookForCastleStats = async (castle, action) => {
     let body;
-    const response = await fetch(
-        `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`,
-        {
-            method: 'GET'
-        }
-    );
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`, {
+        method: 'GET'
+    });
 
     const castleData = await response.json();
 
@@ -432,16 +419,13 @@ export const lookForCastleStats = async (castle, action) => {
     }
 
     try {
-        const response = await authFetch(
-            `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`,
-            {
-                method: 'PATCH',
-                body: body,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+        const response = await authFetch(`${FIREBASE_DATABASE_URL}/statistic/heroes3/castles/${castle}.json`, {
+            method: 'PATCH',
+            body: body,
+            headers: {
+                'Content-Type': 'application/json'
             }
-        );
+        });
 
         return await response.json();
     } catch (error) {
@@ -451,12 +435,9 @@ export const lookForCastleStats = async (castle, action) => {
 
 export const getRating = async (opponentId) => {
     let rating;
-    const response = await fetch(
-        `${FIREBASE_DATABASE_URL}/users/${opponentId}/gamesPlayed/heroes3.json`,
-        {
-            method: 'GET'
-        }
-    );
+    const response = await fetch(`${FIREBASE_DATABASE_URL}/users/${opponentId}/gamesPlayed/heroes3.json`, {
+        method: 'GET'
+    });
 
     const data = await response.json();
 
@@ -593,34 +574,28 @@ export const getStarImageFilename = (stars) => {
     return imageName;
 };
 
-export const updateRating = async (opponentId, rating, game) => {
+export const updateRating = async (opponentId, rating, _game) => {
     //TODO: make ratings by game
-    const ratingResponse = await authFetch(
-        `${FIREBASE_DATABASE_URL}/users/${opponentId}/ratings.json`,
-        {
-            method: 'PUT',
-            body: rating,
-            headers: {
-                'Content-Type': 'application/json'
-            }
+    const ratingResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${opponentId}/ratings.json`, {
+        method: 'PUT',
+        body: rating,
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    });
 
     if (ratingResponse.ok) {
         console.log('rate updated');
     }
 };
 export const updateAvatar = async (userId, avatar) => {
-    const avatarResponse = await authFetch(
-        `${FIREBASE_DATABASE_URL}/users/${userId}/.json`,
-        {
-            method: 'PATCH',
-            body: JSON.stringify({ avatar }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
+    const avatarResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}/.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar }),
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    });
 
     if (avatarResponse.ok) {
         console.log('avatar updated');
@@ -640,16 +615,13 @@ export const getAvatar = async (userId) => {
 
 export const updateStars = async (opponentId, stars) => {
     //TODO: make ratings by game
-    const ratingResponse = await authFetch(
-        `${FIREBASE_DATABASE_URL}/users/${opponentId}/stars.json`,
-        {
-            method: 'PUT',
-            body: stars,
-            headers: {
-                'Content-Type': 'application/json'
-            }
+    const ratingResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${opponentId}/stars.json`, {
+        method: 'PUT',
+        body: stars,
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    });
 
     if (ratingResponse.ok) {
         console.log('rate updated');
@@ -669,13 +641,10 @@ export const getAllUsers = async () => {
 };
 
 export const lookForTournamentName = async (tournamentId) => {
-    const tournamentResponse = await fetch(
-        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`,
-        {
-            method: 'GET',
-            origin: ['*']
-        }
-    );
+    const tournamentResponse = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`, {
+        method: 'GET',
+        origin: ['*']
+    });
 
     if (tournamentResponse.ok) {
         return tournamentResponse.json();
@@ -692,9 +661,7 @@ export const determineTournamentPrizes = (total_prize) => {
 };
 
 export const pullTournamentPrizes = async (tournamentId) => {
-    const tournamentResponse = await fetch(
-        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`
-    );
+    const tournamentResponse = await fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`);
     if (!tournamentResponse.ok) {
         return null;
     }
@@ -1044,19 +1011,16 @@ export const snapshotLeaderboardRanks = async () => {
             const currentRank = i + 1;
 
             try {
-                const userResponse = await authFetch(
-                    `${FIREBASE_DATABASE_URL}/users/${player.id}.json`,
-                    {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            previousRank: currentRank,
-                            previousRankTimestamp: timestamp
-                        }),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
+                const userResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${player.id}.json`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        previousRank: currentRank,
+                        previousRankTimestamp: timestamp
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                );
+                });
 
                 if (userResponse.ok) {
                     successCount++;

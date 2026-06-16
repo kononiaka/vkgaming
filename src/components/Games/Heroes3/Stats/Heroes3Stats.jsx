@@ -22,9 +22,7 @@ const Heroes3Stats = () => {
     useEffect(() => {
         const fetchCastlesList = async () => {
             try {
-                const response = await fetch(
-                    `${FIREBASE_DATABASE_URL}/statistic/heroes3/castles.json`
-                );
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/statistic/heroes3/castles.json`);
                 const data = await response.json();
 
                 const list = Object.entries(data || {}).map(([id, castle]) => ({
@@ -154,8 +152,7 @@ const Heroes3Stats = () => {
             const castleTotal = castle?.total ?? '-';
             const castleWin = castle?.win ?? '-';
             const castleLose = castle?.lose ?? '-';
-            const winRate =
-                castle?.total > 0 ? ((castle.win / castle.total) * 100).toFixed(1) : '0.0';
+            const winRate = castle?.total > 0 ? ((castle.win / castle.total) * 100).toFixed(1) : '0.0';
             const castleLoadClass = getCastleLoadClass(castle?.total);
             const hasInProgressGame = inProgressCastles.has(castleName);
             const castleImage = getCastleImage(castleName);
@@ -165,13 +162,7 @@ const Heroes3Stats = () => {
                     <td className={classes.rankCol}>{index + 1}</td>
                     <td className={classes.castleCol}>
                         <div className={`${classes.castleCell} ${castleLoadClass}`}>
-                            {castleImage && (
-                                <img
-                                    src={castleImage}
-                                    alt={castleName}
-                                    className={classes.castleThumb}
-                                />
-                            )}
+                            {castleImage && <img src={castleImage} alt={castleName} className={classes.castleThumb} />}
                             <span className={classes.castleName}>{castleName}</span>
                             {hasInProgressGame && (
                                 <span
@@ -264,9 +255,7 @@ const Heroes3Stats = () => {
                                 </thead>
                                 <tbody>
                                     {hotaFactions.map((faction, index) => {
-                                        const mapping = HOTA_FACTIONS.find(
-                                            (entry) => entry.id === faction.faction_id
-                                        );
+                                        const mapping = HOTA_FACTIONS.find((entry) => entry.id === faction.faction_id);
                                         const konoplayName = mapping?.konoplayName || faction.faction_name;
                                         const hotaRate = faction.winrate?.toFixed(1) ?? '0.0';
                                         const castleImage = getCastleImage(konoplayName);
@@ -286,20 +275,13 @@ const Heroes3Stats = () => {
                                                         <span className={classes.castleName}>
                                                             {faction.faction_name}
                                                             {konoplayName !== faction.faction_name && (
-                                                                <span className={classes.alias}>
-                                                                    {' '}
-                                                                    ({konoplayName})
-                                                                </span>
+                                                                <span className={classes.alias}> ({konoplayName})</span>
                                                             )}
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td className={classes.numCol}>
-                                                    {faction.games?.toLocaleString()}
-                                                </td>
-                                                <td className={classes.numCol}>
-                                                    {faction.pick_rate?.toFixed(1)}%
-                                                </td>
+                                                <td className={classes.numCol}>{faction.games?.toLocaleString()}</td>
+                                                <td className={classes.numCol}>{faction.pick_rate?.toFixed(1)}%</td>
                                                 <td className={classes.rateCol}>
                                                     <span className={classes.rateValue}>{hotaRate}%</span>
                                                     <div className={classes.rateBar}>

@@ -7,12 +7,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { fetchMatchCenterMatches } from '../utils/matchCenterData';
 import { fetchTwitchLiveLogins } from '../api/twitchStreams';
-import {
-    extractTwitchLogin,
-    getTwitchEmbedUrl,
-    getTwitchWatchUrl,
-    pickMatchStreamLogin
-} from '../utils/twitchUtils';
+import { extractTwitchLogin, getTwitchEmbedUrl, getTwitchWatchUrl, pickMatchStreamLogin } from '../utils/twitchUtils';
 import LiveArenaMatchRow from '../components/LiveArena/LiveArenaMatchRow';
 
 // Mirrors functions/telegram.js matchCenterLink (not imported — firebase-functions breaks Jest)
@@ -153,11 +148,7 @@ describe('Live Arena E2E flow', () => {
     test('detects Twitch live channels and picks featured on-air stream', async () => {
         const { liveGames } = await fetchMatchCenterMatches();
         const liveLogins = await fetchTwitchLiveLogins(
-            liveGames.flatMap((match) => [
-                match.streamLogin,
-                match.team1TwitchLogin,
-                match.team2TwitchLogin
-            ])
+            liveGames.flatMap((match) => [match.streamLogin, match.team1TwitchLogin, match.team2TwitchLogin])
         );
 
         expect(liveLogins.has('alice_streams')).toBe(true);

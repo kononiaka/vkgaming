@@ -164,8 +164,8 @@ const TelegramNotificationsSection = ({ userId, authCtx }) => {
                 <div>
                     <h4 className={classes.title}>Telegram bot notifications</h4>
                     <p className={classes.note}>
-                        Link @{TELEGRAM_BOT_USERNAME} for personal DMs about your matches and players you follow.
-                        The public channel @vkgamingplay still posts general digests.
+                        Link @{TELEGRAM_BOT_USERNAME} for personal DMs about your matches and players you follow. The
+                        public channel @vkgamingplay still posts general digests.
                     </p>
                 </div>
                 <span className={`${classes.statusBadge} ${linkState.linked ? classes.statusLinked : ''}`}>
@@ -190,12 +190,7 @@ const TelegramNotificationsSection = ({ userId, authCtx }) => {
                         </button>
                     </>
                 ) : (
-                    <button
-                        type="button"
-                        className={classes.primaryBtn}
-                        onClick={handleConnect}
-                        disabled={linkLoading}
-                    >
+                    <button type="button" className={classes.primaryBtn} onClick={handleConnect} disabled={linkLoading}>
                         {linkLoading ? 'Opening Telegram…' : `Connect @${TELEGRAM_BOT_USERNAME}`}
                     </button>
                 )}

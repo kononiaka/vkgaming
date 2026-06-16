@@ -109,12 +109,7 @@ export const getTwitchEmbedUrl = (loginOrUrl) => {
 };
 
 export const pickMatchStreamLogin = (match, liveLogins = new Set()) => {
-    const candidates = [
-        match.commentatorStreamLogin,
-        match.streamLogin,
-        match.team1TwitchLogin,
-        match.team2TwitchLogin
-    ]
+    const candidates = [match.commentatorStreamLogin, match.streamLogin, match.team1TwitchLogin, match.team2TwitchLogin]
         .map((value) => extractTwitchLogin(value))
         .filter(Boolean);
 

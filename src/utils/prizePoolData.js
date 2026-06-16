@@ -51,8 +51,7 @@ export const isLiveFundableTournament = (tournament) =>
     );
 
 /** Public tournaments in registration or live — shown in prize pool widgets. */
-export const isActivePrizePoolTournament = (tournament) =>
-    Boolean(tournament && isPlayerVisibleTournament(tournament));
+export const isActivePrizePoolTournament = (tournament) => Boolean(tournament && isPlayerVisibleTournament(tournament));
 
 export const getTournamentPrizePoolLink = (tournament) => {
     if (tournament?.status === 'Registration' || tournament?.status === 'Registration Started') {

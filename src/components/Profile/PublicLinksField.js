@@ -49,7 +49,12 @@ const PublicLinksField = ({ userId, links, onSaved }) => {
 
             onSaved?.({ [key]: trimmed || null });
             setSavedKey(key);
-            authCtx.setNotificationShown(true, `${PUBLIC_LINK_FIELDS.find((field) => field.key === key)?.label || 'Link'} saved.`, 'success', 3);
+            authCtx.setNotificationShown(
+                true,
+                `${PUBLIC_LINK_FIELDS.find((field) => field.key === key)?.label || 'Link'} saved.`,
+                'success',
+                3
+            );
             window.setTimeout(() => setSavedKey(null), 2000);
         } catch (error) {
             console.error('Failed to save public link:', error);

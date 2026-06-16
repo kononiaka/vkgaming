@@ -55,24 +55,20 @@ const Layout = (props) => {
         <AddGameContext.Provider value={addGameValue}>
             <AddTournamentContext.Provider value={addTournamentValue}>
                 <Fragment>
-                    <DonatorsBar />
-                    <MainHeader />
+                    <div className={classes.siteChrome}>
+                        <MainHeader />
+                        <DonatorsBar />
+                    </div>
                     <main className={classes.mainContent}>{props.children}</main>
                     <footer className={classes.siteFooter}>
                         Site by{' '}
-                        <a
-                            href="https://www.facebook.com/groups/grafwebstudio"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
+                        <a href="https://www.facebook.com/groups/grafwebstudio" target="_blank" rel="noreferrer">
                             Graf Studio
                         </a>
                     </footer>
 
                     {showAddGame && <ModalAddGame onClose={handleModalClose} addGame />}
-                    {showAddTournament && (
-                        <ModalAddTournament onClose={handleModalClose} addTournament />
-                    )}
+                    {showAddTournament && <ModalAddTournament onClose={handleModalClose} addTournament />}
 
                     <Notification />
                 </Fragment>

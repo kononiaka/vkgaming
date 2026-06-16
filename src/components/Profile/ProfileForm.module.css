@@ -266,3 +266,25 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+    .avatarRow {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 0.85rem 1rem;
+    }
+
+    .formPanel {
+        padding: 0.85rem 1rem;
+    }
+
+    .buttonRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .buttonRow button {
+        width: 100%;
+    }
+}

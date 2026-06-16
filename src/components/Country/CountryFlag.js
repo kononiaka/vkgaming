@@ -11,12 +11,7 @@ const CountryFlag = ({ code, showLabel = false, size = 20, className = '' }) => 
     const label = getCountryLabel(normalized);
 
     return (
-        <span
-            className={`${classes.flag} ${className}`.trim()}
-            title={label}
-            aria-label={label}
-            role="img"
-        >
+        <span className={`${classes.flag} ${className}`.trim()} title={label} aria-label={label} role="img">
             <span
                 className={`fi fi-${normalized.toLowerCase()} ${classes.icon}`}
                 style={{ fontSize: `${size}px` }}

@@ -11,10 +11,10 @@ function AddGameModal(props) {
     const [date, setDate] = useState('');
     const [opponent1, setOpponent1] = useState('');
     const [opponent1Castle, setOpponent1Castle] = useState('');
-    const [opponent1PrevScore, setOpponent1Score] = useState('');
+    const [, setOpponent1Score] = useState('');
     const [opponent2, setOpponent2] = useState('');
     const [opponent2Castle, setOpponent2Castle] = useState('');
-    const [opponent2PrevScore, setOpponent2Score] = useState('');
+    const [, setOpponent2Score] = useState('');
     const [opponentList, setOpponentList] = useState([]);
     let [gameName, setGameName] = useState('');
     const [gameType, setGameType] = useState('');

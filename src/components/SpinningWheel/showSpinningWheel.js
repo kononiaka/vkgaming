@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
-// import SpinningWheel from './SpinningWheel'; // Rename the imported component to avoid conflict
-
-const ShowSpinningWheel = ({ players, onSpinComplete }) => {
+const ShowSpinningWheel = () => (
     <div>
         <h1>Spinning Wheel Example</h1>
-    </div>;
-};
+    </div>
+);
 
 export default ShowSpinningWheel;

@@ -90,9 +90,7 @@ export const isPlayerRegisteredInTournament = (tournament, player) => {
             firebaseUid: player.registeredUid || null
         }) ||
             (player.id &&
-                Object.values(tournament.players).some(
-                    (entry) => entry?.siteUserId && entry.siteUserId === player.id
-                ))
+                Object.values(tournament.players).some((entry) => entry?.siteUserId && entry.siteUserId === player.id))
     );
 };
 
@@ -146,11 +144,7 @@ const parseTournamentDateMs = (dateValue) => {
     return Number.isNaN(parsed) ? 0 : parsed;
 };
 
-export const collectPlayerTournaments = (
-    tournamentsData,
-    player,
-    { includePrivateTournaments = false } = {}
-) => {
+export const collectPlayerTournaments = (tournamentsData, player, { includePrivateTournaments = false } = {}) => {
     if (!tournamentsData || !player) {
         return [];
     }

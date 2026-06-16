@@ -180,12 +180,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
         }
 
         if (deleteConfirm !== player.enteredNickname) {
-            authCtx.setNotificationShown(
-                true,
-                'Type your exact konoplay nickname to confirm deletion.',
-                'error',
-                5
-            );
+            authCtx.setNotificationShown(true, 'Type your exact konoplay nickname to confirm deletion.', 'error', 5);
             return;
         }
 
@@ -220,9 +215,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                     {avatarBase64 ? (
                         <img src={avatarBase64} alt="Your avatar" className={classes.avatar} />
                     ) : (
-                        <div className={classes.avatarFallback}>
-                            {player.enteredNickname?.charAt(0).toUpperCase()}
-                        </div>
+                        <div className={classes.avatarFallback}>{player.enteredNickname?.charAt(0).toUpperCase()}</div>
                     )}
                     <div className={classes.avatarActions}>
                         <p className={classes.avatarHint}>Avatar (max 200KB).</p>
@@ -291,9 +284,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                         userId={userId}
                         countryCode={player.countryCode}
                         countryCodeSource={player.countryCodeSource}
-                        onSaved={(countryUpdate) =>
-                            setPlayer((prev) => (prev ? { ...prev, ...countryUpdate } : prev))
-                        }
+                        onSaved={(countryUpdate) => setPlayer((prev) => (prev ? { ...prev, ...countryUpdate } : prev))}
                     />
                 </div>
             )}
@@ -347,8 +338,8 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 <div className={classes.dangerPanel}>
                     <h4 className={classes.dangerTitle}>Delete account</h4>
                     <p className={classes.panelNote}>
-                        Permanently delete your konoplay account and sign-in. You will be removed from
-                        open tournaments. Finished cup results may still list your past nickname.
+                        Permanently delete your konoplay account and sign-in. You will be removed from open tournaments.
+                        Finished cup results may still list your past nickname.
                     </p>
                     <div className={classes.formControl}>
                         <label htmlFor="delete-confirm">Type your nickname to confirm</label>

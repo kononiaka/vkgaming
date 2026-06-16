@@ -252,12 +252,7 @@
     left: 50%;
     width: 1px;
     height: 100%;
-    background: linear-gradient(
-        to bottom,
-        transparent,
-        rgba(201, 162, 39, 0.45),
-        transparent
-    );
+    background: linear-gradient(to bottom, transparent, rgba(201, 162, 39, 0.45), transparent);
     z-index: 1;
     pointer-events: none;
 }

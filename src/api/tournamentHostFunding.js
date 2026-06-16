@@ -1,9 +1,6 @@
 import { FIREBASE_FUNCTIONS_BASE, FIREBASE_DATABASE_URL } from '../config/firebase';
 import { authFetch, getFirebaseUid } from './authFetch';
-import {
-    MIN_HOST_SEED_USD,
-    splitHostSeedPayment
-} from '../utils/prizePoolData';
+import { MIN_HOST_SEED_USD, splitHostSeedPayment } from '../utils/prizePoolData';
 
 const STRIPE_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/createStripeCheckout`;
 const CONFIRM_HOST_SEED_URL = `${FIREBASE_FUNCTIONS_BASE}/confirmTournamentHostSeed`;

@@ -141,10 +141,7 @@ export const collectMyUpcomingMatches = (
     });
 };
 
-export const fetchMyUpcomingMatches = async (
-    playerName,
-    firebaseUrl = FIREBASE_DATABASE_URL
-) => {
+export const fetchMyUpcomingMatches = async (playerName, firebaseUrl = FIREBASE_DATABASE_URL) => {
     const normalizedPlayer = String(playerName || '').trim();
     if (!normalizedPlayer) {
         return [];

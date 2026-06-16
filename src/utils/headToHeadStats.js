@@ -21,14 +21,14 @@ export const buildNicknameCandidates = (nickname) => {
 };
 
 export const findHotaOpponentRow = (profile, opponentName) => {
-    const query = String(opponentName || '').trim().toLowerCase();
+    const query = String(opponentName || '')
+        .trim()
+        .toLowerCase();
     if (!query || !profile?.opponents) {
         return null;
     }
 
-    return (
-        profile.opponents.find((row) => row?.opp_name?.trim().toLowerCase() === query) || null
-    );
+    return profile.opponents.find((row) => row?.opp_name?.trim().toLowerCase() === query) || null;
 };
 
 export const resolveHotaHeadToHeadFromProfiles = (playerA, playerB, profileA, profileB) => {
@@ -58,7 +58,9 @@ export const resolveHotaHeadToHeadFromProfiles = (playerA, playerB, profileA, pr
 };
 
 export const buildHotaLast5Games = (matches, playerA, playerB) => {
-    const opponentQuery = String(playerB || '').trim().toLowerCase();
+    const opponentQuery = String(playerB || '')
+        .trim()
+        .toLowerCase();
 
     return (matches || [])
         .filter((match) => {
@@ -98,20 +100,13 @@ export const fetchHotaHeadToHead = async (playerA, playerB) => {
         resolveHotaPlayerByNickname(playerB)
     ]);
 
-    const summary = resolveHotaHeadToHeadFromProfiles(
-        playerA,
-        playerB,
-        resultA?.profile,
-        resultB?.profile
-    );
+    const summary = resolveHotaHeadToHeadFromProfiles(playerA, playerB, resultA?.profile, resultB?.profile);
 
     if (!summary) {
         return null;
     }
 
-    const last5Games = resultA?.matches
-        ? buildHotaLast5Games(resultA.matches, playerA, playerB)
-        : [];
+    const last5Games = resultA?.matches ? buildHotaLast5Games(resultA.matches, playerA, playerB) : [];
 
     return {
         ...summary,
@@ -222,5 +217,4 @@ export const fetchHeadToHeadStats = async (playerA, playerB, options) => {
     return fetchKonoplayHeadToHead(playerA, playerB, options);
 };
 
-export const getHeadToHeadSourceLabel = (source) =>
-    source === HEAD_TO_HEAD_SOURCES.HOTA ? 'HotA Meta' : 'Konoplay';
+export const getHeadToHeadSourceLabel = (source) => (source === HEAD_TO_HEAD_SOURCES.HOTA ? 'HotA Meta' : 'Konoplay');
