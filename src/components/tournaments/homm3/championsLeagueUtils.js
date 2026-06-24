@@ -244,6 +244,41 @@ const calcWinPoints = (pair, winnerTeam) => {
     return 2;
 };
 
+export const compareHeadToHead = (pairs, playerA, playerB) => {
+    const directPairs = pairs.filter(
+        (pair) =>
+            pair.winner &&
+            pair.winner !== 'TBD' &&
+            ((pair.team1 === playerA && pair.team2 === playerB) || (pair.team1 === playerB && pair.team2 === playerA))
+    );
+
+    if (directPairs.length === 0) {
+        return 0;
+    }
+
+    let playerAPoints = 0;
+    let playerBPoints = 0;
+
+    directPairs.forEach((pair) => {
+        if (pair.winner === 'draw') {
+            playerAPoints += 1;
+            playerBPoints += 1;
+            return;
+        }
+
+        if (pair.winner === playerA) {
+            playerAPoints += 3;
+        } else if (pair.winner === playerB) {
+            playerBPoints += 3;
+        }
+    });
+
+    return playerBPoints - playerAPoints;
+};
+
+export const compareStandingsWithHeadToHead = (pairs) => (a, b) =>
+    b.points - a.points || compareHeadToHead(pairs, a.name, b.name) || b.wins - a.wins || a.name.localeCompare(b.name);
+
 export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
     const groupPairs = pairs.filter((pair) => pair.group === groupLabel);
     const map = {};
@@ -292,7 +327,7 @@ export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
 
     return Object.entries(map)
         .map(([name, stats]) => ({ name, ...stats }))
-        .sort((a, b) => b.points - a.points || b.wins - a.wins || a.name.localeCompare(b.name));
+        .sort(compareStandingsWithHeadToHead(groupPairs));
 };
 
 export const isChampionsLeagueGroupStageComplete = (pairs) => pairs.length > 0 && pairs.every((pair) => pair.winner);
@@ -464,6 +499,14 @@ const normalizeGroupGameType = (rawGameType) => {
     }
     if (raw === '2' || raw === 'bo-2') {
         return 'bo-2';
+    }
+    return 'bo-1';
+};
+
+export const normalizeChampionsLeagueKnockoutGameType = (rawGameType, fallback = 'bo-1') => {
+    const raw = rawGameType || fallback || 'bo-1';
+    if (raw === '3' || raw === 'bo-3') {
+        return 'bo-3';
     }
     return 'bo-1';
 };

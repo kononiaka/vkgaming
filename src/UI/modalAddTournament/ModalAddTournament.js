@@ -28,6 +28,7 @@ import {
     CHAMPIONS_LEAGUE_SIZES,
     isChampionsLeagueSize
 } from '../../components/tournaments/homm3/championsLeagueUtils';
+import { fromDatetimeLocalValue } from '../../components/tournaments/homm3/matchScheduleUtils';
 
 const MIN_TOURNAMENT_PLAYERS = 2;
 
@@ -59,7 +60,8 @@ const Bracket = (props) => {
     const isChampionsLeague = tournamentType === 'champions-league';
     const isKickOff = tournamentType === 'kick-off';
     const isScheduleFormat = isLeague || isSwiss || isChampionsLeague;
-    const hideKnockoutStageGames = isScheduleFormat;
+    const showFinalAndThirdPlace = isKickOff || isChampionsLeague;
+    const showKnockoutMatchType = isChampionsLeague;
     const showBracketOptions = isKickOff || isChampionsLeague;
     const parsedFundingGoal = Number(fundingGoalUsd);
     const fundingGoalInvalid =
@@ -126,8 +128,13 @@ const Bracket = (props) => {
         { value: '2', label: 'BO-2 (2 games, draw possible)' },
         { value: '3', label: 'BO-3 (3 games per match)' }
     ];
+    const knockoutGameCountOptions = [
+        { value: '1', label: 'BO-1 (1 game per match)' },
+        { value: '3', label: 'BO-3 (3 games per match)' }
+    ];
 
     const tournamentPlayoffGames = useRef(null);
+    const tournamentPlayoffGamesKnockout = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentPlayoffGamesThirdPlace = useRef(null);
     const randomBracketRef = useRef(null);
@@ -227,10 +234,16 @@ const Bracket = (props) => {
                 '2nd Place': 0,
                 '3rd Place': 0
             },
-            date,
+            date: fromDatetimeLocalValue(date),
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
-            tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
-            tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
+            tournamentPlayoffGamesKnockout: isChampionsLeague ? tournamentPlayoffGamesKnockout.current.value : null,
+            tournamentPlayoffGamesFinal: showFinalAndThirdPlace
+                ? tournamentPlayoffGamesFinal.current.value
+                : tournamentPlayoffGames.current.value,
+            tournamentPlayoffGamesThirdPlace:
+                showFinalAndThirdPlace && !(isKickOff && loserBracket)
+                    ? tournamentPlayoffGamesThirdPlace.current.value
+                    : tournamentPlayoffGames.current.value,
             randomBracket: isLeague || isSwiss ? false : showBracketOptions && randomBracketRef.current.checked,
             loserBracket: isKickOff && loserBracket,
             strictCastlePick,
@@ -407,7 +420,7 @@ const Bracket = (props) => {
                             </div>
                             <div className={classes.field}>
                                 <label className={classes.label} htmlFor="tournamentDate">
-                                    Start date
+                                    Planned start (optional)
                                 </label>
                                 <input
                                     type="datetime-local"
@@ -510,7 +523,11 @@ const Bracket = (props) => {
                             </div>
                             <div className={classes.field}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGames">
-                                    {isScheduleFormat ? 'Match type' : 'Playoff games'}
+                                    {isChampionsLeague
+                                        ? 'Group stage match type'
+                                        : isScheduleFormat
+                                          ? 'Match type'
+                                          : 'Playoff games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGames"
@@ -527,10 +544,32 @@ const Bracket = (props) => {
                                         </option>
                                     ))}
                                 </select>
+                                {isChampionsLeague && (
+                                    <p className={classes.fieldHint}>
+                                        Group stage only. Knockout rounds use the settings below.
+                                    </p>
+                                )}
                             </div>
-                            <div className={`${classes.field} ${hideKnockoutStageGames ? classes.hidden : ''}`}>
+                            <div className={`${classes.field} ${showKnockoutMatchType ? '' : classes.hidden}`}>
+                                <label className={classes.label} htmlFor="tournamentPlayoffGamesKnockout">
+                                    Knockout match type
+                                </label>
+                                <select
+                                    id="tournamentPlayoffGamesKnockout"
+                                    className={classes.select}
+                                    defaultValue="1"
+                                    ref={tournamentPlayoffGamesKnockout}
+                                >
+                                    {knockoutGameCountOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={`${classes.field} ${showFinalAndThirdPlace ? '' : classes.hidden}`}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
-                                    Final games
+                                    {isChampionsLeague ? 'Final match type' : 'Final games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesFinal"
@@ -538,20 +577,22 @@ const Bracket = (props) => {
                                     defaultValue="1"
                                     ref={tournamentPlayoffGamesFinal}
                                 >
-                                    {playoffGameCountOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
+                                    {(isChampionsLeague ? knockoutGameCountOptions : playoffGameCountOptions).map(
+                                        (option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        )
+                                    )}
                                 </select>
                             </div>
                             <div
                                 className={`${classes.field} ${
-                                    hideKnockoutStageGames || loserBracket ? classes.hidden : ''
+                                    showFinalAndThirdPlace && !(isKickOff && loserBracket) ? '' : classes.hidden
                                 }`}
                             >
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesThirdPlace">
-                                    Third place games
+                                    {isChampionsLeague ? 'Third place match type' : 'Third place games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesThirdPlace"
@@ -559,14 +600,20 @@ const Bracket = (props) => {
                                     defaultValue="1"
                                     ref={tournamentPlayoffGamesThirdPlace}
                                 >
-                                    {playoffGameCountOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
+                                    {(isChampionsLeague ? knockoutGameCountOptions : playoffGameCountOptions).map(
+                                        (option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        )
+                                    )}
                                 </select>
                             </div>
-                            <div className={`${classes.field} ${showBracketOptions ? '' : classes.hidden}`}>
+                            <div
+                                className={`${classes.field} ${isKickOff ? classes.bracketFieldKickoff : ''} ${
+                                    showBracketOptions ? '' : classes.hidden
+                                }`}
+                            >
                                 <span className={classes.label}>{isChampionsLeague ? 'Group draw' : 'Bracket'}</span>
                                 <label className={classes.checkLabel} htmlFor="randomBracket">
                                     <input type="checkbox" id="randomBracket" ref={randomBracketRef} defaultChecked />
@@ -591,8 +638,12 @@ const Bracket = (props) => {
                                         Loser bracket (double elimination)
                                     </label>
                                 )}
-                                {loserBracket && (
-                                    <p className={classes.fieldHint}>
+                                {isKickOff && (
+                                    <p
+                                        className={`${classes.fieldHint} ${classes.bracketHintSlot} ${
+                                            loserBracket ? '' : classes.bracketHintHidden
+                                        }`}
+                                    >
                                         Double elimination for {DOUBLE_ELIM_SIZES.join(', ')} players. Losers get a
                                         second chance via the lower bracket; grand final decides the champion.
                                     </p>

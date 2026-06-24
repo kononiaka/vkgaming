@@ -26,7 +26,13 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
-import { generateNextSwissRoundPairings, isSwissRoundComplete, normalizeGameType } from './swissUtils';
+import {
+    generateNextSwissRoundPairings,
+    isSwissRoundComplete,
+    normalizeGameType,
+    getGamesPerMatch,
+    repairSwissByePairs
+} from './swissUtils';
 import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
 import {
     generateKnockoutBracketStages,
@@ -36,7 +42,9 @@ import {
     isChampionsLeagueGroupStageComplete,
     isGroupDrawGridComplete,
     prepareChampionsLeagueFromDrawGrid,
-    prepareChampionsLeagueGroupStage
+    prepareChampionsLeagueGroupStage,
+    compareStandingsWithHeadToHead,
+    normalizeChampionsLeagueKnockoutGameType
 } from './championsLeagueUtils';
 import { setStageLabels as computeStageLabels } from '../../tournaments/tournament_api';
 import MatchScheduleControl from './MatchScheduleControl';
@@ -60,22 +68,45 @@ let clickedRadioButton;
 let playersObj = {};
 let tournamentName = null;
 
-const normalizeMatchType = (rawType) => {
-    const normalized = String(rawType ?? '')
-        .toLowerCase()
-        .trim();
-    if (normalized === 'bo-5' || normalized === '5' || normalized === 'bo5') {
-        return 'bo-5';
+const getMatchFormatLabel = (type) => {
+    const normalized = normalizeGameType(type);
+    if (normalized === 'bo-5') {
+        return 'BO5';
     }
-    if (normalized === 'bo-3' || normalized === '3' || normalized === 'bo3') {
-        return 'bo-3';
+    if (normalized === 'bo-3') {
+        return 'BO3';
     }
-    return 'bo-1';
+    if (normalized === 'bo-2') {
+        return 'BO2';
+    }
+    return 'BO1';
 };
 
-const getBestOfValue = (matchType) => {
-    const normalized = normalizeMatchType(matchType);
-    return Number(normalized.split('-')[1]) || 1;
+const repairChampionsLeagueKnockoutPair = (pair) => {
+    if (!pair || pair.group || pair.type !== 'bo-2') {
+        return { pair, repaired: false };
+    }
+
+    const repairedPair = {
+        ...pair,
+        type: 'bo-1',
+        games: Array.isArray(pair.games)
+            ? pair.games.slice(0, 1).map((game) => ({
+                  ...game,
+                  gameWinner: '',
+                  castleWinner: ''
+              }))
+            : pair.games
+    };
+
+    if (pair.winner === 'draw') {
+        repairedPair.winner = null;
+        repairedPair.score1 = 0;
+        repairedPair.score2 = 0;
+        repairedPair.gameStatus = 'Not Started';
+    }
+
+    return { pair: repairedPair, repaired: true };
 };
 
 const MOBILE_KNOCKOUT_MQ = '(max-width: 768px)';
@@ -278,16 +309,18 @@ export const TournamentBracket = ({
 
         const targetStageIndex = Number(stageParam);
         const targetPairIndex = Number(pairParam);
+        const roundParam = searchParams.get('round');
+        const targetRound = roundParam !== null ? Number(roundParam) : null;
 
-        highlightedPairRef.current = { stageIndex: targetStageIndex, pairIndex: targetPairIndex };
-        setUrlHighlightPair({ stageIndex: targetStageIndex, pairIndex: targetPairIndex });
+        highlightedPairRef.current = { stageIndex: targetStageIndex, pairIndex: targetPairIndex, round: targetRound };
+        setUrlHighlightPair({ stageIndex: targetStageIndex, pairIndex: targetPairIndex, round: targetRound });
 
         if (!usesScheduleView) {
             if (stageLabels.length === 0) {
                 return;
             }
 
-            const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+            const clKnockoutOffset = getKnockoutStorageOffset(playoffPairs);
             const labelStageIndex = targetStageIndex - clKnockoutOffset;
             setActiveBracketStage(resolveKnockoutDisplayStage(labelStageIndex, stageLabels, isMobileKnockoutView));
         }
@@ -555,6 +588,8 @@ export const TournamentBracket = ({
                     }
                 }
 
+                let fetchedTournamentPlayers = [];
+
                 // Fetch registered players for pre-start standings
                 const playersResponse = await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/players.json`
@@ -563,9 +598,10 @@ export const TournamentBracket = ({
                     const playersData = await playersResponse.json();
                     if (playersData) {
                         playersObj = playersData;
+                        fetchedTournamentPlayers = Object.values(playersData);
                         const names = Object.values(playersData)
                             .map((p) => p && p.name)
-                            .filter((name) => name && name.trim() !== 'TBD');
+                            .filter((name) => name && name.trim() !== 'TBD' && name.trim() !== 'BYE');
                         setRegisteredPlayerNames(names);
                     }
                 }
@@ -585,6 +621,39 @@ export const TournamentBracket = ({
                         }
 
                         const normalizedPairs = normalizePlayoffPairs(playoffPairsDetermined);
+                        let repairedChampionsKnockoutBo2 = false;
+                        let repairedSwissByes = false;
+
+                        if (typeData === 'swiss' && Array.isArray(normalizedPairs[0])) {
+                            const gameType = normalizeGameType(normalizedPairs[0]?.[0]?.type || 'bo-1');
+                            const repaired = repairSwissByePairs(
+                                normalizedPairs[0],
+                                fetchedTournamentPlayers,
+                                gameType
+                            );
+                            if (repaired.repaired) {
+                                normalizedPairs[0] = repaired.pairs;
+                                repairedSwissByes = true;
+                            }
+                        }
+
+                        if (typeData === 'champions-league' && resolvedChampionsPhase === 'knockout') {
+                            normalizedPairs.forEach((stage) => {
+                                if (!Array.isArray(stage)) {
+                                    return;
+                                }
+                                stage.forEach((pair, pairIndex) => {
+                                    if (pair?.group) {
+                                        return;
+                                    }
+                                    const repaired = repairChampionsLeagueKnockoutPair(pair);
+                                    if (repaired.repaired) {
+                                        stage[pairIndex] = repaired.pair;
+                                        repairedChampionsKnockoutBo2 = true;
+                                    }
+                                });
+                            });
+                        }
 
                         for (const round of normalizedPairs) {
                             if (!Array.isArray(round)) {
@@ -605,6 +674,17 @@ export const TournamentBracket = ({
                                     });
                                 }
                             }
+                        }
+
+                        if (repairedChampionsKnockoutBo2 || repairedSwissByes) {
+                            await authFetch(
+                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                                {
+                                    method: 'PUT',
+                                    body: JSON.stringify(normalizedPairs),
+                                    headers: { 'Content-Type': 'application/json' }
+                                }
+                            );
                         }
 
                         setPlayoffPairs(normalizedPairs);
@@ -655,6 +735,24 @@ export const TournamentBracket = ({
         setShowStats(false);
         setStatsLoading(false);
         setStats(null);
+    };
+
+    const getKnockoutStorageOffset = (pairs = playoffPairs) =>
+        isChampionsLeague &&
+        championsLeaguePhase === 'knockout' &&
+        Array.isArray(pairs?.[0]) &&
+        pairs[0].some((pair) => pair?.group)
+            ? 1
+            : 0;
+
+    const getStageLabelForStorageIndex = (storageIndex, pairs = playoffPairs) => {
+        const offset = getKnockoutStorageOffset(pairs);
+        return stageLabels[storageIndex - offset] || stageLabels[storageIndex] || null;
+    };
+
+    const getStorageIndexForStageLabel = (stageLabel, pairs = playoffPairs) => {
+        const labelIndex = stageLabels.indexOf(stageLabel);
+        return labelIndex === -1 ? -1 : labelIndex + getKnockoutStorageOffset(pairs);
     };
 
     const getWinner = (pair) => {
@@ -1016,14 +1114,14 @@ export const TournamentBracket = ({
             );
             if (tournamentResponseGET.ok) {
                 const tournamentData = await tournamentResponseGET.json();
-                tournamentPlayoffGames = normalizeMatchType(tournamentData.tournamentPlayoffGames || 'bo-1');
+                tournamentPlayoffGames = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
             }
         } catch (error) {
             console.error('Error fetching tournament data:', error);
         }
 
         // Determine number of games based on bo-1 or bo-3
-        const numGames = getBestOfValue(tournamentPlayoffGames);
+        const numGames = getGamesPerMatch(tournamentPlayoffGames);
         const gameType = tournamentPlayoffGames;
 
         // Format bracket pairs with player data following the exact structure
@@ -1201,14 +1299,21 @@ export const TournamentBracket = ({
 
         // Compute standings (same logic as LeagueBracket)
         const standingsMap = {};
+        const isPlaceholderPlayer = (name) => !name || name === 'TBD' || name === 'BYE';
         pairs.forEach((pair) => {
-            if (!standingsMap[pair.team1]) {
+            if (!isPlaceholderPlayer(pair.team1) && !standingsMap[pair.team1]) {
                 standingsMap[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
-            if (!standingsMap[pair.team2]) {
+            if (!isPlaceholderPlayer(pair.team2) && !standingsMap[pair.team2]) {
                 standingsMap[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
             if (pair.winner) {
+                if (pair.isBye || pair.team2 === 'BYE') {
+                    standingsMap[pair.team1].played++;
+                    standingsMap[pair.team1].wins++;
+                    standingsMap[pair.team1].points += 3;
+                    return;
+                }
                 standingsMap[pair.team1].played++;
                 standingsMap[pair.team2].played++;
                 if (pair.winner === 'draw') {
@@ -1228,8 +1333,9 @@ export const TournamentBracket = ({
             }
         });
         const standings = Object.entries(standingsMap)
+            .filter(([name]) => !isPlaceholderPlayer(name))
             .map(([name, s]) => ({ name, ...s }))
-            .sort((a, b) => b.points - a.points || b.wins - a.wins);
+            .sort(compareStandingsWithHeadToHead(pairs));
 
         const first = standings[0]?.name;
         const second = standings[1]?.name;
@@ -1367,7 +1473,12 @@ export const TournamentBracket = ({
             const tournamentData = await tournamentResponse.json();
             const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
             const playerList = Object.values(tournamentData.players || {}).filter(
-                (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+                (player) =>
+                    player &&
+                    player.name &&
+                    player.name.trim() !== '' &&
+                    player.name.trim() !== 'TBD' &&
+                    player.name.trim() !== 'BYE'
             );
 
             const nextPairs = generateNextSwissRoundPairings(playerList, pairs, nextRound, gameType);
@@ -1434,9 +1545,15 @@ export const TournamentBracket = ({
             const tournamentData = await tournamentResponse.json();
             const qualifiers = getQualifiedPlayers(championsGroups, groupPairs);
             const knockoutSize = getKnockoutPlayerCount(tournamentData.maxPlayers);
-            const gameType = tournamentData.tournamentPlayoffGames || '1';
-            const finalGameType = tournamentData.tournamentPlayoffGamesFinal || gameType;
-            const thirdPlaceGameType = tournamentData.tournamentPlayoffGamesThirdPlace || gameType;
+            const gameType = normalizeChampionsLeagueKnockoutGameType(tournamentData.tournamentPlayoffGamesKnockout);
+            const finalGameType = normalizeChampionsLeagueKnockoutGameType(
+                tournamentData.tournamentPlayoffGamesFinal,
+                gameType
+            );
+            const thirdPlaceGameType = normalizeChampionsLeagueKnockoutGameType(
+                tournamentData.tournamentPlayoffGamesThirdPlace,
+                gameType
+            );
             const knockoutStages = generateKnockoutBracketStages(
                 qualifiers,
                 knockoutSize,
@@ -1507,6 +1624,25 @@ export const TournamentBracket = ({
             alert('Only match players or admin can report this game.');
             return;
         }
+
+        if (isChampionsLeague && championsLeaguePhase === 'knockout' && !pair.group && pair.type === 'bo-2') {
+            const { pair: repairedPair } = repairChampionsLeagueKnockoutPair(pair);
+            const updatedPairs = playoffPairs.map((stage, currentStageIdx) =>
+                currentStageIdx === stageIdx
+                    ? stage.map((stagePair, currentPairIdx) => (currentPairIdx === pairIdx ? repairedPair : stagePair))
+                    : stage
+            );
+            setPlayoffPairs(updatedPairs);
+            authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs/${stageIdx}/${pairIdx}.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(repairedPair),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            ).catch((error) => console.error('Failed to repair Champions League knockout BO-2 pair:', error));
+        }
+
         const pairId = `${tournamentId}_s${stageIdx}_p${pairIdx}`;
         setSelectedPairId(pairId);
         // If the game is not PartiallyProcessed, wipe any stale progress record so
@@ -1836,7 +1972,12 @@ export const TournamentBracket = ({
         try {
             // Update the specific pair in playoffPairs
             const updatedPairs = [...playoffPairs];
-            const pair = updatedPairs[selectedStageIndex][selectedPairIndex];
+            let pair = updatedPairs[selectedStageIndex][selectedPairIndex];
+            if (isChampionsLeague && championsLeaguePhase === 'knockout' && !pair.group && pair.type === 'bo-2') {
+                const repaired = repairChampionsLeagueKnockoutPair(pair);
+                updatedPairs[selectedStageIndex][selectedPairIndex] = repaired.pair;
+                pair = repaired.pair;
+            }
 
             // Always check Firebase for saved progress — latestStage existence is the restore trigger,
             // not pair.gameStatus (which only reaches Firebase at the very end of the process)
@@ -1882,7 +2023,7 @@ export const TournamentBracket = ({
             let summaryPlayerData = null; // { team1: { id, prevData, newRating, updatedStats }, team2: { ... } }
             let summaryPrizes = null;
             {
-                const currentStage = stageLabels[selectedStageIndex];
+                const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                 const isResume = !!(latestStage && latestStage !== 'submitted');
                 const hasWinner = !!reportData.winner && reportData.winner !== 'draw';
                 const castleGames = reportData.games.filter(
@@ -2146,8 +2287,8 @@ export const TournamentBracket = ({
                         const winner = reportData.winner;
                         const loser = pair.team1 === winner ? pair.team2 : pair.team1;
                         if (currentStage === 'Semi-final') {
-                            const finalIdx = stageLabels.indexOf('Final');
-                            const thirdIdx = stageLabels.indexOf('Third Place');
+                            const finalIdx = getStorageIndexForStageLabel('Final', updatedPairs);
+                            const thirdIdx = getStorageIndexForStageLabel('Third Place', updatedPairs);
                             const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
                             if (finalIdx !== -1) {
                                 lines.push(`  • Promote: ${winner} → Final ${slot}`);
@@ -2159,21 +2300,21 @@ export const TournamentBracket = ({
                                 lines.push(`  • Promote: ${winner} → next stage`);
                             }
                         } else if (currentStage === 'Quarter-final') {
-                            const semiIdx = stageLabels.indexOf('Semi-final');
+                            const semiIdx = getStorageIndexForStageLabel('Semi-final', updatedPairs);
                             const semiPairIdx = Math.floor(selectedPairIndex / 2);
                             const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
                             lines.push(
                                 `  • Promote: ${winner} → Semi-final ${semiPairIdx + 1} ${slot}${semiIdx === -1 ? ' (stage not found)' : ''}`
                             );
                         } else if (currentStage === '1/8 Final') {
-                            const quarterIdx = stageLabels.indexOf('Quarter-final');
+                            const quarterIdx = getStorageIndexForStageLabel('Quarter-final', updatedPairs);
                             const quarterPairIdx = Math.floor(selectedPairIndex / 2);
                             const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
                             lines.push(
                                 `  • Promote: ${winner} → Quarter-final ${quarterPairIdx + 1} ${slot}${quarterIdx === -1 ? ' (stage not found)' : ''}`
                             );
                         } else if (currentStage === '1/16 Final') {
-                            const eighthIdx = stageLabels.indexOf('1/8 Final');
+                            const eighthIdx = getStorageIndexForStageLabel('1/8 Final', updatedPairs);
                             const eighthPairIdx = Math.floor(selectedPairIndex / 2);
                             const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
                             lines.push(
@@ -2456,7 +2597,7 @@ export const TournamentBracket = ({
                         games: reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g))),
                         tournamentName: tournamentName,
                         tournamentId,
-                        stage: pair.stage || stageLabels[selectedStageIndex] || null,
+                        stage: pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs) || null,
                         stageIndex: selectedStageIndex,
                         pairIndex: selectedPairIndex,
                         gameType: pair.type,
@@ -2526,7 +2667,7 @@ export const TournamentBracket = ({
                 if (!skipPromotion) {
                     setDetailedProgressStage('Promotion processing');
                     // Promote winner and loser to next stage
-                    const currentStage = stageLabels[selectedStageIndex];
+                    const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
@@ -2535,8 +2676,8 @@ export const TournamentBracket = ({
                     // Promote based on current stage
                     if (currentStage === 'Semi-final') {
                         // Winner goes to Final, Loser goes to Third Place
-                        const finalStageIndex = stageLabels.indexOf('Final');
-                        const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
+                        const finalStageIndex = getStorageIndexForStageLabel('Final', updatedPairs);
+                        const thirdPlaceStageIndex = getStorageIndexForStageLabel('Third Place', updatedPairs);
 
                         // Use the newly calculated ratings
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
@@ -2634,7 +2775,7 @@ export const TournamentBracket = ({
                         // Use the newly calculated rating for the winner
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        const semiStageIndex = stageLabels.indexOf('Semi-final');
+                        const semiStageIndex = getStorageIndexForStageLabel('Semi-final', updatedPairs);
                         if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
                             const semiPairIndex = Math.floor(selectedPairIndex / 2);
                             const semiPair = updatedPairs[semiStageIndex][semiPairIndex];
@@ -2668,7 +2809,7 @@ export const TournamentBracket = ({
                         // Use the newly calculated rating for the winner
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        const quarterStageIndex = stageLabels.indexOf('Quarter-final');
+                        const quarterStageIndex = getStorageIndexForStageLabel('Quarter-final', updatedPairs);
                         if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
                             const quarterPairIndex = Math.floor(selectedPairIndex / 2);
                             const quarterPair = updatedPairs[quarterStageIndex][quarterPairIndex];
@@ -2702,7 +2843,7 @@ export const TournamentBracket = ({
                         // Use the newly calculated rating for the winner
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        const eighthStageIndex = stageLabels.indexOf('1/8 Final');
+                        const eighthStageIndex = getStorageIndexForStageLabel('1/8 Final', updatedPairs);
                         if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
                             const eighthPairIndex = Math.floor(selectedPairIndex / 2);
                             const eighthPair = updatedPairs[eighthStageIndex][eighthPairIndex];
@@ -2778,7 +2919,7 @@ export const TournamentBracket = ({
                 }
 
                 if (!skipPrizes) {
-                    const currentStage = stageLabels[selectedStageIndex];
+                    const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
@@ -3184,10 +3325,18 @@ export const TournamentBracket = ({
             alert('Error reporting game result');
         }
     };
-    const selectedReportPair =
+    const rawSelectedReportPair =
         selectedStageIndex !== null && selectedPairIndex !== null
             ? playoffPairs[selectedStageIndex]?.[selectedPairIndex]
             : null;
+    const selectedReportPair =
+        rawSelectedReportPair &&
+        isChampionsLeague &&
+        championsLeaguePhase === 'knockout' &&
+        !rawSelectedReportPair.group &&
+        rawSelectedReportPair.type === 'bo-2'
+            ? repairChampionsLeagueKnockoutPair(rawSelectedReportPair).pair
+            : rawSelectedReportPair;
     const canShowReportModal =
         showReportGameModal &&
         selectedStageIndex !== null &&
@@ -3256,7 +3405,7 @@ export const TournamentBracket = ({
     };
 
     const _renderMatchFormatBadge = (pair) => {
-        const label = pair.type === 'bo-5' ? 'BO5' : pair.type === 'bo-3' ? 'BO3' : 'BO1';
+        const label = getMatchFormatLabel(pair.type);
         const extraClass =
             pair.type === 'bo-5'
                 ? classes.matchFormatBadgeBo5
@@ -3479,8 +3628,21 @@ export const TournamentBracket = ({
                 <div className={classes.bracketBody}>
                     {isChampionsLeague && (
                         <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
-                            Group stage — top 2 from each group advance to knockout
+                            {championsLeaguePhase === 'knockout'
+                                ? 'Group stage results — knockout is in progress'
+                                : 'Group stage — top 2 from each group advance to knockout'}
                         </p>
+                    )}
+                    {isChampionsLeague && championsLeaguePhase === 'knockout' && (
+                        <div style={{ textAlign: 'center', margin: '0 0 1rem' }}>
+                            <button
+                                type="button"
+                                className={classes.actionButton}
+                                onClick={() => setUsesScheduleView(false)}
+                            >
+                                View knockout stage
+                            </button>
+                        </div>
                     )}
                     {isSwiss && swissTotalRounds > 0 && (
                         <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
@@ -3498,6 +3660,8 @@ export const TournamentBracket = ({
                         groupLabels={isChampionsLeague ? championsGroupLabels : []}
                         highlightPair={urlHighlightPair}
                         storageStageIndex={0}
+                        defaultTab="standings"
+                        isSwissFormat={isSwiss}
                         onSelectPair={(pairIdx) => {
                             const pair = playoffPairs[0]?.[pairIdx];
                             if (pair) {
@@ -3549,7 +3713,7 @@ export const TournamentBracket = ({
                 </div>
             ) : (
                 (() => {
-                    const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
+                    const clKnockoutOffset = getKnockoutStorageOffset(playoffPairs);
                     const bracketPairs = clKnockoutOffset > 0 ? playoffPairs.slice(clKnockoutOffset) : playoffPairs;
                     const storageStage = (labelIndex) => labelIndex + clKnockoutOffset;
 
@@ -3595,9 +3759,27 @@ export const TournamentBracket = ({
                                 <button
                                     type="button"
                                     className={classes.knockoutNavBtn}
-                                    onClick={() => setActiveBracketStage((prev) => Math.max(0, prev - 1))}
-                                    disabled={clampedStage === 0}
-                                    aria-label="Previous stage"
+                                    onClick={() => {
+                                        if (
+                                            isChampionsLeague &&
+                                            championsLeaguePhase === 'knockout' &&
+                                            clampedStage === 0
+                                        ) {
+                                            setUsesScheduleView(true);
+                                            setUrlHighlightPair(null);
+                                            return;
+                                        }
+                                        setActiveBracketStage((prev) => Math.max(0, prev - 1));
+                                    }}
+                                    disabled={
+                                        clampedStage === 0 &&
+                                        !(isChampionsLeague && championsLeaguePhase === 'knockout')
+                                    }
+                                    aria-label={
+                                        clampedStage === 0 && isChampionsLeague && championsLeaguePhase === 'knockout'
+                                            ? 'Back to group tables'
+                                            : 'Previous stage'
+                                    }
                                 >
                                     ←
                                 </button>
@@ -3683,23 +3865,8 @@ export const TournamentBracket = ({
                                                             storageStage(stageIndex),
                                                             pairIndex
                                                         )}
-                                                        <div
-                                                            style={{
-                                                                display: 'grid',
-                                                                gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                                alignItems: 'center',
-                                                                gap: '0.75rem',
-                                                                width: '100%'
-                                                            }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    gap: '0.5rem',
-                                                                    minWidth: 0
-                                                                }}
-                                                            >
+                                                        <div className={classes.knockoutMatchLayout}>
+                                                            <div className={classes.knockoutPlayersStack}>
                                                                 <PlayerBracket
                                                                     pair={pair}
                                                                     team={'team1'}
@@ -3736,48 +3903,12 @@ export const TournamentBracket = ({
                                                                     playersObj={playersObj}
                                                                 />
                                                             </div>
-                                                            <div
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    gap: '0.5rem',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'flex-end'
-                                                                }}
-                                                            >
-                                                                {pair.team1 !== 'TBD' &&
-                                                                pair.team2 !== 'TBD' &&
-                                                                canViewReportButtonForPair(pair) &&
-                                                                (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleOpenReportGame(
-                                                                                pair,
-                                                                                storageStage(stageIndex),
-                                                                                pairIndex
-                                                                            )
-                                                                        }
-                                                                        style={{
-                                                                            padding: '0.5rem 1rem',
-                                                                            background:
-                                                                                pair.gameStatus === 'Processed'
-                                                                                    ? '#808080'
-                                                                                    : 'gold',
-                                                                            border: 'none',
-                                                                            borderRadius: '6px',
-                                                                            color:
-                                                                                pair.gameStatus === 'Processed'
-                                                                                    ? '#ffffff'
-                                                                                    : 'rgb(62, 32, 192)',
-                                                                            fontWeight: 'bold',
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '0.9rem'
-                                                                        }}
-                                                                    >
-                                                                        {pair.gameStatus === 'Processed'
-                                                                            ? 'Re-report Game'
-                                                                            : 'Report Game'}
-                                                                    </button>
-                                                                ) : null}
+                                                            <div className={classes.knockoutMatchActions}>
+                                                                {_renderKnockoutReportButton(
+                                                                    pair,
+                                                                    storageStage(stageIndex),
+                                                                    pairIndex
+                                                                )}
                                                             </div>
                                                             <div
                                                                 style={{
@@ -3825,23 +3956,8 @@ export const TournamentBracket = ({
                                                                 storageStage(thirdPlaceIndex),
                                                                 pairIndex
                                                             )}
-                                                            <div
-                                                                style={{
-                                                                    display: 'grid',
-                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.75rem',
-                                                                    width: '100%'
-                                                                }}
-                                                            >
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        flexDirection: 'column',
-                                                                        gap: '0.5rem',
-                                                                        minWidth: 0
-                                                                    }}
-                                                                >
+                                                            <div className={classes.knockoutMatchLayout}>
+                                                                <div className={classes.knockoutPlayersStack}>
                                                                     <PlayerBracket
                                                                         pair={pair}
                                                                         team={'team1'}
@@ -3890,49 +4006,12 @@ export const TournamentBracket = ({
                                                                         sourceIsLoser={true}
                                                                     />
                                                                 </div>
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        gap: '0.5rem',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'flex-end'
-                                                                    }}
-                                                                >
-                                                                    {pair.team1 !== 'TBD' &&
-                                                                    pair.team2 !== 'TBD' &&
-                                                                    canViewReportButtonForPair(pair) &&
-                                                                    (pair.gameStatus !== 'Processed' ||
-                                                                        authCtx.isAdmin) ? (
-                                                                        <button
-                                                                            onClick={() =>
-                                                                                handleOpenReportGame(
-                                                                                    pair,
-                                                                                    storageStage(thirdPlaceIndex),
-                                                                                    pairIndex
-                                                                                )
-                                                                            }
-                                                                            style={{
-                                                                                padding: '0.5rem 1rem',
-                                                                                background:
-                                                                                    pair.gameStatus === 'Processed'
-                                                                                        ? '#808080'
-                                                                                        : 'gold',
-                                                                                border: 'none',
-                                                                                borderRadius: '6px',
-                                                                                color:
-                                                                                    pair.gameStatus === 'Processed'
-                                                                                        ? '#ffffff'
-                                                                                        : 'rgb(62, 32, 192)',
-                                                                                fontWeight: 'bold',
-                                                                                cursor: 'pointer',
-                                                                                fontSize: '0.9rem'
-                                                                            }}
-                                                                        >
-                                                                            {pair.gameStatus === 'Processed'
-                                                                                ? 'Re-report Game'
-                                                                                : 'Report Game'}
-                                                                        </button>
-                                                                    ) : null}
+                                                                <div className={classes.knockoutMatchActions}>
+                                                                    {_renderKnockoutReportButton(
+                                                                        pair,
+                                                                        storageStage(thirdPlaceIndex),
+                                                                        pairIndex
+                                                                    )}
                                                                 </div>
                                                                 <div
                                                                     style={{
@@ -4002,23 +4081,8 @@ export const TournamentBracket = ({
                                                                 handleShowStats
                                                             )}
                                                         </div>
-                                                        <div
-                                                            style={{
-                                                                display: 'grid',
-                                                                gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                                alignItems: 'center',
-                                                                gap: '0.75rem',
-                                                                width: '100%'
-                                                            }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    gap: '0.5rem',
-                                                                    minWidth: 0
-                                                                }}
-                                                            >
+                                                        <div className={classes.knockoutMatchLayout}>
+                                                            <div className={classes.knockoutPlayersStack}>
                                                                 <PlayerBracket
                                                                     pair={pair}
                                                                     team={'team1'}
@@ -4067,47 +4131,12 @@ export const TournamentBracket = ({
                                                                     }
                                                                 />
                                                             </div>
-                                                            <div
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    gap: '0.5rem',
-                                                                    alignItems: 'center'
-                                                                }}
-                                                            >
-                                                                {pair.team1 !== 'TBD' &&
-                                                                pair.team2 !== 'TBD' &&
-                                                                canViewReportButtonForPair(pair) &&
-                                                                (pair.gameStatus !== 'Processed' || authCtx.isAdmin) ? (
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleOpenReportGame(
-                                                                                pair,
-                                                                                storageStage(stageIndex),
-                                                                                pairIndex
-                                                                            )
-                                                                        }
-                                                                        style={{
-                                                                            padding: '0.5rem 1rem',
-                                                                            background:
-                                                                                pair.gameStatus === 'Processed'
-                                                                                    ? '#808080'
-                                                                                    : 'gold',
-                                                                            border: 'none',
-                                                                            borderRadius: '6px',
-                                                                            color:
-                                                                                pair.gameStatus === 'Processed'
-                                                                                    ? '#ffffff'
-                                                                                    : 'rgb(62, 32, 192)',
-                                                                            fontWeight: 'bold',
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '0.9rem'
-                                                                        }}
-                                                                    >
-                                                                        {pair.gameStatus === 'Processed'
-                                                                            ? 'Re-report Game'
-                                                                            : 'Report Game'}
-                                                                    </button>
-                                                                ) : null}
+                                                            <div className={classes.knockoutMatchActions}>
+                                                                {_renderKnockoutReportButton(
+                                                                    pair,
+                                                                    storageStage(stageIndex),
+                                                                    pairIndex
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div
@@ -4135,12 +4164,7 @@ export const TournamentBracket = ({
                                                                 textTransform: 'uppercase'
                                                             }}
                                                         >
-                                                            ⚔{' '}
-                                                            {pair.type === 'bo-5'
-                                                                ? 'BO5'
-                                                                : pair.type === 'bo-3'
-                                                                  ? 'BO3'
-                                                                  : 'BO1'}
+                                                            ⚔ {getMatchFormatLabel(pair.type)}
                                                         </div>
                                                         {pair.games &&
                                                             pair.games.some(
@@ -4230,23 +4254,8 @@ export const TournamentBracket = ({
                                                                 storageStage(nextStageIndex),
                                                                 pairIndex
                                                             )}
-                                                            <div
-                                                                style={{
-                                                                    display: 'grid',
-                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.75rem',
-                                                                    width: '100%'
-                                                                }}
-                                                            >
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        flexDirection: 'column',
-                                                                        gap: '0.5rem',
-                                                                        minWidth: 0
-                                                                    }}
-                                                                >
+                                                            <div className={classes.knockoutMatchLayout}>
+                                                                <div className={classes.knockoutPlayersStack}>
                                                                     <PlayerBracket
                                                                         pair={pair}
                                                                         team={'team1'}
@@ -4291,49 +4300,12 @@ export const TournamentBracket = ({
                                                                         }
                                                                     />
                                                                 </div>
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        gap: '0.5rem',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'flex-end'
-                                                                    }}
-                                                                >
-                                                                    {pair.team1 !== 'TBD' &&
-                                                                    pair.team2 !== 'TBD' &&
-                                                                    canViewReportButtonForPair(pair) &&
-                                                                    (pair.gameStatus !== 'Processed' ||
-                                                                        authCtx.isAdmin) ? (
-                                                                        <button
-                                                                            onClick={() =>
-                                                                                handleOpenReportGame(
-                                                                                    pair,
-                                                                                    storageStage(nextStageIndex),
-                                                                                    pairIndex
-                                                                                )
-                                                                            }
-                                                                            style={{
-                                                                                padding: '0.5rem 1rem',
-                                                                                background:
-                                                                                    pair.gameStatus === 'Processed'
-                                                                                        ? '#808080'
-                                                                                        : 'gold',
-                                                                                border: 'none',
-                                                                                borderRadius: '6px',
-                                                                                color:
-                                                                                    pair.gameStatus === 'Processed'
-                                                                                        ? '#ffffff'
-                                                                                        : 'rgb(62, 32, 192)',
-                                                                                fontWeight: 'bold',
-                                                                                cursor: 'pointer',
-                                                                                fontSize: '0.9rem'
-                                                                            }}
-                                                                        >
-                                                                            {pair.gameStatus === 'Processed'
-                                                                                ? 'Re-report Game'
-                                                                                : 'Report Game'}
-                                                                        </button>
-                                                                    ) : null}
+                                                                <div className={classes.knockoutMatchActions}>
+                                                                    {_renderKnockoutReportButton(
+                                                                        pair,
+                                                                        storageStage(nextStageIndex),
+                                                                        pairIndex
+                                                                    )}
                                                                 </div>
                                                                 <div
                                                                     style={{
@@ -4374,12 +4346,7 @@ export const TournamentBracket = ({
                                                                         textTransform: 'uppercase'
                                                                     }}
                                                                 >
-                                                                    ⚔{' '}
-                                                                    {pair.type === 'bo-5'
-                                                                        ? 'BO5'
-                                                                        : pair.type === 'bo-3'
-                                                                          ? 'BO3'
-                                                                          : 'BO1'}
+                                                                    ⚔ {getMatchFormatLabel(pair.type)}
                                                                 </div>
                                                                 {pair.games &&
                                                                     pair.games.some(
@@ -4427,23 +4394,8 @@ export const TournamentBracket = ({
                                                                     storageStage(thirdPlaceIndex),
                                                                     pairIndex
                                                                 )}
-                                                                <div
-                                                                    style={{
-                                                                        display: 'grid',
-                                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                                        alignItems: 'center',
-                                                                        gap: '0.75rem',
-                                                                        width: '100%'
-                                                                    }}
-                                                                >
-                                                                    <div
-                                                                        style={{
-                                                                            display: 'flex',
-                                                                            flexDirection: 'column',
-                                                                            gap: '0.5rem',
-                                                                            minWidth: 0
-                                                                        }}
-                                                                    >
+                                                                <div className={classes.knockoutMatchLayout}>
+                                                                    <div className={classes.knockoutPlayersStack}>
                                                                         <PlayerBracket
                                                                             pair={pair}
                                                                             team={'team1'}
@@ -4492,49 +4444,12 @@ export const TournamentBracket = ({
                                                                             sourceIsLoser={true}
                                                                         />
                                                                     </div>
-                                                                    <div
-                                                                        style={{
-                                                                            display: 'flex',
-                                                                            gap: '0.5rem',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'flex-end'
-                                                                        }}
-                                                                    >
-                                                                        {pair.team1 !== 'TBD' &&
-                                                                        pair.team2 !== 'TBD' &&
-                                                                        canViewReportButtonForPair(pair) &&
-                                                                        (pair.gameStatus !== 'Processed' ||
-                                                                            authCtx.isAdmin) ? (
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    handleOpenReportGame(
-                                                                                        pair,
-                                                                                        storageStage(thirdPlaceIndex),
-                                                                                        pairIndex
-                                                                                    )
-                                                                                }
-                                                                                style={{
-                                                                                    padding: '0.5rem 1rem',
-                                                                                    background:
-                                                                                        pair.gameStatus === 'Processed'
-                                                                                            ? '#808080'
-                                                                                            : 'gold',
-                                                                                    border: 'none',
-                                                                                    borderRadius: '6px',
-                                                                                    color:
-                                                                                        pair.gameStatus === 'Processed'
-                                                                                            ? '#ffffff'
-                                                                                            : 'rgb(62, 32, 192)',
-                                                                                    fontWeight: 'bold',
-                                                                                    cursor: 'pointer',
-                                                                                    fontSize: '0.9rem'
-                                                                                }}
-                                                                            >
-                                                                                {pair.gameStatus === 'Processed'
-                                                                                    ? 'Re-report Game'
-                                                                                    : 'Report Game'}
-                                                                            </button>
-                                                                        ) : null}
+                                                                    <div className={classes.knockoutMatchActions}>
+                                                                        {_renderKnockoutReportButton(
+                                                                            pair,
+                                                                            storageStage(thirdPlaceIndex),
+                                                                            pairIndex
+                                                                        )}
                                                                     </div>
                                                                     <div
                                                                         style={{
@@ -4575,12 +4490,7 @@ export const TournamentBracket = ({
                                                                             textTransform: 'uppercase'
                                                                         }}
                                                                     >
-                                                                        ⚔{' '}
-                                                                        {pair.type === 'bo-5'
-                                                                            ? 'BO5'
-                                                                            : pair.type === 'bo-3'
-                                                                              ? 'BO3'
-                                                                              : 'BO1'}
+                                                                        ⚔ {getMatchFormatLabel(pair.type)}
                                                                     </div>
                                                                     {pair.games &&
                                                                         pair.games.some(
@@ -4657,12 +4567,7 @@ export const TournamentBracket = ({
                                                                     textTransform: 'uppercase'
                                                                 }}
                                                             >
-                                                                ⚔{' '}
-                                                                {pair.type === 'bo-5'
-                                                                    ? 'BO5'
-                                                                    : pair.type === 'bo-3'
-                                                                      ? 'BO3'
-                                                                      : 'BO1'}
+                                                                ⚔ {getMatchFormatLabel(pair.type)}
                                                             </div>
                                                             {pair.games &&
                                                                 pair.games.some(
@@ -4692,23 +4597,8 @@ export const TournamentBracket = ({
                                                                     handleShowStats
                                                                 )}
                                                             </div>
-                                                            <div
-                                                                style={{
-                                                                    display: 'grid',
-                                                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.75rem',
-                                                                    width: '100%'
-                                                                }}
-                                                            >
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        flexDirection: 'column',
-                                                                        gap: '0.5rem',
-                                                                        minWidth: 0
-                                                                    }}
-                                                                >
+                                                            <div className={classes.knockoutMatchLayout}>
+                                                                <div className={classes.knockoutPlayersStack}>
                                                                     <PlayerBracket
                                                                         pair={pair}
                                                                         team={'team1'}
@@ -4751,48 +4641,12 @@ export const TournamentBracket = ({
                                                                         }
                                                                     />
                                                                 </div>
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        gap: '0.5rem',
-                                                                        alignItems: 'center'
-                                                                    }}
-                                                                >
-                                                                    {pair.team1 !== 'TBD' &&
-                                                                    pair.team2 !== 'TBD' &&
-                                                                    canViewReportButtonForPair(pair) &&
-                                                                    (pair.gameStatus !== 'Processed' ||
-                                                                        authCtx.isAdmin) ? (
-                                                                        <button
-                                                                            onClick={() =>
-                                                                                handleOpenReportGame(
-                                                                                    pair,
-                                                                                    storageStage(nextStageIndex),
-                                                                                    pairIndex
-                                                                                )
-                                                                            }
-                                                                            style={{
-                                                                                padding: '0.5rem 1rem',
-                                                                                background:
-                                                                                    pair.gameStatus === 'Processed'
-                                                                                        ? '#808080'
-                                                                                        : 'gold',
-                                                                                border: 'none',
-                                                                                borderRadius: '6px',
-                                                                                color:
-                                                                                    pair.gameStatus === 'Processed'
-                                                                                        ? '#ffffff'
-                                                                                        : 'rgb(62, 32, 192)',
-                                                                                fontWeight: 'bold',
-                                                                                cursor: 'pointer',
-                                                                                fontSize: '0.9rem'
-                                                                            }}
-                                                                        >
-                                                                            {pair.gameStatus === 'Processed'
-                                                                                ? 'Re-report Game'
-                                                                                : 'Report Game'}
-                                                                        </button>
-                                                                    ) : null}
+                                                                <div className={classes.knockoutMatchActions}>
+                                                                    {_renderKnockoutReportButton(
+                                                                        pair,
+                                                                        storageStage(nextStageIndex),
+                                                                        pairIndex
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>

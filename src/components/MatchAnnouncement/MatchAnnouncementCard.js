@@ -5,24 +5,10 @@ import StarsComponent from '../Stars/Stars';
 import { useHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
 import konoplayLogo from '../../image/konoplay-logo-new-invert.png';
 import { buildMatchBannerLabel } from '../../utils/matchFixtureLabels';
+import { formatMatchSchedule } from '../tournaments/homm3/matchScheduleUtils';
 import classes from './MatchAnnouncementCard.module.css';
 
-const formatAnnounceTime = (iso) => {
-    if (!iso) {
-        return 'TBD';
-    }
-
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) {
-        return 'TBD';
-    }
-
-    return date.toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-    });
-};
+const formatAnnounceTime = (iso) => formatMatchSchedule(iso) || 'TBD';
 
 const formatSeriesLabel = (seriesType) => {
     if (seriesType === 'bo-5') {

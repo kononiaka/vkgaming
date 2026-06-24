@@ -3,6 +3,7 @@ import { authFetch } from '../../api/authFetch';
 import { useContext, useEffect, useRef } from 'react';
 import AuthContext from '../../store/auth-context';
 import { getAppHashUrl, getTwitchRedirectUri } from '../../utils/appBasePath';
+import classes from './TwitchCallback.module.css';
 
 const TWITCH_AUTH_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/twitchAuth`;
 const FIREBASE_API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
@@ -133,16 +134,12 @@ const TwitchCallback = () => {
     }, [authCtx]);
 
     return (
-        <div
-            style={{
-                textAlign: 'center',
-                marginTop: '5rem',
-                color: 'var(--color-text-muted)',
-                fontFamily: 'var(--font-body)',
-                fontSize: '1rem'
-            }}
-        >
-            Signing you in with Twitch...
+        <div className={classes.page}>
+            <div className={classes.card} role="status" aria-live="polite">
+                <div className={classes.spinner} aria-hidden="true" />
+                <p className={classes.title}>Signing you in with Twitch...</p>
+                <p className={classes.hint}>Please keep this tab open while we finish connecting your account.</p>
+            </div>
         </div>
     );
 };

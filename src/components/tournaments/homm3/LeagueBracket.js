@@ -1,12 +1,13 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { NavLink } from 'react-router-dom';
 import { getAvatar, lookForUserId } from '../../../api/api';
 import CountryFlag from '../../Country/CountryFlag';
 import StarsComponent from '../../Stars/Stars';
 import MatchScheduleControl from './MatchScheduleControl';
 import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
 import classes from './LeagueBracket.module.css';
-import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP } from './championsLeagueUtils';
+import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP, compareStandingsWithHeadToHead } from './championsLeagueUtils';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
 import towerImg from '../../../image/castles/tower.jpeg';
@@ -107,41 +108,123 @@ const parseStarsValue = (value) => {
     return parseFloat(str) || 0;
 };
 
+const FORM_BADGE_LIMIT = 5;
+const FORM_RESULT_LABELS = { W: 'Win', D: 'Draw', L: 'Loss' };
+const isPlaceholderPlayer = (name) => !name || name === 'TBD' || name === 'BYE';
+
+const formatFormScore = (pair, playerName) => {
+    const score1 = Number(pair.score1) || 0;
+    const score2 = Number(pair.score2) || 0;
+    return pair.team1 === playerName ? `${score1}:${score2}` : `${score2}:${score1}`;
+};
+
+const getPlayerFormHistory = (pairs, playerName, limit = FORM_BADGE_LIMIT) => {
+    if (isPlaceholderPlayer(playerName)) {
+        return [];
+    }
+    const completed = pairs
+        .filter(
+            (pair) => pair.winner && pair.winner !== 'TBD' && (pair.team1 === playerName || pair.team2 === playerName)
+        )
+        .sort((a, b) => Number(a.round || 0) - Number(b.round || 0));
+
+    const results = completed.map((pair) => {
+        const opponent = pair.team1 === playerName ? pair.team2 : pair.team1;
+        if (pair.isBye || pair.team2 === 'BYE') {
+            return {
+                result: 'W',
+                title: `Win vs BYE · ${formatFormScore(pair, playerName)}`
+            };
+        }
+        if (pair.winner === 'draw') {
+            return {
+                result: 'D',
+                title: `Draw vs ${opponent} · ${formatFormScore(pair, playerName)}`
+            };
+        }
+        const result = pair.winner === playerName ? 'W' : 'L';
+        return {
+            result,
+            title: `${FORM_RESULT_LABELS[result]} vs ${opponent} · ${formatFormScore(pair, playerName)}`
+        };
+    });
+
+    return results.slice(-limit).reverse();
+};
+
+const StandingsFormCell = ({ form }) => (
+    <div className={classes.formRow}>
+        {form.length === 0 ? (
+            <span className={classes.formEmpty}>—</span>
+        ) : (
+            form.map((entry, index) => (
+                <span
+                    key={`${entry.result}-${index}`}
+                    className={`${classes.formBadge} ${
+                        entry.result === 'W'
+                            ? classes.formBadgeWin
+                            : entry.result === 'D'
+                              ? classes.formBadgeDraw
+                              : classes.formBadgeLoss
+                    }`}
+                    title={entry.title}
+                >
+                    {entry.result}
+                </span>
+            ))
+        )}
+    </div>
+);
+
 const StandingsPlayerCell = ({ name, player, stars, showKnockoutBadge = false }) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
+    const [userId, setUserId] = useState(player?.siteUserId || null);
 
     useEffect(() => {
         if (!name) {
             setAvatarUrl(null);
+            setUserId(null);
             return undefined;
         }
 
         let cancelled = false;
 
-        const loadAvatar = async () => {
+        const loadPlayerProfile = async () => {
             try {
-                let userId = player?.siteUserId || null;
-                if (!userId) {
-                    userId = await lookForUserId(name);
+                let resolvedUserId = player?.siteUserId || null;
+                if (!resolvedUserId) {
+                    resolvedUserId = await lookForUserId(name);
                 }
 
-                if (userId && !cancelled) {
-                    const avatar = await getAvatar(userId);
+                if (!cancelled) {
+                    setUserId(resolvedUserId || null);
+                }
+
+                if (resolvedUserId && !cancelled) {
+                    const avatar = await getAvatar(resolvedUserId);
                     if (!cancelled && avatar) {
                         setAvatarUrl(avatar);
                     }
                 }
             } catch {
-                // Avatar is optional.
+                // Profile data is optional.
             }
         };
 
-        loadAvatar();
+        loadPlayerProfile();
 
         return () => {
             cancelled = true;
         };
     }, [name, player?.siteUserId]);
+
+    const nameContent = userId ? (
+        <NavLink to={`/players/${userId}`} className={classes.standingsPlayerName}>
+            {name}
+        </NavLink>
+    ) : (
+        <span className={classes.standingsPlayerName}>{name}</span>
+    );
 
     return (
         <div className={classes.standingsPlayer}>
@@ -152,7 +235,7 @@ const StandingsPlayerCell = ({ name, player, stars, showKnockoutBadge = false })
                     {name.charAt(0).toUpperCase()}
                 </div>
             )}
-            <span className={classes.standingsPlayerName}>{name}</span>
+            {nameContent}
             {stars > 0 && (
                 <span className={classes.standingsPlayerStars}>
                     <StarsComponent stars={stars} />
@@ -278,19 +361,23 @@ const LeagueBracket = ({
     scheduleTitle = 'League views',
     groupLabels = [],
     highlightPair = null,
-    storageStageIndex = 0
+    storageStageIndex = 0,
+    defaultTab = 'standings',
+    isSwissFormat = false
 }) => {
-    const [activeTab, setActiveTab] = useState('schedule');
+    const [activeTab, setActiveTab] = useState(defaultTab);
     const [activeGroup, setActiveGroup] = useState(groupLabels[0] || '');
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
     const [countryLookup, setCountryLookup] = useState({});
     const dayNavInitialized = useRef(false);
+    const highlightHandledRef = useRef(null);
     const hasGroups = groupLabels.length > 0;
     const scopedPairs = hasGroups ? pairs.filter((pair) => pair.group === activeGroup) : pairs;
-    const scopedRegisteredPlayers = hasGroups
-        ? [...new Set(scopedPairs.flatMap((pair) => [pair.team1, pair.team2]).filter((name) => name && name !== 'TBD'))]
-        : registeredPlayers;
+    const scopedRegisteredPlayers = (
+        hasGroups ? scopedPairs.flatMap((pair) => [pair.team1, pair.team2]) : registeredPlayers
+    ).filter((name) => !isPlaceholderPlayer(name));
+    const uniqueScopedRegisteredPlayers = [...new Set(scopedRegisteredPlayers)];
 
     // Fetch all users once and compute global leaderboard ranks (same as StartingPageContent)
     useEffect(() => {
@@ -359,16 +446,14 @@ const LeagueBracket = ({
 
     const computeStandings = () => {
         const map = {};
-        scopedRegisteredPlayers.forEach((name) => {
-            if (name) {
-                map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
-            }
+        uniqueScopedRegisteredPlayers.forEach((name) => {
+            map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
         });
         scopedPairs.forEach((pair) => {
-            if (pair.team1 && pair.team1 !== 'TBD' && !map[pair.team1]) {
+            if (!isPlaceholderPlayer(pair.team1) && !map[pair.team1]) {
                 map[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
-            if (pair.team2 && pair.team2 !== 'TBD' && !map[pair.team2]) {
+            if (!isPlaceholderPlayer(pair.team2) && !map[pair.team2]) {
                 map[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
             }
             if (pair.winner && pair.winner !== 'TBD') {
@@ -402,12 +487,15 @@ const LeagueBracket = ({
             }
         });
         return Object.entries(map)
+            .filter(([name]) => !isPlaceholderPlayer(name))
             .map(([name, s]) => ({ name, ...s }))
-            .sort((a, b) => b.points - a.points || b.wins - a.wins);
+            .sort(compareStandingsWithHeadToHead(scopedPairs));
     };
 
     const standings = computeStandings();
     const hasBo2 = scopedPairs.some((p) => p.type === 'bo-2');
+    const showPointsColumn = !isSwissFormat;
+    const standingsColumnCount = 6 + (hasBo2 ? 1 : 0) + (showPointsColumn ? 1 : 0);
     const finished = scopedPairs.filter((p) => p.winner).length;
     const total = scopedPairs.length;
 
@@ -427,14 +515,16 @@ const LeagueBracket = ({
     };
 
     // Group matches into days using pair.round if available, else compute via circle method
-    const computeRoundGroups = () => {
-        if (scopedPairs.length === 0) {
+    const computeRoundGroups = (groupOverride = activeGroup) => {
+        const targetGroup = hasGroups ? groupOverride : null;
+        const visiblePairs = hasGroups ? pairs.filter((pair) => pair.group === targetGroup) : pairs;
+        if (visiblePairs.length === 0) {
             return [];
         }
-        if (scopedPairs[0]?.round != null) {
+        if (visiblePairs[0]?.round != null) {
             const groups = {};
             pairs.forEach((pair, idx) => {
-                if (hasGroups && pair.group !== activeGroup) {
+                if (hasGroups && pair.group !== targetGroup) {
                     return;
                 }
                 const r = pair.round;
@@ -449,12 +539,12 @@ const LeagueBracket = ({
         }
         // Fallback: derive rounds from team names using circle method
         const playerNames = [
-            ...new Set(scopedPairs.flatMap((p) => [p.team1, p.team2]).filter((n) => n && n !== 'TBD'))
+            ...new Set(visiblePairs.flatMap((p) => [p.team1, p.team2]).filter((n) => n && n !== 'TBD'))
         ];
         const roundMap = buildRoundMap(playerNames);
         const groups = {};
         pairs.forEach((pair, idx) => {
-            if (hasGroups && pair.group !== activeGroup) {
+            if (hasGroups && pair.group !== targetGroup) {
                 return;
             }
             const r = roundMap[`${pair.team1}|${pair.team2}`] || 1;
@@ -490,19 +580,35 @@ const LeagueBracket = ({
 
     useEffect(() => {
         if (!highlightPair) {
+            highlightHandledRef.current = null;
             return;
         }
 
+        const highlightKey = `${highlightPair.stageIndex ?? storageStageIndex}:${highlightPair.pairIndex}:${highlightPair.round ?? ''}`;
+        if (highlightHandledRef.current === highlightKey) {
+            return;
+        }
+        highlightHandledRef.current = highlightKey;
+
         const pair = pairs[highlightPair.pairIndex];
+        const targetGroup = pair?.group && hasGroups ? pair.group : activeGroup;
         if (pair?.group && hasGroups) {
             setActiveGroup(pair.group);
         }
         setActiveTab('schedule');
-        dayNavInitialized.current = false;
 
-        const dayIdx = roundGroups.findIndex(({ items }) => items.some(({ idx }) => idx === highlightPair.pairIndex));
+        const highlightRoundGroups = computeRoundGroups(targetGroup);
+        const dayIdx =
+            highlightPair.round != null && !Number.isNaN(Number(highlightPair.round))
+                ? highlightRoundGroups.findIndex(({ round }) => Number(round) === Number(highlightPair.round))
+                : highlightRoundGroups.findIndex(({ items }) =>
+                      items.some(({ idx }) => idx === highlightPair.pairIndex)
+                  );
         if (dayIdx >= 0) {
             setActiveDayIndex(dayIdx);
+            dayNavInitialized.current = true;
+        } else {
+            dayNavInitialized.current = false;
         }
 
         const timer = setTimeout(() => {
@@ -513,7 +619,7 @@ const LeagueBracket = ({
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [highlightPair, pairs, hasGroups, roundGroups, storageStageIndex]);
+    }, [highlightPair, pairs, hasGroups, storageStageIndex]);
 
     const goToPrevDay = () => setActiveDayIndex((prev) => Math.max(0, prev - 1));
     const goToNextDay = () => setActiveDayIndex((prev) => Math.min(dayCount - 1, prev + 1));
@@ -669,7 +775,7 @@ const LeagueBracket = ({
                                 <div
                                     key={idx}
                                     id={`pair-s${storageStageIndex}-p${idx}`}
-                                    className={`${classes.matchRow} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
+                                    className={`${classes.matchRow} ${isBye ? classes.matchBye : ''} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
                                 >
                                     <div className={classes.teamCell}>
                                         <SchedulePlayerCell
@@ -684,7 +790,10 @@ const LeagueBracket = ({
 
                                     <div className={classes.centerBlock}>
                                         {isBye ? (
-                                            <span className={classes.vs}>BYE</span>
+                                            <div className={classes.byeCenter}>
+                                                <span className={classes.byeLabel}>Round bye</span>
+                                                <span className={classes.byeHint}>No match this round</span>
+                                            </div>
                                         ) : isFinished ? (
                                             <span className={classes.score}>
                                                 {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
@@ -723,15 +832,19 @@ const LeagueBracket = ({
                                     </div>
 
                                     <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
-                                        <SchedulePlayerCell
-                                            name={pair.team2}
-                                            player={p2}
-                                            stars={stars2}
-                                            place={place2}
-                                            countryCode={country2}
-                                            align="right"
-                                            isWinner={pair.winner === pair.team2}
-                                        />
+                                        {isBye ? (
+                                            <span className={classes.byeOpponentPlaceholder}>Automatic win</span>
+                                        ) : (
+                                            <SchedulePlayerCell
+                                                name={pair.team2}
+                                                player={p2}
+                                                stars={stars2}
+                                                place={place2}
+                                                countryCode={country2}
+                                                align="right"
+                                                isWinner={pair.winner === pair.team2}
+                                            />
+                                        )}
                                     </div>
 
                                     {isInProgress &&
@@ -785,7 +898,8 @@ const LeagueBracket = ({
                                 <th title="Wins">W</th>
                                 {hasBo2 && <th title="Draws">D</th>}
                                 <th title="Losses">L</th>
-                                <th title="Points">Pts</th>
+                                {showPointsColumn && <th title="Points">Pts</th>}
+                                <th title="Last 5 results">Form</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -813,26 +927,31 @@ const LeagueBracket = ({
                                         <td>{s.wins}</td>
                                         {hasBo2 && <td>{s.draws || 0}</td>}
                                         <td>{s.losses}</td>
-                                        <td className={classes.pointsCell}>{s.points}</td>
+                                        {showPointsColumn && <td>{s.points}</td>}
+                                        <td className={classes.formCell}>
+                                            <StandingsFormCell form={getPlayerFormHistory(scopedPairs, s.name)} />
+                                        </td>
                                     </tr>
                                 );
                             })}
                             {standings.length === 0 && (
                                 <tr>
-                                    <td colSpan={hasBo2 ? 7 : 6} className={classes.emptyNote}>
+                                    <td colSpan={standingsColumnCount} className={classes.emptyNote}>
                                         No completed matches yet.
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
-                    <p className={classes.pointsNote}>
-                        {hasGroups
-                            ? 'Top 2 in each group (green) advance to the knockout stage.'
-                            : hasBo2
-                              ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts'
-                              : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
-                    </p>
+                    {!isSwissFormat && (
+                        <p className={classes.pointsNote}>
+                            {hasGroups
+                                ? 'Top 2 in each group (green) advance to the knockout stage. Sorted by points, then head-to-head, then wins.'
+                                : hasBo2
+                                  ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts. Sorted by points, then head-to-head, then wins.'
+                                  : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112). Sorted by points, then head-to-head, then wins.'}
+                        </p>
+                    )}
                 </div>
             )}
         </div>
