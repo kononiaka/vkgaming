@@ -3,7 +3,7 @@ import { isPublicTournament } from './tournamentVisibility';
 import { buildCountryLookup, lookupCountryCode } from './country';
 import { extractTwitchLogin } from './twitchUtils';
 import { getActiveCommentatorLogins } from './tournamentCommentators';
-import { buildMatchStageLabel } from './matchFixtureLabels';
+import { buildMatchStageLabel, resolveLeagueRound } from './matchFixtureLabels';
 
 const parseNumericValue = (value) => {
     if (typeof value === 'string' && value.includes(',')) {
@@ -131,6 +131,7 @@ const enrichPair = (pair, context) => {
     const team1Stars = parseNumericValue(pair.stars1 ?? team1Player?.stars);
     const team2Stars = parseNumericValue(pair.stars2 ?? team2Player?.stars);
     const stageLabel = buildMatchStageLabel(tournament, pair, stageIndex);
+    const round = resolveLeagueRound(tournament, pair);
 
     let liveGame = null;
     const activeGame = (pair.games || []).find(isGameSessionActive) || null;
@@ -156,6 +157,7 @@ const enrichPair = (pair, context) => {
             type: pair.type,
             stageIndex,
             pairIndex,
+            round,
             castle1: game?.castle1 || null,
             castle2: game?.castle2 || null,
             gameNumber: game ? (game.gameId || 0) + 1 : ps1 + ps2 + 1,
@@ -191,6 +193,7 @@ const enrichPair = (pair, context) => {
                   type: pair.type,
                   stageIndex,
                   pairIndex,
+                  round,
                   team1TwitchLogin,
                   team2TwitchLogin,
                   streamLogin,
@@ -342,6 +345,7 @@ export const fetchMatchCenterMatch = async (tournamentId, stageIndex, pairIndex)
             type: pair.type,
             stageIndex: stageIdx,
             pairIndex: pairIdx,
+            round: resolveLeagueRound(tournament, pair),
             team1TwitchLogin,
             team2TwitchLogin,
             streamLogin:

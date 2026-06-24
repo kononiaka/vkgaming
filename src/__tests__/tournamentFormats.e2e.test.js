@@ -7,9 +7,11 @@
 import {
     MIN_SWISS_PLAYERS,
     calculateSwissTotalRounds,
+    computeScheduleStandings,
     generateSwissRound1Pairings,
     generateNextSwissRoundPairings,
-    isSwissRoundComplete
+    isSwissRoundComplete,
+    repairSwissByePairs
 } from '../components/tournaments/homm3/swissUtils';
 import {
     CHAMPIONS_LEAGUE_GROUP_SIZE,
@@ -27,7 +29,8 @@ import {
     prepareChampionsLeagueFromDrawGrid,
     prepareChampionsLeagueGroupStage,
     createEmptyGroupDrawGrid,
-    mapSnakeDrawIndexToSlot
+    mapSnakeDrawIndexToSlot,
+    normalizeChampionsLeagueKnockoutGameType
 } from '../components/tournaments/homm3/championsLeagueUtils';
 import {
     DOUBLE_ELIM_SIZES,
@@ -83,6 +86,94 @@ describe('tournament format E2E flows', () => {
             );
             expect(playerNames.size).toBe(4);
             expect(allPairs.filter((pair) => pair.round === 2).length).toBe(2);
+        });
+
+        test('standings exclude BYE placeholder for odd player counts', () => {
+            const fivePlayers = ['A', 'B', 'C', 'D', 'E'].map((name) => makePlayer(name));
+            const round1 = generateSwissRound1Pairings(fivePlayers, 'bo-1');
+            const standings = computeScheduleStandings(round1, fivePlayers.map((player) => player.name));
+
+            expect(standings).toHaveLength(5);
+            expect(standings.some((entry) => entry.name === 'BYE')).toBe(false);
+            expect(standings.find((entry) => entry.name === round1.find((pair) => pair.isBye)?.team1)?.wins).toBe(1);
+        });
+
+        test('round 2 floats one player instead of creating byes for odd score groups', () => {
+            const sixPlayers = ['A', 'B', 'C', 'D', 'E', 'F'].map((name) => makePlayer(name));
+            const round1 = generateSwissRound1Pairings(sixPlayers, 'bo-1');
+            const afterRound1 = markRoundWinners(round1, 1);
+
+            const winners = new Set(afterRound1.map((pair) => pair.winner).filter((name) => name && name !== 'BYE'));
+            const losers = new Set(
+                afterRound1.flatMap((pair) => {
+                    if (pair.isBye || !pair.winner) {
+                        return [];
+                    }
+                    return [pair.team1, pair.team2].filter((name) => name !== pair.winner);
+                })
+            );
+
+            const round2 = generateNextSwissRoundPairings(sixPlayers, afterRound1, 2, 'bo-1');
+            const matchPairs = round2.filter((pair) => pair.team2 !== 'BYE');
+            const crossScorePairs = matchPairs.filter(
+                (pair) =>
+                    (winners.has(pair.team1) && losers.has(pair.team2)) ||
+                    (losers.has(pair.team1) && winners.has(pair.team2))
+            );
+
+            expect(round2).toHaveLength(3);
+            expect(round2.filter((pair) => pair.isBye)).toHaveLength(0);
+            expect(crossScorePairs).toHaveLength(1);
+        });
+
+        test('ignores stale BYE player records when real Swiss player count is even', () => {
+            const eightPlayersWithStaleBye = [
+                ...Array.from({ length: 8 }, (_, index) => makePlayer(`P${index + 1}`)),
+                makePlayer('BYE')
+            ];
+            const round1 = generateSwissRound1Pairings(eightPlayersWithStaleBye, 'bo-1');
+            const afterRound1 = markRoundWinners(round1, 1);
+            const round2 = generateNextSwissRoundPairings(eightPlayersWithStaleBye, afterRound1, 2, 'bo-1');
+
+            expect(round1).toHaveLength(4);
+            expect(round1.filter((pair) => pair.isBye)).toHaveLength(0);
+            expect(round2).toHaveLength(4);
+            expect(round2.filter((pair) => pair.isBye)).toHaveLength(0);
+        });
+
+        test('repairs persisted invalid BYE pairs for even Swiss player counts', () => {
+            const eightPlayers = Array.from({ length: 8 }, (_, index) => makePlayer(`P${index + 1}`));
+            const round1 = generateSwissRound1Pairings(eightPlayers, 'bo-1');
+            const invalidRound2 = [
+                {
+                    ...round1[0],
+                    round: 2,
+                    team1: 'P1',
+                    team2: 'BYE',
+                    winner: 'P1',
+                    isBye: true,
+                    gameStatus: 'Processed'
+                },
+                {
+                    ...round1[1],
+                    round: 2,
+                    team1: 'P2',
+                    team2: 'BYE',
+                    winner: 'P2',
+                    isBye: true,
+                    gameStatus: 'Processed'
+                }
+            ];
+
+            const repaired = repairSwissByePairs([...round1, ...invalidRound2], eightPlayers, 'bo-1');
+            const repairedRound2 = repaired.pairs.filter((pair) => Number(pair.round) === 2);
+
+            expect(repaired.repaired).toBe(true);
+            expect(repairedRound2).toHaveLength(1);
+            expect(repairedRound2[0].team1).toBe('P1');
+            expect(repairedRound2[0].team2).toBe('P2');
+            expect(repairedRound2[0].winner).toBeNull();
+            expect(repairedRound2[0].isBye).toBeUndefined();
         });
     });
 
@@ -150,6 +241,37 @@ describe('tournament format E2E flows', () => {
             const storedBracket = [groupPairs, ...knockoutStages];
             expect(storedBracket[0]).toHaveLength(12);
             expect(storedBracket[1][0].team1).not.toBe('TBD');
+        });
+
+        test('group standings use head-to-head before wins/name for tied points', () => {
+            const tiedPlayers = ['Alpha', 'Bravo', 'Charlie', 'Delta'].map((name) => makePlayer(name));
+            const groups = { A: tiedPlayers };
+            const groupPairs = generateChampionsLeagueGroupPairs(groups, 'bo-1');
+            const winnersByMatch = {
+                'Alpha|Bravo': 'Bravo',
+                'Alpha|Charlie': 'Alpha',
+                'Alpha|Delta': 'Alpha',
+                'Bravo|Charlie': 'Bravo',
+                'Bravo|Delta': 'Delta',
+                'Charlie|Delta': 'Charlie'
+            };
+
+            groupPairs.forEach((pair) => {
+                const key = [pair.team1, pair.team2].sort().join('|');
+                pair.winner = winnersByMatch[key];
+            });
+
+            const standings = computeGroupStandings(groupPairs, 'A', tiedPlayers);
+
+            expect(standings[0].name).toBe('Bravo');
+            expect(standings[1].name).toBe('Alpha');
+            expect(standings[0].points).toBe(standings[1].points);
+        });
+
+        test('knockout formats do not inherit BO-2 from Champions League group stage', () => {
+            expect(normalizeChampionsLeagueKnockoutGameType(undefined)).toBe('bo-1');
+            expect(normalizeChampionsLeagueKnockoutGameType('bo-2')).toBe('bo-1');
+            expect(normalizeChampionsLeagueKnockoutGameType('bo-3')).toBe('bo-3');
         });
 
         test('random group draw produces valid structure for 16 players', () => {

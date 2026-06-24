@@ -8,9 +8,12 @@ import AuthContext from '../../../store/auth-context';
 import { useAddTournament } from '../../../store/add-tournament-context';
 import { deleteTournament, getTournamentData } from '../../tournaments/tournament_api';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
+import StarsComponent from '../../Stars/Stars';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 import TournamentPlayerChip from './TournamentPlayerChip';
+import { formatMatchSchedule } from './matchScheduleUtils';
+import { formatTournamentTypeLabel } from '../../../utils/matchFixtureLabels';
 import {
     canDeleteTournament,
     canInviteTournamentPlayers,
@@ -69,6 +72,16 @@ import {
 
 const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished', 'draft']);
 
+const showsPlannedTournamentStart = (status) => status !== 'Started!' && !String(status || '').includes('Finished');
+
+const getTournamentDateSortMs = (date) => {
+    if (!date) {
+        return 0;
+    }
+    const ms = new Date(date).getTime();
+    return Number.isNaN(ms) ? 0 : ms;
+};
+
 const getTournamentPlayersObject = (tournament) => {
     const players = tournament?.players;
     return players && typeof players === 'object' ? players : {};
@@ -78,6 +91,61 @@ const countRegisteredPlayers = (tournament) =>
     Object.values(getTournamentPlayersObject(tournament)).filter(
         (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
     ).length;
+
+const parsePlayerStars = (value) => {
+    if (value == null) {
+        return 0;
+    }
+    const str = String(value);
+    const normalizedValue = str.includes(',') ? str.split(',').at(-1) : str;
+    return Number.parseFloat(normalizedValue) || 0;
+};
+
+const getAverageTournamentStars = (tournament) => {
+    const stars = Object.values(getTournamentPlayersObject(tournament))
+        .filter((player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD')
+        .map((player) => parsePlayerStars(player.stars))
+        .filter((value) => value > 0);
+
+    if (stars.length === 0) {
+        return null;
+    }
+
+    const average = stars.reduce((sum, value) => sum + value, 0) / stars.length;
+    const roundedAverage = Math.min(5, Math.max(1, Math.round(average)));
+    return {
+        value: roundedAverage,
+        roundedForImage: roundedAverage
+    };
+};
+
+const getTournamentPrizeSortValue = (tournament) => {
+    const collected = Number(tournament?.communityFundingUsd) || 0;
+    if (collected > 0) {
+        return collected;
+    }
+
+    const totalPrizeUsd = Number(tournament?.totalPrizeUsd) || 0;
+    if (tournament?.prizeType === 'money' && totalPrizeUsd > 0) {
+        return totalPrizeUsd;
+    }
+
+    if (tournament?.pricePull && typeof tournament.pricePull === 'object') {
+        return Object.values(tournament.pricePull).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    }
+
+    return 0;
+};
+
+const getTournamentSortValue = (tournament, sortBy) => {
+    if (sortBy === 'stars') {
+        return getAverageTournamentStars(tournament)?.value || 0;
+    }
+    if (sortBy === 'prizePool') {
+        return getTournamentPrizeSortValue(tournament);
+    }
+    return getTournamentDateSortMs(tournament?.date);
+};
 
 const getTournamentViewLabel = (type) => {
     if (type === 'league') {
@@ -97,6 +165,25 @@ const isScheduleTournamentType = (type) => type === 'league' || type === 'swiss'
 const usesSpinningWheel = (tournament) =>
     Boolean(tournament?.randomBracket && (tournament.type === 'kick-off' || tournament.type === 'champions-league'));
 
+const getTournamentStatusClass = (status) => {
+    if (!status) {
+        return '';
+    }
+    if (status === 'Draft' || status === 'Pending funding') {
+        return 'draft';
+    }
+    if (status === 'Registration' || status.includes('Registration')) {
+        return 'registration';
+    }
+    if (status === 'Started!') {
+        return 'started';
+    }
+    if (status.includes('Finished')) {
+        return 'finished';
+    }
+    return '';
+};
+
 const TournamentList = () => {
     const { tournamentId } = useParams();
     const navigate = useNavigate();
@@ -109,6 +196,7 @@ const TournamentList = () => {
     const [showDetails, setShowDetails] = useState(false);
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
+    const [sortBy, setSortBy] = useState('date');
     const [statusFilter, setStatusFilter] = useState(() => {
         // Pre-initialise from URL so the fetch-based default respects it
         const params = new URLSearchParams(window.location.search);
@@ -1984,6 +2072,26 @@ const TournamentList = () => {
         return true;
     });
 
+    const sortedTournaments = [...filteredTournaments].sort((a, b) => {
+        const sortDiff = getTournamentSortValue(b, sortBy) - getTournamentSortValue(a, sortBy);
+        if (sortDiff !== 0) {
+            return sortDiff;
+        }
+
+        const statusOrder = {
+            'Registration Started': 1,
+            Registration: 1,
+            'Started!': 2,
+            'Tournament Finished': 3
+        };
+        const statusDiff = (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
+        if (statusDiff !== 0) {
+            return statusDiff;
+        }
+
+        return getTournamentDateSortMs(b.date) - getTournamentDateSortMs(a.date);
+    });
+
     const activeTournament =
         tournamentId && tournaments.length > 0
             ? tournaments.find((tournament) => tournament.id === tournamentId) || null
@@ -1993,672 +2101,657 @@ const TournamentList = () => {
     const tournamentList =
         tournaments.length > 0 ? (
             <ul className={classes.tournamentList}>
-                {filteredTournaments
-                    .sort((a, b) => {
-                        const statusOrder = {
-                            'Registration Started': 1,
-                            Registration: 1,
-                            'Started!': 2,
-                            'Tournament Finished': 3
-                        };
-                        const statusDiff = (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
-                        if (statusDiff !== 0) {
-                            return statusDiff;
+                {sortedTournaments.map((tournament) => {
+                    maxTournamnetPlayers = tournament.maxPlayers;
+
+                    const getStatusClass = getTournamentStatusClass;
+
+                    const getPlaceLabel = (place) => {
+                        if (place === '1st' || place === '1') {
+                            return '1st';
                         }
-                        return new Date(b.date) - new Date(a.date);
-                    })
-                    .map((tournament) => {
-                        maxTournamnetPlayers = tournament.maxPlayers;
+                        if (place === '2nd' || place === '2') {
+                            return '2nd';
+                        }
+                        if (place === '3rd' || place === '3') {
+                            return '3rd';
+                        }
+                        return place;
+                    };
 
-                        const getStatusClass = (status) => {
-                            if (status === 'Draft' || status === 'Pending funding') {
-                                return 'draft';
-                            }
-                            if (status === 'Registration' || status.includes('Registration')) {
-                                return 'registration';
-                            }
-                            if (status === 'Started!') {
-                                return 'started';
-                            }
-                            if (status.includes('Finished')) {
-                                return 'finished';
-                            }
-                            return '';
-                        };
+                    const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
+                    const firebaseUid = getFirebaseUid();
+                    const commentatorRequest = getCommentatorRequestForUser(tournament, firebaseUid);
+                    const approvedCommentator = getApprovedCommentator(tournament, firebaseUid);
+                    const pendingCommentatorRequests = getPendingCommentatorRequests(tournament);
+                    const approvedCommentators = getApprovedCommentators(tournament);
+                    const canManageCommentators = canManageCommentatorRequests(tournament, {
+                        isAdmin,
+                        userNickName,
+                        firebaseUid
+                    });
+                    const canRequestCommentator =
+                        isLogged &&
+                        canRequestTournamentCommentator(tournament) &&
+                        !approvedCommentator &&
+                        !commentatorRequest;
+                    const canToggleCommentating = canToggleTournamentCommentating(tournament, firebaseUid);
 
-                        const getPlaceLabel = (place) => {
-                            if (place === '1st' || place === '1') {
-                                return '1st';
-                            }
-                            if (place === '2nd' || place === '2') {
-                                return '2nd';
-                            }
-                            if (place === '3rd' || place === '3') {
-                                return '3rd';
-                            }
-                            return place;
-                        };
+                    const plannedStartLabel =
+                        tournament.date && showsPlannedTournamentStart(tournament.status)
+                            ? formatMatchSchedule(tournament.date)
+                            : null;
+                    const typeLabel = formatTournamentTypeLabel(tournament.type);
+                    const averageStars = getAverageTournamentStars(tournament);
 
-                        const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
-                        const firebaseUid = getFirebaseUid();
-                        const commentatorRequest = getCommentatorRequestForUser(tournament, firebaseUid);
-                        const approvedCommentator = getApprovedCommentator(tournament, firebaseUid);
-                        const pendingCommentatorRequests = getPendingCommentatorRequests(tournament);
-                        const approvedCommentators = getApprovedCommentators(tournament);
-                        const canManageCommentators = canManageCommentatorRequests(tournament, {
-                            isAdmin,
-                            userNickName,
-                            firebaseUid
-                        });
-                        const canRequestCommentator =
-                            isLogged &&
-                            canRequestTournamentCommentator(tournament) &&
-                            !approvedCommentator &&
-                            !commentatorRequest;
-                        const canToggleCommentating = canToggleTournamentCommentating(tournament, firebaseUid);
-
-                        return (
-                            <li key={tournament.id} className={classes.bracket}>
-                                <h3 className={classes.tournamentTitle}>
-                                    {`${tournament.name} (${tournament.date})`}
-                                    {isAdmin && !isPublicTournament(tournament) ? (
-                                        <span className={classes.privateTag}>Private</span>
-                                    ) : null}
-                                    {tournament.loserBracket ? (
-                                        <span className={classes.privateTag}>Double elim</span>
-                                    ) : null}
-                                    {tournament.type === 'champions-league' ? (
-                                        <span className={classes.privateTag}>Champions League</span>
-                                    ) : null}
-                                </h3>
-                                <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
-                                    {tournament.status}
+                    return (
+                        <li key={tournament.id} className={classes.bracket}>
+                            <h3 className={classes.tournamentTitle}>
+                                {tournament.name}
+                                {isAdmin && !isPublicTournament(tournament) ? (
+                                    <span className={classes.privateTag}>Private</span>
+                                ) : null}
+                                {tournament.loserBracket ? (
+                                    <span className={classes.privateTag}>Double elim</span>
+                                ) : null}
+                                {typeLabel ? <span className={classes.privateTag}>{typeLabel}</span> : null}
+                                {averageStars ? (
+                                    <span
+                                        className={classes.averageStarsTag}
+                                        title={`Average player stars: ${averageStars.value} / 5`}
+                                    >
+                                        <span className={classes.averageStarsIcon}>
+                                            <StarsComponent stars={averageStars.roundedForImage} />
+                                        </span>
+                                    </span>
+                                ) : null}
+                            </h3>
+                            <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
+                                {tournament.status}
+                            </div>
+                            <div className={classes.infoGrid}>
+                                <div className={classes.infoItem}>
+                                    <p>
+                                        <strong>{countRegisteredPlayers(tournament)}</strong> / {maxTournamnetPlayers}
+                                    </p>
+                                    <p className={classes.infoLabel}>Players registered</p>
                                 </div>
-                                <div className={classes.infoGrid}>
+                                <div className={classes.infoItem}>
+                                    <p>
+                                        <strong>{maxTournamnetPlayers}</strong>
+                                    </p>
+                                    <p className={classes.infoLabel}>Max players</p>
+                                </div>
+                                {getTournamentPrizeLabel(tournament) && (
                                     <div className={classes.infoItem}>
                                         <p>
-                                            <strong>{countRegisteredPlayers(tournament)}</strong> /{' '}
-                                            {maxTournamnetPlayers}
+                                            <strong>{getTournamentPrizeLabel(tournament)}</strong>
                                         </p>
-                                        <p className={classes.infoLabel}>Players registered</p>
+                                        <p className={classes.infoLabel}>Prize pool</p>
                                     </div>
+                                )}
+                                {plannedStartLabel ? (
                                     <div className={classes.infoItem}>
                                         <p>
-                                            <strong>{maxTournamnetPlayers}</strong>
+                                            <strong>{plannedStartLabel}</strong>
                                         </p>
-                                        <p className={classes.infoLabel}>Max players</p>
+                                        <p className={classes.infoLabel}>Planned start</p>
                                     </div>
-                                    {getTournamentPrizeLabel(tournament) && (
-                                        <div className={classes.infoItem}>
-                                            <p>
-                                                <strong>{getTournamentPrizeLabel(tournament)}</strong>
-                                            </p>
-                                            <p className={classes.infoLabel}>Prize pool</p>
-                                        </div>
-                                    )}
-                                    {getAttendanceFeeUsd(tournament) > 0 && isRegistrationOpen(tournament.status) && (
-                                        <div className={classes.infoItem}>
-                                            <p>
-                                                <strong>${getAttendanceFeeUsd(tournament)}</strong>
-                                            </p>
-                                            <p className={classes.infoLabel}>Self-registration fee</p>
-                                        </div>
-                                    )}
-                                    {tournament.winner && tournament.status.includes('Finished') && (
-                                        <div className={`${classes.infoItem} ${classes.infoItemFull}`}>
-                                            <div className={classes.winnersPreview}>
-                                                {Object.entries(tournament.winners)
-                                                    .slice(0, 3)
-                                                    .map(([place, winner]) => (
-                                                        <div key={place} className={classes.winnerPreviewItem}>
-                                                            <span className={classes.placeBadge}>
-                                                                {getPlaceLabel(place)}
-                                                            </span>
-                                                            <span className={classes.winnerName}>{winner}</span>
-                                                        </div>
-                                                    ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className={classes.playersSection}>
-                                    <div className={classes.playersHeader}>
-                                        <button
-                                            className={`${classes.btn} ${classes.btnToggle}`}
-                                            onClick={() => toggleShowPlayers(tournament.id)}
-                                        >
-                                            {showPlayers[tournament.id] ? 'Hide players' : 'Show players'}
-                                        </button>
+                                ) : null}
+                                {getAttendanceFeeUsd(tournament) > 0 && isRegistrationOpen(tournament.status) && (
+                                    <div className={classes.infoItem}>
+                                        <p>
+                                            <strong>${getAttendanceFeeUsd(tournament)}</strong>
+                                        </p>
+                                        <p className={classes.infoLabel}>Self-registration fee</p>
                                     </div>
-                                    {showPlayers[tournament.id] && (
-                                        <ul className={classes.playersList}>
-                                            {Object.entries(getTournamentPlayersObject(tournament))
-                                                .filter(
-                                                    ([, player]) =>
-                                                        player !== null &&
-                                                        player.name !== undefined &&
-                                                        player.name.trim() !== ''
-                                                )
-                                                .sort(
-                                                    ([, a], [, b]) =>
-                                                        (Number(b.stars) || 0) - (Number(a.stars) || 0) ||
-                                                        a.name.localeCompare(b.name)
-                                                )
-                                                .map(([playerKey, player]) => (
-                                                    <TournamentPlayerChip
-                                                        key={playerKey}
-                                                        player={player}
-                                                        canKick={canKickTournamentPlayer(tournament, {
-                                                            isAdmin,
-                                                            userNickName
-                                                        })}
-                                                        onKick={() =>
-                                                            handleKickPlayer(tournament, playerKey, player.name)
-                                                        }
-                                                        kicking={kickingPlayerKey === `${tournament.id}:${playerKey}`}
-                                                    />
+                                )}
+                                {tournament.winner && tournament.status.includes('Finished') && (
+                                    <div className={`${classes.infoItem} ${classes.infoItemFull}`}>
+                                        <div className={classes.winnersPreview}>
+                                            {Object.entries(tournament.winners)
+                                                .slice(0, 3)
+                                                .map(([place, winner]) => (
+                                                    <div key={place} className={classes.winnerPreviewItem}>
+                                                        <span className={classes.placeBadge}>
+                                                            {getPlaceLabel(place)}
+                                                        </span>
+                                                        <span className={classes.winnerName}>{winner}</span>
+                                                    </div>
                                                 ))}
-                                        </ul>
-                                    )}
-                                </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
-                                {(canRequestCommentator ||
-                                    commentatorRequest ||
-                                    approvedCommentator ||
-                                    approvedCommentators.length > 0 ||
-                                    (canManageCommentators && pendingCommentatorRequests.length > 0)) && (
-                                    <div className={classes.commentatorSection}>
-                                        <div className={classes.commentatorHeader}>
-                                            <p className={classes.infoLabel}>Commentators</p>
-                                            {approvedCommentators.some((commentator) => commentator.isCommentating) ? (
-                                                <span className={classes.commentatorLiveBadge}>On air</span>
+                            <div className={classes.playersSection}>
+                                <div className={classes.playersHeader}>
+                                    <button
+                                        className={`${classes.btn} ${classes.btnToggle}`}
+                                        onClick={() => toggleShowPlayers(tournament.id)}
+                                    >
+                                        {showPlayers[tournament.id] ? 'Hide players' : 'Show players'}
+                                    </button>
+                                </div>
+                                {showPlayers[tournament.id] && (
+                                    <ul className={classes.playersList}>
+                                        {Object.entries(getTournamentPlayersObject(tournament))
+                                            .filter(
+                                                ([, player]) =>
+                                                    player !== null &&
+                                                    player.name !== undefined &&
+                                                    player.name.trim() !== ''
+                                            )
+                                            .sort(
+                                                ([, a], [, b]) =>
+                                                    (Number(b.stars) || 0) - (Number(a.stars) || 0) ||
+                                                    a.name.localeCompare(b.name)
+                                            )
+                                            .map(([playerKey, player]) => (
+                                                <TournamentPlayerChip
+                                                    key={playerKey}
+                                                    player={player}
+                                                    canKick={canKickTournamentPlayer(tournament, {
+                                                        isAdmin,
+                                                        userNickName
+                                                    })}
+                                                    onKick={() => handleKickPlayer(tournament, playerKey, player.name)}
+                                                    kicking={kickingPlayerKey === `${tournament.id}:${playerKey}`}
+                                                />
+                                            ))}
+                                    </ul>
+                                )}
+                            </div>
+
+                            {(canRequestCommentator ||
+                                commentatorRequest ||
+                                approvedCommentator ||
+                                approvedCommentators.length > 0 ||
+                                (canManageCommentators && pendingCommentatorRequests.length > 0)) && (
+                                <div className={classes.commentatorSection}>
+                                    <div className={classes.commentatorHeader}>
+                                        <p className={classes.infoLabel}>Commentators</p>
+                                        {approvedCommentators.some((commentator) => commentator.isCommentating) ? (
+                                            <span className={classes.commentatorLiveBadge}>On air</span>
+                                        ) : null}
+                                    </div>
+
+                                    {approvedCommentators.length > 0 ? (
+                                        <ul className={classes.commentatorList}>
+                                            {approvedCommentators.map((commentator) => {
+                                                const watchUrl = getTwitchWatchUrl(commentator.twitchLogin);
+                                                return (
+                                                    <li
+                                                        key={commentator.commentatorUid}
+                                                        className={classes.commentatorItem}
+                                                    >
+                                                        <span className={classes.commentatorName}>
+                                                            {commentator.name}
+                                                        </span>
+                                                        {commentator.isCommentating ? (
+                                                            <span className={classes.commentatorLiveBadge}>
+                                                                Commentating
+                                                            </span>
+                                                        ) : null}
+                                                        {watchUrl ? (
+                                                            <a
+                                                                href={watchUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className={classes.commentatorWatchLink}
+                                                            >
+                                                                Twitch
+                                                            </a>
+                                                        ) : null}
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <p className={classes.commentatorHint}>
+                                            Streamers can apply to commentate this cup once approved by the host.
+                                        </p>
+                                    )}
+
+                                    {canRequestCommentator ? (
+                                        <button
+                                            type="button"
+                                            className={classes.btn}
+                                            disabled={commentatorActionKey === `${tournament.id}:request`}
+                                            onClick={() => handleRequestCommentator(tournament)}
+                                        >
+                                            {commentatorActionKey === `${tournament.id}:request`
+                                                ? 'Submitting…'
+                                                : 'Request to commentate'}
+                                        </button>
+                                    ) : null}
+
+                                    {commentatorRequest ? (
+                                        <div className={classes.registrationActions}>
+                                            <div className={classes.registeredBadge}>Commentator request pending</div>
+                                            <button
+                                                type="button"
+                                                className={`${classes.btn} ${classes.btnDanger}`}
+                                                disabled={commentatorActionKey === `${tournament.id}:withdraw`}
+                                                onClick={() => handleWithdrawCommentatorRequest(tournament)}
+                                            >
+                                                {commentatorActionKey === `${tournament.id}:withdraw`
+                                                    ? 'Withdrawing…'
+                                                    : 'Withdraw request'}
+                                            </button>
+                                        </div>
+                                    ) : null}
+
+                                    {approvedCommentator ? (
+                                        <div className={classes.registrationActions}>
+                                            <div className={classes.registeredBadge}>Approved commentator</div>
+                                            {canToggleCommentating ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${classes.btn} ${
+                                                        approvedCommentator.isCommentating
+                                                            ? classes.btnDanger
+                                                            : classes.btnSuccess
+                                                    }`}
+                                                    disabled={commentatorActionKey === `${tournament.id}:commentating`}
+                                                    onClick={() =>
+                                                        handleToggleCommentating(
+                                                            tournament,
+                                                            !approvedCommentator.isCommentating
+                                                        )
+                                                    }
+                                                >
+                                                    {commentatorActionKey === `${tournament.id}:commentating`
+                                                        ? 'Saving…'
+                                                        : approvedCommentator.isCommentating
+                                                          ? 'Stop commentating'
+                                                          : 'Start commentating'}
+                                                </button>
                                             ) : null}
                                         </div>
+                                    ) : null}
 
-                                        {approvedCommentators.length > 0 ? (
-                                            <ul className={classes.commentatorList}>
-                                                {approvedCommentators.map((commentator) => {
-                                                    const watchUrl = getTwitchWatchUrl(commentator.twitchLogin);
-                                                    return (
-                                                        <li
-                                                            key={commentator.commentatorUid}
-                                                            className={classes.commentatorItem}
-                                                        >
-                                                            <span className={classes.commentatorName}>
-                                                                {commentator.name}
-                                                            </span>
-                                                            {commentator.isCommentating ? (
-                                                                <span className={classes.commentatorLiveBadge}>
-                                                                    Commentating
-                                                                </span>
-                                                            ) : null}
-                                                            {watchUrl ? (
+                                    {canManageCommentators && pendingCommentatorRequests.length > 0 ? (
+                                        <div className={classes.commentatorRequestsPanel}>
+                                            <p className={classes.commentatorRequestsTitle}>Pending requests</p>
+                                            <ul className={classes.commentatorRequestsList}>
+                                                {pendingCommentatorRequests.map((request) => (
+                                                    <li
+                                                        key={request.requestId}
+                                                        className={classes.commentatorRequestItem}
+                                                    >
+                                                        <div className={classes.commentatorRequestMeta}>
+                                                            <span>{request.name}</span>
+                                                            {request.twitchLogin ? (
                                                                 <a
-                                                                    href={watchUrl}
+                                                                    href={getTwitchWatchUrl(request.twitchLogin)}
                                                                     target="_blank"
                                                                     rel="noreferrer"
                                                                     className={classes.commentatorWatchLink}
                                                                 >
-                                                                    Twitch
+                                                                    @{request.twitchLogin}
                                                                 </a>
                                                             ) : null}
-                                                        </li>
-                                                    );
-                                                })}
+                                                        </div>
+                                                        <div className={classes.commentatorRequestActions}>
+                                                            <button
+                                                                type="button"
+                                                                className={`${classes.btn} ${classes.btnSuccess}`}
+                                                                disabled={
+                                                                    commentatorActionKey ===
+                                                                    `${tournament.id}:approve:${request.requestId}`
+                                                                }
+                                                                onClick={() =>
+                                                                    handleApproveCommentator(
+                                                                        tournament,
+                                                                        request.requestId,
+                                                                        request
+                                                                    )
+                                                                }
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className={`${classes.btn} ${classes.btnDanger}`}
+                                                                disabled={
+                                                                    commentatorActionKey ===
+                                                                    `${tournament.id}:reject:${request.requestId}`
+                                                                }
+                                                                onClick={() =>
+                                                                    handleRejectCommentator(
+                                                                        tournament,
+                                                                        request.requestId,
+                                                                        request.name
+                                                                    )
+                                                                }
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                ))}
                                             </ul>
-                                        ) : (
-                                            <p className={classes.commentatorHint}>
-                                                Streamers can apply to commentate this cup once approved by the host.
-                                            </p>
-                                        )}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            )}
 
-                                        {canRequestCommentator ? (
-                                            <button
-                                                type="button"
-                                                className={classes.btn}
-                                                disabled={commentatorActionKey === `${tournament.id}:request`}
-                                                onClick={() => handleRequestCommentator(tournament)}
-                                            >
-                                                {commentatorActionKey === `${tournament.id}:request`
-                                                    ? 'Submitting…'
-                                                    : 'Request to commentate'}
-                                            </button>
-                                        ) : null}
+                            <div className={classes.actionButtons}>
+                                {tournament.status === 'Pending funding' &&
+                                (isTournamentCreator(tournament, userNickName) || authCtx.isAdmin) ? (
+                                    <button
+                                        className={`${classes.btn} ${classes.btnSuccess}`}
+                                        disabled={hostSeedCheckoutTournamentId === tournament.id}
+                                        onClick={() => handlePayHostSeed(tournament)}
+                                    >
+                                        {hostSeedCheckoutTournamentId === tournament.id
+                                            ? 'Opening checkout…'
+                                            : `Pay prize pool — $${Number(tournament.fundingGoalUsd) || 0}`}
+                                    </button>
+                                ) : null}
+                                <button
+                                    className={`${classes.btn} ${classes.btnPrimary}`}
+                                    onClick={() =>
+                                        showDetailsHandler(
+                                            tournament.status,
+                                            tournament.winners,
+                                            tournament.id,
+                                            tournament
+                                        )
+                                    }
+                                >
+                                    {getTournamentViewLabel(tournament.type)}
+                                </button>
 
-                                        {commentatorRequest ? (
-                                            <div className={classes.registrationActions}>
-                                                <div className={classes.registeredBadge}>
-                                                    Commentator request pending
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    className={`${classes.btn} ${classes.btnDanger}`}
-                                                    disabled={commentatorActionKey === `${tournament.id}:withdraw`}
-                                                    onClick={() => handleWithdrawCommentatorRequest(tournament)}
-                                                >
-                                                    {commentatorActionKey === `${tournament.id}:withdraw`
-                                                        ? 'Withdrawing…'
-                                                        : 'Withdraw request'}
-                                                </button>
-                                            </div>
-                                        ) : null}
-
-                                        {approvedCommentator ? (
-                                            <div className={classes.registrationActions}>
-                                                <div className={classes.registeredBadge}>Approved commentator</div>
-                                                {canToggleCommentating ? (
-                                                    <button
-                                                        type="button"
-                                                        className={`${classes.btn} ${
-                                                            approvedCommentator.isCommentating
-                                                                ? classes.btnDanger
-                                                                : classes.btnSuccess
-                                                        }`}
-                                                        disabled={
-                                                            commentatorActionKey === `${tournament.id}:commentating`
-                                                        }
-                                                        onClick={() =>
-                                                            handleToggleCommentating(
-                                                                tournament,
-                                                                !approvedCommentator.isCommentating
-                                                            )
-                                                        }
-                                                    >
-                                                        {commentatorActionKey === `${tournament.id}:commentating`
-                                                            ? 'Saving…'
-                                                            : approvedCommentator.isCommentating
-                                                              ? 'Stop commentating'
-                                                              : 'Start commentating'}
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                        ) : null}
-
-                                        {canManageCommentators && pendingCommentatorRequests.length > 0 ? (
-                                            <div className={classes.commentatorRequestsPanel}>
-                                                <p className={classes.commentatorRequestsTitle}>Pending requests</p>
-                                                <ul className={classes.commentatorRequestsList}>
-                                                    {pendingCommentatorRequests.map((request) => (
-                                                        <li
-                                                            key={request.requestId}
-                                                            className={classes.commentatorRequestItem}
-                                                        >
-                                                            <div className={classes.commentatorRequestMeta}>
-                                                                <span>{request.name}</span>
-                                                                {request.twitchLogin ? (
-                                                                    <a
-                                                                        href={getTwitchWatchUrl(request.twitchLogin)}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className={classes.commentatorWatchLink}
-                                                                    >
-                                                                        @{request.twitchLogin}
-                                                                    </a>
-                                                                ) : null}
-                                                            </div>
-                                                            <div className={classes.commentatorRequestActions}>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`${classes.btn} ${classes.btnSuccess}`}
-                                                                    disabled={
-                                                                        commentatorActionKey ===
-                                                                        `${tournament.id}:approve:${request.requestId}`
-                                                                    }
-                                                                    onClick={() =>
-                                                                        handleApproveCommentator(
-                                                                            tournament,
-                                                                            request.requestId,
-                                                                            request
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Approve
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`${classes.btn} ${classes.btnDanger}`}
-                                                                    disabled={
-                                                                        commentatorActionKey ===
-                                                                        `${tournament.id}:reject:${request.requestId}`
-                                                                    }
-                                                                    onClick={() =>
-                                                                        handleRejectCommentator(
-                                                                            tournament,
-                                                                            request.requestId,
-                                                                            request.name
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Reject
-                                                                </button>
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ) : null}
-                                    </div>
+                                {canDeleteTournament(tournament, { isAdmin, userNickName }) && (
+                                    <button
+                                        type="button"
+                                        className={`${classes.btn} ${classes.btnDanger}`}
+                                        disabled={
+                                            deletingTournamentId === tournament.id ||
+                                            isTournamentDeleteBlocked(tournament)
+                                        }
+                                        title={
+                                            isTournamentDeleteBlocked(tournament)
+                                                ? 'Cannot delete after the tournament has started'
+                                                : undefined
+                                        }
+                                        onClick={() => handleDeleteTournament(tournament)}
+                                    >
+                                        {deletingTournamentId === tournament.id ? 'Deleting…' : 'Delete'}
+                                    </button>
                                 )}
 
-                                <div className={classes.actionButtons}>
-                                    {tournament.status === 'Pending funding' &&
-                                    (isTournamentCreator(tournament, userNickName) || authCtx.isAdmin) ? (
+                                {authCtx.isAdmin &&
+                                    tournament.type === 'league' &&
+                                    tournament.status === 'Registration finished!' && (
                                         <button
                                             className={`${classes.btn} ${classes.btnSuccess}`}
-                                            disabled={hostSeedCheckoutTournamentId === tournament.id}
-                                            onClick={() => handlePayHostSeed(tournament)}
+                                            onClick={() => handleStartLeague(tournament.id)}
                                         >
-                                            {hostSeedCheckoutTournamentId === tournament.id
-                                                ? 'Opening checkout…'
-                                                : `Pay prize pool — $${Number(tournament.fundingGoalUsd) || 0}`}
+                                            Start league
                                         </button>
-                                    ) : null}
-                                    <button
-                                        className={`${classes.btn} ${classes.btnPrimary}`}
-                                        onClick={() =>
-                                            showDetailsHandler(
-                                                tournament.status,
-                                                tournament.winners,
-                                                tournament.id,
-                                                tournament
+                                    )}
+
+                                {authCtx.isAdmin &&
+                                    tournament.type === 'swiss' &&
+                                    tournament.status === 'Registration finished!' && (
+                                        <button
+                                            className={`${classes.btn} ${classes.btnSuccess}`}
+                                            onClick={() => handleStartSwiss(tournament.id)}
+                                        >
+                                            Start Swiss
+                                        </button>
+                                    )}
+
+                                {authCtx.isAdmin &&
+                                    tournament.type === 'champions-league' &&
+                                    tournament.status === 'Registration finished!' && (
+                                        <button
+                                            className={`${classes.btn} ${classes.btnSuccess}`}
+                                            onClick={() => {
+                                                setClickedId(tournament.id);
+                                                setTournamentPlayers(tournament.players || {});
+                                                if (tournament.randomBracket) {
+                                                    setSpinningWheelMode('champions-league');
+                                                    setShowSpinningWheel(true);
+                                                    return;
+                                                }
+                                                handleStartChampionsLeague(tournament.id);
+                                            }}
+                                        >
+                                            {tournament.randomBracket ? 'Draw groups (wheel)' : 'Start group stage'}
+                                        </button>
+                                    )}
+
+                                {checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
+                                    <div className={classes.registrationActions}>
+                                        <div className={classes.registeredBadge}>You are registered</div>
+                                        {canLeaveTournament(tournament) && (
+                                            <button
+                                                type="button"
+                                                className={`${classes.btn} ${classes.btnDanger}`}
+                                                disabled={leavingTournamentId === tournament.id}
+                                                onClick={() => handleLeaveTournament(tournament)}
+                                            >
+                                                {leavingTournamentId === tournament.id
+                                                    ? 'Leaving…'
+                                                    : 'Leave tournament'}
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    countRegisteredPlayers(tournament) < tournament.maxPlayers &&
+                                    canShowSelfRegister(tournament) && (
+                                        <button
+                                            className={classes.btn}
+                                            disabled={attendanceCheckoutTournamentId === tournament.id}
+                                            onClick={() => handleSelfRegister(tournament)}
+                                        >
+                                            {getSelfRegisterLabel(tournament)}
+                                        </button>
+                                    )
+                                )}
+                            </div>
+
+                            {showDetails &&
+                                clickedId === tournament.id &&
+                                !isFullPageView &&
+                                renderPlayerList(getTournamentPlayersObject(tournament), {
+                                    canKick: canKickTournamentPlayer(tournament, { isAdmin, userNickName }),
+                                    onKick: (playerKey, playerName) =>
+                                        handleKickPlayer(tournament, playerKey, playerName),
+                                    kickingPlayerKey: kickingPlayerKey?.startsWith(`${tournament.id}:`)
+                                        ? kickingPlayerKey.slice(`${tournament.id}:`.length)
+                                        : null
+                                })}
+                            {canInviteTournamentPlayers(tournament, {
+                                isAdmin,
+                                userNickName,
+                                registeredCount: countRegisteredPlayers(tournament),
+                                maxPlayers: tournament.maxPlayers
+                            }) && (
+                                <div className={classes.inputGroup}>
+                                    <label htmlFor={`nickname-${tournament.id}`}>
+                                        {isTournamentCreator(tournament, userNickName) && !isAdmin
+                                            ? 'Invite player by nickname'
+                                            : "Player's Nickname"}
+                                    </label>
+                                    {!isAdmin && isTournamentCreator(tournament, userNickName) && (
+                                        <p className={classes.hostInviteHint}>
+                                            Invited players join for free. Remaining seats can self-register
+                                            {getAttendanceFeeUsd(tournament) > 0
+                                                ? ` for $${getAttendanceFeeUsd(tournament)}.`
+                                                : '.'}
+                                        </p>
+                                    )}
+                                    <input
+                                        type="text"
+                                        id={`nickname-${tournament.id}`}
+                                        ref={nicknameRef}
+                                        value={nicknameQuery}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setNicknameQuery(value);
+                                            updateNicknameSuggestions(value, getTournamentPlayersObject(tournament));
+                                        }}
+                                        onFocus={() =>
+                                            updateNicknameSuggestions(
+                                                nicknameQuery,
+                                                getTournamentPlayersObject(tournament)
                                             )
                                         }
-                                    >
-                                        {getTournamentViewLabel(tournament.type)}
-                                    </button>
-
-                                    {canDeleteTournament(tournament, { isAdmin, userNickName }) && (
-                                        <button
-                                            type="button"
-                                            className={`${classes.btn} ${classes.btnDanger}`}
-                                            disabled={
-                                                deletingTournamentId === tournament.id ||
-                                                isTournamentDeleteBlocked(tournament)
-                                            }
-                                            title={
-                                                isTournamentDeleteBlocked(tournament)
-                                                    ? 'Cannot delete after the tournament has started'
-                                                    : undefined
-                                            }
-                                            onClick={() => handleDeleteTournament(tournament)}
-                                        >
-                                            {deletingTournamentId === tournament.id ? 'Deleting…' : 'Delete'}
-                                        </button>
-                                    )}
-
-                                    {authCtx.isAdmin &&
-                                        tournament.type === 'league' &&
-                                        tournament.status === 'Registration finished!' && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() => handleStartLeague(tournament.id)}
-                                            >
-                                                Start league
-                                            </button>
-                                        )}
-
-                                    {authCtx.isAdmin &&
-                                        tournament.type === 'swiss' &&
-                                        tournament.status === 'Registration finished!' && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() => handleStartSwiss(tournament.id)}
-                                            >
-                                                Start Swiss
-                                            </button>
-                                        )}
-
-                                    {authCtx.isAdmin &&
-                                        tournament.type === 'champions-league' &&
-                                        tournament.status === 'Registration finished!' && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() => {
-                                                    setClickedId(tournament.id);
-                                                    setTournamentPlayers(tournament.players || {});
-                                                    if (tournament.randomBracket) {
-                                                        setSpinningWheelMode('champions-league');
-                                                        setShowSpinningWheel(true);
-                                                        return;
-                                                    }
-                                                    handleStartChampionsLeague(tournament.id);
-                                                }}
-                                            >
-                                                {tournament.randomBracket ? 'Draw groups (wheel)' : 'Start group stage'}
-                                            </button>
-                                        )}
-
-                                    {checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
-                                        <div className={classes.registrationActions}>
-                                            <div className={classes.registeredBadge}>You are registered</div>
-                                            {canLeaveTournament(tournament) && (
+                                        onKeyDown={(e) => handleNicknameKeyDown(e, tournament)}
+                                        onBlur={() => {
+                                            setTimeout(() => {
+                                                setNicknameSuggestions([]);
+                                                setActiveSuggestionIndex(-1);
+                                            }, 120);
+                                        }}
+                                        autoComplete="off"
+                                        required
+                                    />
+                                    {nicknameSuggestions.length > 0 && (
+                                        <div className={classes.suggestionsList}>
+                                            {nicknameSuggestions.map((nickname, index) => (
                                                 <button
+                                                    key={nickname}
                                                     type="button"
-                                                    className={`${classes.btn} ${classes.btnDanger}`}
-                                                    disabled={leavingTournamentId === tournament.id}
-                                                    onClick={() => handleLeaveTournament(tournament)}
+                                                    className={
+                                                        index === activeSuggestionIndex
+                                                            ? `${classes.suggestionItem} ${classes.suggestionItemActive}`
+                                                            : classes.suggestionItem
+                                                    }
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        setNicknameQuery(nickname);
+                                                        setNicknameSuggestions([]);
+                                                        setActiveSuggestionIndex(-1);
+                                                    }}
+                                                    onMouseEnter={() => setActiveSuggestionIndex(index)}
                                                 >
-                                                    {leavingTournamentId === tournament.id
-                                                        ? 'Leaving…'
-                                                        : 'Leave tournament'}
+                                                    {nickname}
                                                 </button>
-                                            )}
+                                            ))}
                                         </div>
-                                    ) : (
-                                        countRegisteredPlayers(tournament) < tournament.maxPlayers &&
-                                        canShowSelfRegister(tournament) && (
-                                            <button
-                                                className={classes.btn}
-                                                disabled={attendanceCheckoutTournamentId === tournament.id}
-                                                onClick={() => handleSelfRegister(tournament)}
-                                            >
-                                                {getSelfRegisterLabel(tournament)}
-                                            </button>
-                                        )
                                     )}
-                                </div>
-
-                                {showDetails &&
-                                    clickedId === tournament.id &&
-                                    !isFullPageView &&
-                                    renderPlayerList(getTournamentPlayersObject(tournament), {
-                                        canKick: canKickTournamentPlayer(tournament, { isAdmin, userNickName }),
-                                        onKick: (playerKey, playerName) =>
-                                            handleKickPlayer(tournament, playerKey, playerName),
-                                        kickingPlayerKey: kickingPlayerKey?.startsWith(`${tournament.id}:`)
-                                            ? kickingPlayerKey.slice(`${tournament.id}:`.length)
-                                            : null
-                                    })}
-                                {canInviteTournamentPlayers(tournament, {
-                                    isAdmin,
-                                    userNickName,
-                                    registeredCount: countRegisteredPlayers(tournament),
-                                    maxPlayers: tournament.maxPlayers
-                                }) && (
-                                    <div className={classes.inputGroup}>
-                                        <label htmlFor={`nickname-${tournament.id}`}>
-                                            {isTournamentCreator(tournament, userNickName) && !isAdmin
-                                                ? 'Invite player by nickname'
-                                                : "Player's Nickname"}
-                                        </label>
-                                        {!isAdmin && isTournamentCreator(tournament, userNickName) && (
-                                            <p className={classes.hostInviteHint}>
-                                                Invited players join for free. Remaining seats can self-register
-                                                {getAttendanceFeeUsd(tournament) > 0
-                                                    ? ` for $${getAttendanceFeeUsd(tournament)}.`
-                                                    : '.'}
-                                            </p>
-                                        )}
-                                        <input
-                                            type="text"
-                                            id={`nickname-${tournament.id}`}
-                                            ref={nicknameRef}
-                                            value={nicknameQuery}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                setNicknameQuery(value);
-                                                updateNicknameSuggestions(
-                                                    value,
-                                                    getTournamentPlayersObject(tournament)
+                                    <div className={classes.adminActions}>
+                                        <button
+                                            className={classes.btn}
+                                            disabled={addingPlayerTournamentId === tournament.id}
+                                            onClick={() => {
+                                                const selectedNickname =
+                                                    activeSuggestionIndex >= 0
+                                                        ? nicknameSuggestions[activeSuggestionIndex]
+                                                        : nicknameQuery.trim();
+                                                if (!selectedNickname) {
+                                                    return;
+                                                }
+                                                addUserTournament(
+                                                    tournament.id,
+                                                    selectedNickname,
+                                                    getTournamentPlayersObject(tournament),
+                                                    tournament.maxPlayers,
+                                                    { isAdminManagedAdd: true }
                                                 );
                                             }}
-                                            onFocus={() =>
-                                                updateNicknameSuggestions(
-                                                    nicknameQuery,
-                                                    getTournamentPlayersObject(tournament)
-                                                )
-                                            }
-                                            onKeyDown={(e) => handleNicknameKeyDown(e, tournament)}
-                                            onBlur={() => {
-                                                setTimeout(() => {
-                                                    setNicknameSuggestions([]);
-                                                    setActiveSuggestionIndex(-1);
-                                                }, 120);
-                                            }}
-                                            autoComplete="off"
-                                            required
-                                        />
-                                        {nicknameSuggestions.length > 0 && (
-                                            <div className={classes.suggestionsList}>
-                                                {nicknameSuggestions.map((nickname, index) => (
-                                                    <button
-                                                        key={nickname}
-                                                        type="button"
-                                                        className={
-                                                            index === activeSuggestionIndex
-                                                                ? `${classes.suggestionItem} ${classes.suggestionItemActive}`
-                                                                : classes.suggestionItem
-                                                        }
-                                                        onMouseDown={(e) => {
-                                                            e.preventDefault();
-                                                            setNicknameQuery(nickname);
-                                                            setNicknameSuggestions([]);
-                                                            setActiveSuggestionIndex(-1);
-                                                        }}
-                                                        onMouseEnter={() => setActiveSuggestionIndex(index)}
-                                                    >
-                                                        {nickname}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <div className={classes.adminActions}>
-                                            <button
-                                                className={classes.btn}
-                                                disabled={addingPlayerTournamentId === tournament.id}
-                                                onClick={() => {
-                                                    const selectedNickname =
-                                                        activeSuggestionIndex >= 0
-                                                            ? nicknameSuggestions[activeSuggestionIndex]
-                                                            : nicknameQuery.trim();
-                                                    if (!selectedNickname) {
-                                                        return;
-                                                    }
-                                                    addUserTournament(
-                                                        tournament.id,
-                                                        selectedNickname,
-                                                        getTournamentPlayersObject(tournament),
-                                                        tournament.maxPlayers,
-                                                        { isAdminManagedAdd: true }
-                                                    );
-                                                }}
-                                            >
-                                                {addingPlayerTournamentId === tournament.id ? (
-                                                    <span className={classes.loadingInline}>
-                                                        <span className={classes.spinner}></span>
-                                                        Adding...
-                                                    </span>
-                                                ) : isTournamentCreator(tournament, userNickName) && !isAdmin ? (
-                                                    'Invite player'
-                                                ) : (
-                                                    'Add player'
-                                                )}
-                                            </button>
-                                            {isAdmin && (
-                                                <button
-                                                    className={`${classes.btn} ${classes.btnDanger}`}
-                                                    onClick={() =>
-                                                        fillTournamentWithRandomPlayers(
-                                                            tournament.id,
-                                                            getTournamentPlayersObject(tournament),
-                                                            tournament.maxPlayers
-                                                        )
-                                                    }
-                                                >
-                                                    Fill with random players
-                                                </button>
+                                        >
+                                            {addingPlayerTournamentId === tournament.id ? (
+                                                <span className={classes.loadingInline}>
+                                                    <span className={classes.spinner}></span>
+                                                    Adding...
+                                                </span>
+                                            ) : isTournamentCreator(tournament, userNickName) && !isAdmin ? (
+                                                'Invite player'
+                                            ) : (
+                                                'Add player'
                                             )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {tournament.status === 'Registration finished!' && (
-                                    <div className={classes.fullBanner}>
-                                        <p className={classes.fullBannerTitle}>Tournament is full</p>
-                                        {authCtx.isAdmin && !isScheduleTournamentType(tournament.type) && (
+                                        </button>
+                                        {isAdmin && (
                                             <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
+                                                className={`${classes.btn} ${classes.btnDanger}`}
                                                 onClick={() =>
-                                                    showDetailsHandler(
-                                                        tournament.status,
-                                                        tournament.winners,
+                                                    fillTournamentWithRandomPlayers(
                                                         tournament.id,
-                                                        tournament
+                                                        getTournamentPlayersObject(tournament),
+                                                        tournament.maxPlayers
                                                     )
                                                 }
                                             >
-                                                Start tournament
+                                                Fill with random players
                                             </button>
                                         )}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {!tournament.status.includes('Finished') && prizeBreakdown ? (
-                                    <div className={classes.prizePool}>
-                                        <h4>Prize pool</h4>
-                                        {Object.entries(prizeBreakdown).map(([place, prize]) => (
-                                            <div key={place} className={classes.prizeItem}>
-                                                <span className={classes.placeBadge}>{getPlaceLabel(place)}</span>
-                                                <span className={classes.prizePlace}>{place}:</span>
-                                                <span className={classes.prizeAmount}>
-                                                    {`$${Number(prize).toLocaleString()}`}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    tournament.winners && (
-                                        <div className={classes.winnersSection}>
-                                            <h4>Tournament winners</h4>
-                                            {Object.entries(tournament.winners).map(([place, winner]) => {
-                                                const prize = getPrizeAmountForPlace(prizeBreakdown, place);
-                                                return (
-                                                    <div key={place} className={classes.winnerItem}>
-                                                        <span
-                                                            className={`${classes.placeBadge} ${classes.placeBadgeLarge}`}
-                                                        >
-                                                            {getPlaceLabel(place)}
-                                                        </span>
-                                                        <span className={classes.placeLabel}>{place}</span>
-                                                        <span className={classes.winnerNameLarge}>
-                                                            {winner}
-                                                            {prize && (
-                                                                <span className={classes.prizeInBrackets}>
-                                                                    {' '}
-                                                                    {`($${prize})`}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
+                            {tournament.status === 'Registration finished!' && (
+                                <div className={classes.fullBanner}>
+                                    <p className={classes.fullBannerTitle}>Tournament is full</p>
+                                    {authCtx.isAdmin && !isScheduleTournamentType(tournament.type) && (
+                                        <button
+                                            className={`${classes.btn} ${classes.btnSuccess}`}
+                                            onClick={() =>
+                                                showDetailsHandler(
+                                                    tournament.status,
+                                                    tournament.winners,
+                                                    tournament.id,
+                                                    tournament
+                                                )
+                                            }
+                                        >
+                                            Start tournament
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {!tournament.status.includes('Finished') && prizeBreakdown ? (
+                                <div className={classes.prizePool}>
+                                    <h4>Prize pool</h4>
+                                    {Object.entries(prizeBreakdown).map(([place, prize]) => (
+                                        <div key={place} className={classes.prizeItem}>
+                                            <span className={classes.placeBadge}>{getPlaceLabel(place)}</span>
+                                            <span className={classes.prizePlace}>{place}:</span>
+                                            <span className={classes.prizeAmount}>
+                                                {`$${Number(prize).toLocaleString()}`}
+                                            </span>
                                         </div>
-                                    )
-                                )}
-                            </li>
-                        );
-                    })}
+                                    ))}
+                                </div>
+                            ) : (
+                                tournament.winners && (
+                                    <div className={classes.winnersSection}>
+                                        <h4>Tournament winners</h4>
+                                        {Object.entries(tournament.winners).map(([place, winner]) => {
+                                            const prize = getPrizeAmountForPlace(prizeBreakdown, place);
+                                            return (
+                                                <div key={place} className={classes.winnerItem}>
+                                                    <span
+                                                        className={`${classes.placeBadge} ${classes.placeBadgeLarge}`}
+                                                    >
+                                                        {getPlaceLabel(place)}
+                                                    </span>
+                                                    <span className={classes.placeLabel}>{place}</span>
+                                                    <span className={classes.winnerNameLarge}>
+                                                        {winner}
+                                                        {prize && (
+                                                            <span className={classes.prizeInBrackets}>
+                                                                {' '}
+                                                                {`($${prize})`}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )
+                            )}
+                        </li>
+                    );
+                })}
             </ul>
         ) : (
             <div className={classes.noTournaments}>No current tournaments available</div>
@@ -2671,9 +2764,13 @@ const TournamentList = () => {
                     <button type="button" className={classes.tournamentBackBtn} onClick={closeTournamentView}>
                         ← Back to tournaments
                     </button>
-                    <div className={classes.tournamentFullPageMeta}>
+                    <div className={classes.tournamentBanner}>
                         <h2 className={classes.tournamentFullPageTitle}>{activeTournament.name}</h2>
-                        <p className={classes.tournamentFullPageStatus}>{activeTournament.status}</p>
+                        <span
+                            className={`${classes.statusBadge} ${classes.tournamentBannerStatus} ${classes[getTournamentStatusClass(activeTournament.status)] || ''}`}
+                        >
+                            {activeTournament.status}
+                        </span>
                     </div>
                 </div>
                 <div className={classes.tournamentFullPageBody}>
@@ -2729,6 +2826,16 @@ const TournamentList = () => {
                         <option value="live">Live games</option>
                         {isAdmin && <option value="finished">Finished</option>}
                         {isAdmin && <option value="draft">Private drafts</option>}
+                    </select>
+                    <select
+                        className={classes.statusFilter}
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        aria-label="Sort tournaments"
+                    >
+                        <option value="date">Sort by date</option>
+                        <option value="stars">Sort by stars</option>
+                        <option value="prizePool">Sort by prize pool</option>
                     </select>
                 </div>
             </div>

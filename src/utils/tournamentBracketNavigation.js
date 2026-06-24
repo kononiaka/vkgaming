@@ -53,7 +53,8 @@ export const inferScheduleView = ({
 export const getTournamentMatchLink = (match) => {
     const stageIndex = Number(match.stageIndex) || 0;
     const pairIndex = Number(match.pairIndex) || 0;
-    return `/tournaments/homm3/${match.tournamentId}?status=started&stage=${stageIndex}&pair=${pairIndex}&focus=1`;
+    const roundParam = match.round != null && match.round !== '' ? `&round=${encodeURIComponent(match.round)}` : '';
+    return `/tournaments/homm3/${match.tournamentId}?status=started&stage=${stageIndex}&pair=${pairIndex}${roundParam}&focus=1`;
 };
 
 export const pairHasLiveMap = (pair) =>

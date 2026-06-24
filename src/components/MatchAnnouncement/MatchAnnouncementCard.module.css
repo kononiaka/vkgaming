@@ -314,8 +314,9 @@
 
 .timeBadge {
     min-width: 110px;
-
-    font-size: 1.05rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
+    white-space: normal;
 }
 
 .timeBadgeLive {
@@ -372,18 +373,23 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: center;
+    gap: 0.45rem;
     min-width: 0;
+    width: min(100%, 10.5rem);
+    padding: 0.55rem 0.45rem 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(8, 12, 20, 0.28), rgba(8, 12, 20, 0.08));
+    backdrop-filter: blur(2px);
 }
 
 .playerColLeft {
     justify-self: start;
-    align-items: flex-start;
 }
 
 .playerColRight {
     justify-self: end;
-    align-items: flex-end;
 }
 
 .portraitSlot {
@@ -400,9 +406,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.2rem;
+    justify-content: flex-start;
+    gap: 0.28rem;
     min-height: 2.6rem;
-    max-width: 118px;
+    max-width: 100%;
     width: 100%;
 }
 
@@ -411,22 +418,6 @@
     width: 22px;
     height: 16px;
     flex-shrink: 0;
-}
-
-.playerColLeft .playerMeta {
-    align-items: flex-start;
-}
-
-.playerColRight .playerMeta {
-    align-items: flex-end;
-}
-
-.playerColLeft .playerNameUnder {
-    text-align: left;
-}
-
-.playerColRight .playerNameUnder {
-    text-align: right;
 }
 
 .matchRow {
@@ -479,7 +470,10 @@
 .playerFlag {
     display: flex;
     justify-content: center;
+    align-items: center;
     line-height: 1;
+    min-height: 16px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 
 .playerFlag .icon,
@@ -516,7 +510,8 @@
 }
 
 .playerNameUnder {
-    font-size: 0.72rem;
+    width: 100%;
+    font-size: 0.74rem;
 
     font-weight: 700;
 
@@ -526,11 +521,15 @@
 
     color: #f8f4ea;
 
-    white-space: nowrap;
+    text-align: center;
+
+    white-space: normal;
 
     overflow: hidden;
 
     text-overflow: ellipsis;
+
+    line-height: 1.25;
 }
 
 .plain .playerNameUnder {
@@ -545,19 +544,21 @@
 
 .compact .dateBadge {
     min-width: 0;
-    max-width: calc(100% - 1.5rem);
-    padding: 0.45rem 0.75rem;
-    font-size: 0.68rem;
+    max-width: 100%;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.62rem;
     line-height: 1.25;
+    white-space: normal;
 }
 
 .compact .matchArena {
-    grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(108px, 118px) minmax(0, 1fr);
     gap: 0.4rem;
 }
 
 .compact .centerStack {
-    width: 96px;
+    width: 100%;
+    max-width: 118px;
 }
 
 .compact .matchRow {
@@ -896,9 +897,12 @@
     }
 
     .centerStackMobile .timeBadge {
-        min-width: 88px;
-        padding: 0.42rem 0.75rem;
-        font-size: 0.95rem;
+        min-width: 0;
+        max-width: 100%;
+        padding: 0.4rem 0.55rem;
+        font-size: 0.62rem;
+        line-height: 1.25;
+        white-space: normal;
     }
 
     .centerStackMobile .caption {

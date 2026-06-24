@@ -110,6 +110,9 @@ REACT_APP_TWITCH_REDIRECT_URI=https://konoplay.com/auth/twitch/callback
   firebase functions:config:set telegram.site_url="https://konoplay.com"
   ```
   Redeploy functions if changed.
+- [ ] Optional Telegram image setup:
+  - Static announcement image: set `telegram.announcement_image_url` to a public HTTPS image URL.
+  - Future dynamic generated cards are documented in `TELEGRAM_DYNAMIC_IMAGES_TODO.md`.
 
 ### Phase 4 — Deploy scripts
 

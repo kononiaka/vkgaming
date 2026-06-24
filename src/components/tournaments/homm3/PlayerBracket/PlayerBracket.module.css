@@ -1,17 +1,29 @@
 .player_bracket {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    display: flex;
     align-items: center;
-    gap: 0.5rem 0.75rem;
+    gap: 0.65rem;
     width: 100%;
     min-width: 0;
-    padding: 0.65rem 0.75rem;
+    padding: 0.45rem 0.55rem;
     border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.06);
     transition:
         background 0.15s ease,
         border-color 0.15s ease;
+}
+
+.desktopLayout {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 0.65rem;
+    min-width: 0;
+    position: relative;
+}
+
+.mobileLayout {
+    display: none;
 }
 
 .player_bracket:hover {
@@ -79,6 +91,22 @@
     width: 100%;
     max-width: 118px;
     text-align: center;
+    min-height: 2.6rem;
+}
+
+.playerFlagMeta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.playerFlagSpacer {
+    display: block;
+    width: 22px;
+    height: 14px;
+    flex-shrink: 0;
 }
 
 .portraitSlot {
@@ -201,9 +229,66 @@ a.playerNameUnder:hover {
     line-height: 1;
 }
 
-.playerAvatar,
+.playerStarsBracket {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 5.5rem;
+    margin-left: 0.2rem;
+}
+
+.playerStars {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    line-height: 1;
+    min-width: 4.5rem;
+}
+
+.playerAvatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 .playerAvatarFallback {
-    display: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.1);
+    border: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.playerName {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--color-text);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a.playerName:hover {
+    color: var(--color-gold-bright);
 }
 
 .playerNameHint {
@@ -418,17 +503,207 @@ a.playerNameUnder:hover {
     letter-spacing: 0.04em;
 }
 
-@media (max-width: 900px) {
+.castleThumbWrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.castleThumb {
+    width: 48px;
+    height: 48px;
+    border: 2px solid rgba(62, 32, 192, 0.3);
+    border-radius: 4px;
+    box-shadow: none;
+    cursor: pointer;
+    display: block;
+    object-fit: cover;
+}
+
+.castleThumb.castle-selected {
+    border-width: 3px;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.castleColorBadge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #ffd700;
+}
+
+.castleGoldBadge {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1px 4px;
+    border-radius: 8px;
+    border: 1px solid #ffd700;
+    font-size: 9px;
+    font-weight: bold;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.castleGoldBadgePositive {
+    background: linear-gradient(135deg, #00aa00, #00ff00);
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.8);
+}
+
+.castleGoldBadgeNegative {
+    background: linear-gradient(135deg, #aa0000, #ff0000);
+    box-shadow: 0 0 6px rgba(255, 0, 0, 0.8);
+}
+
+.streakTooltip {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    background: #fff;
+    border: 1px solid #3e20c0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    z-index: 20;
+    color: #222;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 120px;
+}
+
+.streakTooltipList {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    gap: 6px;
+}
+
+.streakDot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+}
+
+@media (max-width: 768px) {
     .player_bracket {
+        display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
+        gap: 0.35rem 0.4rem;
+        padding: 0.45rem 0.5rem;
     }
 
-    .playerTopRow {
-        gap: 0.5rem;
+    .desktopLayout {
+        display: none;
+    }
+
+    .mobileLayout {
+        display: contents;
+    }
+
+    .statusLabel {
+        grid-column: 1;
+        align-self: center;
+    }
+
+    .playerIdentity {
+        grid-column: 2;
+        min-width: 0;
+    }
+
+    .playerOutcome,
+    .mobileLayout > .scoreBox {
+        grid-column: 3;
+    }
+
+    .playerPortraitCol {
+        align-items: center;
+        width: 100%;
+    }
+
+    .portraitSlot {
+        width: 42px;
+        height: 52px;
+    }
+
+    .portraitImage,
+    .portraitFallback {
+        width: 42px;
+        height: 42px;
+        border-radius: 6px;
+        border-width: 1px;
+    }
+
+    .starsOnPortrait {
+        bottom: -1px;
+    }
+
+    .starsOnPortrait img {
+        height: 14px !important;
     }
 
     .playerMeta {
-        max-width: 140px;
+        max-width: 130px;
+        min-height: 2rem;
+        gap: 0.1rem;
+    }
+
+    .playerFlagSpacer {
+        width: 18px;
+        height: 12px;
+    }
+
+    .playerNameUnder {
+        font-size: 0.6rem;
+        line-height: 1.15;
+        max-width: 130px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: normal;
+    }
+
+    .playerOutcome {
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.25rem;
+        min-width: 56px;
+        margin-left: 0;
+    }
+
+    .playerCastles {
+        gap: 0.2rem;
+    }
+
+    .castleThumb {
+        width: 28px;
+        height: 28px;
+        border-width: 1px;
+        border-radius: 3px;
+    }
+
+    .castleColorBadge {
+        width: 10px;
+        height: 10px;
+        top: -2px;
+        right: -2px;
+        border-width: 1px;
+    }
+
+    .castleGoldBadge {
+        display: none;
+    }
+
+    .scoreBox {
+        width: 1.85rem;
+        padding: 0.22rem 0.15rem;
+        font-size: 0.78rem;
     }
 }

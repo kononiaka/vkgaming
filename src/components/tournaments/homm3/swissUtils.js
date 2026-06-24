@@ -66,19 +66,26 @@ const calcWinPoints = (pair, winnerTeam) => {
     return 2;
 };
 
+export const isPlaceholderPlayer = (name) => !name || name === 'TBD' || name === 'BYE';
+
+const normalizeSwissPlayers = (playerList = []) =>
+    playerList
+        .map((player) => (typeof player === 'string' ? { name: player } : player))
+        .filter((player) => player && !isPlaceholderPlayer(String(player.name || '').trim()));
+
 export const computeScheduleStandings = (pairs, registeredPlayers = []) => {
     const map = {};
     registeredPlayers.forEach((name) => {
-        if (name) {
+        if (!isPlaceholderPlayer(name)) {
             map[name] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
         }
     });
 
     pairs.forEach((pair) => {
-        if (pair.team1 && pair.team1 !== 'TBD' && pair.team1 !== 'BYE' && !map[pair.team1]) {
+        if (!isPlaceholderPlayer(pair.team1) && !map[pair.team1]) {
             map[pair.team1] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
         }
-        if (pair.team2 && pair.team2 !== 'TBD' && pair.team2 !== 'BYE' && !map[pair.team2]) {
+        if (!isPlaceholderPlayer(pair.team2) && !map[pair.team2]) {
             map[pair.team2] = { played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
         }
 
@@ -86,7 +93,7 @@ export const computeScheduleStandings = (pairs, registeredPlayers = []) => {
             return;
         }
 
-        if (pair.isBye) {
+        if (pair.isBye || pair.team2 === 'BYE') {
             map[pair.team1].played++;
             map[pair.team1].wins++;
             map[pair.team1].points += 3;
@@ -117,6 +124,7 @@ export const computeScheduleStandings = (pairs, registeredPlayers = []) => {
     });
 
     return Object.entries(map)
+        .filter(([name]) => !isPlaceholderPlayer(name))
         .map(([name, stats]) => ({ name, ...stats }))
         .sort((a, b) => b.points - a.points || b.wins - a.wins || a.name.localeCompare(b.name));
 };
@@ -182,6 +190,89 @@ export const createByePair = (player, round, gameType, stage) => ({
     score2: 0
 });
 
+export const repairSwissByePairs = (pairs = [], playerList = [], gameType = 'bo-1') => {
+    const swissPlayers = normalizeSwissPlayers(playerList);
+    const realPlayerCount = swissPlayers.length;
+    if (realPlayerCount === 0) {
+        return { pairs, repaired: false };
+    }
+
+    const playerByName = new Map(swissPlayers.map((player) => [String(player.name).trim(), player]));
+    const allowedByesPerRound = realPlayerCount % 2 === 0 ? 0 : 1;
+    const byesByRound = new Map();
+
+    pairs.forEach((pair, index) => {
+        if (!pair || (!pair.isBye && pair.team2 !== 'BYE')) {
+            return;
+        }
+        const round = Number(pair.round) || 1;
+        const roundByes = byesByRound.get(round) || [];
+        roundByes.push({ pair, index });
+        byesByRound.set(round, roundByes);
+    });
+
+    const repairIndexes = new Set();
+    const replacementsByFirstIndex = new Map();
+
+    byesByRound.forEach((roundByes, round) => {
+        if (roundByes.length <= allowedByesPerRound) {
+            return;
+        }
+
+        const byesToRepair = roundByes.slice(0, roundByes.length - allowedByesPerRound);
+        const replacements = [];
+
+        for (let i = 0; i + 1 < byesToRepair.length; i += 2) {
+            const firstBye = byesToRepair[i].pair;
+            const secondBye = byesToRepair[i + 1].pair;
+            const firstPlayer = playerByName.get(firstBye.team1) || {
+                name: firstBye.team1,
+                ratings: firstBye.ratings1,
+                stars: firstBye.stars1
+            };
+            const secondPlayer = playerByName.get(secondBye.team1) || {
+                name: secondBye.team1,
+                ratings: secondBye.ratings1,
+                stars: secondBye.stars1
+            };
+
+            replacements.push(
+                createScheduleMatchPair(
+                    firstPlayer,
+                    secondPlayer,
+                    round,
+                    normalizeGameType(firstBye.type || secondBye.type || gameType),
+                    firstBye.stage || secondBye.stage || 'Swiss'
+                )
+            );
+        }
+
+        if (replacements.length === 0) {
+            return;
+        }
+
+        byesToRepair.slice(0, replacements.length * 2).forEach(({ index }) => repairIndexes.add(index));
+        replacementsByFirstIndex.set(byesToRepair[0].index, replacements);
+    });
+
+    if (repairIndexes.size === 0) {
+        return { pairs, repaired: false };
+    }
+
+    const repairedPairs = [];
+    pairs.forEach((pair, index) => {
+        const replacements = replacementsByFirstIndex.get(index);
+        if (replacements) {
+            repairedPairs.push(...replacements);
+        }
+        if (!repairIndexes.has(index)) {
+            repairedPairs.push(pair);
+        }
+    });
+
+    return { pairs: repairedPairs, repaired: true };
+};
+
 const shuffleList = (items) => {
     const list = [...items];
     for (let i = list.length - 1; i > 0; i--) {
@@ -192,7 +283,7 @@ const shuffleList = (items) => {
 };
 
 export const generateSwissRound1Pairings = (playerList, gameType) => {
-    const shuffled = shuffleList(playerList);
+    const shuffled = shuffleList(normalizeSwissPlayers(playerList));
     const pairs = [];
 
     for (let i = 0; i < shuffled.length; i += 2) {
@@ -207,59 +298,77 @@ export const generateSwissRound1Pairings = (playerList, gameType) => {
 };
 
 export const generateNextSwissRoundPairings = (playerList, existingPairs, nextRound, gameType) => {
-    const playerNames = playerList.map((player) => player.name);
+    const swissPlayers = normalizeSwissPlayers(playerList);
+    const playerNames = swissPlayers.map((player) => player.name.trim());
     const standings = computeScheduleStandings(existingPairs, playerNames);
-    const ordered = standings.map((entry) => entry.name);
-    playerNames.forEach((name) => {
-        if (!ordered.includes(name)) {
-            ordered.push(name);
+
+    const scoreGroups = [];
+    standings.forEach((entry) => {
+        const lastGroup = scoreGroups[scoreGroups.length - 1];
+        if (lastGroup && lastGroup.score === entry.points) {
+            lastGroup.players.push(entry.name);
+        } else {
+            scoreGroups.push({ score: entry.points, players: [entry.name] });
         }
     });
 
-    const paired = new Set();
+    playerNames.forEach((name) => {
+        if (!standings.some((entry) => entry.name === name)) {
+            const lastGroup = scoreGroups[scoreGroups.length - 1];
+            if (lastGroup && lastGroup.score === 0) {
+                lastGroup.players.push(name);
+            } else {
+                scoreGroups.push({ score: 0, players: [name] });
+            }
+        }
+    });
+
     const newPairs = [];
+    const playerByName = new Map(swissPlayers.map((player) => [player.name.trim(), player]));
+    const hasReceivedBye = (name) =>
+        existingPairs.some((pair) => pair.isBye && (pair.team1 === name || pair.team2 === name));
+    let floatedPlayers = [];
 
-    const findOpponent = (player, startIndex, allowRematch = false) => {
-        for (let j = startIndex; j < ordered.length; j++) {
-            const candidate = ordered[j];
-            if (paired.has(candidate) || candidate === player) {
-                continue;
+    scoreGroups.forEach(({ players }, groupIndex) => {
+        const remaining = [...floatedPlayers, ...players];
+        floatedPlayers = [];
+        const isLastGroup = groupIndex === scoreGroups.length - 1;
+
+        if (remaining.length % 2 !== 0) {
+            if (isLastGroup) {
+                let byeIndex = -1;
+                for (let i = remaining.length - 1; i >= 0; i--) {
+                    if (!hasReceivedBye(remaining[i])) {
+                        byeIndex = i;
+                        break;
+                    }
+                }
+                const [byeName] = remaining.splice(byeIndex >= 0 ? byeIndex : remaining.length - 1, 1);
+                const byePlayer = playerByName.get(byeName);
+                if (byePlayer) {
+                    newPairs.push(createByePair(byePlayer, nextRound, gameType, 'Swiss'));
+                }
+            } else {
+                floatedPlayers = [remaining.pop()];
             }
-            if (!allowRematch && hasPlayedBefore(existingPairs, player, candidate)) {
-                continue;
+        }
+
+        while (remaining.length >= 2) {
+            const playerName = remaining.shift();
+            let opponentIndex = remaining.findIndex(
+                (candidate) => !hasPlayedBefore(existingPairs, playerName, candidate)
+            );
+            if (opponentIndex === -1) {
+                opponentIndex = 0;
             }
-            return candidate;
+            const opponentName = remaining.splice(opponentIndex, 1)[0];
+            const player = playerByName.get(playerName);
+            const opponent = playerByName.get(opponentName);
+            if (player && opponent) {
+                newPairs.push(createScheduleMatchPair(player, opponent, nextRound, gameType, 'Swiss'));
+            }
         }
-        return null;
-    };
-
-    for (let i = 0; i < ordered.length; i++) {
-        const playerName = ordered[i];
-        if (paired.has(playerName)) {
-            continue;
-        }
-
-        let opponentName = findOpponent(playerName, i + 1, false);
-        if (!opponentName) {
-            opponentName = findOpponent(playerName, i + 1, true);
-        }
-
-        const player = playerList.find((entry) => entry.name === playerName);
-        if (!player) {
-            continue;
-        }
-
-        if (opponentName) {
-            const opponent = playerList.find((entry) => entry.name === opponentName);
-            newPairs.push(createScheduleMatchPair(player, opponent, nextRound, gameType, 'Swiss'));
-            paired.add(playerName);
-            paired.add(opponentName);
-            continue;
-        }
-
-        newPairs.push(createByePair(player, nextRound, gameType, 'Swiss'));
-        paired.add(playerName);
-    }
+    });
 
     return newPairs;
 };
