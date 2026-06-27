@@ -16,6 +16,10 @@ const rules = [
         body: 'BO-3 cups: first to 2 map wins. Castles and colors recorded on the site must match what was played.'
     },
     {
+        title: 'League standings',
+        body: 'League and Champions League tables are sorted by points first. If players are tied on points, their direct head-to-head result decides who is higher; if that is still tied, wins and then player name are used.'
+    },
+    {
         title: 'Scheduling',
         body: 'Players arrange match times via Discord or Telegram. Post agreed times in the cup thread when possible.'
     },

@@ -276,6 +276,19 @@
     display: none;
 }
 
+.bracketFieldKickoff {
+    grid-column: 2;
+}
+
+.bracketHintSlot {
+    min-height: 2.75rem;
+    margin: 0;
+}
+
+.bracketHintHidden {
+    visibility: hidden;
+}
+
 @media (max-width: 640px) {
     .header {
         padding: 1.1rem 1.15rem 0.9rem;
@@ -287,6 +300,10 @@
 
     .grid {
         grid-template-columns: 1fr;
+    }
+
+    .bracketFieldKickoff {
+        grid-column: 1;
     }
 
     .actions {

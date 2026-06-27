@@ -39,6 +39,14 @@ const NOTIFY_STATUSES = new Set([
 
 const DEDUPE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
+function channelAnnouncementOptions(options = {}) {
+    const { announcementImageUrl } = getTelegramConfig();
+    return {
+        ...options,
+        ...(announcementImageUrl ? { photoUrl: announcementImageUrl } : {})
+    };
+}
+
 async function getTournamentSummary(tournamentId) {
     const snap = await db.ref(`tournaments/heroes3/${tournamentId}`).once('value');
     const data = snap.val() || {};
@@ -207,7 +215,7 @@ exports.notifyTelegramTournamentStatus = functions.database
             return null;
         }
 
-        await sendOnce(`status-${tournamentId}-${after}`, text, { parseMode: 'HTML' });
+        await sendOnce(`status-${tournamentId}-${after}`, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
         return null;
     });
 
@@ -235,7 +243,7 @@ exports.notifyTelegramMatchSchedule = functions.database
         if (useDigestOnlyMode()) {
             await markEveningDigestNeeded(after);
         } else {
-            await sendOnce(dedupeKey, text, { parseMode: 'HTML' });
+            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
         }
 
         await notifyLinkedUsersForPair({
@@ -283,7 +291,7 @@ exports.notifyTelegramMatchLive = functions.database
         const dedupeKey = `live-${tournamentId}-${stageIdx}-${pairIdx}-${gameIdx}`;
 
         if (!useDigestOnlyMode()) {
-            await sendOnce(dedupeKey, text, { parseMode: 'HTML' });
+            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
         }
 
         await notifyLinkedUsersForPair({
@@ -330,7 +338,7 @@ exports.notifyTelegramMatchResult = functions.database
         const dedupeKey = `result-${tournamentId}-${stageIdx}-${pairIdx}-${after}`;
 
         if (!useDigestOnlyMode()) {
-            await sendOnce(dedupeKey, text, { parseMode: 'HTML' });
+            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
         }
 
         await notifyLinkedUsersForPair({

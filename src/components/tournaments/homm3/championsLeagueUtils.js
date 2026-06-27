@@ -244,7 +244,7 @@ const calcWinPoints = (pair, winnerTeam) => {
     return 2;
 };
 
-export const computeGroupStandings = (pairs, groupLabel, groupPlayers = [], scoringMode = 'restart') => {
+export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
     const groupPairs = pairs.filter((pair) => pair.group === groupLabel);
     const map = {};
 
@@ -292,7 +292,7 @@ export const computeGroupStandings = (pairs, groupLabel, groupPlayers = [], scor
 
     return Object.entries(map)
         .map(([name, stats]) => ({ name, ...stats }))
-        .sort((a, b) => b.points - a.points || b.wins - a.wins || a.name.localeCompare(b.name));
+        .sort(compareStandingsWithHeadToHead(groupPairs));
 };
 
 export const isChampionsLeagueGroupStageComplete = (pairs) => pairs.length > 0 && pairs.every((pair) => pair.winner);
@@ -464,6 +464,14 @@ const normalizeGroupGameType = (rawGameType) => {
     }
     if (raw === '2' || raw === 'bo-2') {
         return 'bo-2';
+    }
+    return 'bo-1';
+};
+
+export const normalizeChampionsLeagueKnockoutGameType = (rawGameType, fallback = 'bo-1') => {
+    const raw = rawGameType || fallback || 'bo-1';
+    if (raw === '3' || raw === 'bo-3') {
+        return 'bo-3';
     }
     return 'bo-1';
 };

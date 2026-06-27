@@ -203,256 +203,6 @@ export const createByePair = (player, round, gameType, stage) => ({
     score2: 0
 });
 
-const createEmptyGames = (gameType) =>
-    Array.from({ length: getGamesPerMatch(gameType) }, (_, idx) => ({
-        castle1: '',
-        castle2: '',
-        castleWinner: '',
-        gameId: idx,
-        gameStatus: 'Not Started',
-        gameWinner: '',
-        color1: 'red',
-        color2: 'blue',
-        gold1: 0,
-        gold2: 0,
-        restart1_111: 0,
-        restart1_112: 0,
-        restart2_111: 0,
-        restart2_112: 0
-    }));
-
-const createEmptyKnockoutPair = (stage, gameType) => ({
-    gameStatus: 'Not Started',
-    games: createEmptyGames(gameType),
-    ratings1: null,
-    ratings2: null,
-    score1: 0,
-    score2: 0,
-    stage,
-    stars1: null,
-    stars2: null,
-    team1: 'TBD',
-    team2: 'TBD',
-    type: gameType,
-    winner: null,
-    color1: 'red',
-    color2: 'blue'
-});
-
-export const computeCsSwissStandings = (
-    pairs,
-    playerList = [],
-    winTarget = CS_SWISS_WIN_TARGET,
-    lossLimit = CS_SWISS_LOSS_LIMIT
-) => {
-    const players = normalizeSwissPlayers(playerList);
-    const map = {};
-    players.forEach((player) => {
-        const name = String(player.name).trim();
-        map[name] = { name, played: 0, wins: 0, losses: 0, draws: 0, record: '0-0', swissStatus: 'active' };
-    });
-
-    pairs.forEach((pair) => {
-        if (!pair?.winner || pair.winner === 'TBD') {
-            return;
-        }
-
-        const team1 = pair.team1;
-        const team2 = pair.team2;
-        if (!isPlaceholderPlayer(team1) && !map[team1]) {
-            map[team1] = { name: team1, played: 0, wins: 0, losses: 0, draws: 0 };
-        }
-        if (!isPlaceholderPlayer(team2) && !map[team2]) {
-            map[team2] = { name: team2, played: 0, wins: 0, losses: 0, draws: 0 };
-        }
-
-        if (pair.isBye || team2 === 'BYE') {
-            map[team1].played++;
-            map[team1].wins++;
-            return;
-        }
-
-        if (pair.winner === 'draw') {
-            map[team1].played++;
-            map[team2].played++;
-            map[team1].draws++;
-            map[team2].draws++;
-            return;
-        }
-
-        const loser = pair.winner === team1 ? team2 : team1;
-        map[pair.winner].played++;
-        map[pair.winner].wins++;
-        map[loser].played++;
-        map[loser].losses++;
-    });
-
-    return Object.values(map)
-        .filter((entry) => !isPlaceholderPlayer(entry.name))
-        .map((entry) => {
-            const record = `${entry.wins || 0}-${entry.losses || 0}`;
-            const swissStatus =
-                (entry.wins || 0) >= winTarget
-                    ? 'qualified'
-                    : (entry.losses || 0) >= lossLimit
-                      ? 'eliminated'
-                      : 'active';
-            return {
-                ...entry,
-                record,
-                swissStatus,
-                qualificationRecord: swissStatus === 'qualified' ? record : null
-            };
-        })
-        .sort((a, b) => b.wins - a.wins || a.losses - b.losses || a.name.localeCompare(b.name));
-};
-
-export const isCsSwissComplete = (
-    pairs,
-    playerList,
-    winTarget = CS_SWISS_WIN_TARGET,
-    lossLimit = CS_SWISS_LOSS_LIMIT
-) => computeCsSwissStandings(pairs, playerList, winTarget, lossLimit).every((entry) => entry.swissStatus !== 'active');
-
-export const generateNextCsSwissRoundPairings = (
-    playerList,
-    existingPairs,
-    nextRound,
-    gameType,
-    winTarget = CS_SWISS_WIN_TARGET,
-    lossLimit = CS_SWISS_LOSS_LIMIT
-) => {
-    const players = normalizeSwissPlayers(playerList);
-    const playerByName = new Map(players.map((player) => [String(player.name).trim(), player]));
-    const active = computeCsSwissStandings(existingPairs, players, winTarget, lossLimit).filter(
-        (entry) => entry.swissStatus === 'active'
-    );
-    const buckets = new Map();
-    active.forEach((entry) => {
-        const bucket = buckets.get(entry.record) || [];
-        bucket.push(entry.name);
-        buckets.set(entry.record, bucket);
-    });
-
-    const ordered = [...buckets.entries()]
-        .sort(([recordA], [recordB]) => {
-            const [winsA, lossesA] = recordA.split('-').map(Number);
-            const [winsB, lossesB] = recordB.split('-').map(Number);
-            return winsB - winsA || lossesA - lossesB;
-        })
-        .flatMap(([, names]) => names);
-
-    const pairs = [];
-    const paired = new Set();
-    const findOpponent = (playerName, startIndex, allowRematch = false) => {
-        for (let index = startIndex; index < ordered.length; index++) {
-            const candidate = ordered[index];
-            if (paired.has(candidate) || candidate === playerName) {
-                continue;
-            }
-            if (!allowRematch && hasPlayedBefore(existingPairs, playerName, candidate)) {
-                continue;
-            }
-            return candidate;
-        }
-        return null;
-    };
-
-    ordered.forEach((playerName, index) => {
-        if (paired.has(playerName)) {
-            return;
-        }
-
-        const player = playerByName.get(playerName);
-        if (!player) {
-            return;
-        }
-
-        const opponentName = findOpponent(playerName, index + 1, false) || findOpponent(playerName, index + 1, true);
-        if (!opponentName) {
-            pairs.push(createByePair(player, nextRound, gameType, 'CS Swiss'));
-            paired.add(playerName);
-            return;
-        }
-
-        const opponent = playerByName.get(opponentName);
-        pairs.push(createScheduleMatchPair(player, opponent, nextRound, gameType, 'CS Swiss'));
-        paired.add(playerName);
-        paired.add(opponentName);
-    });
-
-    return pairs;
-};
-
-export const generateCsSwissPlayoffStages = (
-    swissPairs,
-    playerList,
-    gameType = 'bo-1',
-    winTarget = CS_SWISS_WIN_TARGET,
-    lossLimit = CS_SWISS_LOSS_LIMIT
-) => {
-    const players = normalizeSwissPlayers(playerList);
-    const playerByName = new Map(players.map((player) => [String(player.name).trim(), player]));
-    const qualified = computeCsSwissStandings(swissPairs, players, winTarget, lossLimit).filter(
-        (entry) => entry.swissStatus === 'qualified'
-    );
-    const directSemi = qualified.filter((entry) => entry.record === `${winTarget}-0`);
-
-    const qualifiers = [
-        ...directSemi,
-        ...qualified
-            .filter((entry) => entry.record !== `${winTarget}-0`)
-            .sort((a, b) => b.wins - a.wins || a.losses - b.losses || a.name.localeCompare(b.name))
-    ];
-
-    if (!isCsSwissSize(players.length) || qualifiers.length !== players.length / 2) {
-        return {
-            valid: false,
-            message: `CS Swiss playoffs support ${CS_SWISS_SIZES.join(' or ')} players with half the field qualified.`
-        };
-    }
-
-    const getPlayer = (entry) => playerByName.get(entry.name) || { name: entry.name, ratings: '0', stars: 0 };
-    const seeds = qualifiers;
-
-    if (players.length === 8) {
-        return {
-            valid: true,
-            stages: [
-                [
-                    createScheduleMatchPair(getPlayer(seeds[0]), getPlayer(seeds[3]), 1, gameType, 'Semi-final'),
-                    createScheduleMatchPair(getPlayer(seeds[1]), getPlayer(seeds[2]), 1, gameType, 'Semi-final')
-                ],
-                [createEmptyKnockoutPair('Third Place', gameType)],
-                [createEmptyKnockoutPair('Final', gameType)]
-            ],
-            stageLabels: ['Semi-final', 'Third Place', 'Final']
-        };
-    }
-
-    const quarterFinals = [
-        createScheduleMatchPair(getPlayer(seeds[0]), getPlayer(seeds[7]), 1, gameType, 'Quarter-final'),
-        createScheduleMatchPair(getPlayer(seeds[3]), getPlayer(seeds[4]), 1, gameType, 'Quarter-final'),
-        createScheduleMatchPair(getPlayer(seeds[1]), getPlayer(seeds[6]), 1, gameType, 'Quarter-final'),
-        createScheduleMatchPair(getPlayer(seeds[2]), getPlayer(seeds[5]), 1, gameType, 'Quarter-final')
-    ];
-    const semiFinals = [
-        createEmptyKnockoutPair('Semi-final', gameType),
-        createEmptyKnockoutPair('Semi-final', gameType)
-    ];
-
-    return {
-        valid: true,
-        stages: [
-            quarterFinals,
-            semiFinals,
-            [createEmptyKnockoutPair('Third Place', gameType)],
-            [createEmptyKnockoutPair('Final', gameType)]
-        ],
-        stageLabels: ['Quarter-final', 'Semi-final', 'Third Place', 'Final']
-    };
-};
-
 const shuffleList = (items) => {
     const list = [...items];
     for (let i = list.length - 1; i > 0; i--) {
@@ -478,17 +228,30 @@ export const generateSwissRound1Pairings = (playerList, gameType) => {
 };
 
 export const generateNextSwissRoundPairings = (playerList, existingPairs, nextRound, gameType) => {
-    const swissPlayers = normalizeSwissPlayers(playerList);
-    const playerNames = swissPlayers.map((player) => String(player.name).trim());
+    const playerNames = playerList.map((player) => player.name);
     const standings = computeScheduleStandings(existingPairs, playerNames);
-    const ordered = standings.map((entry) => entry.name);
-    playerNames.forEach((name) => {
-        if (!ordered.includes(name)) {
-            ordered.push(name);
+
+    const scoreGroups = [];
+    standings.forEach((entry) => {
+        const lastGroup = scoreGroups[scoreGroups.length - 1];
+        if (lastGroup && lastGroup.score === entry.points) {
+            lastGroup.players.push(entry.name);
+        } else {
+            scoreGroups.push({ score: entry.points, players: [entry.name] });
         }
     });
 
-    const paired = new Set();
+    playerNames.forEach((name) => {
+        if (!standings.some((entry) => entry.name === name)) {
+            const lastGroup = scoreGroups[scoreGroups.length - 1];
+            if (lastGroup && lastGroup.score === 0) {
+                lastGroup.players.push(name);
+            } else {
+                scoreGroups.push({ score: 0, players: [name] });
+            }
+        }
+    });
+
     const newPairs = [];
 
     const findOpponent = (player, startIndex, allowRematch = false) => {
@@ -516,13 +279,13 @@ export const generateNextSwissRoundPairings = (playerList, existingPairs, nextRo
             opponentName = findOpponent(playerName, i + 1, true);
         }
 
-        const player = swissPlayers.find((entry) => entry.name === playerName);
+        const player = playerList.find((entry) => entry.name === playerName);
         if (!player) {
             continue;
         }
 
         if (opponentName) {
-            const opponent = swissPlayers.find((entry) => entry.name === opponentName);
+            const opponent = playerList.find((entry) => entry.name === opponentName);
             newPairs.push(createScheduleMatchPair(player, opponent, nextRound, gameType, 'Swiss'));
             paired.add(playerName);
             paired.add(opponentName);

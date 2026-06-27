@@ -9,7 +9,8 @@ function getTelegramConfig() {
         botToken: cfg.bot_token || '',
         channelId: cfg.channel_id || '',
         siteUrl: (cfg.site_url || 'https://kononiaka.github.io').replace(/\/$/, ''),
-        botUsername: cfg.bot_username || TELEGRAM_BOT_USERNAME
+        botUsername: cfg.bot_username || TELEGRAM_BOT_USERNAME,
+        announcementImageUrl: cfg.announcement_image_url || ''
     };
 }
 
@@ -50,12 +51,50 @@ async function postTelegramMessage(body) {
     return { ok: true, messageId: data.result?.message_id };
 }
 
+async function postTelegramPhoto(body) {
+    const { botToken } = getTelegramConfig();
+
+    if (!botToken) {
+        console.warn('Telegram bot token missing — skip photo notification');
+        return { ok: false, skipped: true };
+    }
+
+    const response = await fetch(`${TELEGRAM_API}/bot${botToken}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+        console.error('Telegram sendPhoto failed:', JSON.stringify(data));
+        return { ok: false, error: data };
+    }
+
+    return { ok: true, messageId: data.result?.message_id };
+}
+
 async function sendTelegramMessage(text, options = {}) {
     const { channelId } = getTelegramConfig();
 
     if (!channelId) {
         console.warn('Telegram channel not configured — skip notification');
         return { ok: false, skipped: true };
+    }
+
+    const photoUrl = options.photoUrl || '';
+    if (photoUrl && String(text || '').length <= 1024) {
+        const photoBody = {
+            chat_id: channelId,
+            photo: photoUrl,
+            caption: text
+        };
+
+        if (options.parseMode) {
+            photoBody.parse_mode = options.parseMode;
+        }
+
+        return postTelegramPhoto(photoBody);
     }
 
     const body = {
@@ -74,6 +113,21 @@ async function sendTelegramMessage(text, options = {}) {
 async function sendTelegramDirectMessage(chatId, text, options = {}) {
     if (!chatId) {
         return { ok: false, skipped: true };
+    }
+
+    const photoUrl = options.photoUrl || '';
+    if (photoUrl && String(text || '').length <= 1024) {
+        const photoBody = {
+            chat_id: chatId,
+            photo: photoUrl,
+            caption: text
+        };
+
+        if (options.parseMode) {
+            photoBody.parse_mode = options.parseMode;
+        }
+
+        return postTelegramPhoto(photoBody);
     }
 
     const body = {

@@ -80,9 +80,10 @@ describe('tournamentBracketNavigation', () => {
             getTournamentMatchLink({
                 tournamentId: 'cup-1',
                 stageIndex: 0,
-                pairIndex: 2
+                pairIndex: 2,
+                round: 5
             })
-        ).toBe('/tournaments/homm3/cup-1?status=started&stage=0&pair=2&focus=1');
+        ).toBe('/tournaments/homm3/cup-1?status=started&stage=0&pair=2&round=5&focus=1');
     });
 
     test('calculateAvailableCastlesFromBracket ignores test-only bracket games', () => {

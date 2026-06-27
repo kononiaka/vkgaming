@@ -18,7 +18,7 @@ import MatchAnnouncementCard from '../MatchAnnouncement/MatchAnnouncementCard';
 import PrizePoolPanel from '../PrizePoolPanel/PrizePoolPanel';
 import { buildCountryLookup, lookupCountryCode } from '../../utils/country';
 import { isPublicTournament } from '../../utils/tournamentVisibility';
-import { buildMatchStageLabel } from '../../utils/matchFixtureLabels';
+import { buildMatchStageLabel, resolveLeagueRound } from '../../utils/matchFixtureLabels';
 import { getMatchCenterLink } from '../../utils/matchCenterRoute';
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
 import { getHeadToHeadPrediction } from '../../utils/matchPredictions';
@@ -30,6 +30,7 @@ const MATCH_CENTER_PREVIEW_LIMIT = 5;
 const StartingPageContent = () => {
     const [liveGames, setLiveGames] = useState([]);
     const [upcomingMatches, setUpcomingMatches] = useState([]);
+    const [activeCups, setActiveCups] = useState([]);
 
     const parseNumericValue = (value) => {
         if (typeof value === 'string' && value.includes(',')) {
@@ -101,9 +102,20 @@ const StartingPageContent = () => {
                 if (response.ok && data) {
                     const liveGamesList = [];
                     const upcomingList = [];
+                    const activeCupsList = [];
+                    const activeCupIds = new Set();
                     Object.keys(data).forEach((tournamentId) => {
                         const tournament = data[tournamentId];
                         const tournamentPlayers = Object.values(tournament?.players || {}).filter(Boolean);
+                        if (tournament && isPublicTournament(tournament) && tournament.status === 'Started!') {
+                            if (!activeCupIds.has(tournamentId)) {
+                                activeCupIds.add(tournamentId);
+                                activeCupsList.push({
+                                    id: tournamentId,
+                                    name: tournament.name || 'Tournament'
+                                });
+                            }
+                        }
                         if (
                             tournament &&
                             isPublicTournament(tournament) &&
@@ -148,6 +160,7 @@ const StartingPageContent = () => {
 
                                         const pairIsLive = isPairLive(pair);
                                         const activeGame = (pair.games || []).find(isGameSessionActive) || null;
+                                        const round = resolveLeagueRound(tournament, pair);
 
                                         if (pairIsLive && !seriesDone && team1Ready && team2Ready) {
                                             const game = activeGame;
@@ -176,6 +189,7 @@ const StartingPageContent = () => {
                                                 type: pair.type,
                                                 stageIndex,
                                                 pairIndex,
+                                                round,
                                                 castle1: game?.castle1 || null,
                                                 castle2: game?.castle2 || null,
                                                 color1: game?.color1 || pair.color1 || 'red',
@@ -240,6 +254,7 @@ const StartingPageContent = () => {
                                                 type: pair.type,
                                                 stageIndex,
                                                 pairIndex,
+                                                round,
                                                 team1Place:
                                                     rankByNickname[pair.team1] ||
                                                     team1Player?.placeInLeaderboard ||
@@ -260,6 +275,8 @@ const StartingPageContent = () => {
                             });
                         }
                     });
+                    activeCupsList.sort((a, b) => a.name.localeCompare(b.name));
+                    setActiveCups(activeCupsList);
                     setLiveGames(liveGamesList);
                     setUpcomingMatches(upcomingList);
                 }
@@ -331,7 +348,8 @@ const StartingPageContent = () => {
                         </div>
 
                         {previewLive.length > 0 ? (
-                            <>
+                            <div className={classes.matchFeedBlock}>
+                                <h3 className={classes.matchCenterLabel}>Live now</h3>
                                 <div className={classes.announcementList}>
                                     {previewLive.map((match, index) =>
                                         renderAnnouncementCard(
@@ -345,7 +363,7 @@ const StartingPageContent = () => {
                                         +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
                                     </Link>
                                 )}
-                            </>
+                            </div>
                         ) : (
                             <div className={classes.emptyLive}>
                                 <p className={classes.emptyLiveTitle}>No live games in progress</p>
@@ -355,37 +373,57 @@ const StartingPageContent = () => {
                             </div>
                         )}
 
-                        <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
-                        {upcomingMatches.length > 0 ? (
-                            remainingUpcoming.length > 0 ? (
-                                <>
-                                    <div className={classes.announcementList}>
-                                        {remainingUpcoming.map((match, index) =>
-                                            renderAnnouncementCard(
-                                                { ...match, variant: 'upcoming' },
-                                                `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
-                                            )
+                        <div className={classes.matchFeedBlock}>
+                            <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
+                            {upcomingMatches.length > 0 ? (
+                                remainingUpcoming.length > 0 ? (
+                                    <>
+                                        <div className={classes.announcementList}>
+                                            {remainingUpcoming.map((match, index) =>
+                                                renderAnnouncementCard(
+                                                    { ...match, variant: 'upcoming' },
+                                                    `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                                )
+                                            )}
+                                        </div>
+                                        {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                            <Link to="/live" className={classes.viewMoreLink}>
+                                                +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming —
+                                                Open Live Arena
+                                            </Link>
                                         )}
-                                    </div>
-                                    {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                        <Link to="/live" className={classes.viewMoreLink}>
-                                            +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming — Open
-                                            Live Arena
-                                        </Link>
-                                    )}
-                                </>
-                            ) : null
-                        ) : (
-                            <div className={classes.emptyUpcoming}>
-                                <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
-                                <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
-                            </div>
-                        )}
+                                    </>
+                                ) : null
+                            ) : (
+                                <div className={classes.emptyUpcoming}>
+                                    <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
+                                    <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <aside className={classes.homeSidebar} aria-label="Tournament prize pools">
+                <aside className={classes.homeSidebar} aria-label="Tournament support and prize pools">
                     <PrizePoolPanel compact />
+                    {activeCups.length > 0 ? (
+                        <nav className={classes.activeCupsPanel} aria-label="Active tournaments">
+                            <h3 className={classes.activeCupsTitle}>Active cups</h3>
+                            <ul className={classes.activeCupsList}>
+                                {activeCups.map((cup) => (
+                                    <li key={cup.id}>
+                                        <Link
+                                            to={`/tournaments/homm3/${cup.id}?status=started`}
+                                            className={classes.activeCupLink}
+                                        >
+                                            <span className={classes.activeCupName}>{cup.name}</span>
+                                            <span className={classes.activeCupBadge}>In progress</span>
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </nav>
+                    ) : null}
                 </aside>
             </div>
         </section>

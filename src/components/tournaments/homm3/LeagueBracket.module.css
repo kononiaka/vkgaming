@@ -196,6 +196,42 @@
     background: var(--color-bg-elevated);
 }
 
+.matchBye {
+    border-style: dashed;
+    opacity: 0.92;
+}
+
+.byeCenter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 6.5rem;
+    text-align: center;
+}
+
+.byeLabel {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.byeHint {
+    font-size: 0.68rem;
+    color: var(--color-text-dim);
+}
+
+.byeOpponentPlaceholder {
+    justify-self: end;
+    font-size: 0.72rem;
+    color: var(--color-text-dim);
+    font-style: italic;
+    text-align: right;
+    padding-right: 0.25rem;
+}
+
 .matchFinished {
     border-left: 2px solid var(--color-gold-dim);
 }
@@ -681,6 +717,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a.standingsPlayerName:hover {
+    color: var(--color-gold-bright);
 }
 
 .standingsPlayerStars {
@@ -704,7 +747,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.formCell {
+.formRow {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -722,19 +765,28 @@
     font-size: 0.58rem;
     font-weight: 700;
     line-height: 1;
-    cursor: pointer;
 }
 
-.formWin {
+.formBadgeWin {
     color: #9eddb3;
     background: rgba(76, 175, 106, 0.16);
     border: 1px solid rgba(76, 175, 106, 0.45);
 }
 
-.formLoss {
+.formBadgeDraw {
+    color: var(--color-gold-dim);
+    background: rgba(201, 162, 39, 0.13);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+}
+
+.formBadgeLoss {
     color: #e09a9a;
     background: rgba(168, 92, 92, 0.16);
     border: 1px solid rgba(168, 92, 92, 0.45);
+}
+
+.formEmpty {
+    color: var(--color-text-dim);
 }
 
 .leader td {
@@ -770,19 +822,6 @@
 
 .qualifierRow .pointsCell {
     color: #9eddb3 !important;
-}
-
-.eliminatedRow td {
-    background: rgba(168, 92, 92, 0.06) !important;
-    color: var(--color-text-dim);
-}
-
-.eliminatedRow .standingsPlayerName {
-    color: var(--color-text-muted);
-}
-
-.eliminatedRow td:first-child {
-    color: #c97a7a;
 }
 
 .qualifierBadge {

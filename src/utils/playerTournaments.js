@@ -4,6 +4,9 @@ import { findRegisteredPlayerKey } from '../api/tournamentRegistration';
 import { formatTournamentTypeLabel } from './matchFixtureLabels';
 import { isPublicTournament } from './tournamentVisibility';
 import { isRegistrationOpen } from './tournamentAttendance';
+import { formatMatchSchedule } from '../components/tournaments/homm3/matchScheduleUtils';
+
+const showsPlannedTournamentStart = (status) => status !== 'Started!' && !String(status || '').includes('Finished');
 
 const formatOrdinal = (place) => {
     const value = Number(place);
@@ -179,7 +182,7 @@ export const collectPlayerTournaments = (tournamentsData, player, { includePriva
             status,
             statusLabel: formatTournamentStatusLabel(status),
             typeLabel: formatTournamentTypeLabel(tournament.type),
-            date: tournament.date || null,
+            date: tournament.date && showsPlannedTournamentStart(status) ? formatMatchSchedule(tournament.date) : null,
             prizePoolLabel: getTournamentPrizeLabel(tournament),
             link: getTournamentProfileLink(tournamentId, status),
             resultLabel,

@@ -14,18 +14,24 @@
 
 .homeLayout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-    gap: clamp(1.25rem, 2.5vw, 2rem);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    gap: clamp(1.25rem, 2vw, 1.75rem);
     align-items: start;
-    max-width: 1320px;
+    max-width: 1360px;
     margin: 0 auto;
 }
 
 .homeMain {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 .homeSidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     position: sticky;
     top: calc(var(--layout-top-offset) + 0.75rem);
     min-width: 0;
@@ -84,7 +90,7 @@
 }
 
 .matchCenterLabel {
-    margin: 1.25rem 0 0.75rem;
+    margin: 0;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -94,9 +100,22 @@
 
 .matchCenterLinks {
     display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem 1rem;
+}
+
+.matchFeedBlock {
+    display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 0.35rem;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.matchFeedBlock:last-child {
+    margin-bottom: 0;
 }
 
 .viewAllLink,
@@ -120,9 +139,77 @@
 
 .announcementList,
 .upcomingList {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
-    gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    width: 100%;
+}
+
+.activeCupsPanel {
+    background: var(--color-bg-panel-alt);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem 1.05rem;
+}
+
+.activeCupsTitle {
+    margin: 0 0 0.75rem;
+    font-family: var(--font-nav);
+    font-size: 0.78rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold-dim);
+}
+
+.activeCupsList {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.activeCupLink {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: var(--border-subtle);
+    background: rgba(0, 0, 0, 0.28);
+    text-decoration: none;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.activeCupLink:hover {
+    border-color: rgba(201, 162, 39, 0.35);
+    background: rgba(201, 162, 39, 0.06);
+}
+
+.activeCupName {
+    min-width: 0;
+    font-family: var(--font-display);
+    font-size: 0.58rem;
+    line-height: 1.4;
+    color: var(--color-text);
+}
+
+.activeCupBadge {
+    flex-shrink: 0;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    background: rgba(201, 162, 39, 0.08);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-gold);
 }
 
 .upcomingGameCard {
@@ -679,6 +766,11 @@
 
     .homeSidebar {
         position: static;
+        order: 2;
+    }
+
+    .homeMain {
+        order: 1;
     }
 }
 
@@ -687,9 +779,10 @@
         padding: 1rem;
     }
 
-    .announcementList,
-    .upcomingList {
-        grid-template-columns: 1fr;
+    .matchCenterLinks {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
     }
 
     .sectionHeader {

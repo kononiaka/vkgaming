@@ -9,6 +9,7 @@ import { fetchLastGamesForPlayer, getAvatar, lookForUserId, fetchLeaderboard } f
 import CountryFlag from '../../../Country/CountryFlag';
 import { resolveCountryCode } from '../../../../utils/country';
 import classes from './PlayerBracket.module.css';
+import { getGamesPerMatch, normalizeGameType } from '../swissUtils';
 
 // Import local castle images
 import castleImg from '../../../../image/castles/castle.jpeg';
@@ -57,27 +58,28 @@ export const PlayerBracket = (props) => {
             ? Number(typeof score1 === 'string' && score1.includes(',') ? score1.split(',').at(-1) : score1) || null
             : Number(typeof score2 === 'string' && score2.includes(',') ? score2.split(',').at(-1) : score2) || null;
     let playerCastle = team === 'team1' ? castle1 : castle2;
+    const bestOf = getGamesPerMatch(normalizeGameType(pair.type));
     let numberOfGames = Array.isArray(pair.games) ? [...pair.games] : pair.games ? [pair.games] : [];
+    numberOfGames = numberOfGames.slice(0, bestOf);
 
-    if (`${pair.score1} - ${pair.score2}` === '1 - 1') {
-        if (numberOfGames.length === 2) {
-            let extraGame = {
-                gameId: 2,
-                castle1: '',
-                castle2: '',
-                castleWinner: null,
-                gameWinner: null,
-                color1: 'red',
-                color2: 'blue',
-                gold1: 0,
-                gold2: 0,
-                restart1_111: 0,
-                restart1_112: 0,
-                restart2_111: 0,
-                restart2_112: 0
-            };
-            numberOfGames.push(extraGame);
-        }
+    const score1Num = Number(pair.score1) || 0;
+    const score2Num = Number(pair.score2) || 0;
+    if (bestOf === 3 && score1Num === 1 && score2Num === 1 && numberOfGames.length === 2) {
+        numberOfGames.push({
+            gameId: 2,
+            castle1: '',
+            castle2: '',
+            castleWinner: null,
+            gameWinner: null,
+            color1: 'red',
+            color2: 'blue',
+            gold1: 0,
+            gold2: 0,
+            restart1_111: 0,
+            restart1_112: 0,
+            restart2_111: 0,
+            restart2_112: 0
+        });
     }
 
     const [showTooltip, setShowTooltip] = useState(false);
@@ -350,6 +352,50 @@ export const PlayerBracket = (props) => {
         );
     };
 
+    const renderDesktopStars = () => {
+        if (isSourcePairHint || !playerStars || playerStars === 'TBD') {
+            return null;
+        }
+
+        return (
+            <span className={classes.playerStarsBracket}>
+                <span className={classes.playerStars}>
+                    <div className={classes.stars_wrapper}>
+                        <StarsComponent stars={playerStars} />
+                        <div className={classes.stars_details}>Ratings: {renderRatingTooltip()}</div>
+                    </div>
+                </span>
+            </span>
+        );
+    };
+
+    const renderDesktopPlayerName = () => {
+        const nameContent = isSourcePairHint ? (
+            <span>
+                {sourceIsLoser ? 'L' : 'W'}: {sourcePair.team1} / {sourcePair.team2}
+            </span>
+        ) : (
+            <>
+                <span className={classes.leaderboardPlace}>#{leaderboardPosition || '…'}</span>
+                <span>{teamPlayer}</span>
+            </>
+        );
+
+        if (userId && teamPlayer !== 'TBD' && !isSourcePairHint) {
+            return (
+                <NavLink to={`/players/${userId}`} className={classes.playerName}>
+                    {nameContent}
+                </NavLink>
+            );
+        }
+
+        return (
+            <span className={`${classes.playerName} ${isSourcePairHint ? classes.playerNameHint : ''}`}>
+                {nameContent}
+            </span>
+        );
+    };
+
     const renderPortraitStars = () => {
         if (isSourcePairHint || !playerStars || playerStars === 'TBD') {
             return null;
@@ -386,13 +432,6 @@ export const PlayerBracket = (props) => {
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 onClick={handleStreakClick}
-                onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        handleStreakClick(event);
-                    }
-                }}
-                role="button"
-                tabIndex={0}
             >
                 {portrait}
                 {renderPortraitStars()}
@@ -559,37 +598,23 @@ export const PlayerBracket = (props) => {
                     }
 
                     return (
-                        <div key={game.gameId} className="castle-image-display" style={{ position: 'relative' }}>
+                        <div key={game.gameId} className={classes.castleThumbWrap}>
                             {castleImageUrl && (
                                 <>
                                     <img
                                         src={castleImageUrl}
                                         alt={castleName}
                                         title={castleName}
-                                        className={checked ? classes['castle-selected'] : ''}
-                                        style={{
-                                            width: '48px',
-                                            height: '48px',
-                                            border: checked ? '3px solid #FFD700' : '2px solid rgba(62, 32, 192, 0.3)',
-                                            borderRadius: '4px',
-                                            boxShadow: checked ? '0 0 10px rgba(255, 215, 0, 0.6)' : 'none',
-                                            cursor: 'pointer'
-                                        }}
+                                        className={`${classes.castleThumb} ${checked ? classes['castle-selected'] : ''}`}
                                     />
                                     {gameColor && (
                                         <div
+                                            className={classes.castleColorBadge}
                                             style={{
-                                                position: 'absolute',
-                                                top: '-4px',
-                                                right: '-4px',
-                                                width: '16px',
-                                                height: '16px',
-                                                borderRadius: '50%',
                                                 background:
                                                     gameColor === 'red'
                                                         ? 'linear-gradient(135deg, #8B0000, #FF0000)'
                                                         : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                border: '2px solid #FFD700',
                                                 boxShadow:
                                                     gameColor === 'red'
                                                         ? '0 0 6px rgba(255, 0, 0, 0.8)'
@@ -600,27 +625,7 @@ export const PlayerBracket = (props) => {
                                     )}
                                     {gameGold !== 0 && gameGold !== undefined && (
                                         <div
-                                            style={{
-                                                position: 'absolute',
-                                                bottom: '-4px',
-                                                left: '50%',
-                                                transform: 'translateX(-50%)',
-                                                padding: '1px 4px',
-                                                borderRadius: '8px',
-                                                background:
-                                                    gameGold > 0
-                                                        ? 'linear-gradient(135deg, #00AA00, #00FF00)'
-                                                        : 'linear-gradient(135deg, #AA0000, #FF0000)',
-                                                border: '1px solid #FFD700',
-                                                fontSize: '9px',
-                                                fontWeight: 'bold',
-                                                color: '#FFF',
-                                                boxShadow:
-                                                    gameGold > 0
-                                                        ? '0 0 6px rgba(0, 255, 0, 0.8)'
-                                                        : '0 0 6px rgba(255, 0, 0, 0.8)',
-                                                whiteSpace: 'nowrap'
-                                            }}
+                                            className={`${classes.castleGoldBadge} ${gameGold > 0 ? classes.castleGoldBadgePositive : classes.castleGoldBadgeNegative}`}
                                             title={`Gold: ${gameGold > 0 ? '+' : ''}${gameGold}`}
                                         >
                                             {gameGold > 0 ? '+' : ''}
@@ -642,9 +647,9 @@ export const PlayerBracket = (props) => {
             <label
                 htmlFor={`score-${team}-${pairIndex}`}
                 className={classes.statusLabel}
-                onMouseEnter={!isSourcePairHint && teamPlayer !== 'TBD' ? undefined : handleMouseEnter}
-                onMouseLeave={!isSourcePairHint && teamPlayer !== 'TBD' ? undefined : handleMouseLeave}
-                onClick={!isSourcePairHint && teamPlayer !== 'TBD' ? undefined : handleStreakClick}
+                onMouseEnter={teamPlayer !== 'TBD' ? handleMouseEnter : undefined}
+                onMouseLeave={teamPlayer !== 'TBD' ? handleMouseLeave : undefined}
+                onClick={teamPlayer !== 'TBD' ? handleStreakClick : undefined}
             >
                 <span className={statusClass} aria-hidden="true" />
             </label>
@@ -652,88 +657,112 @@ export const PlayerBracket = (props) => {
             <div className={classes.playerIdentity}>
                 {!isSourcePairHint ? (
                     <div className={classes.playerTopRow}>
-                        <span className={classes.playerFlagInline} aria-hidden={!displayCountryCode}>
-                            {displayCountryCode ? <CountryFlag code={displayCountryCode} size={18} /> : null}
-                        </span>
+                        {displayCountryCode ? (
+                            <span className={classes.playerFlagInline}>
+                                <CountryFlag code={displayCountryCode} size={18} />
+                            </span>
+                        ) : null}
                         <div className={classes.playerPortraitCol}>
                             <div className={classes.portraitSlot}>{renderPlayerPortrait()}</div>
-                            <div className={classes.playerMeta}>{renderPlayerName()}</div>
+                            <div className={classes.playerMeta}>
+                                {displayCountryCode ? (
+                                    <span className={classes.playerFlagMeta}>
+                                        <CountryFlag code={displayCountryCode} size={16} />
+                                    </span>
+                                ) : (
+                                    <span className={classes.playerFlagSpacer} aria-hidden="true" />
+                                )}
+                                {renderPlayerName()}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={classes.playerMeta}>{renderPlayerName()}</div>
+                    )}
+
+                    {showTooltip && teamPlayer !== 'TBD' && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                left: 40, // adjust as needed to position right of the name/circle
+                                top: -30,
+                                background: '#fff',
+                                border: '1px solid #3e20c0',
+                                borderRadius: 6,
+                                padding: '8px 12px',
+                                zIndex: 9999,
+                                color: '#222',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                minWidth: 120
+                            }}
+                            onMouseLeave={handleMouseLeave}
+                        >
+                            <b>Last 5 games:</b>
+                            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', gap: 6 }}>
+                                {streak.length === 0 && <li>No games found</li>}
+                                {streak.map((g, i) => (
+                                    <li key={i} title={g.opponent} style={{ position: 'relative' }}>
+                                        <span
+                                            style={{
+                                                display: 'inline-block',
+                                                width: 14,
+                                                height: 14,
+                                                borderRadius: '50%',
+                                                background: g.result === 'Win' ? '#4caf50' : '#f44336',
+                                                marginRight: 4,
+                                                verticalAlign: 'middle',
+                                                cursor: 'pointer'
+                                            }}
+                                            onMouseEnter={() => {
+                                                const tooltip = document.getElementById(`opponent-tooltip-${i}`);
+                                                if (tooltip) {
+                                                    tooltip.style.display = 'block';
+                                                }
+                                            }}
+                                            onMouseLeave={() => {
+                                                const tooltip = document.getElementById(`opponent-tooltip-${i}`);
+                                                if (tooltip) {
+                                                    tooltip.style.display = 'none';
+                                                }
+                                            }}
+                                        ></span>
+                                        {/* Hidden opponent name, shown on hover */}
+                                        <span
+                                            id={`opponent-tooltip-${i}`}
+                                            style={{
+                                                display: 'none',
+                                                position: 'absolute',
+                                                top: '-28px',
+                                                left: '50%',
+                                                transform: 'translateX(-50%)',
+                                                background: '#222',
+                                                color: '#fff',
+                                                padding: '2px 8px',
+                                                borderRadius: 4,
+                                                fontSize: '0.95em',
+                                                whiteSpace: 'nowrap',
+                                                zIndex: 10000,
+                                                pointerEvents: 'none'
+                                            }}
+                                        >
+                                            {g.opponent}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+
+                {!isSourcePairHint ? (
+                    <div className={classes.playerOutcome}>
+                        {renderCastleStrip()}
+                        <div id={`score-${team}-${pairIndex}-mobile`} className={classes.scoreBox}>
+                            {playerScore || 0}
                         </div>
                     </div>
                 ) : (
-                    <div className={classes.playerMeta}>{renderPlayerName()}</div>
-                )}
-
-                {showTooltip && teamPlayer !== 'TBD' && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            left: 40, // adjust as needed to position right of the name/circle
-                            top: -30,
-                            background: '#fff',
-                            border: '1px solid #3e20c0',
-                            borderRadius: 6,
-                            padding: '8px 12px',
-                            zIndex: 9999,
-                            color: '#222',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                            minWidth: 120
-                        }}
-                        onMouseLeave={handleMouseLeave}
-                    >
-                        <b>Last 5 games:</b>
-                        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', gap: 6 }}>
-                            {streak.length === 0 && <li>No games found</li>}
-                            {streak.map((g, i) => (
-                                <li key={i} title={g.opponent} style={{ position: 'relative' }}>
-                                    <span
-                                        style={{
-                                            display: 'inline-block',
-                                            width: 14,
-                                            height: 14,
-                                            borderRadius: '50%',
-                                            background: g.result === 'Win' ? '#4caf50' : '#f44336',
-                                            marginRight: 4,
-                                            verticalAlign: 'middle',
-                                            cursor: 'pointer'
-                                        }}
-                                        onMouseEnter={() => {
-                                            const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                            if (tooltip) {
-                                                tooltip.style.display = 'block';
-                                            }
-                                        }}
-                                        onMouseLeave={() => {
-                                            const tooltip = document.getElementById(`opponent-tooltip-${i}`);
-                                            if (tooltip) {
-                                                tooltip.style.display = 'none';
-                                            }
-                                        }}
-                                    ></span>
-                                    {/* Hidden opponent name, shown on hover */}
-                                    <span
-                                        id={`opponent-tooltip-${i}`}
-                                        style={{
-                                            display: 'none',
-                                            position: 'absolute',
-                                            top: '-28px',
-                                            left: '50%',
-                                            transform: 'translateX(-50%)',
-                                            background: '#222',
-                                            color: '#fff',
-                                            padding: '2px 8px',
-                                            borderRadius: 4,
-                                            fontSize: '0.95em',
-                                            whiteSpace: 'nowrap',
-                                            zIndex: 10000,
-                                            pointerEvents: 'none'
-                                        }}
-                                    >
-                                        {g.opponent}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
+                    <div id={`score-${team}-${pairIndex}-mobile`} className={classes.scoreBox}>
+                        {playerScore || 0}
                     </div>
                 )}
             </div>
@@ -1084,19 +1113,6 @@ export const PlayerBracket = (props) => {
                     </>,
                     document.body
                 )}
-
-            {!isSourcePairHint ? (
-                <div className={classes.playerOutcome}>
-                    {renderCastleStrip()}
-                    <div id={`score-${team}-${pairIndex}`} className={classes.scoreBox}>
-                        {playerScore || 0}
-                    </div>
-                </div>
-            ) : (
-                <div id={`score-${team}-${pairIndex}`} className={classes.scoreBox}>
-                    {playerScore || 0}
-                </div>
-            )}
         </div>
     );
 };

@@ -8,10 +8,10 @@ import AuthContext from '../../../store/auth-context';
 import { useAddTournament } from '../../../store/add-tournament-context';
 import { deleteTournament, getTournamentData } from '../../tournaments/tournament_api';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
+import StarsComponent from '../../Stars/Stars';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 import TournamentPlayerChip from './TournamentPlayerChip';
-import StarsComponent from '../../Stars/Stars';
 import {
     canDeleteTournament,
     canInviteTournamentPlayers,
@@ -73,7 +73,7 @@ import {
     prepareChampionsLeagueGroupStage
 } from './championsLeagueUtils';
 
-const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['draft']);
+const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished', 'draft']);
 
 const getTournamentPlayersObject = (tournament) => {
     const players = tournament?.players;
@@ -84,20 +84,6 @@ const countRegisteredPlayers = (tournament) =>
     Object.values(getTournamentPlayersObject(tournament)).filter(
         (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
     ).length;
-
-const getAverageTournamentStars = (tournament) => {
-    const players = Object.values(getTournamentPlayersObject(tournament)).filter(
-        (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
-    );
-    if (players.length === 0) {
-        return null;
-    }
-
-    const total = players.reduce((sum, player) => sum + (Number(player.stars) || 0), 0);
-    return total / players.length;
-};
-
-const roundToHalfStar = (stars) => Math.round(Number(stars) * 2) / 2;
 
 const getTournamentViewLabel = (type) => {
     if (type === 'league') {
@@ -121,6 +107,25 @@ const isScheduleTournamentType = (type) =>
 const usesSpinningWheel = (tournament) =>
     Boolean(tournament?.randomBracket && (tournament.type === 'kick-off' || tournament.type === 'champions-league'));
 
+const getTournamentStatusClass = (status) => {
+    if (!status) {
+        return '';
+    }
+    if (status === 'Draft' || status === 'Pending funding') {
+        return 'draft';
+    }
+    if (status === 'Registration' || status.includes('Registration')) {
+        return 'registration';
+    }
+    if (status === 'Started!') {
+        return 'started';
+    }
+    if (status.includes('Finished')) {
+        return 'finished';
+    }
+    return '';
+};
+
 const TournamentList = () => {
     const { tournamentId } = useParams();
     const navigate = useNavigate();
@@ -133,6 +138,7 @@ const TournamentList = () => {
     const [showDetails, setShowDetails] = useState(false);
     // const [selectedTournament, setSelectedTournament] = useState(null);
     const [showPlayers, setShowPlayers] = useState(false); // State to toggle visibility
+    const [sortBy, setSortBy] = useState('date');
     const [statusFilter, setStatusFilter] = useState(() => {
         // Pre-initialise from URL so the fetch-based default respects it
         const params = new URLSearchParams(window.location.search);
@@ -1435,11 +1441,14 @@ const TournamentList = () => {
                 headers: { 'Content-Type': 'application/json' }
             });
 
-            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissRoundDeadlines/1.json`, {
-                method: 'PUT',
-                body: JSON.stringify(createSwissRoundDeadline()),
-                headers: { 'Content-Type': 'application/json' }
-            });
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissRoundDeadlines/1.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(createSwissRoundDeadline()),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
 
             if (isCsSwiss) {
                 await Promise.all([
@@ -2069,7 +2078,9 @@ const TournamentList = () => {
     });
 
     const hasTournamentsForFilter = (filter) =>
-        tournaments.some((tournament) => isVisibleTournamentForUser(tournament) && matchesStatusFilter(tournament, filter));
+        tournaments.some(
+            (tournament) => isVisibleTournamentForUser(tournament) && matchesStatusFilter(tournament, filter)
+        );
 
     const emptyStateCopy = {
         registration: {
@@ -2093,31 +2104,10 @@ const TournamentList = () => {
             ? tournaments.find((tournament) => tournament.id === tournamentId) || null
             : null;
     const isFullPageView = Boolean(activeTournament);
-    const activeEmptyState = filteredTournaments.length === 0 ? emptyStateCopy[statusFilter] : null;
 
     const tournamentList =
         tournaments.length > 0 ? (
             <ul className={classes.tournamentList}>
-                {activeEmptyState && (
-                    <li className={classes.noTournaments}>
-                        <p className={classes.emptyStateTitle}>{activeEmptyState.title}</p>
-                        <p className={classes.emptyStateText}>{activeEmptyState.text}</p>
-                        {emptyStateActions.length > 0 && (
-                            <div className={classes.emptyStateActions}>
-                                {emptyStateActions.map((action) => (
-                                    <button
-                                        key={action.filter}
-                                        type="button"
-                                        className={`${classes.btn} ${classes.btnPrimary}`}
-                                        onClick={() => setStatusFilter(action.filter)}
-                                    >
-                                        {action.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </li>
-                )}
                 {filteredTournaments
                     .sort((a, b) => {
                         const statusOrder = {
@@ -2135,21 +2125,7 @@ const TournamentList = () => {
                     .map((tournament) => {
                         maxTournamnetPlayers = tournament.maxPlayers;
 
-                        const getStatusClass = (status) => {
-                            if (status === 'Draft' || status === 'Pending funding') {
-                                return 'draft';
-                            }
-                            if (status === 'Registration' || status.includes('Registration')) {
-                                return 'registration';
-                            }
-                            if (status === 'Started!') {
-                                return 'started';
-                            }
-                            if (status.includes('Finished')) {
-                                return 'finished';
-                            }
-                            return '';
-                        };
+                        const getStatusClass = getTournamentStatusClass;
 
                         const getPlaceLabel = (place) => {
                             if (place === '1st' || place === '1') {
@@ -2165,8 +2141,6 @@ const TournamentList = () => {
                         };
 
                         const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
-                        const averageStars = getAverageTournamentStars(tournament);
-                        const roundedAverageStars = averageStars !== null ? roundToHalfStar(averageStars) : null;
                         const firebaseUid = getFirebaseUid();
                         const commentatorRequest = getCommentatorRequestForUser(tournament, firebaseUid);
                         const approvedCommentator = getApprovedCommentator(tournament, firebaseUid);
@@ -2187,29 +2161,16 @@ const TournamentList = () => {
                         return (
                             <li key={tournament.id} className={classes.bracket}>
                                 <h3 className={classes.tournamentTitle}>
-                                    <span className={classes.tournamentTitleMain}>
-                                        {`${tournament.name} (${tournament.date})`}
-                                        {isAdmin && !isPublicTournament(tournament) ? (
-                                            <span className={classes.privateTag}>Private</span>
-                                        ) : null}
-                                        {tournament.loserBracket ? (
-                                            <span className={classes.privateTag}>Double elim</span>
-                                        ) : null}
-                                        {tournament.type === 'champions-league' ? (
-                                            <span className={classes.privateTag}>Champions League</span>
-                                        ) : null}
-                                        {tournament.type === 'cs-swiss' ? (
-                                            <span className={classes.privateTag}>CS Swiss</span>
-                                        ) : null}
-                                    </span>
-                                    {roundedAverageStars !== null && (
-                                        <span
-                                            className={classes.tournamentAverageStars}
-                                            title={`Average player stars: ${averageStars.toFixed(1)}`}
-                                        >
-                                            <StarsComponent stars={roundedAverageStars} />
-                                        </span>
-                                    )}
+                                    {`${tournament.name} (${tournament.date})`}
+                                    {isAdmin && !isPublicTournament(tournament) ? (
+                                        <span className={classes.privateTag}>Private</span>
+                                    ) : null}
+                                    {tournament.loserBracket ? (
+                                        <span className={classes.privateTag}>Double elim</span>
+                                    ) : null}
+                                    {tournament.type === 'champions-league' ? (
+                                        <span className={classes.privateTag}>Champions League</span>
+                                    ) : null}
                                 </h3>
                                 <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
                                     {tournament.status}
@@ -2539,13 +2500,13 @@ const TournamentList = () => {
                                         )}
 
                                     {authCtx.isAdmin &&
-                                        (tournament.type === 'swiss' || tournament.type === 'cs-swiss') &&
+                                        tournament.type === 'swiss' &&
                                         tournament.status === 'Registration finished!' && (
                                             <button
                                                 className={`${classes.btn} ${classes.btnSuccess}`}
                                                 onClick={() => handleStartSwiss(tournament.id)}
                                             >
-                                                {tournament.type === 'cs-swiss' ? 'Start CS Swiss' : 'Start Swiss'}
+                                                Start Swiss
                                             </button>
                                         )}
 
@@ -2569,35 +2530,34 @@ const TournamentList = () => {
                                             </button>
                                         )}
 
-                                    {tournament.status !== 'Pending funding' &&
-                                        (checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
-                                            <div className={classes.registrationActions}>
-                                                <div className={classes.registeredBadge}>You are registered</div>
-                                                {canLeaveTournament(tournament) && (
-                                                    <button
-                                                        type="button"
-                                                        className={`${classes.btn} ${classes.btnDanger}`}
-                                                        disabled={leavingTournamentId === tournament.id}
-                                                        onClick={() => handleLeaveTournament(tournament)}
-                                                    >
-                                                        {leavingTournamentId === tournament.id
-                                                            ? 'Leaving…'
-                                                            : 'Leave tournament'}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            countRegisteredPlayers(tournament) < tournament.maxPlayers &&
-                                            canShowSelfRegister(tournament) && (
+                                    {checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
+                                        <div className={classes.registrationActions}>
+                                            <div className={classes.registeredBadge}>You are registered</div>
+                                            {canLeaveTournament(tournament) && (
                                                 <button
-                                                    className={classes.btn}
-                                                    disabled={attendanceCheckoutTournamentId === tournament.id}
-                                                    onClick={() => handleSelfRegister(tournament)}
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnDanger}`}
+                                                    disabled={leavingTournamentId === tournament.id}
+                                                    onClick={() => handleLeaveTournament(tournament)}
                                                 >
-                                                    {getSelfRegisterLabel(tournament)}
+                                                    {leavingTournamentId === tournament.id
+                                                        ? 'Leaving…'
+                                                        : 'Leave tournament'}
                                                 </button>
-                                            )
-                                        ))}
+                                            )}
+                                        </div>
+                                    ) : (
+                                        countRegisteredPlayers(tournament) < tournament.maxPlayers &&
+                                        canShowSelfRegister(tournament) && (
+                                            <button
+                                                className={classes.btn}
+                                                disabled={attendanceCheckoutTournamentId === tournament.id}
+                                                onClick={() => handleSelfRegister(tournament)}
+                                            >
+                                                {getSelfRegisterLabel(tournament)}
+                                            </button>
+                                        )
+                                    )}
                                 </div>
 
                                 {showDetails &&
@@ -2719,7 +2679,6 @@ const TournamentList = () => {
                                             {isAdmin && (
                                                 <button
                                                     className={`${classes.btn} ${classes.btnDanger}`}
-                                                    disabled={fillingRandomTournamentId === tournament.id}
                                                     onClick={() =>
                                                         fillTournamentWithRandomPlayers(
                                                             tournament.id,
@@ -2728,14 +2687,7 @@ const TournamentList = () => {
                                                         )
                                                     }
                                                 >
-                                                    {fillingRandomTournamentId === tournament.id ? (
-                                                        <span className={classes.loadingInline}>
-                                                            <span className={classes.spinner}></span>
-                                                            Filling...
-                                                        </span>
-                                                    ) : (
-                                                        'Fill with random players'
-                                                    )}
+                                                    Fill with random players
                                                 </button>
                                             )}
                                         </div>
@@ -2820,9 +2772,13 @@ const TournamentList = () => {
                     <button type="button" className={classes.tournamentBackBtn} onClick={closeTournamentView}>
                         ← Back to tournaments
                     </button>
-                    <div className={classes.tournamentFullPageMeta}>
+                    <div className={classes.tournamentBanner}>
                         <h2 className={classes.tournamentFullPageTitle}>{activeTournament.name}</h2>
-                        <p className={classes.tournamentFullPageStatus}>{activeTournament.status}</p>
+                        <span
+                            className={`${classes.statusBadge} ${classes.tournamentBannerStatus} ${classes[getTournamentStatusClass(activeTournament.status)] || ''}`}
+                        >
+                            {activeTournament.status}
+                        </span>
                     </div>
                 </div>
                 <div className={classes.tournamentFullPageBody}>
@@ -2878,6 +2834,16 @@ const TournamentList = () => {
                         <option value="live">Live games</option>
                         <option value="finished">Finished</option>
                         {isAdmin && <option value="draft">Private drafts</option>}
+                    </select>
+                    <select
+                        className={classes.statusFilter}
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        aria-label="Sort tournaments"
+                    >
+                        <option value="date">Sort by date</option>
+                        <option value="stars">Sort by stars</option>
+                        <option value="prizePool">Sort by prize pool</option>
                     </select>
                 </div>
             </div>

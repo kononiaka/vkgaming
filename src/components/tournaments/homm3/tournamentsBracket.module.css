@@ -914,4 +914,30 @@
     .game-block {
         padding: 0.85rem 0.75rem 1rem;
     }
+
+    .knockoutPlayersStack {
+        gap: 0.4rem;
+    }
+
+    .knockoutMatchLayout {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.4rem;
+        align-items: center;
+    }
+
+    .knockoutMatchActions {
+        justify-content: flex-end;
+        width: auto;
+        align-self: center;
+        flex-shrink: 0;
+    }
+
+    .knockoutReportBtn {
+        padding: 0.28rem 0.38rem;
+        font-size: 0.58rem;
+        line-height: 1.2;
+        max-width: 3.4rem;
+        white-space: normal;
+        text-align: center;
+    }
 }
