@@ -1,11 +1,14 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { getAvatar, lookForUserId } from '../../../api/api';
 import CountryFlag from '../../Country/CountryFlag';
+import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../../Stars/Stars';
 import MatchScheduleControl from './MatchScheduleControl';
+import { useHeadToHeadStats } from '../../../hooks/useHeadToHeadStats';
 import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
+import { isGameSessionActive, isPairLive } from '../../../utils/matchCenterData';
 import classes from './LeagueBracket.module.css';
 import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP, compareStandingsWithHeadToHead } from './championsLeagueUtils';
 import castleImg from '../../../image/castles/castle.jpeg';
@@ -176,7 +179,40 @@ const StandingsFormCell = ({ form }) => (
     </div>
 );
 
-const StandingsPlayerCell = ({ name, player, stars, showKnockoutBadge = false }) => {
+const formatMatchTypeLabel = (type) => {
+    const normalized = String(type || 'bo-1')
+        .toUpperCase()
+        .replace('-', '');
+    return normalized.startsWith('BO') ? normalized : `BO${normalized}`;
+};
+
+const formatRoundDeadline = (deadlineIso) => {
+    if (!deadlineIso) {
+        return null;
+    }
+
+    const deadline = new Date(deadlineIso);
+    if (Number.isNaN(deadline.getTime())) {
+        return null;
+    }
+
+    return deadline.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+};
+
+const StandingsPlayerCell = ({
+    name,
+    player,
+    stars,
+    countryCode = null,
+    showKnockoutBadge = false,
+    knockoutBadgeLabel = 'Knock-out'
+}) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [userId, setUserId] = useState(player?.siteUserId || null);
 
@@ -228,6 +264,11 @@ const StandingsPlayerCell = ({ name, player, stars, showKnockoutBadge = false })
 
     return (
         <div className={classes.standingsPlayer}>
+            {countryCode ? (
+                <span className={classes.standingsPlayerFlag}>
+                    <CountryFlag code={countryCode} size={16} />
+                </span>
+            ) : null}
             {avatarUrl ? (
                 <img src={avatarUrl} alt="" className={classes.standingsPlayerAvatar} />
             ) : (
@@ -241,7 +282,7 @@ const StandingsPlayerCell = ({ name, player, stars, showKnockoutBadge = false })
                     <StarsComponent stars={stars} />
                 </span>
             )}
-            {showKnockoutBadge && <span className={classes.qualifierBadge}>Knockout</span>}
+            {showKnockoutBadge && <span className={classes.qualifierBadge}>{knockoutBadgeLabel}</span>}
         </div>
     );
 };
@@ -362,16 +403,29 @@ const LeagueBracket = ({
     groupLabels = [],
     highlightPair = null,
     storageStageIndex = 0,
-    defaultTab = 'standings',
-    isSwissFormat = false
+    scoringMode = 'restart',
+    isSwissFormat = false,
+    isCsSwissFormat = false,
+    swissWinTarget = 3,
+    swissLossLimit = 3,
+    swissRoundDeadlines = {}
 }) => {
-    const [activeTab, setActiveTab] = useState(defaultTab);
+    const [activeTab, setActiveTab] = useState(isSwissFormat ? 'standings' : 'schedule');
     const [activeGroup, setActiveGroup] = useState(groupLabels[0] || '');
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
+    const [userIdByNickname, setUserIdByNickname] = useState({});
     const [countryLookup, setCountryLookup] = useState({});
     const dayNavInitialized = useRef(false);
     const highlightHandledRef = useRef(null);
+    const headToHeadPairs = useMemo(() => [pairs], [pairs]);
+    const {
+        stats,
+        loading: statsLoading,
+        open: statsOpen,
+        showHeadToHeadStats,
+        closeHeadToHeadStats
+    } = useHeadToHeadStats({ playoffPairs: headToHeadPairs });
     const hasGroups = groupLabels.length > 0;
     const scopedPairs = hasGroups ? pairs.filter((pair) => pair.group === activeGroup) : pairs;
     const scopedRegisteredPlayers = (
@@ -405,6 +459,14 @@ const LeagueBracket = ({
                     }
                 });
                 setRankByNickname(map);
+                setUserIdByNickname(
+                    Object.entries(data || {}).reduce((acc, [id, user]) => {
+                        if (user?.enteredNickname) {
+                            acc[user.enteredNickname] = id;
+                        }
+                        return acc;
+                    }, {})
+                );
                 setCountryLookup(buildCountryLookup(data || {}));
             } catch {
                 // silently ignore
@@ -473,7 +535,8 @@ const LeagueBracket = ({
                     map[pair.team2].draws++;
                     map[pair.team2].points += 1;
                 } else {
-                    const pts = pair.type === 'bo-2' ? 2 : calcWinPoints(pair, pair.winner);
+                    const pts =
+                        scoringMode === 'classic' || pair.type === 'bo-2' ? 2 : calcWinPoints(pair, pair.winner);
                     if (pair.winner === pair.team1) {
                         map[pair.team1].wins++;
                         map[pair.team1].points += pts;
@@ -494,8 +557,9 @@ const LeagueBracket = ({
 
     const standings = computeStandings();
     const hasBo2 = scopedPairs.some((p) => p.type === 'bo-2');
-    const showPointsColumn = !isSwissFormat;
-    const standingsColumnCount = 6 + (hasBo2 ? 1 : 0) + (showPointsColumn ? 1 : 0);
+    const showFormColumn = isSwissFormat && !hasGroups;
+    const csSwissKnockoutCutoff = isCsSwissFormat ? Math.floor(uniqueScopedRegisteredPlayers.length / 2) : 0;
+    const standingsColumnCount = hasBo2 ? 7 : 6;
     const finished = scopedPairs.filter((p) => p.winner).length;
     const total = scopedPairs.length;
 
@@ -560,6 +624,13 @@ const LeagueBracket = ({
     const roundGroups = useMemo(() => computeRoundGroups(), [pairs, activeGroup, hasGroups]);
     const activeRound = roundGroups[activeDayIndex] || null;
     const dayCount = roundGroups.length;
+    const activeRoundDeadline = activeRound ? swissRoundDeadlines?.[activeRound.round] : null;
+    const activeRoundDeadlineLabel = formatRoundDeadline(activeRoundDeadline);
+    const activeRoundHasOpenMatches = activeRound?.items.some(({ pair }) => !pair.winner);
+    const isActiveRoundOverdue =
+        Boolean(activeRoundDeadline) &&
+        activeRoundHasOpenMatches &&
+        new Date(activeRoundDeadline).getTime() < Date.now();
 
     useEffect(() => {
         if (dayCount === 0) {
@@ -703,6 +774,16 @@ const LeagueBracket = ({
                                     {' · '}
                                     {activeRound.items.length} {activeRound.items.length === 1 ? 'match' : 'matches'}
                                 </span>
+                                {activeRoundDeadlineLabel && (
+                                    <span
+                                        className={`${classes.roundDeadline} ${
+                                            isActiveRoundOverdue ? classes.roundDeadlineOverdue : ''
+                                        }`}
+                                    >
+                                        Deadline: {activeRoundDeadlineLabel}
+                                        {isActiveRoundOverdue ? ' · overdue' : ''}
+                                    </span>
+                                )}
                             </div>
                             <button
                                 type="button"
@@ -722,9 +803,9 @@ const LeagueBracket = ({
                             const showBtn = !isBye && canViewReportButton ? canViewReportButton(pair) : false;
                             const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
                             const inProgressGames = !isFinished
-                                ? (pair.games || []).filter((g) => g.castle1 && g.castle2 && !g.castleWinner)
+                                ? (pair.games || []).filter((game) => isGameSessionActive(game))
                                 : [];
-                            const isInProgress = inProgressGames.length > 0;
+                            const isInProgress = !isBye && !isFinished && isPairLive(pair);
 
                             const getPlayer = (name) =>
                                 name && name !== 'TBD'
@@ -777,6 +858,23 @@ const LeagueBracket = ({
                                     id={`pair-s${storageStageIndex}-p${idx}`}
                                     className={`${classes.matchRow} ${isBye ? classes.matchBye : ''} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
                                 >
+                                    {!isBye && (
+                                        <span className={classes.matchTopLeftControls}>
+                                            <HeadToHeadStatsButton
+                                                team1={pair.team1}
+                                                team2={pair.team2}
+                                                onShow={showHeadToHeadStats}
+                                                className={classes.headToHeadBtn}
+                                            />
+                                            {isInProgress && (
+                                                <span
+                                                    className={classes.liveDot}
+                                                    title="Match is live"
+                                                    aria-label="Match is live"
+                                                />
+                                            )}
+                                        </span>
+                                    )}
                                     <div className={classes.teamCell}>
                                         <SchedulePlayerCell
                                             name={pair.team1}
@@ -803,10 +901,22 @@ const LeagueBracket = ({
                                         ) : (
                                             <span className={classes.vs}>vs</span>
                                         )}
-                                        {!isFinished && !isBye && (
-                                            <span className={classes.predictionRow}>
-                                                {prediction.team1}% / {prediction.team2}%
+                                        {!isBye && (
+                                            <span className={classes.matchMetaRow}>
+                                                <span className={classes.matchTypeBadge}>
+                                                    {formatMatchTypeLabel(pair.type)}
+                                                </span>
                                             </span>
+                                        )}
+                                        {!isFinished && !isBye && (
+                                            <div
+                                                className={classes.predictionEmbed}
+                                                aria-label={`Win prediction ${prediction.team1}% to ${prediction.team2}%`}
+                                            >
+                                                <span className={classes.predictionPct}>{prediction.team1}%</span>
+                                                <span className={classes.predictionLabel}>win odds</span>
+                                                <span className={classes.predictionPct}>{prediction.team2}%</span>
+                                            </div>
                                         )}
                                         {showBtn && (
                                             <button
@@ -898,15 +1008,27 @@ const LeagueBracket = ({
                                 <th title="Wins">W</th>
                                 {hasBo2 && <th title="Draws">D</th>}
                                 <th title="Losses">L</th>
-                                {showPointsColumn && <th title="Points">Pts</th>}
-                                <th title="Last 5 results">Form</th>
+                                {showFormColumn ? <th title="Recent form">Form</th> : <th title="Points">Pts</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {standings.map((s, i) => {
-                                const isKnockoutQualifier = hasGroups && i < CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP;
+                                const isConfirmedCsSwissQualifier = isCsSwissFormat && s.wins >= swissWinTarget;
+                                const isCsSwissEliminated = isCsSwissFormat && s.losses >= swissLossLimit;
+                                const isProjectedCsSwissQualifier =
+                                    isCsSwissFormat &&
+                                    !isConfirmedCsSwissQualifier &&
+                                    !isCsSwissEliminated &&
+                                    i < csSwissKnockoutCutoff;
+                                const isKnockoutQualifier =
+                                    (hasGroups && i < CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP) ||
+                                    isConfirmedCsSwissQualifier ||
+                                    isProjectedCsSwissQualifier;
+                                const player = getPlayerByName(s.name);
+                                const countryCode = lookupCountryCode(s.name, countryLookup, player);
                                 const rowClass = [
                                     isKnockoutQualifier ? classes.qualifierRow : '',
+                                    isCsSwissEliminated ? classes.eliminatedRow : '',
                                     !hasGroups && i === 0 && s.played > 0 ? classes.leader : ''
                                 ]
                                     .filter(Boolean)
@@ -916,21 +1038,46 @@ const LeagueBracket = ({
                                     <tr key={s.name} className={rowClass || undefined}>
                                         <td>{i + 1}</td>
                                         <td className={classes.playerCell}>
-                                            <StandingsPlayerCell
-                                                name={s.name}
-                                                player={getPlayerByName(s.name)}
-                                                stars={getPlayerStars(s.name)}
-                                                showKnockoutBadge={isKnockoutQualifier}
-                                            />
+                                            {userIdByNickname[s.name] ? (
+                                                <Link
+                                                    to={`/players/${userIdByNickname[s.name]}`}
+                                                    className={classes.standingsPlayerLink}
+                                                >
+                                                    <StandingsPlayerCell
+                                                        name={s.name}
+                                                        player={player}
+                                                        stars={getPlayerStars(s.name)}
+                                                        countryCode={countryCode}
+                                                        showKnockoutBadge={isKnockoutQualifier}
+                                                        knockoutBadgeLabel={
+                                                            isProjectedCsSwissQualifier ? 'Projected' : 'Knock-out'
+                                                        }
+                                                    />
+                                                </Link>
+                                            ) : (
+                                                <StandingsPlayerCell
+                                                    name={s.name}
+                                                    player={player}
+                                                    stars={getPlayerStars(s.name)}
+                                                    countryCode={countryCode}
+                                                    showKnockoutBadge={isKnockoutQualifier}
+                                                    knockoutBadgeLabel={
+                                                        isProjectedCsSwissQualifier ? 'Projected' : 'Knock-out'
+                                                    }
+                                                />
+                                            )}
                                         </td>
                                         <td>{s.played}</td>
                                         <td>{s.wins}</td>
                                         {hasBo2 && <td>{s.draws || 0}</td>}
                                         <td>{s.losses}</td>
-                                        {showPointsColumn && <td>{s.points}</td>}
-                                        <td className={classes.formCell}>
-                                            <StandingsFormCell form={getPlayerFormHistory(scopedPairs, s.name)} />
-                                        </td>
+                                        {showFormColumn ? (
+                                            <td>
+                                                <StandingsFormCell form={getPlayerFormHistory(scopedPairs, s.name)} />
+                                            </td>
+                                        ) : (
+                                            <td className={classes.pointsCell}>{s.points}</td>
+                                        )}
                                     </tr>
                                 );
                             })}
@@ -943,17 +1090,25 @@ const LeagueBracket = ({
                             )}
                         </tbody>
                     </table>
-                    {!isSwissFormat && (
-                        <p className={classes.pointsNote}>
-                            {hasGroups
-                                ? 'Top 2 in each group (green) advance to the knockout stage. Sorted by points, then head-to-head, then wins.'
+                    <p className={classes.pointsNote}>
+                        {hasGroups
+                            ? 'Top 2 in each group (green) advance to the knockout stage.'
+                            : isCsSwissFormat
+                              ? `Green rows are current/projected knock-out places. ${swissWinTarget} wins qualify, ${swissLossLimit} losses eliminate.`
+                              : showFormColumn
+                                ? 'Swiss standings are sorted by match results. Form shows recent results from left to right.'
                                 : hasBo2
-                                  ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts. Sorted by points, then head-to-head, then wins.'
-                                  : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112). Sorted by points, then head-to-head, then wins.'}
-                        </p>
-                    )}
+                                  ? 'BO-2: Win 2pts · Draw(1-1) 1pt each · Loss 0pts'
+                                  : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
+                    </p>
                 </div>
             )}
+            <HeadToHeadStatsPortal
+                stats={stats}
+                loading={statsLoading}
+                open={statsOpen}
+                onClose={closeHeadToHeadStats}
+            />
         </div>
     );
 };

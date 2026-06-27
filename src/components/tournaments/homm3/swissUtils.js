@@ -1,8 +1,21 @@
 export const MIN_SWISS_PLAYERS = 4;
+export const CS_SWISS_SIZES = [8, 16];
+export const MIN_CS_SWISS_PLAYERS = CS_SWISS_SIZES[0];
+export const CS_SWISS_WIN_TARGET = 3;
+export const CS_SWISS_LOSS_LIMIT = 3;
+export const SWISS_ROUND_DEADLINE_DAYS = 3;
+
+export const isCsSwissSize = (playerCount) => CS_SWISS_SIZES.includes(Number(playerCount));
 
 export const calculateSwissTotalRounds = (playerCount) => {
     const count = Math.max(2, Number(playerCount) || 2);
     return Math.ceil(Math.log2(count));
+};
+
+export const createSwissRoundDeadline = (baseDate = new Date()) => {
+    const date = new Date(baseDate);
+    date.setDate(date.getDate() + SWISS_ROUND_DEADLINE_DAYS);
+    return date.toISOString();
 };
 
 export const normalizeGameType = (rawType) => {
@@ -190,89 +203,6 @@ export const createByePair = (player, round, gameType, stage) => ({
     score2: 0
 });
 
-export const repairSwissByePairs = (pairs = [], playerList = [], gameType = 'bo-1') => {
-    const swissPlayers = normalizeSwissPlayers(playerList);
-    const realPlayerCount = swissPlayers.length;
-    if (realPlayerCount === 0) {
-        return { pairs, repaired: false };
-    }
-
-    const playerByName = new Map(swissPlayers.map((player) => [String(player.name).trim(), player]));
-    const allowedByesPerRound = realPlayerCount % 2 === 0 ? 0 : 1;
-    const byesByRound = new Map();
-
-    pairs.forEach((pair, index) => {
-        if (!pair || (!pair.isBye && pair.team2 !== 'BYE')) {
-            return;
-        }
-        const round = Number(pair.round) || 1;
-        const roundByes = byesByRound.get(round) || [];
-        roundByes.push({ pair, index });
-        byesByRound.set(round, roundByes);
-    });
-
-    const repairIndexes = new Set();
-    const replacementsByFirstIndex = new Map();
-
-    byesByRound.forEach((roundByes, round) => {
-        if (roundByes.length <= allowedByesPerRound) {
-            return;
-        }
-
-        const byesToRepair = roundByes.slice(0, roundByes.length - allowedByesPerRound);
-        const replacements = [];
-
-        for (let i = 0; i + 1 < byesToRepair.length; i += 2) {
-            const firstBye = byesToRepair[i].pair;
-            const secondBye = byesToRepair[i + 1].pair;
-            const firstPlayer = playerByName.get(firstBye.team1) || {
-                name: firstBye.team1,
-                ratings: firstBye.ratings1,
-                stars: firstBye.stars1
-            };
-            const secondPlayer = playerByName.get(secondBye.team1) || {
-                name: secondBye.team1,
-                ratings: secondBye.ratings1,
-                stars: secondBye.stars1
-            };
-
-            replacements.push(
-                createScheduleMatchPair(
-                    firstPlayer,
-                    secondPlayer,
-                    round,
-                    normalizeGameType(firstBye.type || secondBye.type || gameType),
-                    firstBye.stage || secondBye.stage || 'Swiss'
-                )
-            );
-        }
-
-        if (replacements.length === 0) {
-            return;
-        }
-
-        byesToRepair.slice(0, replacements.length * 2).forEach(({ index }) => repairIndexes.add(index));
-        replacementsByFirstIndex.set(byesToRepair[0].index, replacements);
-    });
-
-    if (repairIndexes.size === 0) {
-        return { pairs, repaired: false };
-    }
-
-    const repairedPairs = [];
-    pairs.forEach((pair, index) => {
-        const replacements = replacementsByFirstIndex.get(index);
-        if (replacements) {
-            repairedPairs.push(...replacements);
-        }
-        if (!repairIndexes.has(index)) {
-            repairedPairs.push(pair);
-        }
-    });
-
-    return { pairs: repairedPairs, repaired: true };
-};
-
 const shuffleList = (items) => {
     const list = [...items];
     for (let i = list.length - 1; i > 0; i--) {
@@ -298,8 +228,7 @@ export const generateSwissRound1Pairings = (playerList, gameType) => {
 };
 
 export const generateNextSwissRoundPairings = (playerList, existingPairs, nextRound, gameType) => {
-    const swissPlayers = normalizeSwissPlayers(playerList);
-    const playerNames = swissPlayers.map((player) => player.name.trim());
+    const playerNames = playerList.map((player) => player.name);
     const standings = computeScheduleStandings(existingPairs, playerNames);
 
     const scoreGroups = [];
@@ -324,51 +253,48 @@ export const generateNextSwissRoundPairings = (playerList, existingPairs, nextRo
     });
 
     const newPairs = [];
-    const playerByName = new Map(swissPlayers.map((player) => [player.name.trim(), player]));
-    const hasReceivedBye = (name) =>
-        existingPairs.some((pair) => pair.isBye && (pair.team1 === name || pair.team2 === name));
-    let floatedPlayers = [];
 
-    scoreGroups.forEach(({ players }, groupIndex) => {
-        const remaining = [...floatedPlayers, ...players];
-        floatedPlayers = [];
-        const isLastGroup = groupIndex === scoreGroups.length - 1;
-
-        if (remaining.length % 2 !== 0) {
-            if (isLastGroup) {
-                let byeIndex = -1;
-                for (let i = remaining.length - 1; i >= 0; i--) {
-                    if (!hasReceivedBye(remaining[i])) {
-                        byeIndex = i;
-                        break;
-                    }
-                }
-                const [byeName] = remaining.splice(byeIndex >= 0 ? byeIndex : remaining.length - 1, 1);
-                const byePlayer = playerByName.get(byeName);
-                if (byePlayer) {
-                    newPairs.push(createByePair(byePlayer, nextRound, gameType, 'Swiss'));
-                }
-            } else {
-                floatedPlayers = [remaining.pop()];
+    const findOpponent = (player, startIndex, allowRematch = false) => {
+        for (let j = startIndex; j < ordered.length; j++) {
+            const candidate = ordered[j];
+            if (paired.has(candidate) || candidate === player) {
+                continue;
             }
+            if (!allowRematch && hasPlayedBefore(existingPairs, player, candidate)) {
+                continue;
+            }
+            return candidate;
+        }
+        return null;
+    };
+
+    for (let i = 0; i < ordered.length; i++) {
+        const playerName = ordered[i];
+        if (paired.has(playerName)) {
+            continue;
         }
 
-        while (remaining.length >= 2) {
-            const playerName = remaining.shift();
-            let opponentIndex = remaining.findIndex(
-                (candidate) => !hasPlayedBefore(existingPairs, playerName, candidate)
-            );
-            if (opponentIndex === -1) {
-                opponentIndex = 0;
-            }
-            const opponentName = remaining.splice(opponentIndex, 1)[0];
-            const player = playerByName.get(playerName);
-            const opponent = playerByName.get(opponentName);
-            if (player && opponent) {
-                newPairs.push(createScheduleMatchPair(player, opponent, nextRound, gameType, 'Swiss'));
-            }
+        let opponentName = findOpponent(playerName, i + 1, false);
+        if (!opponentName) {
+            opponentName = findOpponent(playerName, i + 1, true);
         }
-    });
+
+        const player = playerList.find((entry) => entry.name === playerName);
+        if (!player) {
+            continue;
+        }
+
+        if (opponentName) {
+            const opponent = playerList.find((entry) => entry.name === opponentName);
+            newPairs.push(createScheduleMatchPair(player, opponent, nextRound, gameType, 'Swiss'));
+            paired.add(playerName);
+            paired.add(opponentName);
+            continue;
+        }
+
+        newPairs.push(createByePair(player, nextRound, gameType, 'Swiss'));
+        paired.add(playerName);
+    }
 
     return newPairs;
 };

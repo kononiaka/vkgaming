@@ -286,7 +286,7 @@ export const PlayerBracket = (props) => {
 
     const isMultiGameLayout = Array.isArray(numberOfGames) && numberOfGames.length > 1;
     const gamesCount = Array.isArray(numberOfGames) ? numberOfGames.length : 1;
-    const gamesStripMinWidth = isMultiGameLayout ? `${gamesCount * 14 + Math.max(gamesCount - 1, 0) * 6}px` : '52px';
+    const gamesStripMinWidth = isMultiGameLayout ? `${gamesCount * 48 + Math.max(gamesCount - 1, 0) * 6}px` : '52px';
     const isSourcePairHint =
         teamPlayer === 'TBD' &&
         sourcePair &&
@@ -517,72 +517,81 @@ export const PlayerBracket = (props) => {
 
                     if (isMultiGameLayout) {
                         return (
-                            <div key={game.gameId} className={classes.castleSlot}>
-                                <div
-                                    className={`${classes.castleDot} ${checked ? classes.castleDotSelected : ''} ${!castleImageUrl ? classes.castleDotEmpty : ''}`}
-                                />
-                                {castleImageUrl && (
-                                    <div className={classes.castlePopup}>
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <img
-                                                src={castleImageUrl}
-                                                alt={castleName}
-                                                className={`${classes.castlePopupImg} ${checked ? classes['castle-selected'] : ''}`}
+                            <div key={game.gameId} className={classes.castleSlot} tabIndex={castleImageUrl ? 0 : -1}>
+                                {castleImageUrl ? (
+                                    <>
+                                        <div
+                                            className={`${classes.castleCompactSquare} ${checked ? classes.castleCompactSquareSelected : ''}`}
+                                            aria-hidden="true"
+                                        />
+                                        <img
+                                            src={castleImageUrl}
+                                            alt={castleName}
+                                            title={castleName}
+                                            className={`${classes.castleThumbnail} ${checked ? classes['castle-selected'] : ''}`}
+                                        />
+                                        {gameColor && (
+                                            <div
+                                                className={`${classes.castleColorBadge} ${
+                                                    gameColor === 'red' ? classes.castleColorBadgeRed : classes.castleColorBadgeBlue
+                                                }`}
+                                                title={`Playing as ${gameColor}`}
                                             />
-                                            {gameColor && (
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '-4px',
-                                                        right: '-4px',
-                                                        width: '17px',
-                                                        height: '17px',
-                                                        borderRadius: '50%',
-                                                        background:
-                                                            gameColor === 'red'
-                                                                ? 'linear-gradient(135deg, #8B0000, #FF0000)'
-                                                                : 'linear-gradient(135deg, #00008B, #0000FF)',
-                                                        border: '2px solid #FFD700',
-                                                        boxShadow:
-                                                            gameColor === 'red'
-                                                                ? '0 0 6px rgba(255, 0, 0, 0.8)'
-                                                                : '0 0 6px rgba(0, 0, 255, 0.8)'
-                                                    }}
-                                                    title={`Playing as ${gameColor}`}
+                                        )}
+                                        {gameGold !== 0 && gameGold !== undefined && (
+                                            <div
+                                                className={`${classes.castleGoldBadge} ${
+                                                    gameGold > 0 ? classes.castleGoldBadgePositive : classes.castleGoldBadgeNegative
+                                                }`}
+                                                title={`Gold: ${gameGold > 0 ? '+' : ''}${gameGold}`}
+                                            >
+                                                {gameGold > 0 ? '+' : ''}
+                                                {gameGold}
+                                            </div>
+                                        )}
+                                        <div className={classes.castlePopup}>
+                                            <div className={classes.castlePopupPreview}>
+                                                <img
+                                                    src={castleImageUrl}
+                                                    alt={castleName}
+                                                    className={`${classes.castlePopupImg} ${checked ? classes['castle-selected'] : ''}`}
                                                 />
-                                            )}
-                                            {gameGold !== 0 && gameGold !== undefined && (
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        bottom: '-4px',
-                                                        left: '50%',
-                                                        transform: 'translateX(-50%)',
-                                                        padding: '1px 4px',
-                                                        borderRadius: '8px',
-                                                        background:
+                                                {gameColor && (
+                                                    <div
+                                                        className={`${classes.castleColorBadge} ${
+                                                            gameColor === 'red'
+                                                                ? classes.castleColorBadgeRed
+                                                                : classes.castleColorBadgeBlue
+                                                        }`}
+                                                    />
+                                                )}
+                                                {gameGold !== 0 && gameGold !== undefined && (
+                                                    <div
+                                                        className={`${classes.castleGoldBadge} ${
                                                             gameGold > 0
-                                                                ? 'linear-gradient(135deg, #00AA00, #00FF00)'
-                                                                : 'linear-gradient(135deg, #AA0000, #FF0000)',
-                                                        border: '1px solid #FFD700',
-                                                        fontSize: '10px',
-                                                        fontWeight: 'bold',
-                                                        color: '#FFF',
-                                                        boxShadow:
-                                                            gameGold > 0
-                                                                ? '0 0 6px rgba(0, 255, 0, 0.8)'
-                                                                : '0 0 6px rgba(255, 0, 0, 0.8)',
-                                                        whiteSpace: 'nowrap'
-                                                    }}
-                                                    title={`Gold: ${gameGold > 0 ? '+' : ''}${gameGold}`}
-                                                >
-                                                    {gameGold > 0 ? '+' : ''}
-                                                    {gameGold}
-                                                </div>
-                                            )}
+                                                                ? classes.castleGoldBadgePositive
+                                                                : classes.castleGoldBadgeNegative
+                                                        }`}
+                                                    >
+                                                        {gameGold > 0 ? '+' : ''}
+                                                        {gameGold}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className={classes.castlePopupLabel}>{castleName}</div>
                                         </div>
-                                        <div className={classes.castlePopupLabel}>{castleName}</div>
-                                    </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div
+                                            className={`${classes.castleCompactSquare} ${classes.castleCompactSquareEmpty}`}
+                                            aria-hidden="true"
+                                        />
+                                        <div
+                                            className={`${classes.castleThumbnail} ${classes.castleThumbnailEmpty}`}
+                                            aria-hidden="true"
+                                        />
+                                    </>
                                 )}
                             </div>
                         );
@@ -645,58 +654,14 @@ export const PlayerBracket = (props) => {
                 <span className={statusClass} aria-hidden="true" />
             </label>
 
-            <div className={classes.desktopLayout}>
-                <div className={classes.playerRow}>
-                    {!isSourcePairHint && displayCountryCode ? (
-                        <span className={classes.playerFlag}>
-                            <CountryFlag code={displayCountryCode} size={16} />
-                        </span>
-                    ) : null}
-
-                    {!isSourcePairHint && teamPlayer !== 'TBD' ? (
-                        avatarUrl ? (
-                            <img src={avatarUrl} alt={teamPlayer} className={classes.playerAvatar} />
-                        ) : (
-                            <div className={classes.playerAvatarFallback} aria-hidden="true">
-                                {String(teamPlayer || '?')
-                                    .charAt(0)
-                                    .toUpperCase()}
-                            </div>
-                        )
-                    ) : null}
-
-                    {renderDesktopPlayerName()}
-                    {renderDesktopStars()}
-                </div>
-
-                {!isSourcePairHint && renderCastleStrip()}
-                <div id={`score-${team}-${pairIndex}`} className={classes.scoreBox}>
-                    {playerScore || 0}
-                </div>
-
-                {showTooltip && teamPlayer !== 'TBD' && (
-                    <div className={classes.streakTooltip} onMouseLeave={handleMouseLeave}>
-                        <b>Last 5 games:</b>
-                        <ul className={classes.streakTooltipList}>
-                            {streak.length === 0 && <li>No games found</li>}
-                            {streak.map((g, i) => (
-                                <li key={i} title={g.opponent}>
-                                    <span
-                                        className={classes.streakDot}
-                                        style={{
-                                            background: g.result === 'Win' ? '#4caf50' : '#f44336'
-                                        }}
-                                    />
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-            </div>
-
-            <div className={classes.mobileLayout}>
-                <div className={classes.playerIdentity}>
-                    {!isSourcePairHint ? (
+            <div className={classes.playerIdentity}>
+                {!isSourcePairHint ? (
+                    <div className={classes.playerTopRow}>
+                        {displayCountryCode ? (
+                            <span className={classes.playerFlagInline}>
+                                <CountryFlag code={displayCountryCode} size={18} />
+                            </span>
+                        ) : null}
                         <div className={classes.playerPortraitCol}>
                             <div className={classes.portraitSlot}>{renderPlayerPortrait()}</div>
                             <div className={classes.playerMeta}>

@@ -85,6 +85,14 @@
     color: var(--color-text-dim);
 }
 
+.warningHint {
+    padding: 0.55rem 0.65rem;
+    color: #e6c06a;
+    background: rgba(201, 162, 39, 0.08);
+    border: 1px solid rgba(201, 162, 39, 0.24);
+    border-radius: var(--radius-sm);
+}
+
 .fieldError {
     margin: 0;
     font-size: 0.78rem;

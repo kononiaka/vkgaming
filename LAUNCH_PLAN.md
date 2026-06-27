@@ -151,12 +151,12 @@ Week 3 — Event
 
 ## 5. V3+ (only if V1 cup retains players)
 
-- Full **season ladder** (Top / A / B) with promotion rules  
-- **Warnings / discipline** log for admins  
-- **Double elimination** bracket type  
-- **CS-style Swiss to playoffs** (`3 wins = qualify`, `3 losses = eliminated`) — see `CS_SWISS_TO_PLAYOFFS_TODO.md`  
-- **h3.gg-style** multi-organizer SaaS  
-- i18n EN/RU  
+- Full **season ladder** (Top / A / B) with promotion rules
+- **Warnings / discipline** log for admins
+- **Double elimination** bracket type
+- **CS-style Swiss to playoffs** (`3 wins = qualify`, `3 losses = eliminated`) — see `CS_SWISS_TO_PLAYOFFS_TODO.md`
+- **h3.gg-style** multi-organizer SaaS
+- i18n EN/RU
 
 ---
 

@@ -49,7 +49,8 @@ export const startHostSeedCheckout = async ({
     tournamentName,
     goalUsd,
     nickname,
-    origin = window.location.origin
+    origin = window.location.origin,
+    redirectMode = 'new-tab'
 }) => {
     const firebaseUid = getFirebaseUid();
     if (!firebaseUid || !nickname) {
@@ -61,8 +62,8 @@ export const startHostSeedCheckout = async ({
         throw new Error(`Minimum prize pool seed is $${MIN_HOST_SEED_USD}.`);
     }
 
-    const stripeWindow = window.open('', '_blank');
-    if (!stripeWindow) {
+    const stripeWindow = redirectMode === 'new-tab' ? window.open('', '_blank') : null;
+    if (redirectMode === 'new-tab' && !stripeWindow) {
         throw new Error('Allow pop-ups to open the payment page.');
     }
 
@@ -82,12 +83,17 @@ export const startHostSeedCheckout = async ({
         });
         const data = await response.json();
         if (!response.ok || !data.url) {
-            stripeWindow.close();
+            stripeWindow?.close();
             throw new Error(data.error || 'Could not start checkout.');
         }
+        if (redirectMode === 'current-tab') {
+            window.location.href = data.url;
+            return { redirected: true };
+        }
         stripeWindow.location.href = data.url;
+        return { redirected: true };
     } catch (error) {
-        stripeWindow.close();
+        stripeWindow?.close();
         throw error;
     }
 };

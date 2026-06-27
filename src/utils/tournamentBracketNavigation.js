@@ -25,7 +25,7 @@ export const inferScheduleView = ({
     championsLeaguePhase = 'group',
     isChampionsLeague = false
 } = {}) => {
-    if (type === 'league' || type === 'swiss') {
+    if (type === 'league' || type === 'swiss' || type === 'cs-swiss') {
         return true;
     }
     if (type === 'champions-league') {

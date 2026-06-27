@@ -10,7 +10,7 @@ export const canLeaveTournament = (tournament) => {
     if (!status || status === 'Started!' || String(status).includes('Finished')) {
         return false;
     }
-    return status === 'Pending funding' || isRegistrationOpen(status);
+    return isRegistrationOpen(status);
 };
 
 const buildPlayerPayload = async (nickname) => {

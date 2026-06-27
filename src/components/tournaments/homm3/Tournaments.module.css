@@ -124,6 +124,24 @@
     border-radius: var(--radius-md);
 }
 
+.emptyStateTitle {
+    margin: 0 0 0.45rem;
+    color: var(--color-text);
+    font-weight: 700;
+}
+
+.emptyStateText {
+    margin: 0 0 1rem;
+    color: var(--color-text-muted);
+}
+
+.emptyStateActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
 .bracket {
     background: var(--color-bg-deep);
     border: var(--border-subtle);
@@ -143,6 +161,10 @@
 }
 
 .tournamentTitle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     color: var(--color-text) !important;
     font-size: 1.05rem !important;
     font-weight: 600 !important;
@@ -150,6 +172,20 @@
     text-shadow: none;
     border-bottom: var(--border-subtle);
     padding-bottom: 0.65rem;
+}
+
+.tournamentTitleMain {
+    min-width: 0;
+}
+
+.tournamentAverageStars {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.tournamentAverageStars img {
+    height: 24px !important;
 }
 
 .statusBadge {
