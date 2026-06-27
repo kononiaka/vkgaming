@@ -26,7 +26,17 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
-import { generateNextSwissRoundPairings, isSwissRoundComplete, normalizeGameType } from './swissUtils';
+import {
+    CS_SWISS_LOSS_LIMIT,
+    CS_SWISS_WIN_TARGET,
+    createSwissRoundDeadline,
+    generateCsSwissPlayoffStages,
+    generateNextCsSwissRoundPairings,
+    generateNextSwissRoundPairings,
+    isCsSwissComplete,
+    isSwissRoundComplete,
+    normalizeGameType
+} from './swissUtils';
 import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
 import {
     generateKnockoutBracketStages,
@@ -189,15 +199,23 @@ export const TournamentBracket = ({
     const [spinningWheelMode, setSpinningWheelMode] = useState('kickoff');
     const [isLeague, setIsLeague] = useState(false);
     const [isSwiss, setIsSwiss] = useState(false);
+    const [isCsSwiss, setIsCsSwiss] = useState(false);
+    const [isTournamentMetaLoading, setIsTournamentMetaLoading] = useState(true);
     const [hasLoserBracket, setHasLoserBracket] = useState(false);
     const [isChampionsLeague, setIsChampionsLeague] = useState(false);
     const [championsLeaguePhase, setChampionsLeaguePhase] = useState('group');
+    const [scheduleScoringMode, setScheduleScoringMode] = useState('restart');
     const [championsGroups, setChampionsGroups] = useState({});
     const [championsGroupLabels, setChampionsGroupLabels] = useState([]);
     const [swissCurrentRound, setSwissCurrentRound] = useState(1);
     const [swissTotalRounds, setSwissTotalRounds] = useState(0);
+    const [swissPhase, setSwissPhase] = useState('swiss');
+    const [swissWinTarget, setSwissWinTarget] = useState(CS_SWISS_WIN_TARGET);
+    const [swissLossLimit, setSwissLossLimit] = useState(CS_SWISS_LOSS_LIMIT);
+    const [swissRoundDeadlines, setSwissRoundDeadlines] = useState({});
     const [usesScheduleView, setUsesScheduleView] = useState(false);
     const [registeredPlayerNames, setRegisteredPlayerNames] = useState([]);
+    const [isFinishingTournament, setIsFinishingTournament] = useState(false);
     const [showReportGameModal, setShowReportGameModal] = useState(false);
     const [selectedStageIndex, setSelectedStageIndex] = useState(null);
     const [selectedPairIndex, setSelectedPairIndex] = useState(null);
@@ -224,13 +242,37 @@ export const TournamentBracket = ({
         setUrlHighlightPair(null);
         setIsLeague(false);
         setIsSwiss(false);
+        setIsCsSwiss(false);
+        setIsTournamentMetaLoading(true);
         setIsChampionsLeague(false);
         setChampionsLeaguePhase('group');
+        setScheduleScoringMode('restart');
+        setSwissPhase('swiss');
+        setSwissWinTarget(CS_SWISS_WIN_TARGET);
+        setSwissLossLimit(CS_SWISS_LOSS_LIMIT);
+        setSwissRoundDeadlines({});
         setUsesScheduleView(false);
         setPlayoffPairs([]);
         setStageLabels([]);
         setActiveBracketStage(0);
+        setIsFinishingTournament(false);
     }, [tournamentId]);
+
+    const getScheduleStageOffset = (pairs = playoffPairs) =>
+        ((isChampionsLeague && championsLeaguePhase === 'knockout') || (isCsSwiss && swissPhase === 'playoffs')) &&
+        Array.isArray(pairs?.[0])
+            ? 1
+            : 0;
+
+    const getStageLabelForStorageIndex = (storageIndex, pairs = playoffPairs) => {
+        const offset = getScheduleStageOffset(pairs);
+        return stageLabels[storageIndex - offset] || stageLabels[storageIndex] || null;
+    };
+
+    const getStorageIndexForStageLabel = (stageLabel, pairs = playoffPairs) => {
+        const labelIndex = stageLabels.indexOf(stageLabel);
+        return labelIndex === -1 ? -1 : labelIndex + getScheduleStageOffset(pairs);
+    };
 
     const resolveKnockoutDisplayStage = (storageStageIdx, labels, isMobileView = false) => {
         const allDisplayStages = labels.filter((s) => s !== 'Third Place');
@@ -287,8 +329,11 @@ export const TournamentBracket = ({
                 return;
             }
 
-            const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
-            const labelStageIndex = targetStageIndex - clKnockoutOffset;
+            const scheduleStageOffset =
+                (isChampionsLeague && championsLeaguePhase === 'knockout') || (isCsSwiss && swissPhase === 'playoffs')
+                    ? 1
+                    : 0;
+            const labelStageIndex = targetStageIndex - scheduleStageOffset;
             setActiveBracketStage(resolveKnockoutDisplayStage(labelStageIndex, stageLabels, isMobileKnockoutView));
         }
 
@@ -490,6 +535,7 @@ export const TournamentBracket = ({
         const fetchPlayoffPairs = async () => {
             let typeData = null;
             let resolvedChampionsPhase = 'group';
+            let resolvedSwissPhase = 'swiss';
 
             try {
                 // Detect league tournament type from tournament root
@@ -498,8 +544,20 @@ export const TournamentBracket = ({
                 );
                 if (typeResponse.ok) {
                     typeData = await typeResponse.json();
+                    const scoringModeResponse = await authFetch(
+                        `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/scheduleScoringMode.json`
+                    );
+                    if (scoringModeResponse.ok) {
+                        const mode = await scoringModeResponse.json();
+                        setScheduleScoringMode(mode === 'classic' ? 'classic' : 'restart');
+                    }
+
                     if (typeData === 'league') {
                         setIsLeague(true);
+                    }
+                    if (typeData === 'cs-swiss') {
+                        setIsSwiss(true);
+                        setIsCsSwiss(true);
                     }
                     if (typeData === 'champions-league') {
                         setIsChampionsLeague(true);
@@ -527,16 +585,27 @@ export const TournamentBracket = ({
                             }
                         }
                     }
-                    if (typeData === 'swiss') {
+                    if (typeData === 'swiss' || typeData === 'cs-swiss') {
                         setIsSwiss(true);
 
-                        const [currentRoundRes, totalRoundsRes] = await Promise.all([
+                        const [
+                            currentRoundRes,
+                            totalRoundsRes,
+                            swissPhaseRes,
+                            swissWinTargetRes,
+                            swissLossLimitRes,
+                            swissRoundDeadlinesRes
+                        ] = await Promise.all([
                             authFetch(
                                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissCurrentRound.json`
                             ),
                             authFetch(
                                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissTotalRounds.json`
-                            )
+                            ),
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissPhase.json`),
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissWinTarget.json`),
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissLossLimit.json`),
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissRoundDeadlines.json`)
                         ]);
 
                         if (currentRoundRes.ok) {
@@ -551,6 +620,29 @@ export const TournamentBracket = ({
                             if (Number.isFinite(Number(totalRounds))) {
                                 setSwissTotalRounds(Number(totalRounds));
                             }
+                        }
+                        if (swissPhaseRes.ok) {
+                            const phase = await swissPhaseRes.json();
+                            if (phase === 'swiss' || phase === 'playoffs') {
+                                resolvedSwissPhase = phase;
+                                setSwissPhase(phase);
+                            }
+                        }
+                        if (swissWinTargetRes.ok) {
+                            const target = await swissWinTargetRes.json();
+                            if (Number.isFinite(Number(target))) {
+                                setSwissWinTarget(Number(target));
+                            }
+                        }
+                        if (swissLossLimitRes.ok) {
+                            const limit = await swissLossLimitRes.json();
+                            if (Number.isFinite(Number(limit))) {
+                                setSwissLossLimit(Number(limit));
+                            }
+                        }
+                        if (swissRoundDeadlinesRes.ok) {
+                            const deadlines = await swissRoundDeadlinesRes.json();
+                            setSwissRoundDeadlines(deadlines && typeof deadlines === 'object' ? deadlines : {});
                         }
                     }
                 }
@@ -609,20 +701,26 @@ export const TournamentBracket = ({
 
                         setPlayoffPairs(normalizedPairs);
                         setUsesScheduleView(
-                            inferScheduleView({
-                                type: typeData,
-                                playoffPairs: normalizedPairs,
-                                maxPlayers,
-                                championsLeaguePhase: resolvedChampionsPhase,
-                                isChampionsLeague: typeData === 'champions-league'
-                            })
+                            typeData === 'cs-swiss' && resolvedSwissPhase === 'playoffs'
+                                ? false
+                                : inferScheduleView({
+                                      type: typeData,
+                                      playoffPairs: normalizedPairs,
+                                      maxPlayers,
+                                      championsLeaguePhase: resolvedChampionsPhase,
+                                      isChampionsLeague: typeData === 'champions-league'
+                                  })
                         );
+                    } else if (typeData === 'league' || typeData === 'swiss' || typeData === 'cs-swiss') {
+                        setUsesScheduleView(true);
                     }
                 } else {
                     console.log('Failed to fetch playoff pairs');
                 }
             } catch (error) {
                 console.error('Error fetching playoff pairs:', error);
+            } finally {
+                setIsTournamentMetaLoading(false);
             }
         };
 
@@ -1192,6 +1290,10 @@ export const TournamentBracket = ({
     };
 
     const handleFinishLeague = async () => {
+        if (isFinishingTournament) {
+            return;
+        }
+
         const pairs = playoffPairs[0] || [];
         const allDone = pairs.length > 0 && pairs.every((p) => p.winner);
         if (!allDone) {
@@ -1256,6 +1358,7 @@ export const TournamentBracket = ({
             return;
         }
 
+        setIsFinishingTournament(true);
         try {
             const prizes = await pullTournamentPrizes(tournamentId);
             if (!prizes || typeof prizes !== 'object') {
@@ -1335,6 +1438,8 @@ export const TournamentBracket = ({
         } catch (error) {
             console.error('Error finishing league:', error);
             alert('Error finishing league: ' + error.message);
+        } finally {
+            setIsFinishingTournament(false);
         }
     };
 
@@ -1345,8 +1450,13 @@ export const TournamentBracket = ({
             return;
         }
 
-        if (swissCurrentRound >= swissTotalRounds) {
+        if (!isCsSwiss && swissCurrentRound >= swissTotalRounds) {
             alert('All Swiss rounds have already been generated.');
+            return;
+        }
+
+        if (isCsSwiss && isCsSwissComplete(pairs, registeredPlayerNames, swissWinTarget, swissLossLimit)) {
+            alert('CS Swiss is complete. Start playoffs instead.');
             return;
         }
 
@@ -1367,10 +1477,24 @@ export const TournamentBracket = ({
             const tournamentData = await tournamentResponse.json();
             const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
             const playerList = Object.values(tournamentData.players || {}).filter(
-                (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+                (player) =>
+                    player &&
+                    player.name &&
+                    player.name.trim() !== '' &&
+                    player.name.trim() !== 'TBD' &&
+                    player.name.trim() !== 'BYE'
             );
 
-            const nextPairs = generateNextSwissRoundPairings(playerList, pairs, nextRound, gameType);
+            const nextPairs = isCsSwiss
+                ? generateNextCsSwissRoundPairings(
+                      playerList,
+                      pairs,
+                      nextRound,
+                      gameType,
+                      swissWinTarget,
+                      swissLossLimit
+                  )
+                : generateNextSwissRoundPairings(playerList, pairs, nextRound, gameType);
             const updatedPairs = [...pairs, ...nextPairs];
 
             const bracketRes = await authFetch(
@@ -1391,12 +1515,105 @@ export const TournamentBracket = ({
                 headers: { 'Content-Type': 'application/json' }
             });
 
+            const nextDeadline = createSwissRoundDeadline();
+            await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissRoundDeadlines/${nextRound}.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(nextDeadline),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
             setPlayoffPairs([updatedPairs]);
             setSwissCurrentRound(nextRound);
+            setSwissRoundDeadlines((prev) => ({
+                ...prev,
+                [nextRound]: nextDeadline
+            }));
             alert(`Round ${nextRound} generated (${nextPairs.length} matches).`);
         } catch (error) {
             console.error('Error generating Swiss round:', error);
             alert('Error generating Swiss round: ' + error.message);
+        }
+    };
+
+    const handleStartCsSwissPlayoffs = async () => {
+        const swissPairs = playoffPairs[0] || [];
+        if (!isCsSwissComplete(swissPairs, registeredPlayerNames, swissWinTarget, swissLossLimit)) {
+            alert('CS Swiss is not complete yet. Players must reach 3 wins or 3 losses first.');
+            return;
+        }
+
+        const confirmed = window.confirm('Start CS Swiss playoffs with qualified players?');
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const tournamentResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`
+            );
+            if (!tournamentResponse.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await tournamentResponse.json();
+            const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
+            const playerList = Object.values(tournamentData.players || {}).filter(
+                (player) =>
+                    player &&
+                    player.name &&
+                    player.name.trim() !== '' &&
+                    player.name.trim() !== 'TBD' &&
+                    player.name.trim() !== 'BYE'
+            );
+            const generated = generateCsSwissPlayoffStages(
+                swissPairs,
+                playerList,
+                gameType,
+                swissWinTarget,
+                swissLossLimit
+            );
+
+            if (!generated.valid) {
+                alert(generated.message);
+                return;
+            }
+
+            const updatedPairs = [swissPairs, ...generated.stages];
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedPairs),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save CS Swiss playoffs');
+            }
+
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/swissPhase.json`, {
+                method: 'PUT',
+                body: JSON.stringify('playoffs'),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/stageLabels.json`, {
+                method: 'PUT',
+                body: JSON.stringify(generated.stageLabels),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            setPlayoffPairs(updatedPairs);
+            setStageLabels(generated.stageLabels);
+            setSwissPhase('playoffs');
+            setUsesScheduleView(false);
+            setActiveBracketStage(0);
+            alert('CS Swiss playoffs started.');
+        } catch (error) {
+            console.error('Error starting CS Swiss playoffs:', error);
+            alert('Error starting CS Swiss playoffs: ' + error.message);
         }
     };
 
@@ -1409,7 +1626,7 @@ export const TournamentBracket = ({
 
         const summary = Object.entries(championsGroups)
             .map(([groupLabel]) => {
-                const qualified = getQualifiedPlayers(championsGroups, groupPairs).filter(
+                const qualified = getQualifiedPlayers(championsGroups, groupPairs, scheduleScoringMode).filter(
                     (player) => player.group === groupLabel
                 );
                 return `Group ${groupLabel}: ${qualified.map((player) => `${player.place}. ${player.name}`).join(', ')}`;
@@ -1432,7 +1649,7 @@ export const TournamentBracket = ({
             }
 
             const tournamentData = await tournamentResponse.json();
-            const qualifiers = getQualifiedPlayers(championsGroups, groupPairs);
+            const qualifiers = getQualifiedPlayers(championsGroups, groupPairs, scheduleScoringMode);
             const knockoutSize = getKnockoutPlayerCount(tournamentData.maxPlayers);
             const gameType = tournamentData.tournamentPlayoffGames || '1';
             const finalGameType = tournamentData.tournamentPlayoffGamesFinal || gameType;
@@ -1882,7 +2099,7 @@ export const TournamentBracket = ({
             let summaryPlayerData = null; // { team1: { id, prevData, newRating, updatedStats }, team2: { ... } }
             let summaryPrizes = null;
             {
-                const currentStage = stageLabels[selectedStageIndex];
+                const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                 const isResume = !!(latestStage && latestStage !== 'submitted');
                 const hasWinner = !!reportData.winner && reportData.winner !== 'draw';
                 const castleGames = reportData.games.filter(
@@ -2146,8 +2363,8 @@ export const TournamentBracket = ({
                         const winner = reportData.winner;
                         const loser = pair.team1 === winner ? pair.team2 : pair.team1;
                         if (currentStage === 'Semi-final') {
-                            const finalIdx = stageLabels.indexOf('Final');
-                            const thirdIdx = stageLabels.indexOf('Third Place');
+                            const finalIdx = getStorageIndexForStageLabel('Final', updatedPairs);
+                            const thirdIdx = getStorageIndexForStageLabel('Third Place', updatedPairs);
                             const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
                             if (finalIdx !== -1) {
                                 lines.push(`  • Promote: ${winner} → Final ${slot}`);
@@ -2159,21 +2376,21 @@ export const TournamentBracket = ({
                                 lines.push(`  • Promote: ${winner} → next stage`);
                             }
                         } else if (currentStage === 'Quarter-final') {
-                            const semiIdx = stageLabels.indexOf('Semi-final');
+                            const semiIdx = getStorageIndexForStageLabel('Semi-final', updatedPairs);
                             const semiPairIdx = Math.floor(selectedPairIndex / 2);
                             const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
                             lines.push(
                                 `  • Promote: ${winner} → Semi-final ${semiPairIdx + 1} ${slot}${semiIdx === -1 ? ' (stage not found)' : ''}`
                             );
                         } else if (currentStage === '1/8 Final') {
-                            const quarterIdx = stageLabels.indexOf('Quarter-final');
+                            const quarterIdx = getStorageIndexForStageLabel('Quarter-final', updatedPairs);
                             const quarterPairIdx = Math.floor(selectedPairIndex / 2);
                             const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
                             lines.push(
                                 `  • Promote: ${winner} → Quarter-final ${quarterPairIdx + 1} ${slot}${quarterIdx === -1 ? ' (stage not found)' : ''}`
                             );
                         } else if (currentStage === '1/16 Final') {
-                            const eighthIdx = stageLabels.indexOf('1/8 Final');
+                            const eighthIdx = getStorageIndexForStageLabel('1/8 Final', updatedPairs);
                             const eighthPairIdx = Math.floor(selectedPairIndex / 2);
                             const slot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
                             lines.push(
@@ -2456,7 +2673,7 @@ export const TournamentBracket = ({
                         games: reportData.games.map((g) => moveProgressFieldsToNested(stripUiFields(g))),
                         tournamentName: tournamentName,
                         tournamentId,
-                        stage: pair.stage || stageLabels[selectedStageIndex] || null,
+                        stage: pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs) || null,
                         stageIndex: selectedStageIndex,
                         pairIndex: selectedPairIndex,
                         gameType: pair.type,
@@ -2526,7 +2743,7 @@ export const TournamentBracket = ({
                 if (!skipPromotion) {
                     setDetailedProgressStage('Promotion processing');
                     // Promote winner and loser to next stage
-                    const currentStage = stageLabels[selectedStageIndex];
+                    const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
@@ -2535,8 +2752,8 @@ export const TournamentBracket = ({
                     // Promote based on current stage
                     if (currentStage === 'Semi-final') {
                         // Winner goes to Final, Loser goes to Third Place
-                        const finalStageIndex = stageLabels.indexOf('Final');
-                        const thirdPlaceStageIndex = stageLabels.indexOf('Third Place');
+                        const finalStageIndex = getStorageIndexForStageLabel('Final', updatedPairs);
+                        const thirdPlaceStageIndex = getStorageIndexForStageLabel('Third Place', updatedPairs);
 
                         // Use the newly calculated ratings
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
@@ -2634,14 +2851,14 @@ export const TournamentBracket = ({
                         // Use the newly calculated rating for the winner
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        const semiStageIndex = stageLabels.indexOf('Semi-final');
+                        const semiStageIndex = getStorageIndexForStageLabel('Semi-final', updatedPairs);
                         if (semiStageIndex !== -1 && updatedPairs[semiStageIndex]) {
                             const semiPairIndex = Math.floor(selectedPairIndex / 2);
                             const semiPair = updatedPairs[semiStageIndex][semiPairIndex];
                             if (semiPair) {
                                 const teamSlot = selectedPairIndex % 2 === 0 ? 'team1' : 'team2';
-                                const ratingsSlot = selectedPairIndex % 2 === 0 ? 'ratings1' : 'ratings2';
-                                const starsSlot = selectedPairIndex % 2 === 0 ? 'stars1' : 'stars2';
+                                const ratingsSlot = teamSlot === 'team1' ? 'ratings1' : 'ratings2';
+                                const starsSlot = teamSlot === 'team1' ? 'stars1' : 'stars2';
 
                                 const confirmPromoteToSemi = confirmWindow(
                                     `Promote winner to Semi-final?\n\n${winner} → Semi-final ${semiPairIndex + 1} ${teamSlot}\n\nPromote?`
@@ -2668,7 +2885,7 @@ export const TournamentBracket = ({
                         // Use the newly calculated rating for the winner
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        const quarterStageIndex = stageLabels.indexOf('Quarter-final');
+                        const quarterStageIndex = getStorageIndexForStageLabel('Quarter-final', updatedPairs);
                         if (quarterStageIndex !== -1 && updatedPairs[quarterStageIndex]) {
                             const quarterPairIndex = Math.floor(selectedPairIndex / 2);
                             const quarterPair = updatedPairs[quarterStageIndex][quarterPairIndex];
@@ -2702,7 +2919,7 @@ export const TournamentBracket = ({
                         // Use the newly calculated rating for the winner
                         const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
 
-                        const eighthStageIndex = stageLabels.indexOf('1/8 Final');
+                        const eighthStageIndex = getStorageIndexForStageLabel('1/8 Final', updatedPairs);
                         if (eighthStageIndex !== -1 && updatedPairs[eighthStageIndex]) {
                             const eighthPairIndex = Math.floor(selectedPairIndex / 2);
                             const eighthPair = updatedPairs[eighthStageIndex][eighthPairIndex];
@@ -2778,7 +2995,7 @@ export const TournamentBracket = ({
                 }
 
                 if (!skipPrizes) {
-                    const currentStage = stageLabels[selectedStageIndex];
+                    const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
@@ -3473,7 +3690,9 @@ export const TournamentBracket = ({
                 </button>
             )}
 
-            {stageLabels.length === 0 && !isLeague && !isSwiss && !isChampionsLeague ? (
+            {isTournamentMetaLoading ? (
+                <h6>Loading tournament view...</h6>
+            ) : stageLabels.length === 0 && !isLeague && !isSwiss && !isChampionsLeague ? (
                 <h6>Tournament registration hasn't started</h6>
             ) : usesScheduleView ? (
                 <div className={classes.bracketBody}>
@@ -3484,7 +3703,9 @@ export const TournamentBracket = ({
                     )}
                     {isSwiss && swissTotalRounds > 0 && (
                         <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
-                            Swiss round {swissCurrentRound} of {swissTotalRounds}
+                            {isCsSwiss
+                                ? `CS Swiss round ${swissCurrentRound} — ${CS_SWISS_WIN_TARGET} wins qualify, ${CS_SWISS_LOSS_LIMIT} losses eliminate`
+                                : `Swiss round ${swissCurrentRound} of ${swissTotalRounds}`}
                         </p>
                     )}
                     <LeagueBracket
@@ -3493,9 +3714,21 @@ export const TournamentBracket = ({
                         playersObj={playersObj}
                         roundLabel={isSwiss ? 'Round' : 'Matchday'}
                         scheduleTitle={
-                            isChampionsLeague ? 'Champions League groups' : isSwiss ? 'Swiss views' : 'League views'
+                            isChampionsLeague
+                                ? 'Champions League groups'
+                                : isCsSwiss
+                                  ? 'CS Swiss views'
+                                  : isSwiss
+                                    ? 'Swiss views'
+                                    : 'League views'
                         }
                         groupLabels={isChampionsLeague ? championsGroupLabels : []}
+                        scoringMode={scheduleScoringMode}
+                        isSwissFormat={isSwiss}
+                        isCsSwissFormat={isCsSwiss}
+                        swissWinTarget={swissWinTarget}
+                        swissLossLimit={swissLossLimit}
+                        swissRoundDeadlines={swissRoundDeadlines}
                         highlightPair={urlHighlightPair}
                         storageStageIndex={0}
                         onSelectPair={(pairIdx) => {
@@ -3521,6 +3754,7 @@ export const TournamentBracket = ({
                         )}
                     {authCtx.isAdmin &&
                         isSwiss &&
+                        !isCsSwiss &&
                         tournamentStatus !== 'Tournament Finished' &&
                         swissCurrentRound < swissTotalRounds &&
                         isSwissRoundComplete(playoffPairs[0] || [], swissCurrentRound) && (
@@ -3531,7 +3765,41 @@ export const TournamentBracket = ({
                             </div>
                         )}
                     {authCtx.isAdmin &&
+                        isCsSwiss &&
+                        swissPhase === 'swiss' &&
+                        tournamentStatus !== 'Tournament Finished' &&
+                        isSwissRoundComplete(playoffPairs[0] || [], swissCurrentRound) &&
+                        !isCsSwissComplete(
+                            playoffPairs[0] || [],
+                            registeredPlayerNames,
+                            swissWinTarget,
+                            swissLossLimit
+                        ) && (
+                            <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
+                                <button className={classes.actionButton} onClick={handleGenerateNextSwissRound}>
+                                    Generate CS Swiss round {swissCurrentRound + 1}
+                                </button>
+                            </div>
+                        )}
+                    {authCtx.isAdmin &&
+                        isCsSwiss &&
+                        swissPhase === 'swiss' &&
+                        tournamentStatus !== 'Tournament Finished' &&
+                        isCsSwissComplete(
+                            playoffPairs[0] || [],
+                            registeredPlayerNames,
+                            swissWinTarget,
+                            swissLossLimit
+                        ) && (
+                            <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
+                                <button className={classes.actionButton} onClick={handleStartCsSwissPlayoffs}>
+                                    Start CS Swiss playoffs
+                                </button>
+                            </div>
+                        )}
+                    {authCtx.isAdmin &&
                         (isLeague || isSwiss) &&
+                        !isCsSwiss &&
                         tournamentStatus !== 'Tournament Finished' &&
                         (playoffPairs[0] || []).length > 0 &&
                         (playoffPairs[0] || []).every((p) => p.winner) &&
@@ -3541,17 +3809,32 @@ export const TournamentBracket = ({
                                     className={classes.actionButton}
                                     style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)' }}
                                     onClick={handleFinishLeague}
+                                    disabled={isFinishingTournament}
                                 >
-                                    {isSwiss ? '🏆 Finish Swiss' : '🏆 Finish League'}
+                                    {isFinishingTournament ? (
+                                        <span className={classes.actionButtonLoadingContent}>
+                                            <span className={classes.actionButtonSpinner} aria-hidden="true" />
+                                            {isSwiss ? 'Finishing Swiss...' : 'Finishing League...'}
+                                        </span>
+                                    ) : isSwiss ? (
+                                        '🏆 Finish Swiss'
+                                    ) : (
+                                        '🏆 Finish League'
+                                    )}
                                 </button>
                             </div>
                         )}
                 </div>
             ) : (
                 (() => {
-                    const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
-                    const bracketPairs = clKnockoutOffset > 0 ? playoffPairs.slice(clKnockoutOffset) : playoffPairs;
-                    const storageStage = (labelIndex) => labelIndex + clKnockoutOffset;
+                    const scheduleStageOffset =
+                        (isChampionsLeague && championsLeaguePhase === 'knockout') ||
+                        (isCsSwiss && swissPhase === 'playoffs')
+                            ? 1
+                            : 0;
+                    const bracketPairs =
+                        scheduleStageOffset > 0 ? playoffPairs.slice(scheduleStageOffset) : playoffPairs;
+                    const storageStage = (labelIndex) => labelIndex + scheduleStageOffset;
 
                     const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
                     const displayStages = getKnockoutPaginationStages(stageLabels, isMobileKnockoutView);
@@ -3586,9 +3869,11 @@ export const TournamentBracket = ({
 
                     return (
                         <div className={classes.bracketBody} style={{ width: '100%' }}>
-                            {clKnockoutOffset > 0 && (
+                            {scheduleStageOffset > 0 && (
                                 <p className={classes.knockoutBanner}>
-                                    Knockout stage — group winners vs runners-up from other groups
+                                    {isCsSwiss
+                                        ? 'CS Swiss playoffs — 8 qualified players start in quarter-finals'
+                                        : 'Knockout stage — group winners vs runners-up from other groups'}
                                 </p>
                             )}
                             <div className={classes.knockoutNav}>

@@ -5,7 +5,13 @@
  */
 
 import {
+    computeCsSwissStandings,
+    CS_SWISS_SIZES,
+    generateCsSwissPlayoffStages,
+    generateNextCsSwissRoundPairings,
+    isCsSwissSize,
     MIN_SWISS_PLAYERS,
+    MIN_CS_SWISS_PLAYERS,
     calculateSwissTotalRounds,
     generateSwissRound1Pairings,
     generateNextSwissRoundPairings,
@@ -83,6 +89,116 @@ describe('tournament format E2E flows', () => {
             );
             expect(playerNames.size).toBe(4);
             expect(allPairs.filter((pair) => pair.round === 2).length).toBe(2);
+        });
+    });
+
+    describe('CS Swiss to playoffs', () => {
+        const players = Array.from({ length: 16 }, (_, index) => makePlayer(`P${index + 1}`));
+
+        const buildPairsFromRecords = (records) => {
+            const winners = [];
+            const losers = [];
+            Object.entries(records).forEach(([name, record]) => {
+                const [wins, losses] = record.split('-').map(Number);
+                for (let i = 0; i < wins; i++) {
+                    winners.push(name);
+                }
+                for (let i = 0; i < losses; i++) {
+                    losers.push(name);
+                }
+            });
+
+            return winners.map((winner, index) => {
+                let loserIndex = losers.findIndex((name) => name !== winner);
+                if (loserIndex === -1) {
+                    loserIndex = 0;
+                }
+                const [loser] = losers.splice(loserIndex, 1);
+                return {
+                    team1: winner,
+                    team2: loser,
+                    winner,
+                    round: Math.floor(index / 8) + 1,
+                    stage: 'CS Swiss',
+                    type: 'bo-1',
+                    score1: 1,
+                    score2: 0
+                };
+            });
+        };
+
+        test('supports 8 and 16 player field sizes', () => {
+            expect(MIN_CS_SWISS_PLAYERS).toBe(8);
+            expect(CS_SWISS_SIZES).toEqual([8, 16]);
+            expect(isCsSwissSize(8)).toBe(true);
+            expect(isCsSwissSize(16)).toBe(true);
+            expect(isCsSwissSize(12)).toBe(false);
+        });
+
+        test('excludes qualified and eliminated players from next-round pairings', () => {
+            const pairs = [
+                ...['P2', 'P3', 'P4'].map((loser) => ({ team1: 'P1', team2: loser, winner: 'P1', round: 1 })),
+                ...['P5', 'P6', 'P7'].map((winner) => ({ team1: winner, team2: 'P16', winner, round: 1 }))
+            ];
+            const nextRound = generateNextCsSwissRoundPairings(players, pairs, 4, 'bo-1');
+            const names = nextRound.flatMap((pair) => [pair.team1, pair.team2]);
+
+            expect(names).not.toContain('P1');
+            expect(names).not.toContain('P16');
+        });
+
+        test('generates quarter-finals for 8 qualified players', () => {
+            const records = {
+                P1: '3-0',
+                P2: '3-0',
+                P3: '3-1',
+                P4: '3-1',
+                P5: '3-1',
+                P6: '3-2',
+                P7: '3-2',
+                P8: '3-2',
+                P9: '2-3',
+                P10: '2-3',
+                P11: '2-3',
+                P12: '1-3',
+                P13: '1-3',
+                P14: '1-3',
+                P15: '0-3',
+                P16: '0-3'
+            };
+            const pairs = buildPairsFromRecords(records);
+            const standings = computeCsSwissStandings(pairs, players);
+            const generated = generateCsSwissPlayoffStages(pairs, players, 'bo-1');
+
+            expect(standings.filter((entry) => entry.swissStatus === 'qualified')).toHaveLength(8);
+            expect(generated.valid).toBe(true);
+            expect(generated.stageLabels).toEqual(['Quarter-final', 'Semi-final', 'Third Place', 'Final']);
+            expect(generated.stages[0]).toHaveLength(4);
+            expect(generated.stages[0].some((pair) => pair.team1 === 'P1' || pair.team2 === 'P1')).toBe(true);
+            expect(generated.stages[0].some((pair) => pair.team1 === 'P2' || pair.team2 === 'P2')).toBe(true);
+        });
+
+        test('generates semi-finals for 4 qualified players from 8-player CS Swiss', () => {
+            const eightPlayers = players.slice(0, 8);
+            const records = {
+                P1: '3-0',
+                P2: '3-1',
+                P3: '3-1',
+                P4: '3-2',
+                P5: '2-3',
+                P6: '1-3',
+                P7: '1-3',
+                P8: '0-3'
+            };
+            const pairs = buildPairsFromRecords(records);
+            const standings = computeCsSwissStandings(pairs, eightPlayers);
+            const generated = generateCsSwissPlayoffStages(pairs, eightPlayers, 'bo-1');
+
+            expect(standings.filter((entry) => entry.swissStatus === 'qualified')).toHaveLength(4);
+            expect(generated.valid).toBe(true);
+            expect(generated.stageLabels).toEqual(['Semi-final', 'Third Place', 'Final']);
+            expect(generated.stages[0]).toHaveLength(2);
+            expect(generated.stages[0].some((pair) => pair.team1 === 'P1' || pair.team2 === 'P1')).toBe(true);
         });
     });
 

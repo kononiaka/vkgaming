@@ -90,6 +90,7 @@ const ReportGameModal = ({
     const [availableCastles, setAvailableCastles] = useState([]);
     const [castleMarkOverrides, setCastleMarkOverrides] = useState({});
     const [mockMode, setMockMode] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // When progress is loaded, restore only fields the pair useEffect doesn't already cover
     useEffect(() => {
@@ -561,6 +562,9 @@ const ReportGameModal = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) {
+            return;
+        }
 
         // const hasUsedRestarts = isSeriesMatch
         //     ? gameResults.some(
@@ -678,17 +682,22 @@ const ReportGameModal = ({
                   ]
         };
 
-        // Persist final progress to backend before handing off (skipped in mock mode)
-        if (!mockMode) {
-            await savePairProgress(tournamentId, pairId, {
-                ...reportData,
-                latestStage: 'submitted',
-                bannedCastlesBO1_1,
-                bannedCastlesBO1_2,
-                castleMarkOverrides
-            });
+        setIsSubmitting(true);
+        try {
+            // Persist final progress to backend before handing off (skipped in mock mode)
+            if (!mockMode) {
+                await savePairProgress(tournamentId, pairId, {
+                    ...reportData,
+                    latestStage: 'submitted',
+                    bannedCastlesBO1_1,
+                    bannedCastlesBO1_2,
+                    castleMarkOverrides
+                });
+            }
+            await onSubmit(reportData);
+        } finally {
+            setIsSubmitting(false);
         }
-        onSubmit(reportData);
     };
 
     const getRestartBoxClass = (isUsed, isDisabled) => {
@@ -766,12 +775,16 @@ const ReportGameModal = ({
         <div
             className={classes.backdrop}
             onClick={() => {
+                if (isSubmitting) {
+                    return;
+                }
                 onClose();
             }}
         >
             <div className={classes.modal} onClick={(e) => e.stopPropagation()}>
                 <button
                     className={classes.closeButton}
+                    disabled={isSubmitting}
                     onClick={() => {
                         onClose();
                     }}
@@ -1022,6 +1035,7 @@ const ReportGameModal = ({
                                                     <div className={classes.goldPlayerLabel}>{pair.team2}</div>
                                                     <input
                                                         type="number"
+                                                        step="100"
                                                         value={game.gold2 || 0}
                                                         disabled={game.gameStatus?.trim() === 'Processed'}
                                                         onChange={(e) => {
@@ -1401,23 +1415,25 @@ const ReportGameModal = ({
                                         </div>
                                     </div> */}
                                     </div>
-                                    <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
-                                        <label className={classes.restartConfirmationLabel}>
-                                            <input
-                                                type="checkbox"
-                                                checked={game.restartsFinished || false}
-                                                onChange={(e) => {
-                                                    const updated = [...gameResults];
-                                                    updated[idx] = {
-                                                        ...updated[idx],
-                                                        restartsFinished: e.target.checked
-                                                    };
-                                                    setGameResults(updated);
-                                                }}
-                                            />
-                                            Restarts finished / main game started
-                                        </label>
-                                    </div>
+                                    {idx === gameResults.length - 1 && (
+                                        <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
+                                            <label className={classes.restartConfirmationLabel}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={game.restartsFinished || false}
+                                                    onChange={(e) => {
+                                                        const updated = [...gameResults];
+                                                        updated[idx] = {
+                                                            ...updated[idx],
+                                                            restartsFinished: e.target.checked
+                                                        };
+                                                        setGameResults(updated);
+                                                    }}
+                                                />
+                                                Restarts finished / main game started
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -1746,6 +1762,7 @@ const ReportGameModal = ({
                                         </div> */}
                                         <input
                                             type="number"
+                                            step="100"
                                             value={gold2}
                                             onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 0;
@@ -2071,10 +2088,20 @@ const ReportGameModal = ({
                         <button
                             type="submit"
                             className={`${classes.submitButton} ${mockMode ? classes.submitButtonMock : ''}`}
+                            disabled={isSubmitting}
                         >
-                            {mockMode ? 'Submit (bracket only)' : 'Submit Result'}
+                            {isSubmitting ? (
+                                <span className={classes.submitLoadingLabel}>
+                                    <span className={classes.submitSpinner} aria-hidden="true" />
+                                    Reporting result...
+                                </span>
+                            ) : mockMode ? (
+                                'Submit (bracket only)'
+                            ) : (
+                                'Submit Result'
+                            )}
                         </button>
-                        <button type="button" onClick={onClose} className={classes.cancelButton}>
+                        <button type="button" onClick={onClose} className={classes.cancelButton} disabled={isSubmitting}>
                             Cancel
                         </button>
                     </div>

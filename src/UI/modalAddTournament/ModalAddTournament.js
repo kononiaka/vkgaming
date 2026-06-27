@@ -21,7 +21,12 @@ import {
 } from '../../utils/prizePoolData';
 import { fundTournamentFromHostBalance, startHostSeedCheckout } from '../../api/tournamentHostFunding';
 import { addCreatorToTournament } from '../../api/tournamentRegistration';
-import { MIN_SWISS_PLAYERS } from '../../components/tournaments/homm3/swissUtils';
+import {
+    CS_SWISS_SIZES,
+    isCsSwissSize,
+    MIN_CS_SWISS_PLAYERS,
+    MIN_SWISS_PLAYERS
+} from '../../components/tournaments/homm3/swissUtils';
 import {
     CHAMPIONS_LEAGUE_GROUP_SIZE,
     CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP,
@@ -56,9 +61,10 @@ const Bracket = (props) => {
     const authCtx = useContext(AuthContext);
     const isLeague = tournamentType === 'league';
     const isSwiss = tournamentType === 'swiss';
+    const isCsSwiss = tournamentType === 'cs-swiss';
     const isChampionsLeague = tournamentType === 'champions-league';
     const isKickOff = tournamentType === 'kick-off';
-    const isScheduleFormat = isLeague || isSwiss || isChampionsLeague;
+    const isScheduleFormat = isLeague || isSwiss || isCsSwiss || isChampionsLeague;
     const hideKnockoutStageGames = isScheduleFormat;
     const showBracketOptions = isKickOff || isChampionsLeague;
     const parsedFundingGoal = Number(fundingGoalUsd);
@@ -66,11 +72,13 @@ const Bracket = (props) => {
         fundingGoalUsd !== '' && (!Number.isFinite(parsedFundingGoal) || parsedFundingGoal < MIN_HOST_SEED_USD);
     const hasValidFundingGoal =
         fundingGoalUsd !== '' && Number.isFinite(parsedFundingGoal) && parsedFundingGoal >= MIN_HOST_SEED_USD;
-    const minPlayersRequired = isSwiss
-        ? MIN_SWISS_PLAYERS
-        : isChampionsLeague
-          ? CHAMPIONS_LEAGUE_SIZES[0]
-          : MIN_TOURNAMENT_PLAYERS;
+    const minPlayersRequired = isCsSwiss
+        ? MIN_CS_SWISS_PLAYERS
+        : isSwiss
+          ? MIN_SWISS_PLAYERS
+          : isChampionsLeague
+            ? CHAMPIONS_LEAGUE_SIZES[0]
+            : MIN_TOURNAMENT_PLAYERS;
     const parsedMaxPlayers = Number(maxPlayers);
     const maxPlayersBelowMin =
         maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && parsedMaxPlayers < minPlayersRequired;
@@ -79,10 +87,13 @@ const Bracket = (props) => {
         maxPlayers !== '' &&
         Number.isFinite(parsedMaxPlayers) &&
         !isChampionsLeagueSize(parsedMaxPlayers);
+    const csSwissSizeInvalid =
+        isCsSwiss && maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && !isCsSwissSize(parsedMaxPlayers);
     const isMaxPlayersValid =
         maxPlayers !== '' &&
         Number.isFinite(parsedMaxPlayers) &&
         parsedMaxPlayers >= minPlayersRequired &&
+        (!isCsSwiss || isCsSwissSize(parsedMaxPlayers)) &&
         (!isChampionsLeague || isChampionsLeagueSize(parsedMaxPlayers));
     const loserBracketSizeInvalid =
         loserBracket && maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && !isDoubleElimSize(parsedMaxPlayers);
@@ -91,12 +102,14 @@ const Bracket = (props) => {
         isMaxPlayersValid &&
         tournamentName.trim() !== '' &&
         !loserBracketSizeInvalid &&
+        !csSwissSizeInvalid &&
         !championsLeagueSizeInvalid;
 
     const tournamentTypeOptions = [
         { value: 'kick-off', label: 'Kick-off' },
         { value: 'league', label: 'League (Round-Robin)' },
         { value: 'swiss', label: 'Swiss System' },
+        { value: 'cs-swiss', label: 'CS Swiss to Playoffs' },
         { value: 'champions-league', label: 'Champions League (Groups + Knockout)' }
     ];
     const championsLeaguePlayerOptions = CHAMPIONS_LEAGUE_SIZES.map((size) => ({
@@ -130,6 +143,7 @@ const Bracket = (props) => {
     const tournamentPlayoffGames = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentPlayoffGamesThirdPlace = useRef(null);
+    const scheduleScoringModeRef = useRef(null);
     const randomBracketRef = useRef(null);
 
     const handleFundingGoalChange = (event) => {
@@ -143,6 +157,32 @@ const Bracket = (props) => {
     const parsedAttendanceFee = Number(attendanceFeeUsd);
     const attendanceFeeInvalid =
         attendanceFeeUsd !== '' && (!Number.isFinite(parsedAttendanceFee) || parsedAttendanceFee < 0);
+
+    const findPendingFundingTournamentForHost = async () => {
+        const firebaseUid = getFirebaseUid();
+        const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`);
+        if (!response.ok) {
+            return null;
+        }
+
+        const tournaments = await response.json();
+        const pendingEntry = Object.entries(tournaments || {}).find(([, tournament]) => {
+            if (tournament?.status !== 'Pending funding') {
+                return false;
+            }
+            if (firebaseUid && tournament.createdByUid === firebaseUid) {
+                return true;
+            }
+            return authCtx.userNickName && tournament.createdBy === authCtx.userNickName;
+        });
+
+        if (!pendingEntry) {
+            return null;
+        }
+
+        const [id, tournament] = pendingEntry;
+        return { id, ...tournament };
+    };
 
     const handleSave = async () => {
         const name = tournamentName.trim();
@@ -178,14 +218,26 @@ const Bracket = (props) => {
             return;
         }
 
+        if (isCsSwiss && !isCsSwissSize(maxPlayersCount)) {
+            authCtx.setNotificationShown(
+                true,
+                `CS Swiss supports exactly ${CS_SWISS_SIZES.join(' or ')} players.`,
+                'warning',
+                6
+            );
+            return;
+        }
+
         if (!Number.isFinite(maxPlayersCount) || maxPlayersCount < minPlayersRequired) {
             authCtx.setNotificationShown(
                 true,
-                isSwiss
-                    ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} players.`
-                    : isChampionsLeague
-                      ? `Champions League requires ${CHAMPIONS_LEAGUE_SIZES.join(', ')} players.`
-                      : 'Max players must be at least 2.',
+                isCsSwiss
+                    ? `CS Swiss tournaments need at least ${MIN_CS_SWISS_PLAYERS} players.`
+                    : isSwiss
+                      ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} players.`
+                      : isChampionsLeague
+                        ? `Champions League requires ${CHAMPIONS_LEAGUE_SIZES.join(', ')} players.`
+                        : 'Max players must be at least 2.',
                 'warning',
                 5
             );
@@ -212,6 +264,17 @@ const Bracket = (props) => {
             return;
         }
 
+        const pendingTournament = await findPendingFundingTournamentForHost();
+        if (pendingTournament) {
+            authCtx.setNotificationShown(
+                true,
+                `Finish funding or delete "${pendingTournament.name}" before creating another tournament.`,
+                'warning',
+                8
+            );
+            return;
+        }
+
         const objTournament = {
             name,
             type: tournamentType,
@@ -231,9 +294,16 @@ const Bracket = (props) => {
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
             tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
             tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
-            randomBracket: isLeague || isSwiss ? false : showBracketOptions && randomBracketRef.current.checked,
+            scheduleScoringMode:
+                isLeague || isChampionsLeague ? scheduleScoringModeRef.current?.value || 'classic' : null,
+            randomBracket:
+                isLeague || isSwiss || isCsSwiss ? false : showBracketOptions && randomBracketRef.current.checked,
             loserBracket: isKickOff && loserBracket,
             strictCastlePick,
+            swissMode: isCsSwiss ? 'cs-to-playoffs' : isSwiss ? 'fixed-rounds' : null,
+            swissWinTarget: isCsSwiss ? 3 : null,
+            swissLossLimit: isCsSwiss ? 3 : null,
+            swissPhase: isCsSwiss ? 'swiss' : null,
             championsLeaguePhase: isChampionsLeague ? 'group' : null,
             groupSize: isChampionsLeague ? CHAMPIONS_LEAGUE_GROUP_SIZE : null,
             qualifiersPerGroup: isChampionsLeague ? CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP : null,
@@ -292,7 +362,7 @@ const Bracket = (props) => {
             const created = await response.json();
             const tournamentId = created.name;
 
-            if (tournamentId && authCtx.userNickName) {
+            if (!isPublicTournament && tournamentId && authCtx.userNickName) {
                 try {
                     await addCreatorToTournament(tournamentId, authCtx.userNickName);
                 } catch (registerError) {
@@ -307,6 +377,11 @@ const Bracket = (props) => {
                 });
 
                 if (balanceResult.ok) {
+                    try {
+                        await addCreatorToTournament(tournamentId, authCtx.userNickName);
+                    } catch (registerError) {
+                        console.error('Could not auto-register tournament creator:', registerError);
+                    }
                     authCtx.setNotificationShown(
                         true,
                         `Tournament "${name}" created — $${balanceResult.poolUsd} added to the prize pool from your balance.`,
@@ -318,12 +393,17 @@ const Bracket = (props) => {
                     return;
                 }
 
-                await startHostSeedCheckout({
+                const checkoutResult = await startHostSeedCheckout({
                     tournamentId,
                     tournamentName: name,
                     goalUsd,
-                    nickname: authCtx.userNickName
+                    nickname: authCtx.userNickName,
+                    redirectMode: 'current-tab'
                 });
+
+                if (checkoutResult?.redirected) {
+                    return;
+                }
 
                 authCtx.setNotificationShown(
                     true,
@@ -397,6 +477,12 @@ const Bracket = (props) => {
                                         (typically log₂ of player count rounds).
                                     </p>
                                 )}
+                                {isCsSwiss && (
+                                    <p className={classes.fieldHint}>
+                                        Supports {CS_SWISS_SIZES.join(' or ')} players. Players qualify at 3 wins or are
+                                        eliminated at 3 losses, then qualifiers enter playoffs.
+                                    </p>
+                                )}
                                 {isChampionsLeague && (
                                     <p className={classes.fieldHint}>
                                         Groups of {CHAMPIONS_LEAGUE_GROUP_SIZE}, top{' '}
@@ -450,6 +536,11 @@ const Bracket = (props) => {
                                         Swiss requires at least {MIN_SWISS_PLAYERS} registered players to start.
                                     </p>
                                 )}
+                                {isCsSwiss && (
+                                    <p className={classes.fieldHint}>
+                                        CS Swiss requires exactly {CS_SWISS_SIZES.join(' or ')} registered players.
+                                    </p>
+                                )}
                                 {isChampionsLeague && (
                                     <p className={classes.fieldHint}>
                                         Must register exactly {championsLeagueMaxPlayers} players — no more, no less.
@@ -457,9 +548,16 @@ const Bracket = (props) => {
                                 )}
                                 {!isChampionsLeague && maxPlayersBelowMin && (
                                     <p className={classes.fieldError}>
-                                        {isSwiss
-                                            ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} max players.`
-                                            : 'Max players must be at least 2.'}
+                                        {isCsSwiss
+                                            ? `CS Swiss tournaments need at least ${MIN_CS_SWISS_PLAYERS} max players.`
+                                            : isSwiss
+                                              ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} max players.`
+                                              : 'Max players must be at least 2.'}
+                                    </p>
+                                )}
+                                {csSwissSizeInvalid && (
+                                    <p className={classes.fieldError}>
+                                        CS Swiss supports exactly {CS_SWISS_SIZES.join(' or ')} players.
                                     </p>
                                 )}
                             </div>
@@ -527,7 +625,34 @@ const Bracket = (props) => {
                                         </option>
                                     ))}
                                 </select>
+                                {(isLeague || isChampionsLeague) && (
+                                    <p className={`${classes.fieldHint} ${classes.warningHint}`}>
+                                        Restart-based win points are available but not recommended: 3 pts with no
+                                        restarts, 2.5 pts with 1× 111, and 2 pts with 2× 111 or any 112. For
+                                        h3ladder-style league scoring, use BO-2: win 2 pts, draw 1 pt, loss 0 pts.
+                                    </p>
+                                )}
                             </div>
+                            {(isLeague || isChampionsLeague) && (
+                                <div className={classes.field}>
+                                    <label className={classes.label} htmlFor="scheduleScoringMode">
+                                        Points scoring
+                                    </label>
+                                    <select
+                                        id="scheduleScoringMode"
+                                        className={classes.select}
+                                        defaultValue="classic"
+                                        ref={scheduleScoringModeRef}
+                                    >
+                                        <option value="classic">Classic: win 2 pts, draw 1, loss 0</option>
+                                        <option value="restart">Restart-based (not recommended)</option>
+                                    </select>
+                                    <p className={classes.fieldHint}>
+                                        Classic is h3ladder-style scoring. Draws are possible only when the match type
+                                        is BO-2.
+                                    </p>
+                                </div>
+                            )}
                             <div className={`${classes.field} ${hideKnockoutStageGames ? classes.hidden : ''}`}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
                                     Final games

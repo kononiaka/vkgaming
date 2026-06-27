@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchLiveTournamentPrizePools } from '../../utils/prizePoolData';
+import AddTournamentContext from '../../store/add-tournament-context';
 import classes from './PrizePoolPanel.module.css';
 
 const PrizePoolPanel = ({ compact = false, className = '', showSupportButton = true, showNote = true }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { openAddTournament, isAddTournamentDisabled, addTournamentHint } = useContext(AddTournamentContext);
 
     useEffect(() => {
         let cancelled = false;
@@ -39,15 +41,29 @@ const PrizePoolPanel = ({ compact = false, className = '', showSupportButton = t
     }, []);
 
     const rootClass = [classes.panel, compact ? classes.compact : '', className].filter(Boolean).join(' ');
+    const showAddTournamentButton = showSupportButton && !loading && entries.length === 0;
 
     return (
         <section className={rootClass} aria-label="Live tournament prize pools">
             <div className={classes.panelHeader}>
                 <h2 className={classes.title}>Prize pool</h2>
                 {showSupportButton ? (
-                    <Link to="/support" className={classes.supportBtn}>
-                        Support
-                    </Link>
+                    <div className={classes.headerActions}>
+                        {showAddTournamentButton && (
+                            <button
+                                type="button"
+                                className={classes.supportBtn}
+                                onClick={openAddTournament}
+                                disabled={isAddTournamentDisabled}
+                                title={addTournamentHint}
+                            >
+                                Add tournament
+                            </button>
+                        )}
+                        <Link to="/support" className={classes.supportBtn}>
+                            Support
+                        </Link>
+                    </div>
                 ) : null}
             </div>
 

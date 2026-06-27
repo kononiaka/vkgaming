@@ -169,8 +169,15 @@ function statusNotificationText(status, tournament) {
 function formatSeriesScore(pair) {
     const score1 = Number(pair.score1) || 0;
     const score2 = Number(pair.score2) || 0;
-    const type = pair.type === 'bo-5' ? 'BO5' : pair.type === 'bo-3' ? 'BO3' : 'BO1';
+    const type = pair.type === 'bo-5' ? 'BO5' : pair.type === 'bo-3' ? 'BO3' : pair.type === 'bo-2' ? 'BO2' : 'BO1';
     return `${score1}:${score2} (${type})`;
+}
+
+function formatLiveMapLabel(pair, gameIdx) {
+    if (pair?.type === 'bo-1' || !pair?.type) {
+        return 'Map';
+    }
+    return `Map ${Number(gameIdx) + 1}`;
 }
 
 function isGameLive(game) {
@@ -261,7 +268,7 @@ exports.notifyTelegramMatchLive = functions.database
         const team2 = escapeHtml(pair.team2 || 'TBD');
         const castle1 = escapeHtml(after.castle1);
         const castle2 = escapeHtml(after.castle2);
-        const mapNumber = Number(gameIdx) + 1;
+        const mapLabel = escapeHtml(formatLiveMapLabel(pair, gameIdx));
         const seriesScore = escapeHtml(formatSeriesScore(pair));
         const watchLink = matchPairLink(getTelegramConfig().siteUrl, tournamentId, stageIdx, pairIdx);
 
@@ -270,7 +277,7 @@ exports.notifyTelegramMatchLive = functions.database
             `${escapeHtml(tournament.name)}\n\n` +
             `${team1} vs ${team2}\n` +
             `Score: ${seriesScore}\n` +
-            `Map ${mapNumber}: ${castle1} vs ${castle2}\n\n` +
+            `${mapLabel}: ${castle1} vs ${castle2}\n\n` +
             `<a href="${watchLink}">Watch</a>`;
 
         const dedupeKey = `live-${tournamentId}-${stageIdx}-${pairIdx}-${gameIdx}`;

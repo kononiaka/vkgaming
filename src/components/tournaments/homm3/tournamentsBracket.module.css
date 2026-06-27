@@ -532,13 +532,40 @@
     width: 100%;
 }
 
-.actionButton:hover {
+.actionButton:hover:not(:disabled) {
     background: var(--color-gold-bright);
     border-color: var(--color-gold-bright);
 }
 
+.actionButton:disabled {
+    opacity: 0.78;
+    cursor: wait;
+}
+
+.actionButtonLoadingContent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.actionButtonSpinner {
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 2px solid rgba(20, 26, 36, 0.35);
+    border-top-color: var(--color-bg-deep);
+    border-radius: 50%;
+    animation: actionButtonSpin 0.75s linear infinite;
+}
+
 .actionButton:active {
     transform: none;
+}
+
+@keyframes actionButtonSpin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .actionButtonSecondary {

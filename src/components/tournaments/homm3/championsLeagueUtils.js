@@ -244,7 +244,7 @@ const calcWinPoints = (pair, winnerTeam) => {
     return 2;
 };
 
-export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
+export const computeGroupStandings = (pairs, groupLabel, groupPlayers = [], scoringMode = 'restart') => {
     const groupPairs = pairs.filter((pair) => pair.group === groupLabel);
     const map = {};
 
@@ -278,7 +278,7 @@ export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
             return;
         }
 
-        const pts = pair.type === 'bo-2' ? 2 : calcWinPoints(pair, pair.winner);
+        const pts = scoringMode === 'classic' || pair.type === 'bo-2' ? 2 : calcWinPoints(pair, pair.winner);
         if (pair.winner === pair.team1) {
             map[pair.team1].wins++;
             map[pair.team1].points += pts;
@@ -297,11 +297,11 @@ export const computeGroupStandings = (pairs, groupLabel, groupPlayers = []) => {
 
 export const isChampionsLeagueGroupStageComplete = (pairs) => pairs.length > 0 && pairs.every((pair) => pair.winner);
 
-export const getQualifiedPlayers = (groups, pairs) => {
+export const getQualifiedPlayers = (groups, pairs, scoringMode = 'restart') => {
     const qualifiers = [];
 
     Object.entries(groups).forEach(([groupLabel, groupPlayers]) => {
-        const standings = computeGroupStandings(pairs, groupLabel, groupPlayers);
+        const standings = computeGroupStandings(pairs, groupLabel, groupPlayers, scoringMode);
         standings.slice(0, CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP).forEach((entry, index) => {
             const player = groupPlayers.find((item) => item.name === entry.name);
             qualifiers.push({

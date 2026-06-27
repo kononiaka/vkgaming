@@ -11,11 +11,11 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import classes from './Tournaments.module.css';
 import { TournamentBracket, renderPlayerList } from './tournamentsBracket';
 import TournamentPlayerChip from './TournamentPlayerChip';
+import StarsComponent from '../../Stars/Stars';
 import {
     canDeleteTournament,
     canInviteTournamentPlayers,
     canKickTournamentPlayer,
-    isPlayerVisibleTournament,
     isPublicTournament,
     isTournamentCreator,
     isTournamentDeleteBlocked
@@ -55,7 +55,13 @@ import {
 import { getPrizeAmountForPlace, getTournamentPrizeBreakdown } from '../../../utils/prizePoolData';
 import {
     calculateSwissTotalRounds,
+    createSwissRoundDeadline,
+    CS_SWISS_LOSS_LIMIT,
+    CS_SWISS_SIZES,
+    CS_SWISS_WIN_TARGET,
     generateSwissRound1Pairings,
+    isCsSwissSize,
+    MIN_CS_SWISS_PLAYERS,
     MIN_SWISS_PLAYERS,
     normalizeGameType
 } from './swissUtils';
@@ -67,7 +73,7 @@ import {
     prepareChampionsLeagueGroupStage
 } from './championsLeagueUtils';
 
-const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished', 'draft']);
+const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['draft']);
 
 const getTournamentPlayersObject = (tournament) => {
     const players = tournament?.players;
@@ -79,6 +85,20 @@ const countRegisteredPlayers = (tournament) =>
         (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
     ).length;
 
+const getAverageTournamentStars = (tournament) => {
+    const players = Object.values(getTournamentPlayersObject(tournament)).filter(
+        (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+    );
+    if (players.length === 0) {
+        return null;
+    }
+
+    const total = players.reduce((sum, player) => sum + (Number(player.stars) || 0), 0);
+    return total / players.length;
+};
+
+const roundToHalfStar = (stars) => Math.round(Number(stars) * 2) / 2;
+
 const getTournamentViewLabel = (type) => {
     if (type === 'league') {
         return 'View league';
@@ -86,13 +106,17 @@ const getTournamentViewLabel = (type) => {
     if (type === 'swiss') {
         return 'View Swiss';
     }
+    if (type === 'cs-swiss') {
+        return 'View CS Swiss';
+    }
     if (type === 'champions-league') {
         return 'View Champions League';
     }
     return 'View bracket';
 };
 
-const isScheduleTournamentType = (type) => type === 'league' || type === 'swiss' || type === 'champions-league';
+const isScheduleTournamentType = (type) =>
+    type === 'league' || type === 'swiss' || type === 'cs-swiss' || type === 'champions-league';
 
 const usesSpinningWheel = (tournament) =>
     Boolean(tournament?.randomBracket && (tournament.type === 'kick-off' || tournament.type === 'champions-league'));
@@ -124,6 +148,7 @@ const TournamentList = () => {
     const [nicknameSuggestions, setNicknameSuggestions] = useState([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const [addingPlayerTournamentId, setAddingPlayerTournamentId] = useState(null);
+    const [fillingRandomTournamentId, setFillingRandomTournamentId] = useState(null);
     const [attendanceCheckoutTournamentId, setAttendanceCheckoutTournamentId] = useState(null);
     const [hostSeedCheckoutTournamentId, setHostSeedCheckoutTournamentId] = useState(null);
     const [leavingTournamentId, setLeavingTournamentId] = useState(null);
@@ -137,7 +162,7 @@ const TournamentList = () => {
 
     useEffect(() => {
         if (!isAdmin && statusFilter && ADMIN_ONLY_TOURNAMENT_FILTERS.has(statusFilter)) {
-            setStatusFilter('started');
+            setStatusFilter('all');
         }
     }, [isAdmin, statusFilter]);
 
@@ -186,21 +211,11 @@ const TournamentList = () => {
                 setStatusFilter((prev) => {
                     if (prev !== null) {
                         if (!isAdmin && ADMIN_ONLY_TOURNAMENT_FILTERS.has(prev)) {
-                            return 'started';
+                            return 'all';
                         }
                         return prev;
                     }
-                    const hasInProgress = tournamentList.some((t) => t.status === 'Started!');
-                    if (hasInProgress) {
-                        return 'started';
-                    }
-                    const hasRegistration = tournamentList.some(
-                        (t) => t.status === 'Registration' || t.status === 'Registration Started'
-                    );
-                    if (hasRegistration) {
-                        return 'registration';
-                    }
-                    return isAdmin ? 'finished' : 'started';
+                    return 'all';
                 });
                 // (no post-fetch setup needed)
             } else {
@@ -712,7 +727,8 @@ const TournamentList = () => {
                 tournamentId: tournament.id,
                 tournamentName: tournament.name,
                 goalUsd,
-                nickname: userNickName
+                nickname: userNickName,
+                redirectMode: 'current-tab'
             });
         } catch (error) {
             authCtx.setNotificationShown(true, error.message || 'Could not open prize pool checkout.', 'error', 5);
@@ -1031,6 +1047,12 @@ const TournamentList = () => {
     };
 
     const fillTournamentWithRandomPlayers = async (tourId, currentTournamentPlayers, maxPlayers) => {
+        if (fillingRandomTournamentId === tourId) {
+            return;
+        }
+
+        setFillingRandomTournamentId(tourId);
+
         try {
             // Get all users from database
             const usersResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
@@ -1162,6 +1184,8 @@ const TournamentList = () => {
         } catch (error) {
             console.error('Error filling tournament with random players:', error);
             alert('Error adding players to tournament');
+        } finally {
+            setFillingRandomTournamentId(null);
         }
     };
 
@@ -1349,29 +1373,40 @@ const TournamentList = () => {
     };
 
     const handleStartSwiss = async (swissTournamentId) => {
-        if (!window.confirm('Generate Swiss round 1 and start the tournament?')) {
+        const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/.json`);
+        if (!response.ok) {
+            alert('Failed to fetch tournament data');
+            return;
+        }
+
+        const tournamentData = await response.json();
+        const isCsSwiss = tournamentData.type === 'cs-swiss';
+        const minPlayers = isCsSwiss ? MIN_CS_SWISS_PLAYERS : MIN_SWISS_PLAYERS;
+        const confirmText = isCsSwiss
+            ? 'Generate CS Swiss round 1 and start the tournament? Players qualify at 3 wins and are eliminated at 3 losses.'
+            : 'Generate Swiss round 1 and start the tournament?';
+
+        if (!window.confirm(confirmText)) {
             return;
         }
 
         try {
-            const response = await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/.json`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch tournament data');
-            }
-
-            const tournamentData = await response.json();
             const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
             const playerList = Object.values(tournamentData.players || {}).filter(
                 (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
             );
 
-            if (playerList.length < MIN_SWISS_PLAYERS) {
-                alert(`Not enough players to start Swiss (minimum ${MIN_SWISS_PLAYERS}).`);
+            if (playerList.length < minPlayers) {
+                alert(`Not enough players to start ${isCsSwiss ? 'CS Swiss' : 'Swiss'} (minimum ${minPlayers}).`);
+                return;
+            }
+            if (isCsSwiss && !isCsSwissSize(playerList.length)) {
+                alert(`CS Swiss requires exactly ${CS_SWISS_SIZES.join(' or ')} registered players.`);
                 return;
             }
 
             const swissPairs = generateSwissRound1Pairings(playerList, gameType);
-            const totalRounds = calculateSwissTotalRounds(playerList.length);
+            const totalRounds = isCsSwiss ? 5 : calculateSwissTotalRounds(playerList.length);
 
             const bracketRes = await authFetch(
                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/bracket/playoffPairs.json`,
@@ -1400,13 +1435,48 @@ const TournamentList = () => {
                 headers: { 'Content-Type': 'application/json' }
             });
 
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissRoundDeadlines/1.json`, {
+                method: 'PUT',
+                body: JSON.stringify(createSwissRoundDeadline()),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (isCsSwiss) {
+                await Promise.all([
+                    authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissMode.json`, {
+                        method: 'PUT',
+                        body: JSON.stringify('cs-to-playoffs'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }),
+                    authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissPhase.json`, {
+                        method: 'PUT',
+                        body: JSON.stringify('swiss'),
+                        headers: { 'Content-Type': 'application/json' }
+                    }),
+                    authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissWinTarget.json`, {
+                        method: 'PUT',
+                        body: JSON.stringify(CS_SWISS_WIN_TARGET),
+                        headers: { 'Content-Type': 'application/json' }
+                    }),
+                    authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/swissLossLimit.json`, {
+                        method: 'PUT',
+                        body: JSON.stringify(CS_SWISS_LOSS_LIMIT),
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                ]);
+            }
+
             await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${swissTournamentId}/status.json`, {
                 method: 'PUT',
                 body: JSON.stringify('Started!'),
                 headers: { 'Content-Type': 'application/json' }
             });
 
-            alert(`Swiss started! Round 1 of ${totalRounds} — ${swissPairs.length} matches.`);
+            alert(
+                isCsSwiss
+                    ? `CS Swiss started! Round 1 — ${swissPairs.length} matches.`
+                    : `Swiss started! Round 1 of ${totalRounds} — ${swissPairs.length} matches.`
+            );
             window.location.reload();
         } catch (error) {
             console.error('Error starting Swiss tournament:', error);
@@ -1944,21 +2014,28 @@ const TournamentList = () => {
         );
     };
 
-    const filteredTournaments = tournaments.filter((tournament) => {
-        if (statusFilter === null) {
+    const isVisibleTournamentForUser = (tournament) => {
+        if (!isAdmin && !isPublicTournament(tournament)) {
             return false;
         }
-        if (!isAdmin && !isPlayerVisibleTournament(tournament)) {
+        if (!isAdmin && tournament.status === 'Pending funding') {
             const ownPendingFunding =
                 tournament.status === 'Pending funding' && isTournamentCreator(tournament, userNickName);
             if (!ownPendingFunding) {
                 return false;
             }
         }
-        if (statusFilter === 'all') {
-            return isAdmin;
+        return true;
+    };
+
+    const matchesStatusFilter = (tournament, filter) => {
+        if (filter === null) {
+            return false;
         }
-        if (statusFilter === 'registration') {
+        if (filter === 'all') {
+            return true;
+        }
+        if (filter === 'registration') {
             if (tournament.status === 'Registration' || tournament.status === 'Registration Started') {
                 return true;
             }
@@ -1966,33 +2043,81 @@ const TournamentList = () => {
                 tournament.status === 'Pending funding' && (isTournamentCreator(tournament, userNickName) || isAdmin)
             );
         }
-        if (statusFilter === 'registrationFinished') {
+        if (filter === 'registrationFinished') {
             return tournament.status === 'Registration finished!';
         }
-        if (statusFilter === 'started') {
+        if (filter === 'started') {
             return tournament.status === 'Started!';
         }
-        if (statusFilter === 'finished') {
+        if (filter === 'finished') {
             return tournament.status.includes('Finished');
         }
-        if (statusFilter === 'live') {
+        if (filter === 'live') {
             return hasLiveGames(tournament);
         }
-        if (statusFilter === 'draft') {
+        if (filter === 'draft') {
             return isAdmin && !isPublicTournament(tournament);
         }
         return true;
+    };
+
+    const filteredTournaments = tournaments.filter((tournament) => {
+        if (statusFilter === null || !isVisibleTournamentForUser(tournament)) {
+            return false;
+        }
+        return matchesStatusFilter(tournament, statusFilter);
     });
+
+    const hasTournamentsForFilter = (filter) =>
+        tournaments.some((tournament) => isVisibleTournamentForUser(tournament) && matchesStatusFilter(tournament, filter));
+
+    const emptyStateCopy = {
+        registration: {
+            title: 'No tournaments are open for registration right now.',
+            text: 'Some tournaments may have finished registration or already moved into play.'
+        },
+        started: {
+            title: 'No tournaments are in progress right now.',
+            text: 'You can check tournaments that are open for registration, ready to start, or already finished.'
+        }
+    };
+
+    const emptyStateActions = [
+        { filter: 'registration', label: 'Check registration open' },
+        { filter: 'registrationFinished', label: 'Check registration finished' },
+        { filter: 'finished', label: 'Check finished tournaments' }
+    ].filter((action) => action.filter !== statusFilter && hasTournamentsForFilter(action.filter));
 
     const activeTournament =
         tournamentId && tournaments.length > 0
             ? tournaments.find((tournament) => tournament.id === tournamentId) || null
             : null;
     const isFullPageView = Boolean(activeTournament);
+    const activeEmptyState = filteredTournaments.length === 0 ? emptyStateCopy[statusFilter] : null;
 
     const tournamentList =
         tournaments.length > 0 ? (
             <ul className={classes.tournamentList}>
+                {activeEmptyState && (
+                    <li className={classes.noTournaments}>
+                        <p className={classes.emptyStateTitle}>{activeEmptyState.title}</p>
+                        <p className={classes.emptyStateText}>{activeEmptyState.text}</p>
+                        {emptyStateActions.length > 0 && (
+                            <div className={classes.emptyStateActions}>
+                                {emptyStateActions.map((action) => (
+                                    <button
+                                        key={action.filter}
+                                        type="button"
+                                        className={`${classes.btn} ${classes.btnPrimary}`}
+                                        onClick={() => setStatusFilter(action.filter)}
+                                    >
+                                        {action.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </li>
+                )}
                 {filteredTournaments
                     .sort((a, b) => {
                         const statusOrder = {
@@ -2040,6 +2165,8 @@ const TournamentList = () => {
                         };
 
                         const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
+                        const averageStars = getAverageTournamentStars(tournament);
+                        const roundedAverageStars = averageStars !== null ? roundToHalfStar(averageStars) : null;
                         const firebaseUid = getFirebaseUid();
                         const commentatorRequest = getCommentatorRequestForUser(tournament, firebaseUid);
                         const approvedCommentator = getApprovedCommentator(tournament, firebaseUid);
@@ -2060,16 +2187,29 @@ const TournamentList = () => {
                         return (
                             <li key={tournament.id} className={classes.bracket}>
                                 <h3 className={classes.tournamentTitle}>
-                                    {`${tournament.name} (${tournament.date})`}
-                                    {isAdmin && !isPublicTournament(tournament) ? (
-                                        <span className={classes.privateTag}>Private</span>
-                                    ) : null}
-                                    {tournament.loserBracket ? (
-                                        <span className={classes.privateTag}>Double elim</span>
-                                    ) : null}
-                                    {tournament.type === 'champions-league' ? (
-                                        <span className={classes.privateTag}>Champions League</span>
-                                    ) : null}
+                                    <span className={classes.tournamentTitleMain}>
+                                        {`${tournament.name} (${tournament.date})`}
+                                        {isAdmin && !isPublicTournament(tournament) ? (
+                                            <span className={classes.privateTag}>Private</span>
+                                        ) : null}
+                                        {tournament.loserBracket ? (
+                                            <span className={classes.privateTag}>Double elim</span>
+                                        ) : null}
+                                        {tournament.type === 'champions-league' ? (
+                                            <span className={classes.privateTag}>Champions League</span>
+                                        ) : null}
+                                        {tournament.type === 'cs-swiss' ? (
+                                            <span className={classes.privateTag}>CS Swiss</span>
+                                        ) : null}
+                                    </span>
+                                    {roundedAverageStars !== null && (
+                                        <span
+                                            className={classes.tournamentAverageStars}
+                                            title={`Average player stars: ${averageStars.toFixed(1)}`}
+                                        >
+                                            <StarsComponent stars={roundedAverageStars} />
+                                        </span>
+                                    )}
                                 </h3>
                                 <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
                                     {tournament.status}
@@ -2399,13 +2539,13 @@ const TournamentList = () => {
                                         )}
 
                                     {authCtx.isAdmin &&
-                                        tournament.type === 'swiss' &&
+                                        (tournament.type === 'swiss' || tournament.type === 'cs-swiss') &&
                                         tournament.status === 'Registration finished!' && (
                                             <button
                                                 className={`${classes.btn} ${classes.btnSuccess}`}
                                                 onClick={() => handleStartSwiss(tournament.id)}
                                             >
-                                                Start Swiss
+                                                {tournament.type === 'cs-swiss' ? 'Start CS Swiss' : 'Start Swiss'}
                                             </button>
                                         )}
 
@@ -2429,34 +2569,35 @@ const TournamentList = () => {
                                             </button>
                                         )}
 
-                                    {checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
-                                        <div className={classes.registrationActions}>
-                                            <div className={classes.registeredBadge}>You are registered</div>
-                                            {canLeaveTournament(tournament) && (
+                                    {tournament.status !== 'Pending funding' &&
+                                        (checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
+                                            <div className={classes.registrationActions}>
+                                                <div className={classes.registeredBadge}>You are registered</div>
+                                                {canLeaveTournament(tournament) && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${classes.btn} ${classes.btnDanger}`}
+                                                        disabled={leavingTournamentId === tournament.id}
+                                                        onClick={() => handleLeaveTournament(tournament)}
+                                                    >
+                                                        {leavingTournamentId === tournament.id
+                                                            ? 'Leaving…'
+                                                            : 'Leave tournament'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            countRegisteredPlayers(tournament) < tournament.maxPlayers &&
+                                            canShowSelfRegister(tournament) && (
                                                 <button
-                                                    type="button"
-                                                    className={`${classes.btn} ${classes.btnDanger}`}
-                                                    disabled={leavingTournamentId === tournament.id}
-                                                    onClick={() => handleLeaveTournament(tournament)}
+                                                    className={classes.btn}
+                                                    disabled={attendanceCheckoutTournamentId === tournament.id}
+                                                    onClick={() => handleSelfRegister(tournament)}
                                                 >
-                                                    {leavingTournamentId === tournament.id
-                                                        ? 'Leaving…'
-                                                        : 'Leave tournament'}
+                                                    {getSelfRegisterLabel(tournament)}
                                                 </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        countRegisteredPlayers(tournament) < tournament.maxPlayers &&
-                                        canShowSelfRegister(tournament) && (
-                                            <button
-                                                className={classes.btn}
-                                                disabled={attendanceCheckoutTournamentId === tournament.id}
-                                                onClick={() => handleSelfRegister(tournament)}
-                                            >
-                                                {getSelfRegisterLabel(tournament)}
-                                            </button>
-                                        )
-                                    )}
+                                            )
+                                        ))}
                                 </div>
 
                                 {showDetails &&
@@ -2578,6 +2719,7 @@ const TournamentList = () => {
                                             {isAdmin && (
                                                 <button
                                                     className={`${classes.btn} ${classes.btnDanger}`}
+                                                    disabled={fillingRandomTournamentId === tournament.id}
                                                     onClick={() =>
                                                         fillTournamentWithRandomPlayers(
                                                             tournament.id,
@@ -2586,7 +2728,14 @@ const TournamentList = () => {
                                                         )
                                                     }
                                                 >
-                                                    Fill with random players
+                                                    {fillingRandomTournamentId === tournament.id ? (
+                                                        <span className={classes.loadingInline}>
+                                                            <span className={classes.spinner}></span>
+                                                            Filling...
+                                                        </span>
+                                                    ) : (
+                                                        'Fill with random players'
+                                                    )}
                                                 </button>
                                             )}
                                         </div>
@@ -2722,12 +2871,12 @@ const TournamentList = () => {
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                     >
-                        {isAdmin && <option value="all">All tournaments</option>}
+                        <option value="all">All tournaments</option>
                         <option value="registration">Registration open</option>
-                        {isAdmin && <option value="registrationFinished">Registration finished</option>}
+                        <option value="registrationFinished">Registration finished</option>
                         <option value="started">In progress</option>
                         <option value="live">Live games</option>
-                        {isAdmin && <option value="finished">Finished</option>}
+                        <option value="finished">Finished</option>
                         {isAdmin && <option value="draft">Private drafts</option>}
                     </select>
                 </div>
