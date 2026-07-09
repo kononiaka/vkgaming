@@ -1008,65 +1008,65 @@ const ReportGameModal = ({
                                                 </div>
                                             </div>
 
-                                        {/* Gold Input for BO-3 */}
-                                        <div className={`${classes.formGroup} ${classes.layered}`}>
-                                            <label className={classes.centerLabel}>Gold:</label>
-                                            <div className={classes.goldRow}>
-                                                <div style={{ textAlign: 'center' }}>
-                                                    <input
-                                                        type="number"
-                                                        step="100"
-                                                        value={game.gold1 || 0}
-                                                        disabled={game.gameStatus?.trim() === 'Processed'}
-                                                        onChange={(e) => {
-                                                            const value = parseInt(e.target.value) || 0;
-                                                            const updated = [...gameResults];
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                gold1: value,
-                                                                gold2: -value
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                        className={`${classes.goldInput} ${
-                                                            game.gold1 > 0
-                                                                ? classes.goldPositive
-                                                                : game.gold1 < 0
-                                                                  ? classes.goldNegative
-                                                                  : ''
-                                                        }`}
-                                                    />
-                                                </div>
-                                                <img src={goldImg} alt="Gold" className={classes.goldIcon} />
-                                                <div className={classes.scoreDivider}>⚔️</div>
-                                                <img src={goldImg} alt="Gold" className={classes.goldIcon} />
-                                                <div style={{ textAlign: 'center' }}>
-                                                    <div className={classes.goldPlayerLabel}>{pair.team2}</div>
-                                                    <input
-                                                        type="number"
-                                                        value={game.gold2 || 0}
-                                                        disabled={game.gameStatus?.trim() === 'Processed'}
-                                                        onChange={(e) => {
-                                                            const value = parseInt(e.target.value) || 0;
-                                                            const updated = [...gameResults];
-                                                            updated[idx] = {
-                                                                ...updated[idx],
-                                                                gold2: value,
-                                                                gold1: -value
-                                                            };
-                                                            setGameResults(updated);
-                                                        }}
-                                                        className={`${classes.goldInput} ${
-                                                            game.gold2 > 0
-                                                                ? classes.goldPositive
-                                                                : game.gold2 < 0
-                                                                  ? classes.goldNegative
-                                                                  : ''
-                                                        }`}
-                                                    />
+                                            {/* Gold Input for BO-3 */}
+                                            <div className={`${classes.formGroup} ${classes.layered}`}>
+                                                <label className={classes.centerLabel}>Gold:</label>
+                                                <div className={classes.goldRow}>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="100"
+                                                            value={game.gold1 || 0}
+                                                            disabled={game.gameStatus?.trim() === 'Processed'}
+                                                            onChange={(e) => {
+                                                                const value = parseInt(e.target.value) || 0;
+                                                                const updated = [...gameResults];
+                                                                updated[idx] = {
+                                                                    ...updated[idx],
+                                                                    gold1: value,
+                                                                    gold2: -value
+                                                                };
+                                                                setGameResults(updated);
+                                                            }}
+                                                            className={`${classes.goldInput} ${
+                                                                game.gold1 > 0
+                                                                    ? classes.goldPositive
+                                                                    : game.gold1 < 0
+                                                                      ? classes.goldNegative
+                                                                      : ''
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                    <img src={goldImg} alt="Gold" className={classes.goldIcon} />
+                                                    <div className={classes.scoreDivider}>⚔️</div>
+                                                    <img src={goldImg} alt="Gold" className={classes.goldIcon} />
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div className={classes.goldPlayerLabel}>{pair.team2}</div>
+                                                        <input
+                                                            type="number"
+                                                            value={game.gold2 || 0}
+                                                            disabled={game.gameStatus?.trim() === 'Processed'}
+                                                            onChange={(e) => {
+                                                                const value = parseInt(e.target.value) || 0;
+                                                                const updated = [...gameResults];
+                                                                updated[idx] = {
+                                                                    ...updated[idx],
+                                                                    gold2: value,
+                                                                    gold1: -value
+                                                                };
+                                                                setGameResults(updated);
+                                                            }}
+                                                            className={`${classes.goldInput} ${
+                                                                game.gold2 > 0
+                                                                    ? classes.goldPositive
+                                                                    : game.gold2 < 0
+                                                                      ? classes.goldNegative
+                                                                      : ''
+                                                            }`}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
                                             {/* Restarts Input for BO-3 */}
                                             <div className={`${classes.formGroup} ${classes.layered}`}>
@@ -1430,26 +1430,27 @@ const ReportGameModal = ({
                                             </div>
                                         </div>
                                     </div> */}
+                                        </div>
+                                        <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
+                                            <label className={classes.restartConfirmationLabel}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={game.restartsFinished || false}
+                                                    onChange={(e) => {
+                                                        const updated = [...gameResults];
+                                                        updated[idx] = {
+                                                            ...updated[idx],
+                                                            restartsFinished: e.target.checked
+                                                        };
+                                                        setGameResults(updated);
+                                                    }}
+                                                />
+                                                Restarts finished / main game started
+                                            </label>
+                                        </div>
                                     </div>
-                                    <div className={`${classes.restartConfirmationRow} ${classes.layered}`}>
-                                        <label className={classes.restartConfirmationLabel}>
-                                            <input
-                                                type="checkbox"
-                                                checked={game.restartsFinished || false}
-                                                onChange={(e) => {
-                                                    const updated = [...gameResults];
-                                                    updated[idx] = {
-                                                        ...updated[idx],
-                                                        restartsFinished: e.target.checked
-                                                    };
-                                                    setGameResults(updated);
-                                                }}
-                                            />
-                                            Restarts finished / main game started
-                                        </label>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className={classes.gameSection}>
@@ -2115,7 +2116,12 @@ const ReportGameModal = ({
                                 'Submit Result'
                             )}
                         </button>
-                        <button type="button" onClick={onClose} className={classes.cancelButton} disabled={isSubmitting}>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className={classes.cancelButton}
+                            disabled={isSubmitting}
+                        >
                             Cancel
                         </button>
                     </div>

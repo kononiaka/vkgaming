@@ -70,7 +70,11 @@ describe('appBasePath', () => {
 
     test('getTwitchRedirectUri uses configured production callback when not on github.io', () => {
         process.env.REACT_APP_TWITCH_REDIRECT_URI = 'https://konoplay.com/auth/twitch/callback';
+        const originalLocation = window.location;
+        delete window.location;
+        window.location = new URL('https://konoplay.com/');
         expect(getTwitchRedirectUri()).toBe('https://konoplay.com/auth/twitch/callback');
+        window.location = originalLocation;
     });
 
     test('isTwitchCallbackPath accepts trailing slash from GitHub Pages', () => {

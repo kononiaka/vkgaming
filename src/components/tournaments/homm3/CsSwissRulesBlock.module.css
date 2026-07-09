@@ -1,0 +1,94 @@
+.rulesBlock {
+    max-width: 42rem;
+    margin: 0 auto 1rem;
+}
+
+.rulesToggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid rgba(201, 162, 39, 0.28);
+    border-radius: var(--radius-md);
+    background: rgba(201, 162, 39, 0.06);
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.rulesToggle:hover,
+.rulesToggleOpen {
+    background: rgba(201, 162, 39, 0.12);
+    border-color: rgba(201, 162, 39, 0.45);
+    color: var(--color-text);
+}
+
+.rulesSummary {
+    flex: 1;
+    line-height: 1.35;
+}
+
+.rulesChevron {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    color: var(--color-gold);
+}
+
+.rulesBody {
+    margin-top: 0.5rem;
+    padding: 0.85rem 1rem 0.95rem;
+    border: 1px solid rgba(201, 162, 39, 0.18);
+    border-radius: var(--radius-md);
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.rulesSection + .rulesSection {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(201, 162, 39, 0.12);
+}
+
+.rulesHeading {
+    margin: 0 0 0.45rem;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.rulesList {
+    margin: 0;
+    padding-left: 1.15rem;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.rulesList li + li {
+    margin-top: 0.35rem;
+}
+
+.rulesList strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.rulesNote {
+    margin: 0.85rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(201, 162, 39, 0.12);
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    font-style: italic;
+}

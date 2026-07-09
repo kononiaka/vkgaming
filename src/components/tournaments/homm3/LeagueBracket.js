@@ -1,6 +1,6 @@
 import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { getAvatar, lookForUserId } from '../../../api/api';
 import CountryFlag from '../../Country/CountryFlag';
 import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../../HeadToHead/HeadToHeadStatsButton';
@@ -11,6 +11,7 @@ import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
 import { isGameSessionActive, isPairLive } from '../../../utils/matchCenterData';
 import classes from './LeagueBracket.module.css';
 import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP, compareStandingsWithHeadToHead } from './championsLeagueUtils';
+import { compareCsSwissStandings } from './swissUtils';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
 import towerImg from '../../../image/castles/tower.jpeg';
@@ -552,7 +553,7 @@ const LeagueBracket = ({
         return Object.entries(map)
             .filter(([name]) => !isPlaceholderPlayer(name))
             .map(([name, s]) => ({ name, ...s }))
-            .sort(compareStandingsWithHeadToHead(scopedPairs));
+            .sort(isCsSwissFormat ? compareCsSwissStandings : compareStandingsWithHeadToHead(scopedPairs));
     };
 
     const standings = computeStandings();

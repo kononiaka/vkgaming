@@ -65,8 +65,9 @@ const Bracket = (props) => {
     const isCsSwiss = tournamentType === 'cs-swiss';
     const isChampionsLeague = tournamentType === 'champions-league';
     const isKickOff = tournamentType === 'kick-off';
-    const isScheduleFormat = isLeague || isSwiss || isChampionsLeague;
-    const hideKnockoutStageGames = isScheduleFormat;
+    const isScheduleFormat = isLeague || isSwiss || isCsSwiss || isChampionsLeague;
+    const showFinalAndThirdPlace = isKickOff || isChampionsLeague;
+    const showKnockoutMatchType = isChampionsLeague;
     const showBracketOptions = isKickOff || isChampionsLeague;
     const parsedFundingGoal = Number(fundingGoalUsd);
     const fundingGoalInvalid =
@@ -149,7 +150,6 @@ const Bracket = (props) => {
     const tournamentPlayoffGamesKnockout = useRef(null);
     const tournamentPlayoffGamesFinal = useRef(null);
     const tournamentPlayoffGamesThirdPlace = useRef(null);
-    const scheduleScoringModeRef = useRef(null);
     const randomBracketRef = useRef(null);
 
     const handleFundingGoalChange = (event) => {
@@ -298,8 +298,14 @@ const Bracket = (props) => {
             },
             date: fromDatetimeLocalValue(date),
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
-            tournamentPlayoffGamesFinal: tournamentPlayoffGamesFinal.current.value,
-            tournamentPlayoffGamesThirdPlace: tournamentPlayoffGamesThirdPlace.current.value,
+            tournamentPlayoffGamesKnockout: isChampionsLeague ? tournamentPlayoffGamesKnockout.current.value : null,
+            tournamentPlayoffGamesFinal: showFinalAndThirdPlace
+                ? tournamentPlayoffGamesFinal.current.value
+                : tournamentPlayoffGames.current.value,
+            tournamentPlayoffGamesThirdPlace:
+                showFinalAndThirdPlace && !(isKickOff && loserBracket)
+                    ? tournamentPlayoffGamesThirdPlace.current.value
+                    : tournamentPlayoffGames.current.value,
             randomBracket: isLeague || isSwiss ? false : showBracketOptions && randomBracketRef.current.checked,
             loserBracket: isKickOff && loserBracket,
             strictCastlePick,
@@ -632,8 +638,30 @@ const Bracket = (props) => {
                                         </option>
                                     ))}
                                 </select>
+                                {isChampionsLeague && (
+                                    <p className={classes.fieldHint}>
+                                        Group stage only. Knockout rounds use the settings below.
+                                    </p>
+                                )}
                             </div>
-                            <div className={`${classes.field} ${hideKnockoutStageGames ? classes.hidden : ''}`}>
+                            <div className={`${classes.field} ${showKnockoutMatchType ? '' : classes.hidden}`}>
+                                <label className={classes.label} htmlFor="tournamentPlayoffGamesKnockout">
+                                    Knockout match type
+                                </label>
+                                <select
+                                    id="tournamentPlayoffGamesKnockout"
+                                    className={classes.select}
+                                    defaultValue="1"
+                                    ref={tournamentPlayoffGamesKnockout}
+                                >
+                                    {knockoutGameCountOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={`${classes.field} ${showFinalAndThirdPlace ? '' : classes.hidden}`}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
                                     {isChampionsLeague ? 'Final match type' : 'Final games'}
                                 </label>
