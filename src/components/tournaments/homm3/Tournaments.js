@@ -85,6 +85,33 @@ const countRegisteredPlayers = (tournament) =>
         (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
     ).length;
 
+const getAverageTournamentStars = (tournament) => {
+    const players = Object.values(getTournamentPlayersObject(tournament)).filter(
+        (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
+    );
+    if (players.length === 0) {
+        return null;
+    }
+
+    const total = players.reduce((sum, player) => sum + (Number(player.stars) || 0), 0);
+    return total / players.length;
+};
+
+const roundToHalfStar = (stars) => Math.round(Number(stars) * 2) / 2;
+
+const renderTournamentAverageStars = (tournament) => {
+    const averageStars = getAverageTournamentStars(tournament);
+    if (averageStars === null) {
+        return null;
+    }
+
+    return (
+        <span className={classes.tournamentAverageStars} title={`Average player stars: ${averageStars.toFixed(1)}`}>
+            <StarsComponent stars={roundToHalfStar(averageStars)} />
+        </span>
+    );
+};
+
 const getTournamentViewLabel = (type) => {
     if (type === 'league') {
         return 'View league';
@@ -2104,10 +2131,31 @@ const TournamentList = () => {
             ? tournaments.find((tournament) => tournament.id === tournamentId) || null
             : null;
     const isFullPageView = Boolean(activeTournament);
+    const activeEmptyState = filteredTournaments.length === 0 ? emptyStateCopy[statusFilter] : null;
 
     const tournamentList =
         tournaments.length > 0 ? (
             <ul className={classes.tournamentList}>
+                {activeEmptyState && (
+                    <li className={classes.noTournaments}>
+                        <p className={classes.emptyStateTitle}>{activeEmptyState.title}</p>
+                        <p className={classes.emptyStateText}>{activeEmptyState.text}</p>
+                        {emptyStateActions.length > 0 && (
+                            <div className={classes.emptyStateActions}>
+                                {emptyStateActions.map((action) => (
+                                    <button
+                                        key={action.filter}
+                                        type="button"
+                                        className={`${classes.btn} ${classes.btnPrimary}`}
+                                        onClick={() => setStatusFilter(action.filter)}
+                                    >
+                                        {action.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </li>
+                )}
                 {filteredTournaments
                     .sort((a, b) => {
                         const statusOrder = {
@@ -2161,16 +2209,22 @@ const TournamentList = () => {
                         return (
                             <li key={tournament.id} className={classes.bracket}>
                                 <h3 className={classes.tournamentTitle}>
-                                    {`${tournament.name} (${tournament.date})`}
-                                    {isAdmin && !isPublicTournament(tournament) ? (
-                                        <span className={classes.privateTag}>Private</span>
-                                    ) : null}
-                                    {tournament.loserBracket ? (
-                                        <span className={classes.privateTag}>Double elim</span>
-                                    ) : null}
-                                    {tournament.type === 'champions-league' ? (
-                                        <span className={classes.privateTag}>Champions League</span>
-                                    ) : null}
+                                    <span className={classes.tournamentTitleMain}>
+                                        {`${tournament.name} (${tournament.date})`}
+                                        {isAdmin && !isPublicTournament(tournament) ? (
+                                            <span className={classes.privateTag}>Private</span>
+                                        ) : null}
+                                        {tournament.loserBracket ? (
+                                            <span className={classes.privateTag}>Double elim</span>
+                                        ) : null}
+                                        {tournament.type === 'champions-league' ? (
+                                            <span className={classes.privateTag}>Champions League</span>
+                                        ) : null}
+                                        {tournament.type === 'cs-swiss' ? (
+                                            <span className={classes.privateTag}>CS Swiss</span>
+                                        ) : null}
+                                    </span>
+                                    {renderTournamentAverageStars(tournament)}
                                 </h3>
                                 <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
                                     {tournament.status}

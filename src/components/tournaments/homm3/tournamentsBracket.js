@@ -26,7 +26,20 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
-import { generateNextSwissRoundPairings, isSwissRoundComplete, normalizeGameType } from './swissUtils';
+import CsSwissRulesBlock from './CsSwissRulesBlock';
+import {
+    CS_SWISS_LOSS_LIMIT,
+    CS_SWISS_WIN_TARGET,
+    createSwissRoundDeadline,
+    generateCsSwissPlayoffStages,
+    generateNextCsSwissRoundPairings,
+    generateNextSwissRoundPairings,
+    getGamesPerMatch,
+    isCsSwissComplete,
+    isSwissRoundComplete,
+    normalizeGameType,
+    repairSwissByePairs
+} from './swissUtils';
 import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
 import {
     generateKnockoutBracketStages,
@@ -346,8 +359,8 @@ export const TournamentBracket = ({
                 return;
             }
 
-            const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
-            const labelStageIndex = targetStageIndex - clKnockoutOffset;
+            const scheduleStageOffset = getScheduleStageOffset();
+            const labelStageIndex = targetStageIndex - scheduleStageOffset;
             setActiveBracketStage(resolveKnockoutDisplayStage(labelStageIndex, stageLabels, isMobileKnockoutView));
         }
 
@@ -820,24 +833,6 @@ export const TournamentBracket = ({
         setShowStats(false);
         setStatsLoading(false);
         setStats(null);
-    };
-
-    const getKnockoutStorageOffset = (pairs = playoffPairs) =>
-        isChampionsLeague &&
-        championsLeaguePhase === 'knockout' &&
-        Array.isArray(pairs?.[0]) &&
-        pairs[0].some((pair) => pair?.group)
-            ? 1
-            : 0;
-
-    const getStageLabelForStorageIndex = (storageIndex, pairs = playoffPairs) => {
-        const offset = getKnockoutStorageOffset(pairs);
-        return stageLabels[storageIndex - offset] || stageLabels[storageIndex] || null;
-    };
-
-    const getStorageIndexForStageLabel = (stageLabel, pairs = playoffPairs) => {
-        const labelIndex = stageLabels.indexOf(stageLabel);
-        return labelIndex === -1 ? -1 : labelIndex + getKnockoutStorageOffset(pairs);
     };
 
     const getWinner = (pair) => {
@@ -3564,18 +3559,16 @@ export const TournamentBracket = ({
 
     const renderMatchScheduleControl = (pair, stageIndex, pairIndex) => {
         const canSchedule = canSchedulePairForPair(pair);
-        if (!pair?.scheduledAt && !canSchedule) {
-            return null;
-        }
 
         return (
             <div className={classes.knockoutScheduleWrap}>
                 <MatchScheduleControl
-                    scheduledAt={pair.scheduledAt}
-                    scheduledBy={pair.scheduledBy}
+                    scheduledAt={pair?.scheduledAt}
+                    scheduledBy={pair?.scheduledBy}
                     canEdit={canSchedule}
                     onSave={(iso) => handleSaveMatchSchedule(stageIndex, pairIndex, iso)}
                     showMissingHint={canSchedule}
+                    emptyLabel="not decided yet"
                 />
             </div>
         );
@@ -3845,12 +3838,45 @@ export const TournamentBracket = ({
                             </button>
                         </div>
                     )}
-                    {isSwiss && swissTotalRounds > 0 && (
-                        <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
-                            {isCsSwiss
-                                ? `CS Swiss round ${swissCurrentRound} — ${CS_SWISS_WIN_TARGET} wins qualify, ${CS_SWISS_LOSS_LIMIT} losses eliminate`
-                                : `Swiss round ${swissCurrentRound} of ${swissTotalRounds}`}
-                        </p>
+                    {isCsSwiss && swissPhase === 'playoffs' && (
+                        <div className={classes.knockoutNav}>
+                            <button
+                                type="button"
+                                className={classes.knockoutNavBtn}
+                                disabled
+                                aria-label="Swiss standings"
+                            >
+                                ←
+                            </button>
+                            <div className={classes.knockoutNavCenter}>
+                                <div className={classes.knockoutStageTitle}>Swiss standings</div>
+                                <div className={classes.knockoutStageMeta}>Qualification results</div>
+                            </div>
+                            <button
+                                type="button"
+                                className={classes.knockoutNavBtn}
+                                onClick={() => setUsesScheduleView(false)}
+                                aria-label="View playoffs"
+                            >
+                                →
+                            </button>
+                        </div>
+                    )}
+                    {isSwiss && swissTotalRounds > 0 && isCsSwiss ? (
+                        <CsSwissRulesBlock
+                            round={swissCurrentRound}
+                            winTarget={swissWinTarget}
+                            lossLimit={swissLossLimit}
+                            playerCount={maxPlayers}
+                            phase={swissPhase === 'playoffs' ? 'playoffs' : 'swiss'}
+                        />
+                    ) : (
+                        isSwiss &&
+                        swissTotalRounds > 0 && (
+                            <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
+                                {`Swiss round ${swissCurrentRound} of ${swissTotalRounds}`}
+                            </p>
+                        )
                     )}
                     <LeagueBracket
                         pairs={playoffPairs[0] || []}
@@ -3973,9 +3999,10 @@ export const TournamentBracket = ({
                 </div>
             ) : (
                 (() => {
-                    const clKnockoutOffset = isChampionsLeague && championsLeaguePhase === 'knockout' ? 1 : 0;
-                    const bracketPairs = clKnockoutOffset > 0 ? playoffPairs.slice(clKnockoutOffset) : playoffPairs;
-                    const storageStage = (labelIndex) => labelIndex + clKnockoutOffset;
+                    const scheduleStageOffset = getScheduleStageOffset();
+                    const bracketPairs =
+                        scheduleStageOffset > 0 ? playoffPairs.slice(scheduleStageOffset) : playoffPairs;
+                    const storageStage = (labelIndex) => labelIndex + scheduleStageOffset;
 
                     const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
                     const displayStages = getKnockoutPaginationStages(stageLabels, isMobileKnockoutView);
@@ -3992,8 +4019,8 @@ export const TournamentBracket = ({
                     const nextStageIndex = nextDisplayStage !== null ? stageLabels.indexOf(nextDisplayStage) : -1;
 
                     // Shared bracket layout constants
-                    const BLOCK_H = 180;
-                    const BLOCK_GAP = 16;
+                    const BLOCK_H = 96;
+                    const BLOCK_GAP = 6;
                     const leftMatchCount = bracketPairs[stageIndex]?.length ?? 0;
                     const rightMatchCount = nextStageIndex !== -1 ? (bracketPairs[nextStageIndex]?.length ?? 0) : 0;
                     const leftColHeight = leftMatchCount * BLOCK_H + Math.max(0, leftMatchCount - 1) * BLOCK_GAP;
@@ -4008,38 +4035,46 @@ export const TournamentBracket = ({
                     const getSvgRightY = (i) =>
                         (((getRightBlockTop(i) + BLOCK_H / 2) / leftColHeight) * 100).toFixed(2);
 
+                    const canReturnToScheduleFromKnockout =
+                        clampedStage === 0 &&
+                        ((isChampionsLeague && championsLeaguePhase === 'knockout') ||
+                            (isCsSwiss && swissPhase === 'playoffs'));
+
                     return (
                         <div className={classes.bracketBody} style={{ width: '100%' }}>
-                            {scheduleStageOffset > 0 && (
-                                <p className={classes.knockoutBanner}>
-                                    {isCsSwiss
-                                        ? 'CS Swiss playoffs — 8 qualified players start in quarter-finals'
-                                        : 'Knockout stage — group winners vs runners-up from other groups'}
-                                </p>
+                            {scheduleStageOffset > 0 && isCsSwiss ? (
+                                <CsSwissRulesBlock
+                                    round={swissCurrentRound}
+                                    winTarget={swissWinTarget}
+                                    lossLimit={swissLossLimit}
+                                    playerCount={maxPlayers}
+                                    phase="playoffs"
+                                />
+                            ) : (
+                                scheduleStageOffset > 0 && (
+                                    <p className={classes.knockoutBanner}>
+                                        Knockout stage — group winners vs runners-up from other groups
+                                    </p>
+                                )
                             )}
                             <div className={classes.knockoutNav}>
                                 <button
                                     type="button"
                                     className={classes.knockoutNavBtn}
                                     onClick={() => {
-                                        if (
-                                            isChampionsLeague &&
-                                            championsLeaguePhase === 'knockout' &&
-                                            clampedStage === 0
-                                        ) {
+                                        if (canReturnToScheduleFromKnockout) {
                                             setUsesScheduleView(true);
                                             setUrlHighlightPair(null);
                                             return;
                                         }
                                         setActiveBracketStage((prev) => Math.max(0, prev - 1));
                                     }}
-                                    disabled={
-                                        clampedStage === 0 &&
-                                        !(isChampionsLeague && championsLeaguePhase === 'knockout')
-                                    }
+                                    disabled={clampedStage === 0 && !canReturnToScheduleFromKnockout}
                                     aria-label={
-                                        clampedStage === 0 && isChampionsLeague && championsLeaguePhase === 'knockout'
-                                            ? 'Back to group tables'
+                                        canReturnToScheduleFromKnockout
+                                            ? isCsSwiss
+                                                ? 'Back to Swiss standings'
+                                                : 'Back to group tables'
                                             : 'Previous stage'
                                     }
                                 >
@@ -4128,7 +4163,9 @@ export const TournamentBracket = ({
                                                             pairIndex
                                                         )}
                                                         <div className={classes.knockoutMatchLayout}>
-                                                            <div className={classes.knockoutPlayersStack}>
+                                                            <div
+                                                                className={`${classes.knockoutPlayersStack} knockout-players-stack`}
+                                                            >
                                                                 <PlayerBracket
                                                                     pair={pair}
                                                                     team={'team1'}
@@ -4219,7 +4256,9 @@ export const TournamentBracket = ({
                                                                 pairIndex
                                                             )}
                                                             <div className={classes.knockoutMatchLayout}>
-                                                                <div className={classes.knockoutPlayersStack}>
+                                                                <div
+                                                                    className={`${classes.knockoutPlayersStack} knockout-players-stack`}
+                                                                >
                                                                     <PlayerBracket
                                                                         pair={pair}
                                                                         team={'team1'}
@@ -4296,7 +4335,9 @@ export const TournamentBracket = ({
                                         </div>
                                     ) : (
                                         /* === OTHER STAGES === */
-                                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '1rem' }}>
+                                        <div
+                                            style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0.5rem' }}
+                                        >
                                             {bracketPairs[stageIndex]?.map((pair, pairIndex) => {
                                                 const { team1, team2 } = pair;
                                                 const hasTruthyPlayers =
@@ -4312,7 +4353,7 @@ export const TournamentBracket = ({
                                                         className={classes['game-block']}
                                                         style={{
                                                             position: 'relative',
-                                                            minHeight: '180px',
+                                                            minHeight: `${BLOCK_H}px`,
                                                             marginBottom: 0,
                                                             display: 'flex',
                                                             flexDirection: 'column',
@@ -4344,7 +4385,9 @@ export const TournamentBracket = ({
                                                             )}
                                                         </div>
                                                         <div className={classes.knockoutMatchLayout}>
-                                                            <div className={classes.knockoutPlayersStack}>
+                                                            <div
+                                                                className={`${classes.knockoutPlayersStack} knockout-players-stack`}
+                                                            >
                                                                 <PlayerBracket
                                                                     pair={pair}
                                                                     team={'team1'}
@@ -4517,7 +4560,9 @@ export const TournamentBracket = ({
                                                                 pairIndex
                                                             )}
                                                             <div className={classes.knockoutMatchLayout}>
-                                                                <div className={classes.knockoutPlayersStack}>
+                                                                <div
+                                                                    className={`${classes.knockoutPlayersStack} knockout-players-stack`}
+                                                                >
                                                                     <PlayerBracket
                                                                         pair={pair}
                                                                         team={'team1'}
@@ -4657,7 +4702,9 @@ export const TournamentBracket = ({
                                                                     pairIndex
                                                                 )}
                                                                 <div className={classes.knockoutMatchLayout}>
-                                                                    <div className={classes.knockoutPlayersStack}>
+                                                                    <div
+                                                                        className={`${classes.knockoutPlayersStack} knockout-players-stack`}
+                                                                    >
                                                                         <PlayerBracket
                                                                             pair={pair}
                                                                             team={'team1'}
@@ -4860,7 +4907,9 @@ export const TournamentBracket = ({
                                                                 )}
                                                             </div>
                                                             <div className={classes.knockoutMatchLayout}>
-                                                                <div className={classes.knockoutPlayersStack}>
+                                                                <div
+                                                                    className={`${classes.knockoutPlayersStack} knockout-players-stack`}
+                                                                >
                                                                     <PlayerBracket
                                                                         pair={pair}
                                                                         team={'team1'}

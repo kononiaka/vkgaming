@@ -85,6 +85,161 @@
     margin-left: auto;
 }
 
+:global(.knockout-players-stack) .player_bracket {
+    align-items: center;
+    padding: 0.15rem 0.55rem 0.15rem 0.4rem;
+    gap: 0.4rem;
+}
+
+:global(.knockout-players-stack) .playerIdentity {
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 0.4rem;
+}
+
+:global(.knockout-players-stack) .playerTopRow {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 0.35rem;
+}
+
+:global(.knockout-players-stack) .playerPortraitCol {
+    flex-direction: row;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 0.35rem;
+}
+
+:global(.knockout-players-stack) .portraitSlot {
+    width: auto;
+    height: auto;
+    flex-shrink: 0;
+}
+
+:global(.knockout-players-stack) .portraitWrap {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+:global(.knockout-players-stack) .portraitImage,
+:global(.knockout-players-stack) .portraitFallback {
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+:global(.knockout-players-stack) .playerFlagInline {
+    height: auto;
+    width: 16px;
+    min-width: 16px;
+}
+
+:global(.knockout-players-stack) .starsOnPortrait {
+    position: static;
+    transform: none;
+    left: auto;
+    bottom: auto;
+    filter: none;
+}
+
+:global(.knockout-players-stack) .starsOnPortrait img {
+    height: 14px !important;
+}
+
+:global(.knockout-players-stack) .playerMeta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 0;
+    max-width: 13rem;
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    text-align: left;
+    gap: 0.25rem;
+}
+
+:global(.knockout-players-stack) .playerFlagMeta,
+:global(.knockout-players-stack) .playerFlagSpacer {
+    display: none;
+}
+
+:global(.knockout-players-stack) .playerNameUnder,
+:global(.knockout-players-stack) .playerName {
+    font-size: 0.78rem;
+    width: auto;
+    white-space: nowrap;
+}
+
+:global(.knockout-players-stack) .leaderboardPlace {
+    font-size: 0.62rem;
+}
+
+:global(.knockout-players-stack) .playerOutcome {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: 0;
+    flex-shrink: 0;
+    padding-right: 0.15rem;
+}
+
+:global(.knockout-players-stack) .scoreBox {
+    width: 2.15rem;
+    min-width: 2.15rem;
+    padding: 0.15rem 0.25rem;
+    font-size: 0.8rem;
+    line-height: 1.1;
+}
+
+:global(.knockout-players-stack) .playerCastlesBo3 {
+    gap: 0.28rem;
+}
+
+:global(.knockout-players-stack) .playerCastlesBo3 .castleCompactSquare,
+:global(.knockout-players-stack) .playerCastlesBo3 .castleThumbnailEmpty {
+    width: 40px;
+    height: 40px;
+}
+
+:global(.knockout-players-stack) .playerCastlesBo3 .castleThumbnail {
+    width: 40px;
+    height: 40px;
+}
+
+:global(.knockout-players-stack) .castleColorBadge {
+    width: 14px;
+    height: 14px;
+    top: -3px;
+    right: -3px;
+}
+
+:global(.knockout-players-stack) .castleGoldBadge {
+    font-size: 0.62rem;
+    padding: 0 0.18rem;
+}
+
+:global(.knockout-players-stack) .castleThumb {
+    width: 40px;
+    height: 40px;
+}
+
+:global(.knockout-players-stack) .portraitFallback {
+    font-size: 0.95rem;
+}
+
+:global(.knockout-players-stack) .statusLabel {
+    flex-shrink: 0;
+}
+
 .playerMeta {
     display: flex;
     flex-direction: column;

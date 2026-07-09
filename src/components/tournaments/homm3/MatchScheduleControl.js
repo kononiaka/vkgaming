@@ -8,7 +8,8 @@ const MatchScheduleControl = ({
     canEdit = false,
     onSave,
     compact = false,
-    showMissingHint = false
+    showMissingHint = false,
+    emptyLabel = null
 }) => {
     const inputId = useId();
     const [value, setValue] = useState(() => toDatetimeLocalValue(scheduledAt));
@@ -78,9 +79,11 @@ const MatchScheduleControl = ({
         }
     };
 
-    if (!formatted && !canEdit && !showMissingHint) {
+    if (!formatted && !canEdit && !showMissingHint && !emptyLabel) {
         return null;
     }
+
+    const missingLabel = emptyLabel || (canEdit && showMissingHint ? 'Pick a start time' : null);
 
     return (
         <div
@@ -95,7 +98,7 @@ const MatchScheduleControl = ({
                     {scheduledBy && <span className={classes.timeMeta}>set by {scheduledBy}</span>}
                 </>
             ) : (
-                canEdit && <span className={classes.missing}>Pick a start time</span>
+                missingLabel && <span className={classes.missing}>{missingLabel}</span>
             )}
             {canEdit && (
                 <div className={classes.editor}>
