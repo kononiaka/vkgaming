@@ -49,3 +49,28 @@ export const canToggleTournamentCommentating = (tournament, firebaseUid) => {
     const commentator = getApprovedCommentator(tournament, firebaseUid);
     return Boolean(commentator) && tournament?.status === 'Started!';
 };
+
+export const flattenProfileCommentatorRequests = (profileRequests = {}) => {
+    const items = [];
+
+    Object.entries(profileRequests || {}).forEach(([tournamentId, requestsByUser]) => {
+        if (!requestsByUser || typeof requestsByUser !== 'object') {
+            return;
+        }
+
+        Object.entries(requestsByUser).forEach(([requestId, request]) => {
+            if (!request || (request.status && request.status !== 'pending')) {
+                return;
+            }
+
+            items.push({
+                requestId,
+                tournamentId: request.tournamentId || tournamentId,
+                tournamentName: request.tournamentName || 'Tournament',
+                ...request
+            });
+        });
+    });
+
+    return items.sort((a, b) => new Date(b.requestedAt || 0).getTime() - new Date(a.requestedAt || 0).getTime());
+};

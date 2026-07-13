@@ -3,6 +3,7 @@ import { FIREBASE_DATABASE_URL } from '../../config/firebase';
 import AuthContext from '../../store/auth-context';
 import AdminPanel from '../AdminPanel/AdminPanel';
 import { PlayerProfileContent } from '../Players/Players';
+import ProfileCommentatorRequestsSection from './ProfileCommentatorRequestsSection';
 import ProfileForm from './ProfileForm';
 
 const UserProfile = () => {
@@ -47,11 +48,14 @@ const UserProfile = () => {
                 attendedTournamentsTitle="My tournaments"
                 attendedTournamentsEmptyMessage="You have not joined any tournaments yet."
                 settingsSlot={
-                    <ProfileForm
-                        userId={playerId}
-                        embedded
-                        onAvatarUpdated={() => setAvatarRefreshKey((key) => key + 1)}
-                    />
+                    <>
+                        <ProfileCommentatorRequestsSection userId={playerId} />
+                        <ProfileForm
+                            userId={playerId}
+                            embedded
+                            onAvatarUpdated={() => setAvatarRefreshKey((key) => key + 1)}
+                        />
+                    </>
                 }
             />
             {authCtx.isAdmin && <AdminPanel />}

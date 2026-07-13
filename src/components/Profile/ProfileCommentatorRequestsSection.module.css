@@ -1,0 +1,116 @@
+.section {
+    margin-top: 1.5rem;
+}
+
+.title {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    line-height: 1.7;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.hint {
+    margin: 0 0 1rem;
+    color: var(--color-text-muted);
+    font-size: 0.92rem;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.95rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.18) 100%);
+}
+
+.meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 180px;
+}
+
+.tournamentLink {
+    color: var(--color-gold);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.tournamentLink:hover {
+    text-decoration: underline;
+}
+
+.applicant {
+    font-size: 0.95rem;
+}
+
+.twitchLink {
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    text-decoration: none;
+}
+
+.twitchLink:hover {
+    color: #9146ff;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.btn {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    background: rgba(255, 255, 255, 0.06);
+    color: inherit;
+    cursor: pointer;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btnSuccess {
+    border-color: rgba(72, 187, 120, 0.45);
+    background: rgba(72, 187, 120, 0.12);
+}
+
+.btnDanger {
+    border-color: rgba(245, 101, 101, 0.45);
+    background: rgba(245, 101, 101, 0.12);
+}
+
+@media (max-width: 640px) {
+    .item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .actions {
+        width: 100%;
+    }
+
+    .btn {
+        flex: 1;
+    }
+}

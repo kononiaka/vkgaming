@@ -30,6 +30,12 @@ import {
     isChampionsLeagueGroupStageComplete,
     isChampionsLeagueSize,
     pairKnockoutQualifiers,
+    assignQualifiersToSecondGroups,
+    CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+    getKnockoutPlayerCountForType,
+    getKnockoutPlayerCountTwoGroup,
+    isChampionsLeagueTwoGroupSize,
+    prepareChampionsLeagueSecondGroupStage,
     validateChampionsLeagueRegistration,
     orderPlayersFromWheelPairs,
     prepareChampionsLeagueFromDrawGrid,
@@ -467,6 +473,98 @@ describe('tournament format E2E flows', () => {
             expect(prepared.gameType).toBe('bo-3');
             expect(Object.keys(prepared.groups)).toHaveLength(2);
             expect(prepared.groupPairs.every((pair) => pair.type === 'bo-3')).toBe(true);
+        });
+    });
+
+    describe('Champions League (two group stages)', () => {
+        const makeSixteen = () => Array.from({ length: 16 }, (_, index) => makePlayer(`P${index + 1}`));
+
+        test('validates 16 and 32 player counts only', () => {
+            expect(isChampionsLeagueTwoGroupSize(16)).toBe(true);
+            expect(isChampionsLeagueTwoGroupSize(32)).toBe(true);
+            expect(isChampionsLeagueTwoGroupSize(8)).toBe(false);
+
+            expect(validateChampionsLeagueRegistration(16, 16, CHAMPIONS_LEAGUE_TWO_GROUP_TYPE).valid).toBe(true);
+            expect(validateChampionsLeagueRegistration(8, 8, CHAMPIONS_LEAGUE_TWO_GROUP_TYPE).valid).toBe(false);
+        });
+
+        test('16-player path: group1 → group2 → semi-final knockout', () => {
+            const players = makeSixteen();
+            const tournamentData = {
+                type: CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+                maxPlayers: 16,
+                tournamentPlayoffGames: 'bo-1'
+            };
+
+            const preparedGroup1 = prepareChampionsLeagueGroupStage(players, tournamentData, { shuffle: false });
+            expect(preparedGroup1.validation.valid).toBe(true);
+            expect(preparedGroup1.groupPairs.every((pair) => pair.groupPhase === 1)).toBe(true);
+            expect(Object.keys(preparedGroup1.groups)).toHaveLength(4);
+
+            completeGroupStage(preparedGroup1.groupPairs, preparedGroup1.groups);
+            expect(isChampionsLeagueGroupStageComplete(preparedGroup1.groupPairs, 1)).toBe(true);
+
+            const preparedGroup2 = prepareChampionsLeagueSecondGroupStage(
+                preparedGroup1.groups,
+                preparedGroup1.groupPairs,
+                tournamentData
+            );
+            expect(preparedGroup2.validation.valid).toBe(true);
+            expect(Object.keys(preparedGroup2.groups2)).toHaveLength(2);
+            expect(preparedGroup2.group2Pairs.every((pair) => pair.groupPhase === 2)).toBe(true);
+
+            Object.values(preparedGroup2.groups2).forEach((groupPlayers) => {
+                const firstGroups = groupPlayers.map((player) => {
+                    const qualifier = preparedGroup2.qualifiers.find((entry) => entry.name === player.name);
+                    return qualifier?.group;
+                });
+                expect(new Set(firstGroups).size).toBe(firstGroups.length);
+            });
+
+            completeGroupStage(preparedGroup2.group2Pairs, preparedGroup2.groups2);
+            const group2Qualifiers = getQualifiedPlayers(
+                preparedGroup2.groups2,
+                preparedGroup2.group2Pairs,
+                'restart',
+                2
+            );
+            expect(group2Qualifiers).toHaveLength(4);
+            expect(getKnockoutPlayerCountTwoGroup(16)).toBe(4);
+            expect(getKnockoutPlayerCountForType(CHAMPIONS_LEAGUE_TWO_GROUP_TYPE, 16)).toBe(4);
+
+            const knockoutStages = generateKnockoutBracketStages(
+                group2Qualifiers,
+                getKnockoutPlayerCountTwoGroup(16),
+                'bo-1',
+                'bo-1',
+                'bo-1'
+            );
+            expect(knockoutStages[0]).toHaveLength(2);
+            expect(knockoutStages[0][0].stage).toBe('Semi-final');
+
+            const storedBracket = [preparedGroup1.groupPairs, preparedGroup2.group2Pairs, ...knockoutStages];
+            expect(storedBracket[0]).toHaveLength(24);
+            expect(storedBracket[1]).toHaveLength(12);
+        });
+
+        test('assignQualifiersToSecondGroups avoids same first-group teammates', () => {
+            const qualifiers = [
+                { name: 'W1', group: 'A', place: 1, points: 9 },
+                { name: 'W2', group: 'B', place: 1, points: 8 },
+                { name: 'W3', group: 'C', place: 1, points: 7 },
+                { name: 'W4', group: 'D', place: 1, points: 6 },
+                { name: 'R1', group: 'A', place: 2, points: 5 },
+                { name: 'R2', group: 'B', place: 2, points: 4 },
+                { name: 'R3', group: 'C', place: 2, points: 3 },
+                { name: 'R4', group: 'D', place: 2, points: 2 }
+            ];
+
+            const assignment = assignQualifiersToSecondGroups(qualifiers, { shuffle: false });
+            expect(assignment.valid).toBe(true);
+            Object.values(assignment.groups2).forEach((groupPlayers) => {
+                const firstGroups = groupPlayers.map((player) => player.group);
+                expect(new Set(firstGroups).size).toBe(firstGroups.length);
+            });
         });
     });
 

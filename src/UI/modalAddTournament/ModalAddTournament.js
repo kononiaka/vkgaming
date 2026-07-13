@@ -3,7 +3,12 @@ import { authFetch } from '../../api/authFetch';
 import React, { useContext, useRef, useState } from 'react';
 import Modal from '../Modal/Modal';
 import classes from './ModalAddTournament.module.css';
-import { shuffleArray, setStageLabels } from '../../components/tournaments/tournament_api';
+import {
+    isKickOffSize,
+    KICK_OFF_SIZES,
+    shuffleArray,
+    setStageLabels
+} from '../../components/tournaments/tournament_api';
 import {
     createDoubleElimPlayoffPairs,
     DOUBLE_ELIM_SIZES,
@@ -31,9 +36,13 @@ import {
     CHAMPIONS_LEAGUE_GROUP_SIZE,
     CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP,
     CHAMPIONS_LEAGUE_SIZES,
-    isChampionsLeagueSize
+    CHAMPIONS_LEAGUE_TWO_GROUP_SIZES,
+    CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+    isChampionsLeagueSize,
+    isChampionsLeagueTwoGroupSize
 } from '../../components/tournaments/homm3/championsLeagueUtils';
 import { fromDatetimeLocalValue } from '../../components/tournaments/homm3/matchScheduleUtils';
+import TournamentFormatPreview from './TournamentFormatPreview';
 
 const MIN_TOURNAMENT_PLAYERS = 2;
 
@@ -52,7 +61,7 @@ const Bracket = (props) => {
     const [isSaving, setIsSaving] = useState(false);
     const [date, setDate] = useState(getDefaultTournamentDate);
     const [tournamentName, setTournamentName] = useState('');
-    const [maxPlayers, setMaxPlayers] = useState('');
+    const [maxPlayers, setMaxPlayers] = useState(String(KICK_OFF_SIZES[0]));
     const [tournamentType, setTournamentType] = useState('kick-off');
     const [isPublicTournament, setIsPublicTournament] = useState(true);
     const [loserBracket, setLoserBracket] = useState(false);
@@ -64,11 +73,13 @@ const Bracket = (props) => {
     const isSwiss = tournamentType === 'swiss';
     const isCsSwiss = tournamentType === 'cs-swiss';
     const isChampionsLeague = tournamentType === 'champions-league';
+    const isChampionsLeagueTwoGroup = tournamentType === CHAMPIONS_LEAGUE_TWO_GROUP_TYPE;
+    const isAnyChampionsLeague = isChampionsLeague || isChampionsLeagueTwoGroup;
     const isKickOff = tournamentType === 'kick-off';
-    const isScheduleFormat = isLeague || isSwiss || isCsSwiss || isChampionsLeague;
-    const showFinalAndThirdPlace = isKickOff || isChampionsLeague;
-    const showKnockoutMatchType = isChampionsLeague;
-    const showBracketOptions = isKickOff || isChampionsLeague;
+    const isScheduleFormat = isLeague || isSwiss || isCsSwiss || isAnyChampionsLeague;
+    const showFinalAndThirdPlace = isKickOff || isAnyChampionsLeague;
+    const showKnockoutMatchType = isAnyChampionsLeague;
+    const showBracketOptions = isKickOff || isAnyChampionsLeague;
     const parsedFundingGoal = Number(fundingGoalUsd);
     const fundingGoalInvalid =
         fundingGoalUsd !== '' && (!Number.isFinite(parsedFundingGoal) || parsedFundingGoal < MIN_HOST_SEED_USD);
@@ -78,25 +89,33 @@ const Bracket = (props) => {
         ? MIN_CS_SWISS_PLAYERS
         : isSwiss
           ? MIN_SWISS_PLAYERS
-          : isChampionsLeague
+          : isAnyChampionsLeague
             ? CHAMPIONS_LEAGUE_SIZES[0]
             : MIN_TOURNAMENT_PLAYERS;
     const parsedMaxPlayers = Number(maxPlayers);
     const maxPlayersBelowMin =
         maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && parsedMaxPlayers < minPlayersRequired;
     const championsLeagueSizeInvalid =
-        isChampionsLeague &&
+        isAnyChampionsLeague &&
         maxPlayers !== '' &&
         Number.isFinite(parsedMaxPlayers) &&
-        !isChampionsLeagueSize(parsedMaxPlayers);
+        !(isChampionsLeagueTwoGroup
+            ? isChampionsLeagueTwoGroupSize(parsedMaxPlayers)
+            : isChampionsLeagueSize(parsedMaxPlayers));
     const csSwissSizeInvalid =
         isCsSwiss && maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && !isCsSwissSize(parsedMaxPlayers);
+    const kickOffSizeInvalid =
+        isKickOff && maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && !isKickOffSize(parsedMaxPlayers);
     const isMaxPlayersValid =
         maxPlayers !== '' &&
         Number.isFinite(parsedMaxPlayers) &&
         parsedMaxPlayers >= minPlayersRequired &&
+        (!isKickOff || isKickOffSize(parsedMaxPlayers)) &&
         (!isCsSwiss || isCsSwissSize(parsedMaxPlayers)) &&
-        (!isChampionsLeague || isChampionsLeagueSize(parsedMaxPlayers));
+        (!isAnyChampionsLeague ||
+            (isChampionsLeagueTwoGroup
+                ? isChampionsLeagueTwoGroupSize(parsedMaxPlayers)
+                : isChampionsLeagueSize(parsedMaxPlayers)));
     const loserBracketSizeInvalid =
         loserBracket && maxPlayers !== '' && Number.isFinite(parsedMaxPlayers) && !isDoubleElimSize(parsedMaxPlayers);
     const canCreateTournament =
@@ -105,6 +124,7 @@ const Bracket = (props) => {
         tournamentName.trim() !== '' &&
         !loserBracketSizeInvalid &&
         !csSwissSizeInvalid &&
+        !kickOffSizeInvalid &&
         !championsLeagueSizeInvalid;
 
     const tournamentTypeOptions = [
@@ -112,16 +132,37 @@ const Bracket = (props) => {
         { value: 'league', label: 'League (Round-Robin)' },
         { value: 'swiss', label: 'Swiss System' },
         { value: 'cs-swiss', label: 'CS Swiss to Playoffs' },
-        { value: 'champions-league', label: 'Champions League (Groups + Knockout)' }
+        { value: 'champions-league', label: 'Champions League (Groups + Knockout)' },
+        { value: CHAMPIONS_LEAGUE_TWO_GROUP_TYPE, label: 'Champions League (Two Group Stages)' }
     ];
-    const championsLeaguePlayerOptions = CHAMPIONS_LEAGUE_SIZES.map((size) => ({
+    const championsLeaguePlayerOptions = (
+        isChampionsLeagueTwoGroup ? CHAMPIONS_LEAGUE_TWO_GROUP_SIZES : CHAMPIONS_LEAGUE_SIZES
+    ).map((size) => ({
         value: String(size),
-        label: `${size} players (${size / CHAMPIONS_LEAGUE_GROUP_SIZE} groups × ${CHAMPIONS_LEAGUE_GROUP_SIZE}, top ${CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} advance)`
+        label: isChampionsLeagueTwoGroup
+            ? `${size} players (${size / CHAMPIONS_LEAGUE_GROUP_SIZE}→${size / CHAMPIONS_LEAGUE_GROUP_SIZE / 2} groups, top ${CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} each stage)`
+            : `${size} players (${size / CHAMPIONS_LEAGUE_GROUP_SIZE} groups × ${CHAMPIONS_LEAGUE_GROUP_SIZE}, top ${CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} advance)`
     }));
     const championsLeagueMaxPlayers =
-        maxPlayers !== '' && isChampionsLeagueSize(parsedMaxPlayers)
+        maxPlayers !== '' &&
+        (isChampionsLeagueTwoGroup
+            ? isChampionsLeagueTwoGroupSize(parsedMaxPlayers)
+            : isChampionsLeagueSize(parsedMaxPlayers))
             ? String(parsedMaxPlayers)
-            : String(CHAMPIONS_LEAGUE_SIZES[0]);
+            : String(isChampionsLeagueTwoGroup ? CHAMPIONS_LEAGUE_TWO_GROUP_SIZES[0] : CHAMPIONS_LEAGUE_SIZES[0]);
+    const kickOffMaxPlayers =
+        maxPlayers !== '' && isKickOffSize(parsedMaxPlayers) ? String(parsedMaxPlayers) : String(KICK_OFF_SIZES[0]);
+    const kickOffPlayerOptions = KICK_OFF_SIZES.map((size) => ({
+        value: String(size),
+        label: `${size} players`
+    }));
+    const previewMaxPlayers = isAnyChampionsLeague
+        ? Number(championsLeagueMaxPlayers)
+        : isKickOff
+          ? Number(kickOffMaxPlayers)
+          : Number.isFinite(parsedMaxPlayers) && parsedMaxPlayers >= minPlayersRequired
+            ? parsedMaxPlayers
+            : null;
 
     const handleTournamentTypeChange = (event) => {
         const nextType = event.target.value;
@@ -129,6 +170,14 @@ const Bracket = (props) => {
 
         if (nextType === 'champions-league' && !isChampionsLeagueSize(parsedMaxPlayers)) {
             setMaxPlayers(String(CHAMPIONS_LEAGUE_SIZES[0]));
+        }
+
+        if (nextType === CHAMPIONS_LEAGUE_TWO_GROUP_TYPE && !isChampionsLeagueTwoGroupSize(parsedMaxPlayers)) {
+            setMaxPlayers(String(CHAMPIONS_LEAGUE_TWO_GROUP_SIZES[0]));
+        }
+
+        if (nextType === 'kick-off' && !isKickOffSize(parsedMaxPlayers)) {
+            setMaxPlayers(String(KICK_OFF_SIZES[0]));
         }
     };
     const playoffGameCountOptions = [
@@ -214,20 +263,37 @@ const Bracket = (props) => {
             return;
         }
 
-        if (isChampionsLeague && !isChampionsLeagueSize(maxPlayersCount)) {
-            authCtx.setNotificationShown(
-                true,
-                `Champions League requires exactly ${CHAMPIONS_LEAGUE_SIZES.join(', ')} players (${CHAMPIONS_LEAGUE_GROUP_SIZE} per group).`,
-                'warning',
-                6
-            );
-            return;
+        if (isAnyChampionsLeague) {
+            const sizeValid = isChampionsLeagueTwoGroup
+                ? isChampionsLeagueTwoGroupSize(maxPlayersCount)
+                : isChampionsLeagueSize(maxPlayersCount);
+            const allowedSizes = isChampionsLeagueTwoGroup ? CHAMPIONS_LEAGUE_TWO_GROUP_SIZES : CHAMPIONS_LEAGUE_SIZES;
+
+            if (!sizeValid) {
+                authCtx.setNotificationShown(
+                    true,
+                    `Champions League requires exactly ${allowedSizes.join(', ')} players (${CHAMPIONS_LEAGUE_GROUP_SIZE} per group).`,
+                    'warning',
+                    6
+                );
+                return;
+            }
         }
 
         if (isCsSwiss && !isCsSwissSize(maxPlayersCount)) {
             authCtx.setNotificationShown(
                 true,
                 `CS Swiss supports exactly ${CS_SWISS_SIZES.join(' or ')} players.`,
+                'warning',
+                6
+            );
+            return;
+        }
+
+        if (isKickOff && !isKickOffSize(maxPlayersCount)) {
+            authCtx.setNotificationShown(
+                true,
+                `Kick-off requires exactly ${KICK_OFF_SIZES.join(', ')} max players.`,
                 'warning',
                 6
             );
@@ -298,7 +364,7 @@ const Bracket = (props) => {
             },
             date: fromDatetimeLocalValue(date),
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
-            tournamentPlayoffGamesKnockout: isChampionsLeague ? tournamentPlayoffGamesKnockout.current.value : null,
+            tournamentPlayoffGamesKnockout: isAnyChampionsLeague ? tournamentPlayoffGamesKnockout.current.value : null,
             tournamentPlayoffGamesFinal: showFinalAndThirdPlace
                 ? tournamentPlayoffGamesFinal.current.value
                 : tournamentPlayoffGames.current.value,
@@ -313,9 +379,9 @@ const Bracket = (props) => {
             swissWinTarget: isCsSwiss ? 3 : null,
             swissLossLimit: isCsSwiss ? 3 : null,
             swissPhase: isCsSwiss ? 'swiss' : null,
-            championsLeaguePhase: isChampionsLeague ? 'group' : null,
-            groupSize: isChampionsLeague ? CHAMPIONS_LEAGUE_GROUP_SIZE : null,
-            qualifiersPerGroup: isChampionsLeague ? CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP : null,
+            championsLeaguePhase: isChampionsLeagueTwoGroup ? 'group1' : isChampionsLeague ? 'group' : null,
+            groupSize: isAnyChampionsLeague ? CHAMPIONS_LEAGUE_GROUP_SIZE : null,
+            qualifiersPerGroup: isAnyChampionsLeague ? CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP : null,
             isPublic: isPublicTournament,
             createdBy: authCtx.userNickName || null,
             createdByUid: getFirebaseUid(),
@@ -492,11 +558,11 @@ const Bracket = (props) => {
                                         eliminated at 3 losses, then qualifiers enter playoffs.
                                     </p>
                                 )}
-                                {isChampionsLeague && (
+                                {isAnyChampionsLeague && (
                                     <p className={classes.fieldHint}>
-                                        Groups of {CHAMPIONS_LEAGUE_GROUP_SIZE}, top{' '}
-                                        {CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} advance. Requires exactly{' '}
-                                        {CHAMPIONS_LEAGUE_SIZES.join(', ')} players.
+                                        {isChampionsLeagueTwoGroup
+                                            ? `Two group stages (UCL 2000–01 style): groups of ${CHAMPIONS_LEAGUE_GROUP_SIZE}, top ${CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} advance twice before knockouts. Requires ${CHAMPIONS_LEAGUE_TWO_GROUP_SIZES.join(' or ')} players.`
+                                            : `Groups of ${CHAMPIONS_LEAGUE_GROUP_SIZE}, top ${CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} advance. Requires exactly ${CHAMPIONS_LEAGUE_SIZES.join(', ')} players.`}
                                     </p>
                                 )}
                             </div>
@@ -513,62 +579,92 @@ const Bracket = (props) => {
                                     step={1800}
                                 />
                             </div>
-                            <div className={classes.field}>
-                                <label className={classes.label} htmlFor="tournamentPlayers">
-                                    Max players
-                                </label>
-                                {isChampionsLeague ? (
-                                    <select
-                                        id="tournamentPlayers"
-                                        className={classes.select}
-                                        value={championsLeagueMaxPlayers}
-                                        onChange={(event) => setMaxPlayers(event.target.value)}
-                                    >
-                                        {championsLeaguePlayerOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <input
-                                        id="tournamentPlayers"
-                                        className={`${classes.input} ${maxPlayersBelowMin ? classes.inputError : ''}`}
-                                        type="number"
-                                        min={minPlayersRequired}
-                                        value={maxPlayers}
-                                        onChange={(event) => setMaxPlayers(event.target.value)}
+                            <div className={classes.playersPreviewRow}>
+                                <div className={classes.field}>
+                                    <label className={classes.label} htmlFor="tournamentPlayers">
+                                        Max players
+                                    </label>
+                                    {isAnyChampionsLeague ? (
+                                        <select
+                                            id="tournamentPlayers"
+                                            className={classes.select}
+                                            value={championsLeagueMaxPlayers}
+                                            onChange={(event) => setMaxPlayers(event.target.value)}
+                                        >
+                                            {championsLeaguePlayerOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : isKickOff ? (
+                                        <select
+                                            id="tournamentPlayers"
+                                            className={classes.select}
+                                            value={kickOffMaxPlayers}
+                                            onChange={(event) => setMaxPlayers(event.target.value)}
+                                        >
+                                            {kickOffPlayerOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            id="tournamentPlayers"
+                                            className={`${classes.input} ${maxPlayersBelowMin ? classes.inputError : ''}`}
+                                            type="number"
+                                            min={minPlayersRequired}
+                                            value={maxPlayers}
+                                            onChange={(event) => setMaxPlayers(event.target.value)}
+                                        />
+                                    )}
+                                    {isSwiss && (
+                                        <p className={classes.fieldHint}>
+                                            Swiss requires at least {MIN_SWISS_PLAYERS} registered players to start.
+                                        </p>
+                                    )}
+                                    {isCsSwiss && (
+                                        <p className={classes.fieldHint}>
+                                            CS Swiss requires exactly {CS_SWISS_SIZES.join(' or ')} registered players.
+                                        </p>
+                                    )}
+                                    {isKickOff && (
+                                        <p className={classes.fieldHint}>
+                                            Kick-off supports exactly {KICK_OFF_SIZES.join(', ')} players for a balanced
+                                            bracket.
+                                        </p>
+                                    )}
+                                    {isAnyChampionsLeague && (
+                                        <p className={classes.fieldHint}>
+                                            Must register exactly {championsLeagueMaxPlayers} players — no more, no
+                                            less.
+                                        </p>
+                                    )}
+                                    {!isAnyChampionsLeague && maxPlayersBelowMin && (
+                                        <p className={classes.fieldError}>
+                                            {isCsSwiss
+                                                ? `CS Swiss tournaments need at least ${MIN_CS_SWISS_PLAYERS} max players.`
+                                                : isSwiss
+                                                  ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} max players.`
+                                                  : 'Max players must be at least 2.'}
+                                        </p>
+                                    )}
+                                    {csSwissSizeInvalid && (
+                                        <p className={classes.fieldError}>
+                                            CS Swiss supports exactly {CS_SWISS_SIZES.join(' or ')} players.
+                                        </p>
+                                    )}
+                                </div>
+                                <div className={classes.field}>
+                                    <span className={classes.label}>Bracket preview</span>
+                                    <TournamentFormatPreview
+                                        type={tournamentType}
+                                        maxPlayers={previewMaxPlayers}
+                                        loserBracket={isKickOff && loserBracket}
                                     />
-                                )}
-                                {isSwiss && (
-                                    <p className={classes.fieldHint}>
-                                        Swiss requires at least {MIN_SWISS_PLAYERS} registered players to start.
-                                    </p>
-                                )}
-                                {isCsSwiss && (
-                                    <p className={classes.fieldHint}>
-                                        CS Swiss requires exactly {CS_SWISS_SIZES.join(' or ')} registered players.
-                                    </p>
-                                )}
-                                {isChampionsLeague && (
-                                    <p className={classes.fieldHint}>
-                                        Must register exactly {championsLeagueMaxPlayers} players — no more, no less.
-                                    </p>
-                                )}
-                                {!isChampionsLeague && maxPlayersBelowMin && (
-                                    <p className={classes.fieldError}>
-                                        {isCsSwiss
-                                            ? `CS Swiss tournaments need at least ${MIN_CS_SWISS_PLAYERS} max players.`
-                                            : isSwiss
-                                              ? `Swiss tournaments need at least ${MIN_SWISS_PLAYERS} max players.`
-                                              : 'Max players must be at least 2.'}
-                                    </p>
-                                )}
-                                {csSwissSizeInvalid && (
-                                    <p className={classes.fieldError}>
-                                        CS Swiss supports exactly {CS_SWISS_SIZES.join(' or ')} players.
-                                    </p>
-                                )}
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -617,7 +713,7 @@ const Bracket = (props) => {
                             </div>
                             <div className={classes.field}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGames">
-                                    {isChampionsLeague
+                                    {isAnyChampionsLeague
                                         ? 'Group stage match type'
                                         : isScheduleFormat
                                           ? 'Match type'
@@ -629,7 +725,7 @@ const Bracket = (props) => {
                                     defaultValue="1"
                                     ref={tournamentPlayoffGames}
                                 >
-                                    {(isLeague || isChampionsLeague
+                                    {(isLeague || isAnyChampionsLeague
                                         ? leagueGameCountOptions
                                         : playoffGameCountOptions
                                     ).map((option) => (
@@ -638,7 +734,7 @@ const Bracket = (props) => {
                                         </option>
                                     ))}
                                 </select>
-                                {isChampionsLeague && (
+                                {isAnyChampionsLeague && (
                                     <p className={classes.fieldHint}>
                                         Group stage only. Knockout rounds use the settings below.
                                     </p>
@@ -663,7 +759,7 @@ const Bracket = (props) => {
                             </div>
                             <div className={`${classes.field} ${showFinalAndThirdPlace ? '' : classes.hidden}`}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
-                                    {isChampionsLeague ? 'Final match type' : 'Final games'}
+                                    {isAnyChampionsLeague ? 'Final match type' : 'Final games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesFinal"
@@ -686,7 +782,7 @@ const Bracket = (props) => {
                                 }`}
                             >
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesThirdPlace">
-                                    {isChampionsLeague ? 'Third place match type' : 'Third place games'}
+                                    {isAnyChampionsLeague ? 'Third place match type' : 'Third place games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesThirdPlace"
@@ -708,14 +804,14 @@ const Bracket = (props) => {
                                     showBracketOptions ? '' : classes.hidden
                                 }`}
                             >
-                                <span className={classes.label}>{isChampionsLeague ? 'Group draw' : 'Bracket'}</span>
+                                <span className={classes.label}>{isAnyChampionsLeague ? 'Group draw' : 'Bracket'}</span>
                                 <label className={classes.checkLabel} htmlFor="randomBracket">
                                     <input type="checkbox" id="randomBracket" ref={randomBracketRef} defaultChecked />
-                                    {isChampionsLeague
+                                    {isAnyChampionsLeague
                                         ? 'Spinning wheel (group draw)'
                                         : 'Spinning wheel (random bracket)'}
                                 </label>
-                                {isChampionsLeague && (
+                                {isAnyChampionsLeague && (
                                     <p className={classes.fieldHint}>
                                         Optional. When enabled, the admin draws groups with the wheel before the group
                                         stage. When off, groups are shuffled automatically.

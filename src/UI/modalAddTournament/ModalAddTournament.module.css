@@ -280,6 +280,14 @@
     grid-column: 2;
 }
 
+.playersPreviewRow {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 1rem;
+    align-items: start;
+}
+
 .bracketHintSlot {
     min-height: 2.75rem;
     margin: 0;
@@ -304,6 +312,10 @@
 
     .bracketFieldKickoff {
         grid-column: 1;
+    }
+
+    .playersPreviewRow {
+        grid-template-columns: 1fr;
     }
 
     .actions {

@@ -379,18 +379,20 @@
 }
 
 .playerColLeft {
-    justify-self: start;
-    align-items: flex-start;
+    justify-self: center;
+    align-items: center;
 }
 
 .playerColRight {
-    justify-self: end;
-    align-items: flex-end;
+    justify-self: center;
+    align-items: center;
 }
 
 .portraitSlot {
     position: relative;
-    width: 58px;
+    width: auto;
+    min-width: 58px;
+    padding: 0 10px;
     height: 72px;
     display: flex;
     align-items: flex-start;
@@ -416,20 +418,14 @@
     flex-shrink: 0;
 }
 
-.playerColLeft .playerMeta {
-    align-items: flex-start;
-}
-
+.playerColLeft .playerMeta,
 .playerColRight .playerMeta {
-    align-items: flex-end;
+    align-items: center;
 }
 
-.playerColLeft .playerNameUnder {
-    text-align: left;
-}
-
+.playerColLeft .playerNameUnder,
 .playerColRight .playerNameUnder {
-    text-align: right;
+    text-align: center;
 }
 
 .matchRow {
@@ -551,7 +547,7 @@
 .compact .frame {
     min-height: 250px;
 
-    padding: 1.1rem 0.65rem 0.85rem;
+    padding: 1.1rem 1rem 0.85rem;
 }
 
 .compact .dateBadge {
@@ -566,6 +562,7 @@
 .compact .matchArena {
     grid-template-columns: minmax(0, 1fr) minmax(108px, 118px) minmax(0, 1fr);
     gap: 0.4rem;
+    padding: 0 0.35rem;
 }
 
 .compact .centerStack {
@@ -838,7 +835,9 @@
     }
 
     .portraitSlot {
-        width: 54px;
+        width: auto;
+        min-width: 54px;
+        padding: 0 8px;
         height: 68px;
     }
 

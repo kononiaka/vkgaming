@@ -67,6 +67,8 @@ import {
 } from './swissUtils';
 import { createDoubleElimPlayoffPairs, getDoubleElimStageLabels } from './loserBracketUtils';
 import {
+    isChampionsLeagueTwoGroupType,
+    isChampionsLeagueType,
     isGroupDrawGridComplete,
     orderPlayersFromWheelPairs,
     prepareChampionsLeagueFromDrawGrid,
@@ -122,17 +124,17 @@ const getTournamentViewLabel = (type) => {
     if (type === 'cs-swiss') {
         return 'View CS Swiss';
     }
-    if (type === 'champions-league') {
+    if (isChampionsLeagueType(type)) {
         return 'View Champions League';
     }
     return 'View bracket';
 };
 
 const isScheduleTournamentType = (type) =>
-    type === 'league' || type === 'swiss' || type === 'cs-swiss' || type === 'champions-league';
+    type === 'league' || type === 'swiss' || type === 'cs-swiss' || isChampionsLeagueType(type);
 
 const usesSpinningWheel = (tournament) =>
-    Boolean(tournament?.randomBracket && (tournament.type === 'kick-off' || tournament.type === 'champions-league'));
+    Boolean(tournament?.randomBracket && (tournament.type === 'kick-off' || isChampionsLeagueType(tournament.type)));
 
 const getTournamentStatusClass = (status) => {
     if (!status) {
@@ -375,7 +377,7 @@ const TournamentList = () => {
 
                 if (tournament.status === 'Registration finished!' && usesSpinningWheel(tournament)) {
                     setTournamentPlayers(tournament.players || {});
-                    setSpinningWheelMode(tournament.type === 'champions-league' ? 'champions-league' : 'kickoff');
+                    setSpinningWheelMode(isChampionsLeagueType(tournament.type) ? 'champions-league' : 'kickoff');
                     setShowSpinningWheel(true);
                     setShowDetails(false);
                 } else {
@@ -483,7 +485,7 @@ const TournamentList = () => {
                 (player) => player?.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
             ).length;
 
-            if (tournamentData?.type === 'champions-league' && registeredCount >= Number(maxPlayers)) {
+            if (isChampionsLeagueType(tournamentData?.type) && registeredCount >= Number(maxPlayers)) {
                 authCtx.setNotificationShown(
                     true,
                     `Champions League is full (${maxPlayers}/${maxPlayers} players).`,
@@ -605,6 +607,18 @@ const TournamentList = () => {
         return extractTwitchLogin(userData?.twitch) || extractTwitchLogin(userData?.twitchDisplayName) || null;
     };
 
+    const resolveCreatorUid = async (tournament) => {
+        if (tournament?.createdByUid) {
+            return tournament.createdByUid;
+        }
+
+        if (!tournament?.createdBy) {
+            return null;
+        }
+
+        return lookForUserId(tournament.createdBy);
+    };
+
     const handleRequestCommentator = async (tournament) => {
         const firebaseUid = getFirebaseUid();
         if (!isLogged || !userNickName || !firebaseUid) {
@@ -626,12 +640,16 @@ const TournamentList = () => {
                 return;
             }
 
+            const creatorUid = await resolveCreatorUid(tournament);
+
             await requestTournamentCommentator(tournament.id, {
                 firebaseUid,
                 nickname: userNickName,
-                twitchLogin
+                twitchLogin,
+                creatorUid,
+                tournamentName: tournament.name
             });
-            authCtx.setNotificationShown(true, 'Commentator request sent. The host will review it.', 'success', 5);
+            authCtx.setNotificationShown(true, 'Commentator request sent to the host profile.', 'success', 5);
             await fetchTournaments();
         } catch (error) {
             authCtx.setNotificationShown(true, error.message || 'Could not submit commentator request.', 'error', 5);
@@ -649,7 +667,8 @@ const TournamentList = () => {
         const actionKey = `${tournament.id}:withdraw`;
         setCommentatorActionKey(actionKey);
         try {
-            await withdrawCommentatorRequest(tournament.id, firebaseUid);
+            const creatorUid = await resolveCreatorUid(tournament);
+            await withdrawCommentatorRequest(tournament.id, firebaseUid, { creatorUid });
             authCtx.setNotificationShown(true, 'Commentator request withdrawn.', 'success', 4);
             await fetchTournaments();
         } catch (error) {
@@ -663,7 +682,8 @@ const TournamentList = () => {
         const actionKey = `${tournament.id}:approve:${requestId}`;
         setCommentatorActionKey(actionKey);
         try {
-            await approveCommentatorRequest(tournament.id, requestId, request, getFirebaseUid());
+            const creatorUid = await resolveCreatorUid(tournament);
+            await approveCommentatorRequest(tournament.id, requestId, request, getFirebaseUid(), { creatorUid });
             authCtx.setNotificationShown(true, `${request.name} approved as commentator.`, 'success', 4);
             await fetchTournaments();
         } catch (error) {
@@ -677,7 +697,8 @@ const TournamentList = () => {
         const actionKey = `${tournament.id}:reject:${requestId}`;
         setCommentatorActionKey(actionKey);
         try {
-            await rejectCommentatorRequest(tournament.id, requestId);
+            const creatorUid = await resolveCreatorUid(tournament);
+            await rejectCommentatorRequest(tournament.id, requestId, { creatorUid });
             authCtx.setNotificationShown(true, `${requestName} request rejected.`, 'success', 4);
             await fetchTournaments();
         } catch (error) {
@@ -1520,7 +1541,14 @@ const TournamentList = () => {
         }
     };
 
-    const persistChampionsLeagueGroupStage = async (championsTournamentId, groups, groupPairs, groupCount) => {
+    const persistChampionsLeagueGroupStage = async (
+        championsTournamentId,
+        groups,
+        groupPairs,
+        groupCount,
+        tournamentType
+    ) => {
+        const isTwoGroup = isChampionsLeagueTwoGroupType(tournamentType);
         const bracketRes = await authFetch(
             `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/bracket/playoffPairs.json`,
             {
@@ -1543,7 +1571,7 @@ const TournamentList = () => {
             `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${championsTournamentId}/championsLeaguePhase.json`,
             {
                 method: 'PUT',
-                body: JSON.stringify('group'),
+                body: JSON.stringify(isTwoGroup ? 'group1' : 'group'),
                 headers: { 'Content-Type': 'application/json' }
             }
         );
@@ -1555,7 +1583,9 @@ const TournamentList = () => {
         });
 
         alert(
-            `Champions League started! ${groupCount} groups of 4 — ${groupPairs.length} group matches. Top 2 per group advance.`
+            isTwoGroup
+                ? `Champions League started! First group stage — ${groupCount} groups of 4, ${groupPairs.length} matches. Top 2 per group advance to the second group stage.`
+                : `Champions League started! ${groupCount} groups of 4 — ${groupPairs.length} group matches. Top 2 per group advance.`
         );
         setShowSpinningWheel(false);
         setSpinningWheelMode('kickoff');
@@ -1590,7 +1620,8 @@ const TournamentList = () => {
                 championsTournamentId,
                 prepared.groups,
                 prepared.groupPairs,
-                prepared.groupCount
+                prepared.groupCount,
+                tournamentData.type
             );
         } catch (error) {
             console.error('Error starting Champions League:', error);
@@ -1624,7 +1655,8 @@ const TournamentList = () => {
                 clickedId,
                 prepared.groups,
                 prepared.groupPairs,
-                prepared.groupCount
+                prepared.groupCount,
+                tournamentData.type
             );
         } catch (error) {
             console.error('Error starting Champions League from wheel:', error);
@@ -1752,6 +1784,16 @@ const TournamentList = () => {
                 currentStageLabels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
             } else if (+maxPlayers === 32) {
                 currentStageLabels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 64) {
+                currentStageLabels = [
+                    '1/32 Final',
+                    '1/16 Final',
+                    '1/8 Final',
+                    'Quarter-final',
+                    'Semi-final',
+                    'Third Place',
+                    'Final'
+                ];
             }
 
             // Determine number of games for first stage
@@ -2018,7 +2060,7 @@ const TournamentList = () => {
         if (currentTournamentStatus === 'Registration finished!' && tournament && usesSpinningWheel(tournament)) {
             setClickedId(currentTournamentId);
             setTournamentPlayers(tournament.players || {});
-            setSpinningWheelMode(tournament.type === 'champions-league' ? 'champions-league' : 'kickoff');
+            setSpinningWheelMode(isChampionsLeagueType(tournament.type) ? 'champions-league' : 'kickoff');
             setShowSpinningWheel(true);
             navigate(`/tournaments/homm3/${currentTournamentId}`);
         } else {
@@ -2217,8 +2259,12 @@ const TournamentList = () => {
                                         {tournament.loserBracket ? (
                                             <span className={classes.privateTag}>Double elim</span>
                                         ) : null}
-                                        {tournament.type === 'champions-league' ? (
-                                            <span className={classes.privateTag}>Champions League</span>
+                                        {isChampionsLeagueType(tournament.type) ? (
+                                            <span className={classes.privateTag}>
+                                                {isChampionsLeagueTwoGroupType(tournament.type)
+                                                    ? 'CL Two Groups'
+                                                    : 'Champions League'}
+                                            </span>
                                         ) : null}
                                         {tournament.type === 'cs-swiss' ? (
                                             <span className={classes.privateTag}>CS Swiss</span>
@@ -2565,7 +2611,7 @@ const TournamentList = () => {
                                         )}
 
                                     {authCtx.isAdmin &&
-                                        tournament.type === 'champions-league' &&
+                                        isChampionsLeagueType(tournament.type) &&
                                         tournament.status === 'Registration finished!' && (
                                             <button
                                                 className={`${classes.btn} ${classes.btnSuccess}`}
@@ -2580,7 +2626,11 @@ const TournamentList = () => {
                                                     handleStartChampionsLeague(tournament.id);
                                                 }}
                                             >
-                                                {tournament.randomBracket ? 'Draw groups (wheel)' : 'Start group stage'}
+                                                {tournament.randomBracket
+                                                    ? 'Draw groups (wheel)'
+                                                    : isChampionsLeagueTwoGroupType(tournament.type)
+                                                      ? 'Start first group stage'
+                                                      : 'Start group stage'}
                                             </button>
                                         )}
 
