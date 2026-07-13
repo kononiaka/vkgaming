@@ -5,7 +5,7 @@ export const PUBLIC_DONATION_POOL_SHARE = 0.9;
 export const HOST_SEED_POOL_SHARE = 0.95;
 /** @deprecated use PUBLIC_DONATION_POOL_SHARE */
 export const PRIZE_POOL_DONATION_SHARE = PUBLIC_DONATION_POOL_SHARE;
-export const DEFAULT_FUNDING_GOAL_USD = 500;
+export const DEFAULT_FUNDING_GOAL_USD = 5;
 export const MIN_HOST_SEED_USD = 5;
 export const UAH_TO_USD = 1 / 41;
 

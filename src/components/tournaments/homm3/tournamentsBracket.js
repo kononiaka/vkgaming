@@ -43,13 +43,18 @@ import {
 import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
 import {
     generateKnockoutBracketStages,
+    getChampionsLeagueScheduleStageIndex,
     getGroupLabels,
-    getKnockoutPlayerCount,
+    getKnockoutPlayerCountForType,
     getQualifiedPlayers,
     isChampionsLeagueGroupStageComplete,
+    isChampionsLeagueTwoGroupType,
+    isChampionsLeagueType,
     isGroupDrawGridComplete,
+    normalizeChampionsLeaguePhase,
     prepareChampionsLeagueFromDrawGrid,
     prepareChampionsLeagueGroupStage,
+    prepareChampionsLeagueSecondGroupStage,
     compareStandingsWithHeadToHead,
     normalizeChampionsLeagueKnockoutGameType
 } from './championsLeagueUtils';
@@ -231,10 +236,13 @@ export const TournamentBracket = ({
     const [isTournamentMetaLoading, setIsTournamentMetaLoading] = useState(true);
     const [hasLoserBracket, setHasLoserBracket] = useState(false);
     const [isChampionsLeague, setIsChampionsLeague] = useState(false);
+    const [isChampionsLeagueTwoGroup, setIsChampionsLeagueTwoGroup] = useState(false);
     const [championsLeaguePhase, setChampionsLeaguePhase] = useState('group');
     const [scheduleScoringMode, setScheduleScoringMode] = useState('restart');
     const [championsGroups, setChampionsGroups] = useState({});
     const [championsGroupLabels, setChampionsGroupLabels] = useState([]);
+    const [championsGroups2, setChampionsGroups2] = useState({});
+    const [championsGroup2Labels, setChampionsGroup2Labels] = useState([]);
     const [swissCurrentRound, setSwissCurrentRound] = useState(1);
     const [swissTotalRounds, setSwissTotalRounds] = useState(0);
     const [swissPhase, setSwissPhase] = useState('swiss');
@@ -273,7 +281,12 @@ export const TournamentBracket = ({
         setIsCsSwiss(false);
         setIsTournamentMetaLoading(true);
         setIsChampionsLeague(false);
+        setIsChampionsLeagueTwoGroup(false);
         setChampionsLeaguePhase('group');
+        setChampionsGroups({});
+        setChampionsGroupLabels([]);
+        setChampionsGroups2({});
+        setChampionsGroup2Labels([]);
         setScheduleScoringMode('restart');
         setSwissPhase('swiss');
         setSwissWinTarget(CS_SWISS_WIN_TARGET);
@@ -286,11 +299,24 @@ export const TournamentBracket = ({
         setIsFinishingTournament(false);
     }, [tournamentId]);
 
-    const getScheduleStageOffset = (pairs = playoffPairs) =>
-        ((isChampionsLeague && championsLeaguePhase === 'knockout') || (isCsSwiss && swissPhase === 'playoffs')) &&
-        Array.isArray(pairs?.[0])
-            ? 1
-            : 0;
+    const getScheduleStageOffset = (pairs = playoffPairs) => {
+        if (isChampionsLeagueTwoGroup && championsLeaguePhase === 'knockout') {
+            return 2;
+        }
+
+        if ((isChampionsLeague && championsLeaguePhase === 'knockout') || (isCsSwiss && swissPhase === 'playoffs')) {
+            return Array.isArray(pairs?.[0]) ? 1 : 0;
+        }
+
+        return 0;
+    };
+
+    const championsScheduleStageIndex = isChampionsLeagueTwoGroup
+        ? getChampionsLeagueScheduleStageIndex(championsLeaguePhase, true)
+        : 0;
+    const activeChampionsSchedulePairs = playoffPairs[championsScheduleStageIndex] || [];
+    const activeChampionsGroupLabels =
+        isChampionsLeagueTwoGroup && championsLeaguePhase === 'group2' ? championsGroup2Labels : championsGroupLabels;
 
     const getStageLabelForStorageIndex = (storageIndex, pairs = playoffPairs) => {
         const offset = getScheduleStageOffset(pairs);
@@ -552,6 +578,8 @@ export const TournamentBracket = ({
                 labels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
             } else if (+maxPlayers === 32) {
                 labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+            } else if (+maxPlayers === 64) {
+                labels = ['1/32 Final', '1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
             }
 
             setStageLabels(labels);
@@ -586,21 +614,30 @@ export const TournamentBracket = ({
                         setIsSwiss(true);
                         setIsCsSwiss(true);
                     }
-                    if (typeData === 'champions-league') {
+                    if (isChampionsLeagueType(typeData)) {
+                        const twoGroup = isChampionsLeagueTwoGroupType(typeData);
                         setIsChampionsLeague(true);
+                        setIsChampionsLeagueTwoGroup(twoGroup);
 
-                        const [phaseRes, groupsRes] = await Promise.all([
+                        const [phaseRes, groupsRes, groups2Res] = await Promise.all([
                             authFetch(
                                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`
                             ),
-                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`)
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups.json`),
+                            authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups2.json`)
                         ]);
 
                         if (phaseRes.ok) {
                             const phase = await phaseRes.json();
-                            if (phase === 'group' || phase === 'knockout') {
-                                resolvedChampionsPhase = phase;
-                                setChampionsLeaguePhase(phase);
+                            const normalizedPhase = normalizeChampionsLeaguePhase(phase, twoGroup);
+                            if (
+                                normalizedPhase === 'group' ||
+                                normalizedPhase === 'group1' ||
+                                normalizedPhase === 'group2' ||
+                                normalizedPhase === 'knockout'
+                            ) {
+                                resolvedChampionsPhase = normalizedPhase;
+                                setChampionsLeaguePhase(normalizedPhase);
                             }
                         }
 
@@ -609,6 +646,14 @@ export const TournamentBracket = ({
                             if (groups && typeof groups === 'object') {
                                 setChampionsGroups(groups);
                                 setChampionsGroupLabels(getGroupLabels(Object.keys(groups).length));
+                            }
+                        }
+
+                        if (groups2Res.ok) {
+                            const groups2 = await groups2Res.json();
+                            if (groups2 && typeof groups2 === 'object') {
+                                setChampionsGroups2(groups2);
+                                setChampionsGroup2Labels(getGroupLabels(Object.keys(groups2).length));
                             }
                         }
                     }
@@ -729,7 +774,7 @@ export const TournamentBracket = ({
                             }
                         }
 
-                        if (typeData === 'champions-league' && resolvedChampionsPhase === 'knockout') {
+                        if (isChampionsLeagueType(typeData) && resolvedChampionsPhase === 'knockout') {
                             normalizedPairs.forEach((stage) => {
                                 if (!Array.isArray(stage)) {
                                     return;
@@ -788,7 +833,8 @@ export const TournamentBracket = ({
                                       playoffPairs: normalizedPairs,
                                       maxPlayers,
                                       championsLeaguePhase: resolvedChampionsPhase,
-                                      isChampionsLeague: typeData === 'champions-league'
+                                      isChampionsLeague: isChampionsLeagueType(typeData),
+                                      isChampionsLeagueTwoGroup: isChampionsLeagueTwoGroupType(typeData)
                                   })
                         );
                     } else if (typeData === 'league' || typeData === 'swiss' || typeData === 'cs-swiss') {
@@ -939,9 +985,9 @@ export const TournamentBracket = ({
             console.log('Should open spinning wheel?', !randomBrackets);
             if (randomBrackets) {
                 console.log('Opening spinning wheel...');
-                setSpinningWheelMode(data.type === 'champions-league' ? 'champions-league' : 'kickoff');
+                setSpinningWheelMode(isChampionsLeagueType(data.type) ? 'champions-league' : 'kickoff');
                 setIsSpinningWheelOpen(true);
-            } else if (data.type === 'champions-league') {
+            } else if (isChampionsLeagueType(data.type)) {
                 const playerList = Object.values(playersObj || {}).filter(
                     (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
                 );
@@ -951,6 +997,7 @@ export const TournamentBracket = ({
                     return;
                 }
 
+                const isTwoGroup = isChampionsLeagueTwoGroupType(data.type);
                 const bracketRes = await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
                     {
@@ -973,7 +1020,7 @@ export const TournamentBracket = ({
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
                     {
                         method: 'PUT',
-                        body: JSON.stringify('group'),
+                        body: JSON.stringify(isTwoGroup ? 'group1' : 'group'),
                         headers: { 'Content-Type': 'application/json' }
                     }
                 );
@@ -984,7 +1031,8 @@ export const TournamentBracket = ({
                 });
 
                 setIsChampionsLeague(true);
-                setChampionsLeaguePhase('group');
+                setIsChampionsLeagueTwoGroup(isTwoGroup);
+                setChampionsLeaguePhase(isTwoGroup ? 'group1' : 'group');
                 setChampionsGroups(prepared.groups);
                 setChampionsGroupLabels(getGroupLabels(prepared.groupCount));
                 setPlayoffPairs([prepared.groupPairs]);
@@ -1143,11 +1191,12 @@ export const TournamentBracket = ({
                     body: JSON.stringify(prepared.groups),
                     headers: { 'Content-Type': 'application/json' }
                 });
+                const isTwoGroup = isChampionsLeagueTwoGroupType(tournamentData.type);
                 await authFetch(
                     `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`,
                     {
                         method: 'PUT',
-                        body: JSON.stringify('group'),
+                        body: JSON.stringify(isTwoGroup ? 'group1' : 'group'),
                         headers: { 'Content-Type': 'application/json' }
                     }
                 );
@@ -1158,7 +1207,8 @@ export const TournamentBracket = ({
                 });
 
                 setIsChampionsLeague(true);
-                setChampionsLeaguePhase('group');
+                setIsChampionsLeagueTwoGroup(isTwoGroup);
+                setChampionsLeaguePhase(isTwoGroup ? 'group1' : 'group');
                 setChampionsGroups(prepared.groups);
                 setChampionsGroupLabels(getGroupLabels(prepared.groupCount));
                 setPlayoffPairs([prepared.groupPairs]);
@@ -1181,6 +1231,16 @@ export const TournamentBracket = ({
             currentStageLabels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
         } else if (+maxPlayers === 32) {
             currentStageLabels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+        } else if (+maxPlayers === 64) {
+            currentStageLabels = [
+                '1/32 Final',
+                '1/16 Final',
+                '1/8 Final',
+                'Quarter-final',
+                'Semi-final',
+                'Third Place',
+                'Final'
+            ];
         }
 
         // Fetch tournament data to get playoff games settings
@@ -1705,18 +1765,110 @@ export const TournamentBracket = ({
         }
     };
 
-    const handleStartChampionsKnockout = async () => {
-        const groupPairs = playoffPairs[0] || [];
-        if (!isChampionsLeagueGroupStageComplete(groupPairs)) {
-            alert('Group stage is not complete yet.');
+    const handleStartChampionsSecondGroup = async () => {
+        const group1Pairs = playoffPairs[0] || [];
+        if (!isChampionsLeagueGroupStageComplete(group1Pairs, 1)) {
+            alert('First group stage is not complete yet.');
             return;
         }
 
         const summary = Object.entries(championsGroups)
             .map(([groupLabel]) => {
-                const qualified = getQualifiedPlayers(championsGroups, groupPairs, scheduleScoringMode).filter(
+                const qualified = getQualifiedPlayers(championsGroups, group1Pairs, scheduleScoringMode, 1).filter(
                     (player) => player.group === groupLabel
                 );
+                return `Group ${groupLabel}: ${qualified.map((player) => `${player.place}. ${player.name}`).join(', ')}`;
+            })
+            .join('\n');
+
+        const confirmed = window.confirm(
+            `Draw second group stage with these qualifiers?\n\n${summary}\n\nGenerate second group stage?`
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const tournamentResponse = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/.json`
+            );
+            if (!tournamentResponse.ok) {
+                throw new Error('Failed to fetch tournament data');
+            }
+
+            const tournamentData = await tournamentResponse.json();
+            const prepared = prepareChampionsLeagueSecondGroupStage(
+                championsGroups,
+                group1Pairs,
+                tournamentData,
+                scheduleScoringMode
+            );
+
+            if (!prepared.validation.valid) {
+                alert(prepared.validation.message);
+                return;
+            }
+
+            const updatedPairs = [group1Pairs, prepared.group2Pairs];
+
+            const bracketRes = await authFetch(
+                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/bracket/playoffPairs.json`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedPairs),
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (!bracketRes.ok) {
+                throw new Error('Failed to save second group stage');
+            }
+
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/groups2.json`, {
+                method: 'PUT',
+                body: JSON.stringify(prepared.groups2),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/championsLeaguePhase.json`, {
+                method: 'PUT',
+                body: JSON.stringify('group2'),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            setPlayoffPairs(updatedPairs);
+            setChampionsGroups2(prepared.groups2);
+            setChampionsGroup2Labels(getGroupLabels(prepared.groupCount));
+            setChampionsLeaguePhase('group2');
+            setUsesScheduleView(true);
+            setActiveBracketStage(0);
+            alert('Second group stage started!');
+        } catch (error) {
+            console.error('Error starting second group stage:', error);
+            alert('Error starting second group stage: ' + error.message);
+        }
+    };
+
+    const handleStartChampionsKnockout = async () => {
+        const group1Pairs = playoffPairs[0] || [];
+        const group2Pairs = playoffPairs[1] || [];
+        const usingSecondGroup = isChampionsLeagueTwoGroup;
+        const activeGroupPairs = usingSecondGroup ? group2Pairs : group1Pairs;
+        const activeGroups = usingSecondGroup ? championsGroups2 : championsGroups;
+        const activeGroupPhase = usingSecondGroup ? 2 : null;
+
+        if (!isChampionsLeagueGroupStageComplete(activeGroupPairs, activeGroupPhase)) {
+            alert(usingSecondGroup ? 'Second group stage is not complete yet.' : 'Group stage is not complete yet.');
+            return;
+        }
+
+        const summary = Object.entries(activeGroups)
+            .map(([groupLabel]) => {
+                const qualified = getQualifiedPlayers(
+                    activeGroups,
+                    activeGroupPairs,
+                    scheduleScoringMode,
+                    activeGroupPhase
+                ).filter((player) => player.group === groupLabel);
                 return `Group ${groupLabel}: ${qualified.map((player) => `${player.place}. ${player.name}`).join(', ')}`;
             })
             .join('\n');
@@ -1737,8 +1889,13 @@ export const TournamentBracket = ({
             }
 
             const tournamentData = await tournamentResponse.json();
-            const qualifiers = getQualifiedPlayers(championsGroups, groupPairs, scheduleScoringMode);
-            const knockoutSize = getKnockoutPlayerCount(tournamentData.maxPlayers);
+            const qualifiers = getQualifiedPlayers(
+                activeGroups,
+                activeGroupPairs,
+                scheduleScoringMode,
+                activeGroupPhase
+            );
+            const knockoutSize = getKnockoutPlayerCountForType(tournamentData.type, tournamentData.maxPlayers);
             const gameType = normalizeChampionsLeagueKnockoutGameType(tournamentData.tournamentPlayoffGamesKnockout);
             const finalGameType = normalizeChampionsLeagueKnockoutGameType(
                 tournamentData.tournamentPlayoffGamesFinal,
@@ -1755,7 +1912,9 @@ export const TournamentBracket = ({
                 finalGameType,
                 thirdPlaceGameType
             );
-            const updatedPairs = [groupPairs, ...knockoutStages];
+            const updatedPairs = usingSecondGroup
+                ? [group1Pairs, group2Pairs, ...knockoutStages]
+                : [group1Pairs, ...knockoutStages];
             const knockoutLabels = computeStageLabels(knockoutSize);
 
             const bracketRes = await authFetch(
@@ -1787,11 +1946,12 @@ export const TournamentBracket = ({
             setChampionsLeaguePhase('knockout');
             setUsesScheduleView(
                 inferScheduleView({
-                    type: 'champions-league',
+                    type: tournamentData.type,
                     playoffPairs: updatedPairs,
                     maxPlayers,
                     championsLeaguePhase: 'knockout',
-                    isChampionsLeague: true
+                    isChampionsLeague: true,
+                    isChampionsLeagueTwoGroup: usingSecondGroup
                 })
             );
             setActiveBracketStage(0);
@@ -3823,8 +3983,14 @@ export const TournamentBracket = ({
                     {isChampionsLeague && (
                         <p style={{ textAlign: 'center', margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
                             {championsLeaguePhase === 'knockout'
-                                ? 'Group stage results — knockout is in progress'
-                                : 'Group stage — top 2 from each group advance to knockout'}
+                                ? isChampionsLeagueTwoGroup
+                                    ? 'Group stage results — knockout is in progress'
+                                    : 'Group stage results — knockout is in progress'
+                                : isChampionsLeagueTwoGroup && championsLeaguePhase === 'group1'
+                                  ? 'First group stage — top 2 from each group advance to the second group stage'
+                                  : isChampionsLeagueTwoGroup && championsLeaguePhase === 'group2'
+                                    ? 'Second group stage — top 2 from each group advance to knockout'
+                                    : 'Group stage — top 2 from each group advance to knockout'}
                         </p>
                     )}
                     {isChampionsLeague && championsLeaguePhase === 'knockout' && (
@@ -3879,20 +4045,24 @@ export const TournamentBracket = ({
                         )
                     )}
                     <LeagueBracket
-                        pairs={playoffPairs[0] || []}
+                        pairs={isChampionsLeague ? activeChampionsSchedulePairs : playoffPairs[0] || []}
                         registeredPlayers={registeredPlayerNames}
                         playersObj={playersObj}
                         roundLabel={isSwiss ? 'Round' : 'Matchday'}
                         scheduleTitle={
                             isChampionsLeague
-                                ? 'Champions League groups'
+                                ? isChampionsLeagueTwoGroup && championsLeaguePhase === 'group2'
+                                    ? 'Champions League — second groups'
+                                    : isChampionsLeagueTwoGroup
+                                      ? 'Champions League — first groups'
+                                      : 'Champions League groups'
                                 : isCsSwiss
                                   ? 'CS Swiss views'
                                   : isSwiss
                                     ? 'Swiss views'
                                     : 'League views'
                         }
-                        groupLabels={isChampionsLeague ? championsGroupLabels : []}
+                        groupLabels={isChampionsLeague ? activeChampionsGroupLabels : []}
                         scoringMode={scheduleScoringMode}
                         isSwissFormat={isSwiss}
                         isCsSwissFormat={isCsSwiss}
@@ -3900,24 +4070,43 @@ export const TournamentBracket = ({
                         swissLossLimit={swissLossLimit}
                         swissRoundDeadlines={swissRoundDeadlines}
                         highlightPair={urlHighlightPair}
-                        storageStageIndex={0}
+                        storageStageIndex={championsScheduleStageIndex}
                         defaultTab="standings"
-                        isSwissFormat={isSwiss}
                         onSelectPair={(pairIdx) => {
-                            const pair = playoffPairs[0]?.[pairIdx];
+                            const pair = (
+                                activeChampionsSchedulePairs.length ? activeChampionsSchedulePairs : playoffPairs[0]
+                            )?.[pairIdx];
                             if (pair) {
-                                handleOpenReportGame(pair, 0, pairIdx);
+                                handleOpenReportGame(pair, championsScheduleStageIndex, pairIdx);
                             }
                         }}
                         canViewReportButton={canViewReportButtonForPair}
                         canSchedulePair={canSchedulePairForPair}
-                        onSaveSchedule={(pairIdx, iso) => handleSaveMatchSchedule(0, pairIdx, iso)}
+                        onSaveSchedule={(pairIdx, iso) =>
+                            handleSaveMatchSchedule(championsScheduleStageIndex, pairIdx, iso)
+                        }
                     />
                     {authCtx.isAdmin &&
-                        isChampionsLeague &&
-                        championsLeaguePhase === 'group' &&
+                        isChampionsLeagueTwoGroup &&
+                        championsLeaguePhase === 'group1' &&
                         tournamentStatus !== 'Tournament Finished' &&
-                        isChampionsLeagueGroupStageComplete(playoffPairs[0] || []) && (
+                        isChampionsLeagueGroupStageComplete(playoffPairs[0] || [], 1) && (
+                            <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
+                                <button className={classes.actionButton} onClick={handleStartChampionsSecondGroup}>
+                                    Start second group stage
+                                </button>
+                            </div>
+                        )}
+                    {authCtx.isAdmin &&
+                        isChampionsLeague &&
+                        ((!isChampionsLeagueTwoGroup &&
+                            (championsLeaguePhase === 'group' || championsLeaguePhase === 'group1')) ||
+                            (isChampionsLeagueTwoGroup && championsLeaguePhase === 'group2')) &&
+                        tournamentStatus !== 'Tournament Finished' &&
+                        isChampionsLeagueGroupStageComplete(
+                            isChampionsLeagueTwoGroup ? playoffPairs[1] || [] : playoffPairs[0] || [],
+                            isChampionsLeagueTwoGroup ? 2 : null
+                        ) && (
                             <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem' }}>
                                 <button className={classes.actionButton} onClick={handleStartChampionsKnockout}>
                                     Start knockout stage

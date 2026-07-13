@@ -200,6 +200,10 @@ const createPlayoffPairs = (
     return updatedPairs;
 };
 
+export const KICK_OFF_SIZES = [4, 8, 16, 32, 64];
+
+export const isKickOffSize = (maxPlayers) => KICK_OFF_SIZES.includes(Number(maxPlayers));
+
 export function setStageLabels(maxPlayers) {
     let labels = [];
     // let gamesPerStageData = {};
@@ -212,6 +216,8 @@ export function setStageLabels(maxPlayers) {
         labels = ['1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
     } else if (+maxPlayers === 32) {
         labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+    } else if (+maxPlayers === 64) {
+        labels = ['1/32 Final', '1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
     }
 
     return labels;

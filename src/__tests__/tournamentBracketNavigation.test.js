@@ -4,6 +4,7 @@ import {
     inferScheduleView,
     normalizePlayoffPairs
 } from '../utils/tournamentBracketNavigation';
+import { CHAMPIONS_LEAGUE_TWO_GROUP_TYPE } from '../components/tournaments/homm3/championsLeagueUtils';
 
 describe('tournamentBracketNavigation', () => {
     test('normalizes object-shaped playoffPairs from Firebase', () => {
@@ -71,6 +72,44 @@ describe('tournamentBracketNavigation', () => {
                 maxPlayers: 8,
                 championsLeaguePhase: 'knockout',
                 isChampionsLeague: true
+            })
+        ).toBe(false);
+    });
+
+    test('keeps two-group champions league on schedule through group1 and group2', () => {
+        const group1Pairs = [{ team1: 'A', team2: 'B', group: 'A', groupPhase: 1, winner: 'A' }];
+        const group2Pairs = [{ team1: 'C', team2: 'D', group: 'A', groupPhase: 2 }];
+
+        expect(
+            inferScheduleView({
+                type: CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+                playoffPairs: [group1Pairs],
+                maxPlayers: 16,
+                championsLeaguePhase: 'group1',
+                isChampionsLeague: true,
+                isChampionsLeagueTwoGroup: true
+            })
+        ).toBe(true);
+
+        expect(
+            inferScheduleView({
+                type: CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+                playoffPairs: [group1Pairs, group2Pairs],
+                maxPlayers: 16,
+                championsLeaguePhase: 'group2',
+                isChampionsLeague: true,
+                isChampionsLeagueTwoGroup: true
+            })
+        ).toBe(true);
+
+        expect(
+            inferScheduleView({
+                type: CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+                playoffPairs: [group1Pairs, group2Pairs, [{ team1: 'A', team2: 'C' }]],
+                maxPlayers: 16,
+                championsLeaguePhase: 'knockout',
+                isChampionsLeague: true,
+                isChampionsLeagueTwoGroup: true
             })
         ).toBe(false);
     });

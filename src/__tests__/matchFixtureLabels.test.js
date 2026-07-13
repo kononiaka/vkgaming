@@ -12,6 +12,7 @@ describe('matchFixtureLabels', () => {
         expect(formatTournamentTypeLabel('league')).toBe('League');
         expect(formatTournamentTypeLabel('kick-off')).toBe('Kick-off');
         expect(formatTournamentTypeLabel('swiss')).toBe('Swiss');
+        expect(formatTournamentTypeLabel('champions-league-2gs')).toBe('Champions League (Two Groups)');
         expect(formatTournamentTypeLabel('champions-league')).toBe('Champions League');
     });
 
@@ -71,6 +72,9 @@ describe('matchFixtureLabels', () => {
         expect(buildMatchStageLabel({ type: 'champions-league' }, { group: 'B', stage: 'Group stage' }, 0)).toBe(
             'Group B'
         );
+        expect(
+            buildMatchStageLabel({ type: 'champions-league-2gs' }, { group: 'B', groupPhase: 2, stage: 'Group B (II)' }, 0)
+        ).toBe('Group B (II)');
     });
 
     test('kick-off uses bracket stage name', () => {

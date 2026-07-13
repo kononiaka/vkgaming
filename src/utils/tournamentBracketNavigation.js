@@ -1,3 +1,8 @@
+import {
+    CHAMPIONS_LEAGUE_TWO_GROUP_TYPE,
+    isChampionsLeagueType
+} from '../components/tournaments/homm3/championsLeagueUtils';
+
 const SCHEDULE_STAGE_PATTERN = /LEAGUE|GROUP|MATCHDAY|ROUND|SWISS/i;
 
 export const normalizePlayoffPairs = (raw) => {
@@ -23,15 +28,24 @@ export const inferScheduleView = ({
     playoffPairs = [],
     maxPlayers = 8,
     championsLeaguePhase = 'group',
-    isChampionsLeague = false
+    isChampionsLeague = false,
+    isChampionsLeagueTwoGroup = false
 } = {}) => {
     if (type === 'league' || type === 'swiss' || type === 'cs-swiss') {
         return true;
     }
-    if (type === 'champions-league') {
+
+    const twoGroup = isChampionsLeagueTwoGroup || type === CHAMPIONS_LEAGUE_TWO_GROUP_TYPE;
+
+    if (isChampionsLeagueType(type)) {
         return championsLeaguePhase !== 'knockout';
     }
+
     if (isChampionsLeague && championsLeaguePhase === 'group') {
+        return true;
+    }
+
+    if (twoGroup && (championsLeaguePhase === 'group1' || championsLeaguePhase === 'group2')) {
         return true;
     }
 

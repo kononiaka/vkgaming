@@ -55,6 +55,8 @@ export const formatTournamentTypeLabel = (tournamentType) => {
             return 'Swiss';
         case 'champions-league':
             return 'Champions League';
+        case 'champions-league-2gs':
+            return 'Champions League (Two Groups)';
         default:
             if (!tournamentType) {
                 return null;
@@ -81,8 +83,12 @@ export const buildMatchStageLabel = (tournament, pair, stageIndex = 0) => {
 
     const round = pair?.round;
 
-    if (tournamentType === 'champions-league') {
+    if (tournamentType === 'champions-league' || tournamentType === 'champions-league-2gs') {
         if (group) {
+            const groupPhase = pair?.groupPhase;
+            if (groupPhase === 2) {
+                return `Group ${group} (II)`;
+            }
             return `Group ${group}`;
         }
         return stage || `Stage ${stageIndex + 1}`;
