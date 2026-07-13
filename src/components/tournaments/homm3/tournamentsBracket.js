@@ -1071,19 +1071,11 @@ export const TournamentBracket = ({
     };
 
     const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
-        const stageMappings = {
-            'Quarter-final': 0,
-            'Semi-final': 1,
-            'Third Place': 2,
-            Final: 3
-            // Add more stages and their numerical values as needed
-        };
+        // Resolve the storage index from the tournament's actual stage labels so all
+        // bracket sizes and double-elimination stages (WB Final, LB R1, ...) are supported
+        const stage = getStorageIndexForStageLabel(stageName);
 
-        // Map the stage name to a numerical stage value
-        const stage = stageMappings[stageName]; // Convert to lowercase for case-insensitive matching
-
-        if (stage === undefined) {
-            // Handle the case where an invalid stage name is provided
+        if (stage === -1) {
             console.error(`Invalid stage name: ${stageName}`);
             return;
         }
@@ -2462,7 +2454,12 @@ export const TournamentBracket = ({
                             winnerId
                         };
 
-                        if (!skipPrizes && (currentStage === 'Third Place' || currentStage === 'Final')) {
+                        if (
+                            !skipPrizes &&
+                            (currentStage === 'Third Place' ||
+                                currentStage === 'Final' ||
+                                (hasLoserBracket && (currentStage === 'Grand Final' || currentStage === 'LB Final')))
+                        ) {
                             summaryPrizes = await pullTournamentPrizes(tournamentId);
                         }
                     } catch (e) {
@@ -2616,7 +2613,18 @@ export const TournamentBracket = ({
                                     `  • Award 3rd place prize to winner (updates player prizes[] + totalPrize)`
                                 );
                             }
-                        } else if (currentStage === 'Final') {
+                        } else if (hasLoserBracket && currentStage === 'LB Final') {
+                            const lbFinalLoser = pair.team1 === reportData.winner ? pair.team2 : pair.team1;
+                            if (summaryPrizes) {
+                                lines.push(
+                                    `  • Award 3rd place prize: ${lbFinalLoser} (LB Final loser) +${summaryPrizes['3rd Place']} (updates player prizes[] + totalPrize)`
+                                );
+                            } else {
+                                lines.push(
+                                    `  • Award 3rd place prize to LB Final loser (updates player prizes[] + totalPrize)`
+                                );
+                            }
+                        } else if (currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final')) {
                             if (summaryPrizes) {
                                 const loser = pair.team1 === reportData.winner ? pair.team2 : pair.team1;
                                 lines.push(
@@ -2640,7 +2648,22 @@ export const TournamentBracket = ({
                     if (!skipPromotion) {
                         const winner = reportData.winner;
                         const loser = pair.team1 === winner ? pair.team2 : pair.team1;
-                        if (currentStage === 'Semi-final') {
+                        if (hasLoserBracket && currentStage === 'Semi-final') {
+                            const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
+                            lines.push(`  • Promote: ${winner} → WB Final ${slot}`);
+                            lines.push(`  • Drop: ${loser} → loser bracket`);
+                        } else if (hasLoserBracket && currentStage === 'WB Final') {
+                            lines.push(`  • Promote: ${winner} → Grand Final team1`);
+                            lines.push(`  • Drop: ${loser} → LB Final team2`);
+                        } else if (hasLoserBracket && currentStage === 'LB Final') {
+                            lines.push(`  • Promote: ${winner} → Grand Final team2`);
+                            lines.push(`  • ${loser} finishes 3rd place`);
+                        } else if (hasLoserBracket && currentStage.startsWith('LB')) {
+                            lines.push(`  • Promote: ${winner} → next loser bracket round`);
+                            lines.push(`  • ${loser} is eliminated`);
+                        } else if (hasLoserBracket && currentStage === 'Grand Final') {
+                            lines.push(`  • No promotion (Grand Final is the last match)`);
+                        } else if (currentStage === 'Semi-final') {
                             const finalIdx = getStorageIndexForStageLabel('Final', updatedPairs);
                             const thirdIdx = getStorageIndexForStageLabel('Third Place', updatedPairs);
                             const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
@@ -2683,13 +2706,23 @@ export const TournamentBracket = ({
                         } else {
                             lines.push(`  • Promote: ${winner} → next stage`);
                         }
+
+                        if (
+                            hasLoserBracket &&
+                            !currentStage.startsWith('LB') &&
+                            !['Semi-final', 'WB Final', 'Grand Final'].includes(currentStage)
+                        ) {
+                            lines.push(`  • Drop: ${loser} → loser bracket`);
+                        }
                     } else {
                         lines.push('  ✓ Promotion (already done)');
                     }
 
-                    if (!skipTournamentStatus && currentStage === 'Final') {
+                    const finalStageForStatus =
+                        currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final');
+                    if (!skipTournamentStatus && finalStageForStatus) {
                         lines.push('  • Set tournament status → Finished + snapshot leaderboard + recalculate stars');
-                    } else if (currentStage === 'Final' && (skipTournamentStatus || reportData.mockMode)) {
+                    } else if (finalStageForStatus && (skipTournamentStatus || reportData.mockMode)) {
                         lines.push(
                             reportData.mockMode
                                 ? '  • Tournament status / star recalc: skipped (test mode)'
@@ -3028,7 +3061,62 @@ export const TournamentBracket = ({
                     console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
 
                     // Promote based on current stage
-                    if (currentStage === 'Semi-final') {
+                    if (hasLoserBracket && currentStage === 'Semi-final') {
+                        // Double elimination: Semi-final winners meet in WB Final.
+                        // The loser is dropped into the loser bracket further below (dropLoserToBracket).
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const wbFinalStageIndex = getStorageIndexForStageLabel('WB Final', updatedPairs);
+                        if (wbFinalStageIndex !== -1 && updatedPairs[wbFinalStageIndex]?.[0]) {
+                            const wbFinalPair = updatedPairs[wbFinalStageIndex][0];
+                            const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
+                            const ratingsSlot = selectedPairIndex === 0 ? 'ratings1' : 'ratings2';
+                            const starsSlot = selectedPairIndex === 0 ? 'stars1' : 'stars2';
+
+                            const confirmPromoteToWbFinal = confirmWindow(
+                                `Promote winner to WB Final?\n\n${winner} → WB Final ${teamSlot}\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToWbFinal) {
+                                if (wbFinalPair[teamSlot] === 'TBD' || !wbFinalPair[teamSlot]) {
+                                    wbFinalPair[teamSlot] = winner;
+                                    wbFinalPair[ratingsSlot] =
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                    wbFinalPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(
+                                        `Promoted ${winner} to WB Final ${teamSlot} with updated rating: ${wbFinalPair[ratingsSlot]}`
+                                    );
+                                }
+                            } else {
+                                console.log(`Promotion to WB Final cancelled by user`);
+                            }
+                        }
+                    } else if (hasLoserBracket && currentStage === 'WB Final') {
+                        // Double elimination: WB Final winner takes team1 of the Grand Final.
+                        // The loser is dropped into LB Final further below (dropLoserToBracket).
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const grandFinalStageIndex = getStorageIndexForStageLabel('Grand Final', updatedPairs);
+                        if (grandFinalStageIndex !== -1 && updatedPairs[grandFinalStageIndex]?.[0]) {
+                            const grandFinalPair = updatedPairs[grandFinalStageIndex][0];
+
+                            const confirmPromoteToGrandFinal = confirmWindow(
+                                `Promote winner to Grand Final?\n\n${winner} → Grand Final team1\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToGrandFinal) {
+                                if (grandFinalPair.team1 === 'TBD' || !grandFinalPair.team1) {
+                                    grandFinalPair.team1 = winner;
+                                    grandFinalPair.ratings1 =
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                    grandFinalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(
+                                        `Promoted ${winner} to Grand Final team1 with updated rating: ${grandFinalPair.ratings1}`
+                                    );
+                                }
+                            } else {
+                                console.log(`Promotion to Grand Final cancelled by user`);
+                            }
+                        }
+                    } else if (currentStage === 'Semi-final') {
                         // Winner goes to Final, Loser goes to Third Place
                         const finalStageIndex = getStorageIndexForStageLabel('Final', updatedPairs);
                         const thirdPlaceStageIndex = getStorageIndexForStageLabel('Third Place', updatedPairs);
@@ -3277,12 +3365,15 @@ export const TournamentBracket = ({
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
-                    if (currentStage === 'Third Place') {
-                        // Award Third Place prize to the winner
-                        console.log(`Third Place game completed. Winner: ${winner}`);
+                    // In double elimination the LB Final loser finishes 3rd (LB Final winner advances to the Grand Final)
+                    const isDoubleElimThirdPlace = hasLoserBracket && currentStage === 'LB Final';
+                    const thirdPlaceFinisher = isDoubleElimThirdPlace ? loser : winner;
+
+                    if (currentStage === 'Third Place' || isDoubleElimThirdPlace) {
+                        console.log(`${currentStage} game completed. 3rd place: ${thirdPlaceFinisher}`);
 
                         const confirmThirdPlacePrize = confirmWindow(
-                            `Award Third Place prize to ${winner}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
+                            `Award Third Place prize to ${thirdPlaceFinisher}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
                         );
 
                         if (confirmThirdPlacePrize) {
@@ -3294,7 +3385,7 @@ export const TournamentBracket = ({
                                 console.log('Third Place Prize:', prizeAmount);
 
                                 // Find and update player record
-                                const playerId = await lookForUserId(winner);
+                                const playerId = await lookForUserId(thirdPlaceFinisher);
                                 if (playerId) {
                                     const playerData = await loadUserById(playerId);
 
@@ -3320,7 +3411,7 @@ export const TournamentBracket = ({
 
                                         // Update tournament winners
                                         const confirmUpdateWinner = confirmWindow(
-                                            `Update tournament 3rd place winner?\n\nWinner: ${winner}\nPrize: ${prizeAmount}\n\nUpdate?`
+                                            `Update tournament 3rd place winner?\n\nWinner: ${thirdPlaceFinisher}\nPrize: ${prizeAmount}\n\nUpdate?`
                                         );
 
                                         if (confirmUpdateWinner) {
@@ -3328,7 +3419,7 @@ export const TournamentBracket = ({
                                                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
                                                 {
                                                     method: 'PUT',
-                                                    body: JSON.stringify(winner),
+                                                    body: JSON.stringify(thirdPlaceFinisher),
                                                     headers: { 'Content-Type': 'application/json' }
                                                 }
                                             );
@@ -3337,7 +3428,7 @@ export const TournamentBracket = ({
 
                                         // Update player record
                                         const confirmUpdatePlayer = confirmWindow(
-                                            `Update player record with prize?\n\nPlayer: ${winner}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
+                                            `Update player record with prize?\n\nPlayer: ${thirdPlaceFinisher}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
                                         );
 
                                         if (confirmUpdatePlayer) {
@@ -3366,9 +3457,9 @@ export const TournamentBracket = ({
                         } else {
                             console.log('Third Place prize award cancelled by user');
                         }
-                    } else if (currentStage === 'Final') {
+                    } else if (currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final')) {
                         // Award Final prizes to winner (1st place) and loser (2nd place)
-                        console.log(`Final game completed. Winner: ${winner}, Runner-up: ${loser}`);
+                        console.log(`${currentStage} game completed. Winner: ${winner}, Runner-up: ${loser}`);
 
                         const confirmFinalPrizes = confirmWindow(
                             `Award Final prizes?\n\n1st Place: ${winner}\n2nd Place: ${loser}\n\nThis will update tournament winners and player prize records.\n\nAward prizes?`
