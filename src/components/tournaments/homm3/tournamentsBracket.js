@@ -123,12 +123,60 @@ const repairChampionsLeagueKnockoutPair = (pair) => {
 
 const MOBILE_KNOCKOUT_MQ = '(max-width: 768px)';
 
-const getKnockoutPaginationStages = (labels, isMobileView) => {
-    const allDisplayStages = labels.filter((s) => s !== 'Third Place');
-    if (isMobileView) {
-        return allDisplayStages;
+const isDoubleElimLabelSet = (labels = []) =>
+    labels.includes('Grand Final') || labels.some((label) => String(label).startsWith('LB'));
+
+/**
+ * Desktop knockout pages as { left, right } pairs.
+ * Single-elim keeps consecutive stages (… → Final).
+ * Double-elim keeps WB and LB on separate tracks and closes with WB Final → Grand Final,
+ * so WB Final is never shown beside LB R1 (they don't feed each other).
+ */
+const getKnockoutBracketPages = (labels, isMobileView) => {
+    const allDisplayStages = labels.filter((stage) => stage !== 'Third Place');
+    if (allDisplayStages.length === 0) {
+        return [];
     }
-    return allDisplayStages.length > 1 ? allDisplayStages.slice(0, -1) : allDisplayStages;
+
+    if (isMobileView) {
+        return allDisplayStages.map((left) => ({ left, right: null }));
+    }
+
+    if (!isDoubleElimLabelSet(allDisplayStages)) {
+        if (allDisplayStages.length === 1) {
+            return [{ left: allDisplayStages[0], right: null }];
+        }
+        const pages = [];
+        for (let index = 0; index < allDisplayStages.length - 1; index++) {
+            pages.push({ left: allDisplayStages[index], right: allDisplayStages[index + 1] });
+        }
+        return pages;
+    }
+
+    const winnerStages = allDisplayStages.filter(
+        (label) => !String(label).startsWith('LB') && label !== 'Grand Final'
+    );
+    const loserStages = allDisplayStages.filter((label) => String(label).startsWith('LB'));
+    const pages = [];
+
+    for (let index = 0; index < winnerStages.length - 1; index++) {
+        pages.push({ left: winnerStages[index], right: winnerStages[index + 1] });
+    }
+    for (let index = 0; index < loserStages.length - 1; index++) {
+        pages.push({ left: loserStages[index], right: loserStages[index + 1] });
+    }
+
+    if (allDisplayStages.includes('Grand Final') && winnerStages.includes('WB Final')) {
+        pages.push({ left: 'WB Final', right: 'Grand Final' });
+    } else if (allDisplayStages.includes('Grand Final') && loserStages.includes('LB Final')) {
+        pages.push({ left: 'LB Final', right: 'Grand Final' });
+    }
+
+    if (pages.length === 0) {
+        return allDisplayStages.map((left) => ({ left, right: null }));
+    }
+
+    return pages;
 };
 
 const useMobileKnockoutView = () => {
@@ -329,39 +377,32 @@ export const TournamentBracket = ({
     };
 
     const resolveKnockoutDisplayStage = (storageStageIdx, labels, isMobileView = false) => {
-        const allDisplayStages = labels.filter((s) => s !== 'Third Place');
-        const displayStages = getKnockoutPaginationStages(labels, isMobileView);
-        if (displayStages.length === 0) {
+        const pages = getKnockoutBracketPages(labels, isMobileView);
+        if (pages.length === 0) {
             return 0;
         }
 
         const label = labels[storageStageIdx];
         if (!label) {
-            return Math.min(storageStageIdx, displayStages.length - 1);
-        }
-        if (label === 'Final' || label === 'Third Place') {
-            if (isMobileView) {
-                const finalIdx = allDisplayStages.indexOf('Final');
-                return finalIdx !== -1 ? finalIdx : displayStages.length - 1;
-            }
-            return displayStages.length - 1;
+            return Math.min(storageStageIdx, pages.length - 1);
         }
 
-        const direct = displayStages.indexOf(label);
-        if (direct !== -1) {
-            return direct;
+        if (label === 'Third Place') {
+            const finalPage = pages.findIndex((page) => page.left === 'Final' || page.right === 'Final');
+            return finalPage !== -1 ? finalPage : pages.length - 1;
         }
 
-        for (let i = 0; i < displayStages.length; i++) {
-            const nextLabel =
-                displayStages[i + 1] ??
-                (allDisplayStages.length > displayStages.length ? allDisplayStages[allDisplayStages.length - 1] : null);
-            if (nextLabel === label) {
-                return i;
-            }
+        // Prefer the page where this stage is the left column; otherwise the right column.
+        const leftPage = pages.findIndex((page) => page.left === label);
+        if (leftPage !== -1) {
+            return leftPage;
+        }
+        const rightPage = pages.findIndex((page) => page.right === label);
+        if (rightPage !== -1) {
+            return rightPage;
         }
 
-        return Math.min(storageStageIdx, displayStages.length - 1);
+        return Math.min(storageStageIdx, pages.length - 1);
     };
 
     // Auto-navigate to the stage+pair indicated by URL params (from Match Center / Live Arena)
@@ -579,7 +620,15 @@ export const TournamentBracket = ({
             } else if (+maxPlayers === 32) {
                 labels = ['1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
             } else if (+maxPlayers === 64) {
-                labels = ['1/32 Final', '1/16 Final', '1/8 Final', 'Quarter-final', 'Semi-final', 'Third Place', 'Final'];
+                labels = [
+                    '1/32 Final',
+                    '1/16 Final',
+                    '1/8 Final',
+                    'Quarter-final',
+                    'Semi-final',
+                    'Third Place',
+                    'Final'
+                ];
             }
 
             setStageLabels(labels);
@@ -1071,19 +1120,11 @@ export const TournamentBracket = ({
     };
 
     const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
-        const stageMappings = {
-            'Quarter-final': 0,
-            'Semi-final': 1,
-            'Third Place': 2,
-            Final: 3
-            // Add more stages and their numerical values as needed
-        };
+        // Resolve the storage index from the tournament's actual stage labels so all
+        // bracket sizes and double-elimination stages (WB Final, LB R1, ...) are supported
+        const stage = getStorageIndexForStageLabel(stageName);
 
-        // Map the stage name to a numerical stage value
-        const stage = stageMappings[stageName]; // Convert to lowercase for case-insensitive matching
-
-        if (stage === undefined) {
-            // Handle the case where an invalid stage name is provided
+        if (stage === -1) {
             console.error(`Invalid stage name: ${stageName}`);
             return;
         }
@@ -2462,7 +2503,12 @@ export const TournamentBracket = ({
                             winnerId
                         };
 
-                        if (!skipPrizes && (currentStage === 'Third Place' || currentStage === 'Final')) {
+                        if (
+                            !skipPrizes &&
+                            (currentStage === 'Third Place' ||
+                                currentStage === 'Final' ||
+                                (hasLoserBracket && (currentStage === 'Grand Final' || currentStage === 'LB Final')))
+                        ) {
                             summaryPrizes = await pullTournamentPrizes(tournamentId);
                         }
                     } catch (e) {
@@ -2616,7 +2662,18 @@ export const TournamentBracket = ({
                                     `  • Award 3rd place prize to winner (updates player prizes[] + totalPrize)`
                                 );
                             }
-                        } else if (currentStage === 'Final') {
+                        } else if (hasLoserBracket && currentStage === 'LB Final') {
+                            const lbFinalLoser = pair.team1 === reportData.winner ? pair.team2 : pair.team1;
+                            if (summaryPrizes) {
+                                lines.push(
+                                    `  • Award 3rd place prize: ${lbFinalLoser} (LB Final loser) +${summaryPrizes['3rd Place']} (updates player prizes[] + totalPrize)`
+                                );
+                            } else {
+                                lines.push(
+                                    `  • Award 3rd place prize to LB Final loser (updates player prizes[] + totalPrize)`
+                                );
+                            }
+                        } else if (currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final')) {
                             if (summaryPrizes) {
                                 const loser = pair.team1 === reportData.winner ? pair.team2 : pair.team1;
                                 lines.push(
@@ -2640,7 +2697,22 @@ export const TournamentBracket = ({
                     if (!skipPromotion) {
                         const winner = reportData.winner;
                         const loser = pair.team1 === winner ? pair.team2 : pair.team1;
-                        if (currentStage === 'Semi-final') {
+                        if (hasLoserBracket && currentStage === 'Semi-final') {
+                            const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
+                            lines.push(`  • Promote: ${winner} → WB Final ${slot}`);
+                            lines.push(`  • Drop: ${loser} → loser bracket`);
+                        } else if (hasLoserBracket && currentStage === 'WB Final') {
+                            lines.push(`  • Promote: ${winner} → Grand Final team1`);
+                            lines.push(`  • Drop: ${loser} → LB Final team2`);
+                        } else if (hasLoserBracket && currentStage === 'LB Final') {
+                            lines.push(`  • Promote: ${winner} → Grand Final team2`);
+                            lines.push(`  • ${loser} finishes 3rd place`);
+                        } else if (hasLoserBracket && currentStage.startsWith('LB')) {
+                            lines.push(`  • Promote: ${winner} → next loser bracket round`);
+                            lines.push(`  • ${loser} is eliminated`);
+                        } else if (hasLoserBracket && currentStage === 'Grand Final') {
+                            lines.push(`  • No promotion (Grand Final is the last match)`);
+                        } else if (currentStage === 'Semi-final') {
                             const finalIdx = getStorageIndexForStageLabel('Final', updatedPairs);
                             const thirdIdx = getStorageIndexForStageLabel('Third Place', updatedPairs);
                             const slot = selectedPairIndex === 0 ? 'team1' : 'team2';
@@ -2683,13 +2755,23 @@ export const TournamentBracket = ({
                         } else {
                             lines.push(`  • Promote: ${winner} → next stage`);
                         }
+
+                        if (
+                            hasLoserBracket &&
+                            !currentStage.startsWith('LB') &&
+                            !['Semi-final', 'WB Final', 'Grand Final'].includes(currentStage)
+                        ) {
+                            lines.push(`  • Drop: ${loser} → loser bracket`);
+                        }
                     } else {
                         lines.push('  ✓ Promotion (already done)');
                     }
 
-                    if (!skipTournamentStatus && currentStage === 'Final') {
+                    const finalStageForStatus =
+                        currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final');
+                    if (!skipTournamentStatus && finalStageForStatus) {
                         lines.push('  • Set tournament status → Finished + snapshot leaderboard + recalculate stars');
-                    } else if (currentStage === 'Final' && (skipTournamentStatus || reportData.mockMode)) {
+                    } else if (finalStageForStatus && (skipTournamentStatus || reportData.mockMode)) {
                         lines.push(
                             reportData.mockMode
                                 ? '  • Tournament status / star recalc: skipped (test mode)'
@@ -3028,7 +3110,62 @@ export const TournamentBracket = ({
                     console.log(`Current stage: ${currentStage}, Winner: ${winner}, Loser: ${loser}`);
 
                     // Promote based on current stage
-                    if (currentStage === 'Semi-final') {
+                    if (hasLoserBracket && currentStage === 'Semi-final') {
+                        // Double elimination: Semi-final winners meet in WB Final.
+                        // The loser is dropped into the loser bracket further below (dropLoserToBracket).
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const wbFinalStageIndex = getStorageIndexForStageLabel('WB Final', updatedPairs);
+                        if (wbFinalStageIndex !== -1 && updatedPairs[wbFinalStageIndex]?.[0]) {
+                            const wbFinalPair = updatedPairs[wbFinalStageIndex][0];
+                            const teamSlot = selectedPairIndex === 0 ? 'team1' : 'team2';
+                            const ratingsSlot = selectedPairIndex === 0 ? 'ratings1' : 'ratings2';
+                            const starsSlot = selectedPairIndex === 0 ? 'stars1' : 'stars2';
+
+                            const confirmPromoteToWbFinal = confirmWindow(
+                                `Promote winner to WB Final?\n\n${winner} → WB Final ${teamSlot}\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToWbFinal) {
+                                if (wbFinalPair[teamSlot] === 'TBD' || !wbFinalPair[teamSlot]) {
+                                    wbFinalPair[teamSlot] = winner;
+                                    wbFinalPair[ratingsSlot] =
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                    wbFinalPair[starsSlot] = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(
+                                        `Promoted ${winner} to WB Final ${teamSlot} with updated rating: ${wbFinalPair[ratingsSlot]}`
+                                    );
+                                }
+                            } else {
+                                console.log(`Promotion to WB Final cancelled by user`);
+                            }
+                        }
+                    } else if (hasLoserBracket && currentStage === 'WB Final') {
+                        // Double elimination: WB Final winner takes team1 of the Grand Final.
+                        // The loser is dropped into LB Final further below (dropLoserToBracket).
+                        const winnerRating = winner === pair.team1 ? team1NewRating : team2NewRating;
+                        const grandFinalStageIndex = getStorageIndexForStageLabel('Grand Final', updatedPairs);
+                        if (grandFinalStageIndex !== -1 && updatedPairs[grandFinalStageIndex]?.[0]) {
+                            const grandFinalPair = updatedPairs[grandFinalStageIndex][0];
+
+                            const confirmPromoteToGrandFinal = confirmWindow(
+                                `Promote winner to Grand Final?\n\n${winner} → Grand Final team1\n\nPromote?`
+                            );
+
+                            if (confirmPromoteToGrandFinal) {
+                                if (grandFinalPair.team1 === 'TBD' || !grandFinalPair.team1) {
+                                    grandFinalPair.team1 = winner;
+                                    grandFinalPair.ratings1 =
+                                        winnerRating || (pair.winner === pair.team1 ? pair.ratings1 : pair.ratings2);
+                                    grandFinalPair.stars1 = pair.winner === pair.team1 ? pair.stars1 : pair.stars2;
+                                    console.log(
+                                        `Promoted ${winner} to Grand Final team1 with updated rating: ${grandFinalPair.ratings1}`
+                                    );
+                                }
+                            } else {
+                                console.log(`Promotion to Grand Final cancelled by user`);
+                            }
+                        }
+                    } else if (currentStage === 'Semi-final') {
                         // Winner goes to Final, Loser goes to Third Place
                         const finalStageIndex = getStorageIndexForStageLabel('Final', updatedPairs);
                         const thirdPlaceStageIndex = getStorageIndexForStageLabel('Third Place', updatedPairs);
@@ -3277,12 +3414,15 @@ export const TournamentBracket = ({
                     const winner = reportData.winner;
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
-                    if (currentStage === 'Third Place') {
-                        // Award Third Place prize to the winner
-                        console.log(`Third Place game completed. Winner: ${winner}`);
+                    // In double elimination the LB Final loser finishes 3rd (LB Final winner advances to the Grand Final)
+                    const isDoubleElimThirdPlace = hasLoserBracket && currentStage === 'LB Final';
+                    const thirdPlaceFinisher = isDoubleElimThirdPlace ? loser : winner;
+
+                    if (currentStage === 'Third Place' || isDoubleElimThirdPlace) {
+                        console.log(`${currentStage} game completed. 3rd place: ${thirdPlaceFinisher}`);
 
                         const confirmThirdPlacePrize = confirmWindow(
-                            `Award Third Place prize to ${winner}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
+                            `Award Third Place prize to ${thirdPlaceFinisher}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
                         );
 
                         if (confirmThirdPlacePrize) {
@@ -3294,7 +3434,7 @@ export const TournamentBracket = ({
                                 console.log('Third Place Prize:', prizeAmount);
 
                                 // Find and update player record
-                                const playerId = await lookForUserId(winner);
+                                const playerId = await lookForUserId(thirdPlaceFinisher);
                                 if (playerId) {
                                     const playerData = await loadUserById(playerId);
 
@@ -3320,7 +3460,7 @@ export const TournamentBracket = ({
 
                                         // Update tournament winners
                                         const confirmUpdateWinner = confirmWindow(
-                                            `Update tournament 3rd place winner?\n\nWinner: ${winner}\nPrize: ${prizeAmount}\n\nUpdate?`
+                                            `Update tournament 3rd place winner?\n\nWinner: ${thirdPlaceFinisher}\nPrize: ${prizeAmount}\n\nUpdate?`
                                         );
 
                                         if (confirmUpdateWinner) {
@@ -3328,7 +3468,7 @@ export const TournamentBracket = ({
                                                 `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
                                                 {
                                                     method: 'PUT',
-                                                    body: JSON.stringify(winner),
+                                                    body: JSON.stringify(thirdPlaceFinisher),
                                                     headers: { 'Content-Type': 'application/json' }
                                                 }
                                             );
@@ -3337,7 +3477,7 @@ export const TournamentBracket = ({
 
                                         // Update player record
                                         const confirmUpdatePlayer = confirmWindow(
-                                            `Update player record with prize?\n\nPlayer: ${winner}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
+                                            `Update player record with prize?\n\nPlayer: ${thirdPlaceFinisher}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
                                         );
 
                                         if (confirmUpdatePlayer) {
@@ -3366,9 +3506,9 @@ export const TournamentBracket = ({
                         } else {
                             console.log('Third Place prize award cancelled by user');
                         }
-                    } else if (currentStage === 'Final') {
+                    } else if (currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final')) {
                         // Award Final prizes to winner (1st place) and loser (2nd place)
-                        console.log(`Final game completed. Winner: ${winner}, Runner-up: ${loser}`);
+                        console.log(`${currentStage} game completed. Winner: ${winner}, Runner-up: ${loser}`);
 
                         const confirmFinalPrizes = confirmWindow(
                             `Award Final prizes?\n\n1st Place: ${winner}\n2nd Place: ${loser}\n\nThis will update tournament winners and player prize records.\n\nAward prizes?`
@@ -4193,19 +4333,19 @@ export const TournamentBracket = ({
                         scheduleStageOffset > 0 ? playoffPairs.slice(scheduleStageOffset) : playoffPairs;
                     const storageStage = (labelIndex) => labelIndex + scheduleStageOffset;
 
-                    const allDisplayStages = stageLabels.filter((s) => s !== 'Third Place');
-                    const displayStages = getKnockoutPaginationStages(stageLabels, isMobileKnockoutView);
-                    const clampedStage = Math.min(activeBracketStage, displayStages.length - 1);
-                    const currentDisplayStage = displayStages[clampedStage];
-                    const stageIndex = stageLabels.indexOf(currentDisplayStage);
+                    const knockoutPages = getKnockoutBracketPages(stageLabels, isMobileKnockoutView);
+                    const clampedStage = Math.min(
+                        activeBracketStage,
+                        Math.max(0, knockoutPages.length - 1)
+                    );
+                    const currentPage = knockoutPages[clampedStage] || { left: null, right: null };
+                    const currentDisplayStage = currentPage.left;
+                    const stageIndex =
+                        currentDisplayStage != null ? stageLabels.indexOf(currentDisplayStage) : -1;
                     const thirdPlaceIndex = stageLabels.indexOf('Third Place');
-                    const nextDisplayStage = isMobileKnockoutView
-                        ? null
-                        : (displayStages[clampedStage + 1] ??
-                          (clampedStage === displayStages.length - 1 && allDisplayStages.length > displayStages.length
-                              ? allDisplayStages[allDisplayStages.length - 1]
-                              : null));
-                    const nextStageIndex = nextDisplayStage !== null ? stageLabels.indexOf(nextDisplayStage) : -1;
+                    const nextDisplayStage = currentPage.right;
+                    const nextStageIndex =
+                        nextDisplayStage != null ? stageLabels.indexOf(nextDisplayStage) : -1;
 
                     // Shared bracket layout constants
                     const BLOCK_H = 96;
@@ -4214,6 +4354,10 @@ export const TournamentBracket = ({
                     const rightMatchCount = nextStageIndex !== -1 ? (bracketPairs[nextStageIndex]?.length ?? 0) : 0;
                     const leftColHeight = leftMatchCount * BLOCK_H + Math.max(0, leftMatchCount - 1) * BLOCK_GAP;
                     const bracketRatio = rightMatchCount > 0 ? leftMatchCount / rightMatchCount : 2;
+                    // When the right column has MORE pairs than the left (double elim: WB Final → LB R1),
+                    // the funnel positioning math doesn't apply and the left stage doesn't feed the right
+                    // one, so the column is stacked normally and the connector lines are hidden.
+                    const nextColumnStacked = rightMatchCount > leftMatchCount;
                     // Pixel distance from top of right column to top of right block i
                     const getRightBlockTop = (i) =>
                         ((2 * i * bracketRatio + bracketRatio - 1) * (BLOCK_H + BLOCK_GAP)) / 2;
@@ -4282,20 +4426,21 @@ export const TournamentBracket = ({
                                                 : currentDisplayStage}
                                     </div>
                                     <div className={classes.knockoutStageMeta}>
-                                        Stage {clampedStage + 1}
-                                        {!isMobileKnockoutView && nextDisplayStage !== null
-                                            ? `–${clampedStage + 2}`
-                                            : ''}{' '}
-                                        of {displayStages.length}
+                                        View {clampedStage + 1} of {Math.max(1, knockoutPages.length)}
                                     </div>
                                 </div>
                                 <button
                                     type="button"
                                     className={classes.knockoutNavBtn}
                                     onClick={() =>
-                                        setActiveBracketStage((prev) => Math.min(displayStages.length - 1, prev + 1))
+                                        setActiveBracketStage((prev) =>
+                                            Math.min(Math.max(0, knockoutPages.length - 1), prev + 1)
+                                        )
                                     }
-                                    disabled={clampedStage === displayStages.length - 1}
+                                    disabled={
+                                        knockoutPages.length === 0 ||
+                                        clampedStage === knockoutPages.length - 1
+                                    }
                                     aria-label="Next stage"
                                 >
                                     →
@@ -4303,14 +4448,22 @@ export const TournamentBracket = ({
                             </div>
 
                             <div className={classes.knockoutDots}>
-                                {displayStages.map((label, idx) => (
+                                {knockoutPages.map((page, idx) => (
                                     <button
-                                        key={idx}
+                                        key={`${page.left}-${page.right || 'solo'}-${idx}`}
                                         type="button"
                                         className={`${classes.knockoutDot} ${idx === clampedStage ? classes.knockoutDotActive : ''}`}
                                         onClick={() => setActiveBracketStage(idx)}
-                                        title={label}
-                                        aria-label={`Go to ${label}`}
+                                        title={
+                                            page.right
+                                                ? `${page.left} → ${page.right}`
+                                                : page.left
+                                        }
+                                        aria-label={
+                                            page.right
+                                                ? `Go to ${page.left} → ${page.right}`
+                                                : `Go to ${page.left}`
+                                        }
                                     />
                                 ))}
                             </div>
@@ -4683,7 +4836,7 @@ export const TournamentBracket = ({
                                 {nextDisplayStage !== null &&
                                     currentDisplayStage !== 'Final' &&
                                     (() => {
-                                        if (!leftMatchCount || !rightMatchCount) {
+                                        if (!leftMatchCount || !rightMatchCount || nextColumnStacked) {
                                             return null;
                                         }
                                         return (
@@ -4694,10 +4847,12 @@ export const TournamentBracket = ({
                                             >
                                                 {Array.from({ length: leftMatchCount }, (_, i) => {
                                                     const leftY = getSvgLeftY(i);
-                                                    const rightMatchIdx = Math.min(
-                                                        Math.floor(i / 2),
-                                                        rightMatchCount - 1
-                                                    );
+                                                    // Equal columns (LB consolidation rounds) feed pair i → pair i;
+                                                    // halving columns feed pairs 2i and 2i+1 → pair i
+                                                    const rightMatchIdx =
+                                                        rightMatchCount === leftMatchCount
+                                                            ? i
+                                                            : Math.min(Math.floor(i / 2), rightMatchCount - 1);
                                                     const rightY = getSvgRightY(rightMatchIdx);
                                                     return (
                                                         <path
@@ -5014,11 +5169,26 @@ export const TournamentBracket = ({
                                             </div>
                                         ) : (
                                             /* === OTHER STAGES === */
+                                            /* Funnel pages: flex: 1 stretches to the real rendered height of the left
+                                               column, and percentage tops keep each block centered on its slot.
+                                               Stacked pages (right column has more pairs, e.g. WB Final → LB R1):
+                                               normal vertically-centered flow, since the left stage doesn't feed it. */
                                             <div
-                                                style={{
-                                                    position: 'relative',
-                                                    height: `${leftColHeight}px`
-                                                }}
+                                                style={
+                                                    nextColumnStacked
+                                                        ? {
+                                                              display: 'flex',
+                                                              flexDirection: 'column',
+                                                              justifyContent: 'center',
+                                                              gap: '0.5rem',
+                                                              flex: 1
+                                                          }
+                                                        : {
+                                                              position: 'relative',
+                                                              flex: 1,
+                                                              minHeight: `${leftColHeight}px`
+                                                          }
+                                                }
                                             >
                                                 {bracketPairs[nextStageIndex]?.map((pair, pairIndex) => {
                                                     const { team1, team2 } = pair;
@@ -5028,18 +5198,37 @@ export const TournamentBracket = ({
                                                         <div
                                                             key={pairIndex}
                                                             className={classes['game-block']}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: `${getRightBlockTop(pairIndex)}px`,
-                                                                left: 0,
-                                                                right: 0,
-                                                                height: `${BLOCK_H}px`,
-                                                                marginBottom: 0,
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                justifyContent: 'center'
-                                                            }}
+                                                            style={
+                                                                nextColumnStacked
+                                                                    ? {
+                                                                          position: 'relative',
+                                                                          minHeight: `${BLOCK_H}px`,
+                                                                          width: '100%',
+                                                                          marginBottom: 0,
+                                                                          display: 'flex',
+                                                                          flexDirection: 'column',
+                                                                          justifyContent: 'center'
+                                                                      }
+                                                                    : {
+                                                                          position: 'absolute',
+                                                                          top: `${getSvgRightY(pairIndex)}%`,
+                                                                          transform: 'translateY(-50%)',
+                                                                          left: 0,
+                                                                          right: 0,
+                                                                          width: '100%',
+                                                                          minHeight: `${BLOCK_H}px`,
+                                                                          marginBottom: 0,
+                                                                          display: 'flex',
+                                                                          flexDirection: 'column',
+                                                                          justifyContent: 'center'
+                                                                      }
+                                                            }
                                                         >
+                                                            {renderMatchScheduleControl(
+                                                                pair,
+                                                                storageStage(nextStageIndex),
+                                                                pairIndex
+                                                            )}
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',

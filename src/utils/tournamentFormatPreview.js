@@ -44,8 +44,7 @@ export const getKnockoutRoundColumns = (entrantCount, stageLabels = null) => {
     }
 
     const labels =
-        stageLabels ||
-        setStageLabels(entrants).filter((label) => label !== 'Third Place' && label !== 'Final');
+        stageLabels || setStageLabels(entrants).filter((label) => label !== 'Third Place' && label !== 'Final');
 
     const columns = [];
     let matchCount = entrants / 2;
@@ -70,7 +69,10 @@ const buildKnockoutPreview = (maxPlayers, { loserBracket = false, thirdPlace = t
     if (loserBracket) {
         const labels = getDoubleElimStageLabels(maxPlayers);
         const winnerLabels = labels.filter((label) => !label.startsWith('LB') && label !== 'Grand Final');
-        const columns = getKnockoutRoundColumns(maxPlayers, winnerLabels.filter((l) => l !== 'Third Place'));
+        const columns = getKnockoutRoundColumns(
+            maxPlayers,
+            winnerLabels.filter((l) => l !== 'Third Place')
+        );
         return {
             mode: 'knockout',
             title: 'Double elimination',
@@ -99,11 +101,7 @@ const buildGroupsPhase = (groupCount, subtitle) => ({
     type: 'groups'
 });
 
-export const buildTournamentFormatPreview = ({
-    type,
-    maxPlayers,
-    loserBracket = false
-} = {}) => {
+export const buildTournamentFormatPreview = ({ type, maxPlayers, loserBracket = false } = {}) => {
     const players = Number(maxPlayers);
 
     if (!type || !Number.isFinite(players) || players < 2) {
@@ -171,7 +169,10 @@ export const buildTournamentFormatPreview = ({
         return {
             mode: 'flow',
             title: 'Groups + knockout',
-            phases: [buildGroupsPhase(groupCount, 'Group stage'), { label: `${knockoutEntrants}`, subtitle: 'Knockout', type: 'knockout' }],
+            phases: [
+                buildGroupsPhase(groupCount, 'Group stage'),
+                { label: `${knockoutEntrants}`, subtitle: 'Knockout', type: 'knockout' }
+            ],
             columns: getKnockoutRoundColumns(knockoutEntrants),
             footnote: `Top ${CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP} per group advance`
         };

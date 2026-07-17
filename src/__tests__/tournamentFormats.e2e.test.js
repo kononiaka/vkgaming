@@ -636,5 +636,223 @@ describe('tournament format E2E flows', () => {
             const lbR2Index = labels.indexOf('LB R2');
             expect(updatedPairs[lbR2Index][0].team1).toBe('LoserA');
         });
+
+        test('bracket structure has correct pair counts for every supported size', () => {
+            const expectedCounts = {
+                4: { 'Semi-final': 2, 'WB Final': 1, 'LB R1': 1, 'LB Final': 1, 'Grand Final': 1 },
+                8: {
+                    'Quarter-final': 4,
+                    'Semi-final': 2,
+                    'WB Final': 1,
+                    'LB R1': 2,
+                    'LB R2': 2,
+                    'LB R3': 1,
+                    'LB Final': 1,
+                    'Grand Final': 1
+                },
+                16: {
+                    '1/8 Final': 8,
+                    'Quarter-final': 4,
+                    'Semi-final': 2,
+                    'WB Final': 1,
+                    'LB R1': 4,
+                    'LB R2': 4,
+                    'LB R3': 2,
+                    'LB R4': 2,
+                    'LB R5': 1,
+                    'LB Final': 1,
+                    'Grand Final': 1
+                },
+                32: {
+                    '1/16 Final': 16,
+                    '1/8 Final': 8,
+                    'Quarter-final': 4,
+                    'Semi-final': 2,
+                    'WB Final': 1,
+                    'LB R1': 8,
+                    'LB R2': 8,
+                    'LB R3': 4,
+                    'LB R4': 4,
+                    'LB R5': 2,
+                    'LB R6': 2,
+                    'LB R7': 1,
+                    'LB Final': 1,
+                    'Grand Final': 1
+                }
+            };
+
+            DOUBLE_ELIM_SIZES.forEach((size) => {
+                const labels = getDoubleElimStageLabels(size);
+                const stages = createDoubleElimPlayoffPairs('1', '1', null, size);
+                expect(stages).toHaveLength(labels.length);
+                labels.forEach((label, index) => {
+                    expect({ size, label, count: stages[index].length }).toEqual({
+                        size,
+                        label,
+                        count: expectedCounts[size][label]
+                    });
+                });
+            });
+        });
+
+        test('LB consolidation round keeps pair index (LB R1 pair 1 winner → LB R2 pair 1 team1)', () => {
+            const stages = createDoubleElimPlayoffPairs('1', '1', players, 8);
+            const labels = getDoubleElimStageLabels(8);
+            const updatedPairs = stages.map((stage) => stage.map((pair) => ({ ...pair })));
+
+            const promoted = promoteLoserBracketWinner({
+                updatedPairs,
+                stageLabels: labels,
+                currentStage: 'LB R1',
+                pairIndex: 1,
+                winner: 'LoserC',
+                winnerRating: '1400',
+                winnerStars: 0
+            });
+
+            expect(promoted).toBe(true);
+
+            const lbR2Index = labels.indexOf('LB R2');
+            expect(updatedPairs[lbR2Index][1].team1).toBe('LoserC');
+            expect(updatedPairs[lbR2Index][0].team1).toBe('TBD');
+            expect(updatedPairs[lbR2Index][0].team2).toBe('TBD');
+        });
+
+        test('32-player winner bracket losers drop into the correct LB rounds', () => {
+            const size = 32;
+            const labels = getDoubleElimStageLabels(size);
+            const stages = createDoubleElimPlayoffPairs('1', '1', null, size);
+            const updatedPairs = stages.map((stage) => stage.map((pair) => ({ ...pair })));
+
+            const drop = (currentStage, pairIndex, loser) =>
+                dropLoserToBracket({
+                    updatedPairs,
+                    stageLabels: labels,
+                    currentStage,
+                    pairIndex,
+                    loser,
+                    loserRating: '1500',
+                    loserStars: 0,
+                    maxPlayers: size
+                });
+
+            // First round (1/16): losers pair up in LB R1
+            expect(drop('1/16 Final', 0, 'P1')).toBe(true);
+            expect(drop('1/16 Final', 5, 'P2')).toBe(true);
+            const lbR1 = updatedPairs[labels.indexOf('LB R1')];
+            expect(lbR1[0].team1).toBe('P1');
+            expect(lbR1[2].team2).toBe('P2');
+
+            // 1/8 losers → LB R2, Quarter-final losers → LB R4, Semi-final losers → LB R6
+            expect(drop('1/8 Final', 3, 'P3')).toBe(true);
+            expect(updatedPairs[labels.indexOf('LB R2')][3].team2).toBe('P3');
+
+            expect(drop('Quarter-final', 1, 'P4')).toBe(true);
+            expect(updatedPairs[labels.indexOf('LB R4')][1].team2).toBe('P4');
+
+            expect(drop('Semi-final', 0, 'P5')).toBe(true);
+            expect(updatedPairs[labels.indexOf('LB R6')][0].team2).toBe('P5');
+
+            expect(drop('WB Final', 0, 'P6')).toBe(true);
+            expect(updatedPairs[labels.indexOf('LB Final')][0].team2).toBe('P6');
+        });
+
+        test('full 8-player double elimination flow fills every stage through the Grand Final', () => {
+            const size = 8;
+            const labels = getDoubleElimStageLabels(size);
+            const stages = createDoubleElimPlayoffPairs('1', '1', players, size);
+            const updatedPairs = stages.map((stage) => stage.map((pair) => ({ ...pair })));
+
+            const stageIdx = (label) => labels.indexOf(label);
+            const drop = (currentStage, pairIndex, loser) =>
+                dropLoserToBracket({
+                    updatedPairs,
+                    stageLabels: labels,
+                    currentStage,
+                    pairIndex,
+                    loser,
+                    loserRating: '1500',
+                    loserStars: 0,
+                    maxPlayers: size
+                });
+            const promoteLb = (currentStage, pairIndex, winner) =>
+                promoteLoserBracketWinner({
+                    updatedPairs,
+                    stageLabels: labels,
+                    currentStage,
+                    pairIndex,
+                    winner,
+                    winnerRating: '1500',
+                    winnerStars: 0
+                });
+            // Mirrors the winner-side slot mapping used by tournamentsBracket.js
+            const promoteWb = (nextLabel, fromPairIndex, winner, mergePairs = true) => {
+                const target = updatedPairs[stageIdx(nextLabel)][mergePairs ? Math.floor(fromPairIndex / 2) : 0];
+                const slot = mergePairs
+                    ? fromPairIndex % 2 === 0
+                        ? 'team1'
+                        : 'team2'
+                    : fromPairIndex === 0
+                      ? 'team1'
+                      : 'team2';
+                target[slot] = winner;
+            };
+
+            // Quarter-finals: A,C,E,G win; B,D,F,H drop to LB R1
+            const qfWinners = ['A', 'C', 'E', 'G'];
+            const qfLosers = ['B', 'D', 'F', 'H'];
+            qfWinners.forEach((winner, index) => promoteWb('Semi-final', index, winner));
+            qfLosers.forEach((loser, index) => expect(drop('Quarter-final', index, loser)).toBe(true));
+
+            const lbR1 = updatedPairs[stageIdx('LB R1')];
+            expect([lbR1[0].team1, lbR1[0].team2]).toEqual(['B', 'D']);
+            expect([lbR1[1].team1, lbR1[1].team2]).toEqual(['F', 'H']);
+
+            // Semi-finals: A and E win; C and G drop to LB R2 team2
+            promoteWb('WB Final', 0, 'A', false);
+            promoteWb('WB Final', 1, 'E', false);
+            expect(drop('Semi-final', 0, 'C')).toBe(true);
+            expect(drop('Semi-final', 1, 'G')).toBe(true);
+
+            // LB R1: B and F win, each keeps their pair index into LB R2 team1
+            expect(promoteLb('LB R1', 0, 'B')).toBe(true);
+            expect(promoteLb('LB R1', 1, 'F')).toBe(true);
+
+            const lbR2 = updatedPairs[stageIdx('LB R2')];
+            expect([lbR2[0].team1, lbR2[0].team2]).toEqual(['B', 'C']);
+            expect([lbR2[1].team1, lbR2[1].team2]).toEqual(['F', 'G']);
+
+            // LB R2: B and F win and merge into LB R3
+            expect(promoteLb('LB R2', 0, 'B')).toBe(true);
+            expect(promoteLb('LB R2', 1, 'F')).toBe(true);
+
+            const lbR3 = updatedPairs[stageIdx('LB R3')];
+            expect([lbR3[0].team1, lbR3[0].team2]).toEqual(['B', 'F']);
+
+            // LB R3: B wins and takes team1 of LB Final
+            expect(promoteLb('LB R3', 0, 'B')).toBe(true);
+            expect(updatedPairs[stageIdx('LB Final')][0].team1).toBe('B');
+
+            // WB Final: A wins and takes team1 of Grand Final; E drops to LB Final team2
+            promoteWb('Grand Final', 0, 'A', false);
+            expect(drop('WB Final', 0, 'E')).toBe(true);
+
+            const lbFinal = updatedPairs[stageIdx('LB Final')];
+            expect([lbFinal[0].team1, lbFinal[0].team2]).toEqual(['B', 'E']);
+
+            // LB Final: B wins and joins the Grand Final; E finishes 3rd
+            expect(promoteLb('LB Final', 0, 'B')).toBe(true);
+
+            const grandFinal = updatedPairs[stageIdx('Grand Final')];
+            expect([grandFinal[0].team1, grandFinal[0].team2]).toEqual(['A', 'B']);
+
+            // No stage should be left with an unfilled competitive slot
+            labels.forEach((label, index) => {
+                updatedPairs[index].forEach((pair) => {
+                    expect(pair.team1).not.toBe('TBD');
+                    expect(pair.team2).not.toBe('TBD');
+                });
+            });
+        });
     });
 });

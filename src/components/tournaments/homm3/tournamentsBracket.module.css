@@ -328,6 +328,18 @@
     gap: 1rem;
 }
 
+/* Keep current + next stage columns equal width so Semi-final / WB Final / LB
+   cards match Quarter-final width (including castle slot strip). */
+.knockoutColumns > .bracket-stage-single {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.knockoutColumns > .bracket-stage-single .game-block {
+    width: 100%;
+    max-width: none;
+}
+
 .knockoutColumnsMobile {
     flex-direction: column;
     gap: 0;
@@ -370,7 +382,8 @@
     padding: 1.2rem 2.85rem 1.7rem 0.7rem;
     margin-bottom: 0.35rem;
     box-sizing: border-box;
-    min-width: min(100%, 34rem);
+    width: 100%;
+    min-width: 0;
 }
 
 .knockoutMatchActions {

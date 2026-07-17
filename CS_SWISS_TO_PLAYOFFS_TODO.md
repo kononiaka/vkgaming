@@ -161,6 +161,56 @@ Implementation note:
 - Keep Swiss qualification logic independent from loser bracket logic.
 - Do not mix Swiss record status with loser-bracket status.
 
+### Prerequisites Discovered During The Kick-off Double-Elim Fix (branch `fix/loser-bracket-flow`)
+
+The Kick-off loser bracket flow was fixed and covered with tests (drop targets and LB promotions are
+now correct for 4/8/16/32 players; SF → WB Final → Grand Final wiring, Grand Final prizes/completion,
+and LB Final loser = 3rd place all work). Reusing that engine for CS Swiss playoffs still requires the
+following, none of which are covered by the checklist above:
+
+1. Offset-aware bracket utils (required).
+   `dropLoserToBracket` and `promoteLoserBracketWinner` index `updatedPairs` directly by
+   `stageLabels.indexOf(...)`. That is only correct when storage index equals label index (Kick-off).
+   CS Swiss playoffs sit behind a schedule-stage offset (`getScheduleStageOffset` in
+   `tournamentsBracket.js`), so both helpers need an offset parameter (or resolve indices via
+   `getStorageIndexForStageLabel`) before they can be reused here.
+
+2. `loserBracket` flag semantics (required).
+   Tournament creation currently stores `loserBracket: isKickOff && loserBracket`
+   (`ModalAddTournament.js`), so the flag is forced to `false` for every non-Kick-off type. All
+   report-flow wiring (promotions, Grand Final prizes, LB Final third place) keys on this flag via
+   `hasLoserBracket`. The creation form must allow the flag for `cs-swiss` when the double-elim
+   playoff mode is selected.
+
+3. Seeding model conflict (open design decision — decide before coding).
+   The single-elim playoff model above seeds `3-0` players directly into semi-finals. Double
+   elimination is structurally incompatible with byes into later WB rounds: all 8 qualifiers must
+   start in WB round 1. Options:
+   - Option A: seeded WB R1 pairings (`3-0` vs `3-2`, `3-1` vs `3-1`); `3-0` players lose their bye
+     advantage but get easier openers.
+   - Option B: random WB R1 pairings, ignoring Swiss records.
+   Pick one and document it here before implementation.
+
+4. Third place semantics (required).
+   The single-elim playoff shape includes a `Third Place` match. Double elim has none: the LB Final
+   loser finishes 3rd, and the report flow already awards the 3rd place prize that way when
+   `hasLoserBracket` is set. The double-elim playoff generation must NOT create a `Third Place` stage.
+
+5. Qualifier count validation (required).
+   Double elim only supports `DOUBLE_ELIM_SIZES` (4, 8, 16, 32) entrants. The `Start Playoffs` action
+   must validate the qualified-player count against those sizes and fail clearly on mismatch (see the
+   existing edge case about qualifier/bracket size mismatch).
+
+6. Format preview support (nice to have).
+   `src/utils/tournamentFormatPreview.js` builds the double-elim preview for Kick-off
+   (`buildKnockoutPreview` with `loserBracket: true`). The CS Swiss preview needs an equivalent
+   "Swiss phase → double-elim playoffs" preview when the double-elim mode is selected.
+
+Known engine limitations that carry over from Kick-off (accepted, not blockers):
+
+- No Grand Final bracket reset: the Grand Final is a single series even if the LB player wins it.
+- The loser bracket renders as additional sequential stage pages, not a separate visual track.
+
 ## UI Requirements
 
 Tournament creation:
@@ -234,7 +284,12 @@ Tests:
 - Add rematch avoidance tests.
 - Add odd active-player bucket tests.
 - Add playoff generation tests.
-- Add double-elimination playoff variant tests if enabled.
+- Add double-elimination playoff variant tests if enabled:
+  - Offset-aware drop/promotion targets (playoff stages behind the Swiss schedule stage).
+  - Full 8-qualifier double-elim run through the Grand Final (mirror the Kick-off e2e test in
+    `tournamentFormats.e2e.test.js`).
+  - Qualifier-count validation against `DOUBLE_ELIM_SIZES`.
+  - Chosen WB R1 seeding model (see the seeding decision in the Optional Loser Bracket section).
 
 ## Edge Cases
 
@@ -253,4 +308,7 @@ Tests:
 3. Add UI labels for active/qualified/eliminated.
 4. Add `Start Playoffs` for 8-player single-elimination playoffs.
 5. Add 16-player model after 8-player flow is stable.
-6. Add optional double-elimination playoffs.
+6. Add optional double-elimination playoffs — only after the Kick-off double-elim flow
+   (branch `fix/loser-bracket-flow`) has passed a real UAT tournament, and after resolving the
+   prerequisites listed in the Optional Loser Bracket section (offset-aware utils, `loserBracket`
+   flag semantics, WB R1 seeding decision, no Third Place stage, qualifier-count validation).

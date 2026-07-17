@@ -126,7 +126,12 @@ export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGam
 
     labels.forEach((stageName, stageIndex) => {
         const isWinnerStage = stageIndex < winnerCounts.length;
-        const pairCount = isWinnerStage ? winnerCounts[stageIndex] : loserCounts[stageIndex - winnerCounts.length];
+        const pairCount =
+            stageName === 'Grand Final'
+                ? 1
+                : isWinnerStage
+                  ? winnerCounts[stageIndex]
+                  : loserCounts[stageIndex - winnerCounts.length];
         const pairs = [];
 
         for (let pairIndex = 0; pairIndex < pairCount; pairIndex++) {
@@ -181,38 +186,29 @@ export const dropLoserToBracket = ({
         return false;
     }
 
-    const size = Number(maxPlayers);
-    const lbR1Index = stageLabels.indexOf('LB R1');
-    const lbR2Index = stageLabels.indexOf('LB R2');
-    const lbFinalIndex = stageLabels.indexOf('LB Final');
-
-    if (currentStage === 'Quarter-final' && lbR1Index !== -1) {
-        const targetPairIndex = Math.floor(pairIndex / 2);
-        const slot = pairIndex % 2 === 0 ? 'team1' : 'team2';
-        return fillSlot(updatedPairs[lbR1Index]?.[targetPairIndex], slot, loser, loserRating, loserStars);
-    }
-
-    if (currentStage === 'Semi-final' && size === 4 && lbR1Index !== -1) {
-        const slot = pairIndex === 0 ? 'team1' : 'team2';
-        return fillSlot(updatedPairs[lbR1Index]?.[0], slot, loser, loserRating, loserStars);
-    }
-
-    if (currentStage === 'Semi-final' && lbR2Index !== -1) {
-        const slot = 'team2';
-        return fillSlot(updatedPairs[lbR2Index]?.[pairIndex], slot, loser, loserRating, loserStars);
-    }
-
-    if (currentStage === 'WB Final' && lbFinalIndex !== -1) {
+    if (currentStage === 'WB Final') {
+        const lbFinalIndex = stageLabels.indexOf('LB Final');
         return fillSlot(updatedPairs[lbFinalIndex]?.[0], 'team2', loser, loserRating, loserStars);
     }
 
-    if (currentStage === '1/8 Final' && lbR1Index !== -1) {
+    // 1-indexed winner-bracket round for the current stage (e.g. size 16: 1/8 Final=1, Quarter-final=2, ...)
+    const winnerLabels = stageLabels.filter((label) => !label.startsWith('LB') && label !== 'Grand Final');
+    const wbRound = winnerLabels.indexOf(currentStage) + 1;
+    if (wbRound === 0) {
+        return false;
+    }
+
+    if (wbRound === 1) {
+        // First-round losers pair up with each other in LB R1
+        const lbR1Index = stageLabels.indexOf('LB R1');
         const targetPairIndex = Math.floor(pairIndex / 2);
         const slot = pairIndex % 2 === 0 ? 'team1' : 'team2';
         return fillSlot(updatedPairs[lbR1Index]?.[targetPairIndex], slot, loser, loserRating, loserStars);
     }
 
-    return false;
+    // Losers of WB round r face LB survivors in LB R(2*(r-1)); LB pair counts match WB round pair counts
+    const targetIndex = stageLabels.indexOf(`LB R${2 * (wbRound - 1)}`);
+    return fillSlot(updatedPairs[targetIndex]?.[pairIndex], 'team2', loser, loserRating, loserStars);
 };
 
 export const promoteLoserBracketWinner = ({
@@ -228,23 +224,35 @@ export const promoteLoserBracketWinner = ({
         return false;
     }
 
-    const grandFinalIndex = stageLabels.indexOf('Grand Final');
+    if (currentStage === 'LB Final') {
+        const grandFinalIndex = stageLabels.indexOf('Grand Final');
+        if (grandFinalIndex === -1) {
+            return false;
+        }
+        return fillSlot(updatedPairs[grandFinalIndex]?.[0], 'team2', winner, winnerRating, winnerStars);
+    }
 
     if (currentStage.startsWith('LB R')) {
         const roundNumber = Number(currentStage.replace('LB R', ''));
         const nextLabel = stageLabels.includes(`LB R${roundNumber + 1}`) ? `LB R${roundNumber + 1}` : 'LB Final';
+        const currentIndex = stageLabels.indexOf(currentStage);
         const nextIndex = stageLabels.indexOf(nextLabel);
         if (nextIndex === -1) {
             return false;
         }
 
-        const targetPairIndex = nextLabel === 'LB Final' ? 0 : Math.floor(pairIndex / 2);
-        const slot = nextLabel === 'LB Final' ? 'team1' : pairIndex % 2 === 0 ? 'team1' : 'team2';
-        return fillSlot(updatedPairs[nextIndex]?.[targetPairIndex], slot, winner, winnerRating, winnerStars);
-    }
+        const currentPairCount = updatedPairs[currentIndex]?.length || 0;
+        const nextPairCount = updatedPairs[nextIndex]?.length || 0;
 
-    if (currentStage === 'LB Final' && grandFinalIndex !== -1) {
-        return fillSlot(updatedPairs[grandFinalIndex]?.[0], 'team2', winner, winnerRating, winnerStars);
+        if (nextPairCount === currentPairCount) {
+            // Consolidation round: same pair count, LB winner takes team1 and meets a WB dropper (team2)
+            return fillSlot(updatedPairs[nextIndex]?.[pairIndex], 'team1', winner, winnerRating, winnerStars);
+        }
+
+        // Merge round: pair count halves, two LB winners meet each other
+        const targetPairIndex = Math.floor(pairIndex / 2);
+        const slot = pairIndex % 2 === 0 ? 'team1' : 'team2';
+        return fillSlot(updatedPairs[nextIndex]?.[targetPairIndex], slot, winner, winnerRating, winnerStars);
     }
 
     return false;
