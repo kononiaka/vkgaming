@@ -61,12 +61,11 @@ export const PlayerBracket = (props) => {
     const bestOf = getGamesPerMatch(normalizeGameType(pair.type));
     let numberOfGames = Array.isArray(pair.games) ? [...pair.games] : pair.games ? [pair.games] : [];
     numberOfGames = numberOfGames.slice(0, bestOf);
-
-    const score1Num = Number(pair.score1) || 0;
-    const score2Num = Number(pair.score2) || 0;
-    if (bestOf === 3 && score1Num === 1 && score2Num === 1 && numberOfGames.length === 2) {
+    // Always pad to the series length so BO3/BO5 cards show the same empty castle
+    // placeholders in upcoming stages (TBD / "W: …" rows) as in the current stage.
+    while (numberOfGames.length < bestOf) {
         numberOfGames.push({
-            gameId: 2,
+            gameId: numberOfGames.length,
             castle1: '',
             castle2: '',
             castleWinner: null,
@@ -422,12 +421,17 @@ export const PlayerBracket = (props) => {
         );
     };
 
+    // Always reserve castle slots for the full series (BO1/BO3/BO5), including plain
+    // TBD rows and "W: …" hints — otherwise later stages (WB Final, LB rounds, Grand Final)
+    // look narrower and miss the dashed placeholders that Quarter/Semi-final show.
+    const showCastleSlots = numberOfGames.length > 0;
+
     const renderCastleStrip = () => (
         <div
             className={`${classes.playerCastles} ${isMultiGameLayout ? classes.playerCastlesBo3 : ''}`}
-            style={{ minWidth: hasTruthyPlayers ? gamesStripMinWidth : '52px' }}
+            style={{ minWidth: showCastleSlots ? gamesStripMinWidth : '52px' }}
         >
-            {hasTruthyPlayers &&
+            {showCastleSlots &&
                 numberOfGames.length > 0 &&
                 numberOfGames.map((game) => {
                     let castle = game
@@ -559,7 +563,7 @@ export const PlayerBracket = (props) => {
 
                     return (
                         <div key={game.gameId} className={classes.castleThumbWrap}>
-                            {castleImageUrl && (
+                            {castleImageUrl ? (
                                 <>
                                     <img
                                         src={castleImageUrl}
@@ -593,6 +597,11 @@ export const PlayerBracket = (props) => {
                                         </div>
                                     )}
                                 </>
+                            ) : (
+                                <div
+                                    className={`${classes.castleThumb} ${classes.castleThumbnailEmpty}`}
+                                    aria-hidden="true"
+                                />
                             )}
                         </div>
                     );
@@ -637,7 +646,7 @@ export const PlayerBracket = (props) => {
                         </div>
                     </div>
                 ) : (
-                    <div className={classes.playerMeta}>{renderPlayerName()}</div>
+                    <div className={`${classes.playerMeta} ${classes.playerMetaHint}`}>{renderPlayerName()}</div>
                 )}
 
                 {showTooltip && teamPlayer !== 'TBD' && (
@@ -713,18 +722,12 @@ export const PlayerBracket = (props) => {
                     </div>
                 )}
 
-                {!isSourcePairHint ? (
-                    <div className={classes.playerOutcome}>
-                        {renderCastleStrip()}
-                        <div id={`score-${team}-${pairIndex}-mobile`} className={classes.scoreBox}>
-                            {playerScore || 0}
-                        </div>
-                    </div>
-                ) : (
+                <div className={classes.playerOutcome}>
+                    {renderCastleStrip()}
                     <div id={`score-${team}-${pairIndex}-mobile`} className={classes.scoreBox}>
                         {playerScore || 0}
                     </div>
-                )}
+                </div>
             </div>
 
             {showDetailedStreak &&

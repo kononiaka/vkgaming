@@ -102,7 +102,7 @@
 :global(.knockout-players-stack) .playerTopRow {
     display: flex;
     align-items: center;
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
     gap: 0.35rem;
 }
@@ -187,7 +187,7 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    margin-left: 0;
+    margin-left: auto;
     flex-shrink: 0;
     padding-right: 0.15rem;
 }
@@ -450,9 +450,28 @@ a.playerName:hover {
 
 .playerNameHint {
     white-space: normal;
-    overflow: visible;
+    overflow: hidden;
     font-size: 0.82rem;
     color: var(--color-text-muted);
+}
+
+/* "W: player / player" placeholder rows: text fills the row, score stays pinned right */
+.playerMetaHint {
+    flex: 1 1 auto;
+    align-items: flex-start;
+    text-align: left;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+}
+
+.scoreBoxHint {
+    margin-left: auto;
+}
+
+:global(.knockout-players-stack) .playerMetaHint {
+    flex: 1 1 auto;
+    max-width: none;
 }
 
 .leaderboardPlace {
