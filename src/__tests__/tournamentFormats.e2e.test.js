@@ -588,6 +588,28 @@ describe('tournament format E2E flows', () => {
             expect(stages[0][0].team2).toBe('B');
         });
 
+        test('WB Final and Grand Final use tournamentPlayoffGamesFinal for type and game count', () => {
+            const stages = createDoubleElimPlayoffPairs('3', '5', players, 8);
+            const labels = getDoubleElimStageLabels(8);
+            const quarter = stages[labels.indexOf('Quarter-final')][0];
+            const wbFinal = stages[labels.indexOf('WB Final')][0];
+            const grandFinal = stages[labels.indexOf('Grand Final')][0];
+            const lbFinal = stages[labels.indexOf('LB Final')][0];
+
+            expect(quarter.type).toBe('bo-3');
+            expect(quarter.games).toHaveLength(3);
+            expect(quarter.bracketSide).toBe('winners');
+            expect(lbFinal.type).toBe('bo-3');
+            expect(lbFinal.games).toHaveLength(3);
+            expect(lbFinal.bracketSide).toBe('losers');
+            expect(wbFinal.type).toBe('bo-5');
+            expect(wbFinal.games).toHaveLength(5);
+            expect(wbFinal.bracketSide).toBe('winners');
+            expect(grandFinal.type).toBe('bo-5');
+            expect(grandFinal.games).toHaveLength(5);
+            expect(grandFinal.bracketSide).toBe('grand_final');
+        });
+
         test('quarter-final loser drops into loser bracket', () => {
             const stages = createDoubleElimPlayoffPairs('1', '1', players, 8);
             const labels = getDoubleElimStageLabels(8);
