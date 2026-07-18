@@ -47,7 +47,7 @@ const Help = () => (
         <section className={classes.infoPanel}>
             <p className={classes.infoLead}>
                 For account issues, include your konoplay nickname. For payment questions, mention the provider you used
-                (Donation Alerts, Stripe, or MonoBank).
+                (Donation Alerts or MonoBank; Stripe card pay coming soon).
             </p>
             <p className={classes.infoLead}>
                 Found a website bug? Use the{' '}

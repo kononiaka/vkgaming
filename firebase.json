@@ -1,9 +1,20 @@
 {
+    "homepage": "https://konoplay.com",
     "functions": {
         "source": "functions",
         "runtime": "nodejs22"
     },
     "database": {
         "rules": "database.rules.json"
+    },
+    "hosting": {
+        "public": "build",
+        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
     }
 }

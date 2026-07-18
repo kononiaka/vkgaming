@@ -63,6 +63,20 @@
     white-space: nowrap;
 }
 
+.emptyMessage {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 100%;
+    padding: 0 1.75rem;
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
 @keyframes donatorsScroll {
     0% {
         transform: translateX(0);
@@ -127,6 +141,11 @@
 
     .donatorName {
         font-size: 0.64rem;
+    }
+
+    .emptyMessage {
+        font-size: 0.62rem;
+        padding: 0 0.65rem;
     }
 
     .donatorAmount {

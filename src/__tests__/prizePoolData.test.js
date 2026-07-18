@@ -117,7 +117,8 @@ describe('prizePoolData', () => {
 
         expect(entries[0].collectedLabel).toBe('$250');
 
-        expect(entries[0].progressPct).toBe(25);
+        // 250 vs expected pool from $1000 (95% = $950) → 26%
+        expect(entries[0].progressPct).toBe(26);
 
         expect(entries[0].statusLabel).toBe('In progress');
 
@@ -153,12 +154,19 @@ describe('prizePoolData', () => {
 
         expect(entry.collectedLabel).toBe('$700');
 
+        // 700 vs expected pool from $2000 seed (95% = $1900) → 37%
         expect(
             getFundingProgress(
                 getTournamentCollectedUsd({ communityFundingUsd: 700 }),
                 getTournamentFundingGoalUsd({ fundingGoalUsd: 2000 })
             )
-        ).toBe(35);
+        ).toBe(37);
+    });
+
+    test('full host seed fills the progress bar to 100%', () => {
+        const goalUsd = 5;
+        const { poolUsd } = splitHostSeedPayment(goalUsd);
+        expect(getFundingProgress(poolUsd, goalUsd)).toBe(100);
     });
 
     test('uses 90/10 public donation split and 95/5 host seed split', () => {

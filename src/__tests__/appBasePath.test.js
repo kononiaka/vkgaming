@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import {
     getAppBasePath,
     getSiteBaseUrl,
@@ -13,11 +17,19 @@ describe('appBasePath', () => {
     const originalRedirectUri = process.env.REACT_APP_TWITCH_REDIRECT_URI;
 
     afterEach(() => {
-        process.env.PUBLIC_URL = originalPublicUrl;
-        process.env.REACT_APP_SITE_URL = originalSiteUrl;
-        process.env.REACT_APP_TWITCH_REDIRECT_URI = originalRedirectUri;
+        if (originalPublicUrl === undefined) {
+            delete process.env.PUBLIC_URL;
+        } else {
+            process.env.PUBLIC_URL = originalPublicUrl;
+        }
         delete process.env.REACT_APP_SITE_URL;
         delete process.env.REACT_APP_TWITCH_REDIRECT_URI;
+        if (originalSiteUrl !== undefined) {
+            process.env.REACT_APP_SITE_URL = originalSiteUrl;
+        }
+        if (originalRedirectUri !== undefined) {
+            process.env.REACT_APP_TWITCH_REDIRECT_URI = originalRedirectUri;
+        }
     });
 
     test('getAppBasePath is empty for github.io root homepage', () => {
@@ -68,12 +80,21 @@ describe('appBasePath', () => {
         window.location = originalLocation;
     });
 
-    test('getTwitchRedirectUri uses configured production callback when not on github.io', () => {
-        process.env.REACT_APP_TWITCH_REDIRECT_URI = 'https://konoplay.com/auth/twitch/callback';
+    test('getTwitchRedirectUri uses live origin on konoplay.com', () => {
+        process.env.REACT_APP_TWITCH_REDIRECT_URI = 'https://kononiaka.github.io/auth/twitch/callback';
         const originalLocation = window.location;
         delete window.location;
         window.location = new URL('https://konoplay.com/');
         expect(getTwitchRedirectUri()).toBe('https://konoplay.com/auth/twitch/callback');
+        window.location = originalLocation;
+    });
+
+    test('getSiteBaseUrl ignores stale github.io SITE_URL on konoplay.com', () => {
+        process.env.REACT_APP_SITE_URL = 'https://kononiaka.github.io';
+        const originalLocation = window.location;
+        delete window.location;
+        window.location = new URL('https://konoplay.com/#/auth');
+        expect(getSiteBaseUrl()).toBe('https://konoplay.com');
         window.location = originalLocation;
     });
 

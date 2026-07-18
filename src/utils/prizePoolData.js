@@ -108,7 +108,9 @@ export const getTournamentCollectedUsd = (tournament) => {
 };
 
 export const getFundingProgress = (collected, goal) => {
-    const safeGoal = Number(goal) || 0;
+    // Host seed deposits 95% into the pool; progress is vs that expected pool amount
+    // so a fully paid seed shows 100% (not ~95% with a truncated bar).
+    const safeGoal = getHostSeedPoolPreview(goal) || Number(goal) || 0;
     const safeCollected = Number(collected) || 0;
     if (safeGoal <= 0) {
         return 0;

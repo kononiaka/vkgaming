@@ -141,7 +141,12 @@ const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false
                                             className={classes.progressFill}
                                             style={{ width: `${entry.progressPct}%` }}
                                         />
-                                        <span className={classes.progressLabel}>Collected {entry.collectedLabel}</span>
+                                        <span className={classes.progressLabel}>
+                                            <span className={classes.progressCollected}>
+                                                Collected {entry.collectedLabel}
+                                            </span>
+                                            <span className={classes.progressGoal}>{entry.goalLabel}</span>
+                                        </span>
                                     </span>
                                 </span>
                             </label>

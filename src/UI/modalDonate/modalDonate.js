@@ -4,6 +4,8 @@ import AuthContext from '../../store/auth-context';
 
 import classes from './modalDonate.module.css';
 
+/** Set true when Stripe live account is verified and ready. */
+const STRIPE_DONATIONS_ENABLED = false;
 const STRIPE_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/createStripeCheckout';
 const MIN_STRIPE_DONATION_USD = 5;
 
@@ -115,32 +117,45 @@ const ModalDonate = (props) => {
                 </a>
             </div>
 
-            <p className={classes.donate_title}>
-                via Card (Stripe — Visa / Mastercard / Apple Pay / Google Pay / BLIK)
-            </p>
-            <p className={classes.customNote}>Enter any amount — minimum ${MIN_STRIPE_DONATION_USD} via card.</p>
-            <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
-                <div className={classes.stripeRow}>
-                    <div className={classes.amountField}>
-                        <span className={classes.amountPrefix}>$</span>
-                        <input
-                            className={classes.amountInput}
-                            type="number"
-                            min={MIN_STRIPE_DONATION_USD}
-                            step="1"
-                            value={stripeAmount}
-                            onChange={(event) => setStripeAmount(event.target.value)}
-                            disabled={stripeLoading}
-                            aria-label="Donation amount in USD"
-                        />
-                    </div>
-                    <button type="submit" className={classes.stripePayBtn} disabled={stripeLoading}>
-                        {stripeLoading ? 'Opening checkout…' : 'Pay with card'}
+            <p className={classes.donate_title}>via Card (Stripe)</p>
+            {STRIPE_DONATIONS_ENABLED ? (
+                <>
+                    <p className={classes.customNote}>
+                        Visa / Mastercard / Apple Pay / Google Pay / BLIK — minimum $
+                        {MIN_STRIPE_DONATION_USD} via card.
+                    </p>
+                    <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
+                        <div className={classes.stripeRow}>
+                            <div className={classes.amountField}>
+                                <span className={classes.amountPrefix}>$</span>
+                                <input
+                                    className={classes.amountInput}
+                                    type="number"
+                                    min={MIN_STRIPE_DONATION_USD}
+                                    step="1"
+                                    value={stripeAmount}
+                                    onChange={(event) => setStripeAmount(event.target.value)}
+                                    disabled={stripeLoading}
+                                    aria-label="Donation amount in USD"
+                                />
+                            </div>
+                            <button type="submit" className={classes.stripePayBtn} disabled={stripeLoading}>
+                                {stripeLoading ? 'Opening checkout…' : 'Pay with card'}
+                            </button>
+                        </div>
+                    </form>
+                    <p className={classes.customNote}>For smaller amounts, use Donation Alerts.</p>
+                </>
+            ) : (
+                <>
+                    <p className={classes.customNote}>
+                        Card payments are coming soon. Use Donation Alerts or MonoBank for now.
+                    </p>
+                    <button type="button" className={classes.comingSoonBtn} disabled>
+                        Coming soon
                     </button>
-                </div>
-            </form>
-
-            <p className={classes.customNote}>For smaller amounts, use Donation Alerts.</p>
+                </>
+            )}
 
             {loginPrompt && (
                 <div className={classes.loginPromptBanner}>

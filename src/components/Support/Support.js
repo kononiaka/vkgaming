@@ -10,6 +10,8 @@ import { saveDonationTargetTournamentIds } from '../../api/donationTargets';
 import { getFirebaseUid } from '../../api/authFetch';
 import { FIREBASE_FUNCTIONS_BASE } from '../../config/firebase';
 
+/** Set true when Stripe live account is verified and ready. */
+const STRIPE_DONATIONS_ENABLED = false;
 const STRIPE_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/createStripeCheckout`;
 const MIN_STRIPE_DONATION_USD = 5;
 
@@ -205,34 +207,49 @@ const Support = () => {
 
                     <section className={classes.section}>
                         <h2 className={classes.sectionTitle}>Card (Stripe)</h2>
-                        <p className={classes.sectionNote}>
-                            Visa, Mastercard, Apple Pay, Google Pay, and BLIK. Enter any amount — minimum $
-                            {MIN_STRIPE_DONATION_USD} via card.
-                        </p>
-                        <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
-                            <label className={classes.amountLabel} htmlFor="stripeDonationAmount">
-                                Amount (USD)
-                            </label>
-                            <div className={classes.stripeRow}>
-                                <div className={classes.amountField}>
-                                    <span className={classes.amountPrefix}>$</span>
-                                    <input
-                                        id="stripeDonationAmount"
-                                        className={classes.amountInput}
-                                        type="number"
-                                        min={MIN_STRIPE_DONATION_USD}
-                                        step="1"
-                                        value={stripeAmount}
-                                        onChange={(event) => setStripeAmount(event.target.value)}
-                                        disabled={stripeLoading}
-                                    />
+                        {STRIPE_DONATIONS_ENABLED ? (
+                            <>
+                                <p className={classes.sectionNote}>
+                                    Visa, Mastercard, Apple Pay, Google Pay, and BLIK. Enter any amount — minimum $
+                                    {MIN_STRIPE_DONATION_USD} via card.
+                                </p>
+                                <form className={classes.stripeForm} onSubmit={handleStripeSubmit}>
+                                    <label className={classes.amountLabel} htmlFor="stripeDonationAmount">
+                                        Amount (USD)
+                                    </label>
+                                    <div className={classes.stripeRow}>
+                                        <div className={classes.amountField}>
+                                            <span className={classes.amountPrefix}>$</span>
+                                            <input
+                                                id="stripeDonationAmount"
+                                                className={classes.amountInput}
+                                                type="number"
+                                                min={MIN_STRIPE_DONATION_USD}
+                                                step="1"
+                                                value={stripeAmount}
+                                                onChange={(event) => setStripeAmount(event.target.value)}
+                                                disabled={stripeLoading}
+                                            />
+                                        </div>
+                                        <button type="submit" className={classes.primaryBtn} disabled={stripeLoading}>
+                                            {stripeLoading ? 'Opening checkout…' : 'Pay with card'}
+                                        </button>
+                                    </div>
+                                </form>
+                                <p className={classes.footnote}>For smaller amounts, use Donation Alerts.</p>
+                            </>
+                        ) : (
+                            <>
+                                <p className={classes.sectionNote}>
+                                    Card payments are coming soon. Use Donation Alerts or MonoBank for now.
+                                </p>
+                                <div className={classes.actionRow}>
+                                    <button type="button" className={classes.comingSoonBtn} disabled>
+                                        Coming soon
+                                    </button>
                                 </div>
-                                <button type="submit" className={classes.primaryBtn} disabled={stripeLoading}>
-                                    {stripeLoading ? 'Opening checkout…' : 'Pay with card'}
-                                </button>
-                            </div>
-                        </form>
-                        <p className={classes.footnote}>For smaller amounts, use Donation Alerts.</p>
+                            </>
+                        )}
                     </section>
 
                     <section className={classes.section}>

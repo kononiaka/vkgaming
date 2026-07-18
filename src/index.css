@@ -31,8 +31,8 @@
     --shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.45);
 
     /* Layout */
-    --header-height: 5rem;
-    --mobile-header-height: 4rem;
+    --header-height: 5.5rem;
+    --mobile-header-height: 4.25rem;
     --donators-bar-height: 1.75rem;
     --donators-bar-active-height: 0px;
     --layout-top-offset: calc(var(--header-height) + var(--donators-bar-active-height));
