@@ -61,15 +61,9 @@ const DonatorsBar = () => {
     }, []);
 
     useEffect(() => {
-        document.documentElement.classList.toggle('has-supporters-bar', donators.length > 0);
+        document.documentElement.classList.add('has-supporters-bar');
         return () => document.documentElement.classList.remove('has-supporters-bar');
-    }, [donators.length]);
-
-    if (donators.length === 0) {
-        return null;
-    }
-
-    const duplicatedDonators = [...donators, ...donators];
+    }, []);
 
     const getRankLabel = (index) => {
         if (index === 0) {
@@ -84,24 +78,37 @@ const DonatorsBar = () => {
         return null;
     };
 
+    const hasDonators = donators.length > 0;
+    const duplicatedDonators = hasDonators ? [...donators, ...donators] : [];
+
     return (
         <div className={classes.donatorsBar}>
             <span className={classes.donatorsLabel}>Supporters</span>
             <div className={classes.donatorsScroll}>
-                <div className={classes.donatorsTrack}>
-                    {duplicatedDonators.map((donator, index) => {
-                        const rank = getRankLabel(index % donators.length);
-                        return (
-                            <div key={`${donator.name}-${index}`} className={classes.donatorItem}>
-                                {rank ? <span className={classes.donatorRank}>{rank}</span> : null}
-                                <span className={classes.donatorName}>{donator.name}</span>
-                                <span className={classes.donatorAmount}>
-                                    <strong>${Math.round(donator.amount).toLocaleString()}</strong>
-                                </span>
+                {hasDonators ? (
+                    <div className={classes.donatorsTrack}>
+                        {duplicatedDonators.map((donator, index) => {
+                            const rank = getRankLabel(index % donators.length);
+                            return (
+                                <div key={`${donator.name}-${index}`} className={classes.donatorItem}>
+                                    {rank ? <span className={classes.donatorRank}>{rank}</span> : null}
+                                    <span className={classes.donatorName}>{donator.name}</span>
+                                    <span className={classes.donatorAmount}>
+                                        <strong>${Math.round(donator.amount).toLocaleString()}</strong>
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className={classes.donatorsTrack} role="status">
+                        {Array.from({ length: 8 }, (_, index) => (
+                            <div key={`empty-${index}`} className={classes.emptyMessage}>
+                                No legends yet — you could be the first one. Support a cup and steal the spotlight.
                             </div>
-                        );
-                    })}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -74,15 +74,37 @@ const createEmptyGames = (count) =>
         restart2_112: 0
     }));
 
-const resolveGameCount = (stageName, playoffsGames, tournamentPlayoffGamesFinal) => {
-    if (stageName === 'WB Final' || stageName === 'Grand Final') {
-        return Number(tournamentPlayoffGamesFinal) || Number(playoffsGames) || 1;
-    }
-    return Number(playoffsGames) || 1;
+const numericGameCount = (raw) => {
+    const normalized = String(raw || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^bo-?/, '');
+    const count = Number(normalized);
+    return Number.isFinite(count) && count > 0 ? count : 0;
 };
 
-const createEmptyPair = (stageName, playoffsGames, tournamentPlayoffGamesFinal, typeOfGame) => {
+const toBoType = (raw) => {
+    const count = numericGameCount(raw) || 1;
+    return `bo-${count}`;
+};
+
+const resolveGameCount = (stageName, playoffsGames, tournamentPlayoffGamesFinal) => {
+    if (stageName === 'WB Final' || stageName === 'Grand Final') {
+        return numericGameCount(tournamentPlayoffGamesFinal) || numericGameCount(playoffsGames) || 1;
+    }
+    return numericGameCount(playoffsGames) || 1;
+};
+
+const resolveTypeOfGame = (stageName, playoffsGames, tournamentPlayoffGamesFinal) => {
+    if (stageName === 'WB Final' || stageName === 'Grand Final') {
+        return tournamentPlayoffGamesFinal || playoffsGames;
+    }
+    return playoffsGames;
+};
+
+const createEmptyPair = (stageName, playoffsGames, tournamentPlayoffGamesFinal) => {
     const gameCount = resolveGameCount(stageName, playoffsGames, tournamentPlayoffGamesFinal);
+    const typeOfGame = resolveTypeOfGame(stageName, playoffsGames, tournamentPlayoffGamesFinal);
     return {
         stage: stageName,
         team1: 'TBD',
@@ -93,13 +115,14 @@ const createEmptyPair = (stageName, playoffsGames, tournamentPlayoffGamesFinal, 
         stars2: null,
         score1: 0,
         score2: 0,
-        type: `bo-${typeOfGame}`,
+        type: toBoType(typeOfGame),
         gameStatus: 'Not Started',
         games: createEmptyGames(gameCount),
         winner: null,
         color1: 'red',
         color2: 'blue',
-        bracketSide: stageName.startsWith('LB') || stageName === 'Grand Final' ? 'losers' : 'winners'
+        bracketSide:
+            stageName === 'Grand Final' ? 'grand_final' : stageName.startsWith('LB') ? 'losers' : 'winners'
     };
 };
 
@@ -135,7 +158,7 @@ export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGam
         const pairs = [];
 
         for (let pairIndex = 0; pairIndex < pairCount; pairIndex++) {
-            const pair = createEmptyPair(stageName, playoffsGames, tournamentPlayoffGamesFinal, playoffsGames);
+            const pair = createEmptyPair(stageName, playoffsGames, tournamentPlayoffGamesFinal);
 
             if (stageIndex === 0) {
                 const player1 = players[pairIndex * 2];

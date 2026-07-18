@@ -6,7 +6,8 @@ import { Link, useLocation } from 'react-router-dom';
 
 import AuthContext from '../store/auth-context';
 
-import logo from '../image/konoplay-logo-new-invert.png';
+import logoWordmark from '../image/konoplay-logo-new-invert.png';
+import logoCrest from '../image/konoplay-crest.png';
 
 import classes from './MainHeader.module.css';
 
@@ -31,14 +32,13 @@ const MainHeader = () => {
 
     return (
         <header className={classes.header}>
-            <div className={classes.brand}>
-                <Link to="/" onClick={closeMenu}>
-                    <div className={classes.logo}>
-                        <img src={logo} alt="Logo" />
-                    </div>
-                </Link>
-                <div className={classes['logo-credo']}>Play with us!</div>
-            </div>
+            <Link to="/" onClick={closeMenu} className={classes.logoLink} aria-label="Konoplay home">
+                <img src={logoCrest} alt="" className={classes.logoCrest} />
+                <span className={classes.logoCopy}>
+                    <img src={logoWordmark} alt="Konoplay" className={classes.logoWordmark} />
+                    <span className={classes['logo-credo']}>Play with us!</span>
+                </span>
+            </Link>
 
             <button
                 type="button"
