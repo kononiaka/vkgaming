@@ -111,6 +111,10 @@
             ".read": false,
             ".write": false
         },
+        "processedBmcDonations": {
+            ".read": false,
+            ".write": false
+        },
         "prizePoolFunding": {
             ".read": true,
             ".write": false

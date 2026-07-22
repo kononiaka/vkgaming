@@ -704,13 +704,13 @@
 
     transform: rotate(45deg);
 
-    border: 2px solid rgba(255, 255, 255, 0.7);
+    border: 2px solid rgba(201, 162, 39, 0.75);
 
     border-radius: 10px;
 
     overflow: hidden;
 
-    background: radial-gradient(circle at 30% 20%, #ffb347 0%, #4a1508 42%, #12060a 100%);
+    background: #0a0d14;
 
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
@@ -724,11 +724,11 @@
 
     height: 100%;
 
-    transform: rotate(-45deg) scale(1.15);
+    transform: rotate(-45deg) scale(1.35);
 
-    object-fit: contain;
+    object-fit: cover;
 
-    padding: 10px;
+    padding: 0;
 }
 
 .centerMeta {

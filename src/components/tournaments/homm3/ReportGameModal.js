@@ -242,17 +242,65 @@ const ReportGameModal = ({
     const calculateAvailableCastles = (apiCastles, pairsData) =>
         calculateAvailableCastlesFromBracket(apiCastles, pairsData);
 
-    // Get border color for a castle based on availability
+    // Resolve strict-pick availability: fewest games = available, most = unavailable
+    const getCastleAvailability = (castleName) => {
+        if (!strictCastlePick) {
+            return null;
+        }
+
+        const manualMark = castleMarkOverrides[castleName];
+        if (manualMark === 'selected') {
+            return 'available';
+        }
+        if (manualMark === 'deactivated') {
+            return 'unavailable';
+        }
+
+        if (!availableCastles || availableCastles.length === 0) {
+            return null;
+        }
+
+        const normalize = (name) =>
+            String(name || '')
+                .split('-')[0]
+                .trim()
+                .toLowerCase();
+        const castle =
+            availableCastles.find((c) => c.name === castleName) ||
+            availableCastles.find((c) => normalize(c.name) === normalize(castleName));
+
+        if (!castle) {
+            return null;
+        }
+
+        const totals = availableCastles.map((c) => c.total + (c.liveGames || 0));
+        const minTotal = Math.min(...totals);
+        const maxTotal = Math.max(...totals);
+        if (minTotal === maxTotal) {
+            return 'neutral';
+        }
+
+        const castleTotal = castle.total + (castle.liveGames || 0);
+        if (castleTotal === minTotal) {
+            return 'available';
+        }
+        if (castleTotal === maxTotal) {
+            return 'unavailable';
+        }
+        return 'neutral';
+    };
+
+    // Get border color for a castle based on availability (same min/max rule as stats / Available Castles)
     const getCastleBorderColor = (castleName) => {
-        if (mockMode) {
-            const manualMark = castleMarkOverrides[castleName];
-            if (manualMark === 'selected') {
-                return '#4ade80';
-            }
-            if (manualMark === 'deactivated') {
-                return '#f87171';
-            }
-            return '#CCCCCC';
+        const availability = getCastleAvailability(castleName);
+        if (availability === 'available') {
+            return '#4ade80';
+        }
+        if (availability === 'unavailable') {
+            return '#f87171';
+        }
+        if (availability === 'neutral') {
+            return '#FFD700';
         }
 
         const manualMark = castleMarkOverrides[castleName];
@@ -263,56 +311,7 @@ const ReportGameModal = ({
             return '#f87171';
         }
 
-        if (!strictCastlePick) {
-            return '#CCCCCC';
-        }
-
-        // If in 11/12 state (castleMarkOverrides has keys with null values), color by min/max
-        if (Object.keys(castleMarkOverrides).some((key) => castleMarkOverrides[key] === null)) {
-            if (availableCastles && availableCastles.length > 0) {
-                const castle = availableCastles.find((c) => c.name === castleName);
-                if (castle) {
-                    const totals = availableCastles.map((c) => c.total + (c.liveGames || 0));
-                    const minTotal = Math.min(...totals);
-                    const maxTotal = Math.max(...totals);
-                    const castleTotal = castle.total + (castle.liveGames || 0);
-                    if (castleTotal === minTotal) {
-                        return '#4ade80';
-                    } // Green for least played
-                    if (castleTotal === maxTotal) {
-                        return '#FFD700';
-                    } // Yellow for most played
-                }
-            }
-            return '#CCCCCC'; // Gray fallback
-        }
-
-        if (!availableCastles || availableCastles.length === 0) {
-            return '#CCCCCC'; // Default gray if no data
-        }
-
-        const castle = availableCastles.find((c) => c.name === castleName);
-        if (!castle) {
-            console.warn(
-                `Castle not found: ${castleName}. Available castles:`,
-                availableCastles.map((c) => c.name)
-            );
-            return '#CCCCCC'; // Default gray if castle not found
-        }
-
-        const totals = availableCastles.map((c) => c.total + (c.liveGames || 0));
-        const minTotal = Math.min(...totals);
-        const maxTotal = Math.max(...totals);
-
-        const castleTotal = castle.total + (castle.liveGames || 0);
-        const color =
-            castleTotal === minTotal
-                ? '#4ade80' // Green (less games played)
-                : castleTotal === maxTotal
-                  ? '#f87171' // Red (more games played)
-                  : '#FFD700'; // Yellow (equal)
-
-        return color;
+        return '#CCCCCC';
     };
 
     // Initialize game results for bo-3
@@ -726,16 +725,23 @@ const ReportGameModal = ({
     );
 
     const CastleTile = ({ castleName, isSelected, isBanned, isDisabled, hasSelection, onToggle }) => {
+        const availability = getCastleAvailability(castleName);
         const borderColor = getCastleBorderColor(castleName);
-        const isRestricted = !hasSelection && borderColor === '#f87171';
+        const isRestricted = !isSelected && !isBanned && availability === 'unavailable';
         const imageClass = [
             classes.castleImg,
             isSelected && classes.castleImgSelected,
-            hasSelection && !isSelected && classes.castleImgDimmed,
-            isRestricted && classes.castleImgRestricted
+            hasSelection && !isSelected && !isBanned && classes.castleImgDimmed,
+            isRestricted && classes.castleImgRestricted,
+            availability === 'available' && !isSelected && !isBanned && classes.castleImgAvailable
         ]
             .filter(Boolean)
             .join(' ');
+
+        const showAvailabilityMark =
+            strictCastlePick &&
+            !isSelected &&
+            (availability === 'available' || availability === 'unavailable');
 
         return (
             <div
@@ -749,7 +755,13 @@ const ReportGameModal = ({
                 <img
                     src={getCastleImageUrl(castleName)}
                     alt={castleName}
-                    title={castleName}
+                    title={
+                        availability === 'unavailable'
+                            ? `${castleName} — most played (prefer another)`
+                            : availability === 'available'
+                              ? `${castleName} — fewest games (preferred)`
+                              : castleName
+                    }
                     className={imageClass}
                     style={{
                         borderColor,
@@ -762,13 +774,15 @@ const ReportGameModal = ({
                         }
                     }}
                 />
-                {(isSelected || isBanned) && (
+                {(isSelected || showAvailabilityMark) && (
                     <span
                         className={`${classes.castleBadge} ${
-                            isSelected ? classes.castleBadgePick : classes.castleBadgeBan
+                            isSelected || availability === 'available'
+                                ? classes.castleBadgePick
+                                : classes.castleBadgeBan
                         }`}
                     >
-                        {isSelected ? '✓' : '✕'}
+                        {isSelected || availability === 'available' ? '✓' : '✕'}
                     </span>
                 )}
             </div>
@@ -1217,6 +1231,11 @@ const ReportGameModal = ({
 
                                             <div className={`${classes.formGroup} ${classes.layered}`}>
                                                 <label className={classes.centerLabel}>Castles:</label>
+                                                {strictCastlePick && (
+                                                    <p className={classes.castleAvailabilityHint}>
+                                                        Green ✓ = fewest games (preferred). Red ✕ = most games (avoid).
+                                                    </p>
+                                                )}
                                                 <div className={classes.castleDualRow}>
                                                     <div className={classes.playerColumn}>
                                                         <div className={classes.goldPlayerLabel}>{pair.team1}</div>
@@ -1226,15 +1245,12 @@ const ReportGameModal = ({
                                                                 const isGameProcessed =
                                                                     game.gameStatus &&
                                                                     game.gameStatus.trim() === 'Processed';
-                                                                const isBanned = (game.bannedCastles1 || []).includes(
-                                                                    c
-                                                                );
                                                                 return (
                                                                     <CastleTile
                                                                         key={c}
                                                                         castleName={c}
                                                                         isSelected={isSelected}
-                                                                        isBanned={isBanned}
+                                                                        isBanned={false}
                                                                         isDisabled={isGameProcessed}
                                                                         hasSelection={Boolean(game.castle1)}
                                                                         onToggle={() => {
@@ -1242,24 +1258,11 @@ const ReportGameModal = ({
                                                                                 return;
                                                                             }
                                                                             const updated = [...gameResults];
-                                                                            const g = updated[idx];
-                                                                            const banned = g.bannedCastles1 || [];
-                                                                            if (isBanned) {
-                                                                                updated[idx] = {
-                                                                                    ...g,
-                                                                                    bannedCastles1: banned.filter(
-                                                                                        (x) => x !== c
-                                                                                    )
-                                                                                };
-                                                                            } else if (isSelected) {
-                                                                                updated[idx] = {
-                                                                                    ...g,
-                                                                                    castle1: '',
-                                                                                    bannedCastles1: [...banned, c]
-                                                                                };
-                                                                            } else {
-                                                                                updated[idx] = { ...g, castle1: c };
-                                                                            }
+                                                                            updated[idx] = {
+                                                                                ...updated[idx],
+                                                                                castle1: isSelected ? '' : c,
+                                                                                bannedCastles1: []
+                                                                            };
                                                                             setGameResults(updated);
                                                                         }}
                                                                     />
@@ -1275,15 +1278,12 @@ const ReportGameModal = ({
                                                                 const isGameProcessed =
                                                                     game.gameStatus &&
                                                                     game.gameStatus.trim() === 'Processed';
-                                                                const isBanned = (game.bannedCastles2 || []).includes(
-                                                                    c
-                                                                );
                                                                 return (
                                                                     <CastleTile
                                                                         key={c}
                                                                         castleName={c}
                                                                         isSelected={isSelected}
-                                                                        isBanned={isBanned}
+                                                                        isBanned={false}
                                                                         isDisabled={isGameProcessed}
                                                                         hasSelection={Boolean(game.castle2)}
                                                                         onToggle={() => {
@@ -1291,24 +1291,11 @@ const ReportGameModal = ({
                                                                                 return;
                                                                             }
                                                                             const updated = [...gameResults];
-                                                                            const g = updated[idx];
-                                                                            const banned = g.bannedCastles2 || [];
-                                                                            if (isBanned) {
-                                                                                updated[idx] = {
-                                                                                    ...g,
-                                                                                    bannedCastles2: banned.filter(
-                                                                                        (x) => x !== c
-                                                                                    )
-                                                                                };
-                                                                            } else if (isSelected) {
-                                                                                updated[idx] = {
-                                                                                    ...g,
-                                                                                    castle2: '',
-                                                                                    bannedCastles2: [...banned, c]
-                                                                                };
-                                                                            } else {
-                                                                                updated[idx] = { ...g, castle2: c };
-                                                                            }
+                                                                            updated[idx] = {
+                                                                                ...updated[idx],
+                                                                                castle2: isSelected ? '' : c,
+                                                                                bannedCastles2: []
+                                                                            };
                                                                             setGameResults(updated);
                                                                         }}
                                                                     />
@@ -1881,35 +1868,31 @@ const ReportGameModal = ({
 
                             <div className={`${classes.formGroup} ${classes.layered}`}>
                                 <label className={classes.centerLabel}>Castles:</label>
+                                {strictCastlePick && (
+                                    <p className={classes.castleAvailabilityHint}>
+                                        Green ✓ = fewest games (preferred). Red ✕ = most games (avoid).
+                                    </p>
+                                )}
                                 <div className={classes.castleDualRow}>
                                     <div className={classes.playerColumn}>
                                         <div className={classes.castleGrid}>
                                             {castles.map((c) => {
                                                 const isGameFinished = pair.winner;
-                                                const isBanned = bannedCastlesBO1_1.includes(c);
                                                 const isSelected = castle1 === c;
                                                 return (
                                                     <CastleTile
                                                         key={c}
                                                         castleName={c}
                                                         isSelected={isSelected}
-                                                        isBanned={isBanned}
+                                                        isBanned={false}
                                                         isDisabled={Boolean(isGameFinished)}
                                                         hasSelection={Boolean(castle1)}
                                                         onToggle={() => {
                                                             if (isGameFinished) {
                                                                 return;
                                                             }
-                                                            if (isBanned) {
-                                                                setBannedCastlesBO1_1(
-                                                                    bannedCastlesBO1_1.filter((x) => x !== c)
-                                                                );
-                                                            } else if (isSelected) {
-                                                                setCastle1('');
-                                                                setBannedCastlesBO1_1([...bannedCastlesBO1_1, c]);
-                                                            } else {
-                                                                setCastle1(c);
-                                                            }
+                                                            setCastle1(isSelected ? '' : c);
+                                                            setBannedCastlesBO1_1([]);
                                                         }}
                                                     />
                                                 );
@@ -1920,30 +1903,21 @@ const ReportGameModal = ({
                                         <div className={classes.castleGrid}>
                                             {castles.map((c) => {
                                                 const isGameFinished = pair.winner;
-                                                const isBanned = bannedCastlesBO1_2.includes(c);
                                                 const isSelected = castle2 === c;
                                                 return (
                                                     <CastleTile
                                                         key={c}
                                                         castleName={c}
                                                         isSelected={isSelected}
-                                                        isBanned={isBanned}
+                                                        isBanned={false}
                                                         isDisabled={Boolean(isGameFinished)}
                                                         hasSelection={Boolean(castle2)}
                                                         onToggle={() => {
                                                             if (isGameFinished) {
                                                                 return;
                                                             }
-                                                            if (isBanned) {
-                                                                setBannedCastlesBO1_2(
-                                                                    bannedCastlesBO1_2.filter((x) => x !== c)
-                                                                );
-                                                            } else if (isSelected) {
-                                                                setCastle2('');
-                                                                setBannedCastlesBO1_2([...bannedCastlesBO1_2, c]);
-                                                            } else {
-                                                                setCastle2(c);
-                                                            }
+                                                            setCastle2(isSelected ? '' : c);
+                                                            setBannedCastlesBO1_2([]);
                                                         }}
                                                     />
                                                 );

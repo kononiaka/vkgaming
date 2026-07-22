@@ -414,75 +414,133 @@ async function recordDonorContribution(userId, amount, currency) {
     });
 }
 
-async function processDonation(donation, usersData) {
-    const donationId = String(donation.id);
-    const processedRef = db.ref(`processedDonations/${donationId}`);
-    if ((await processedRef.once('value')).exists()) return;
+/**
+ * Match a tip to a profile username field, allocate prize pools, and credit donor stats.
+ * Used by Donation Alerts (poll) and Buy Me a Coffee (webhook).
+ */
+async function processMatchedDonation(
+    {
+        provider,
+        externalId,
+        donorUsername,
+        amount,
+        currency,
+        usernameField,
+        processedCollection,
+        unmatchedReason
+    },
+    usersData
+) {
+    const donationId = String(externalId);
+    const processedRef = db.ref(`${processedCollection}/${donationId}`);
+    if ((await processedRef.once('value')).exists()) {
+        return { status: 'already_processed' };
+    }
 
-    const amount = parseFloat(donation.amount || 0);
-    const donorUsername = (donation.username || '').trim();
-    const currency = donation.currency || 'UAH';
+    const parsedAmount = parseFloat(amount || 0);
+    const trimmedUsername = (donorUsername || '').trim();
+    const donationCurrency = currency || 'USD';
 
-    if (amount <= 0) {
+    if (parsedAmount <= 0) {
         await processedRef.set({
-            donorUsername,
-            amount,
+            provider,
+            donorUsername: trimmedUsername,
+            amount: parsedAmount,
             reason: 'invalid_amount',
             processedAt: new Date().toISOString()
         });
-        return;
+        return { status: 'invalid_amount' };
+    }
+
+    const normalisedUsername = trimmedUsername.toLowerCase();
+    const matchedEntry = Object.entries(usersData || {}).find(([, user]) => {
+        const linked = user?.[usernameField];
+        return linked && String(linked).trim().toLowerCase() === normalisedUsername;
+    });
+
+    let targetTournamentIds = null;
+    if (matchedEntry) {
+        const [, userPreview] = matchedEntry;
+        if (Array.isArray(userPreview.donationTargetTournamentIds)) {
+            targetTournamentIds = userPreview.donationTargetTournamentIds;
+        }
     }
 
     try {
-        let targetTournamentIds = null;
-        const matchedEntryPreview = Object.entries(usersData || {}).find(
-            ([, user]) => user.daUsername && user.daUsername.toLowerCase() === donorUsername.toLowerCase()
-        );
-        if (matchedEntryPreview) {
-            const [, userPreview] = matchedEntryPreview;
-            if (Array.isArray(userPreview.donationTargetTournamentIds)) {
-                targetTournamentIds = userPreview.donationTargetTournamentIds;
-            }
-        }
-
-        await allocateDonationToLivePrizePools(amount, currency, targetTournamentIds);
+        await allocateDonationToLivePrizePools(parsedAmount, donationCurrency, targetTournamentIds);
     } catch (allocationError) {
-        console.error(`Prize pool allocation failed for donation ${donationId}:`, allocationError.message);
+        console.error(
+            `Prize pool allocation failed for ${provider} donation ${donationId}:`,
+            allocationError.message
+        );
     }
 
-    const normalisedUsername = donorUsername.toLowerCase();
-    const matchedEntry = Object.entries(usersData).find(
-        ([, user]) => user.daUsername && user.daUsername.toLowerCase() === normalisedUsername
-    );
-
     if (!matchedEntry) {
-        console.log(`Donation ${donationId}: no player linked DA username "${donorUsername}"`);
+        console.log(
+            `${provider} donation ${donationId}: no player linked ${usernameField} "${trimmedUsername}"`
+        );
         await processedRef.set({
-            donorUsername,
-            amount,
-            currency,
-            reason: 'da_username_not_linked',
+            provider,
+            donorUsername: trimmedUsername,
+            amount: parsedAmount,
+            currency: donationCurrency,
+            reason: unmatchedReason,
             processedAt: new Date().toISOString()
         });
-        return;
+        return { status: 'unmatched' };
     }
 
     const [userId] = matchedEntry;
 
     try {
-        await recordDonorContribution(userId, amount, currency);
+        await recordDonorContribution(userId, parsedAmount, donationCurrency);
     } catch (statsError) {
-        console.error(`Donor stats update failed for donation ${donationId}:`, statsError.message);
+        console.error(
+            `Donor stats update failed for ${provider} donation ${donationId}:`,
+            statsError.message
+        );
     }
 
     await processedRef.set({
-        donorUsername,
-        amount,
-        currency,
+        provider,
+        donorUsername: trimmedUsername,
+        amount: parsedAmount,
+        currency: donationCurrency,
         userId,
         processedAt: new Date().toISOString()
     });
-    console.log(`Processed donation ${donationId} by DA user "${donorUsername}"`);
+    console.log(`Processed ${provider} donation ${donationId} by "${trimmedUsername}"`);
+    return { status: 'matched', userId };
+}
+
+async function processDonation(donation, usersData) {
+    return processMatchedDonation(
+        {
+            provider: 'donation_alerts',
+            externalId: donation.id,
+            donorUsername: donation.username,
+            amount: donation.amount,
+            currency: donation.currency || 'UAH',
+            usernameField: 'daUsername',
+            processedCollection: 'processedDonations',
+            unmatchedReason: 'da_username_not_linked'
+        },
+        usersData
+    );
+}
+
+function verifyBmcWebhookSignature(rawBody, secret, signature) {
+    if (!secret || !signature || !rawBody) {
+        return false;
+    }
+
+    const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const signatureBuf = Buffer.from(String(signature), 'utf8');
+    if (expectedBuf.length !== signatureBuf.length) {
+        return false;
+    }
+    return crypto.timingSafeEqual(expectedBuf, signatureBuf);
 }
 
 // ---------------------------------------------------------------------------
@@ -527,8 +585,63 @@ exports.oauthCallback = functions.https.onRequest(async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// bmcWebhook — Buy Me a Coffee donation.created → match by bmcUsername.
+// Register URL: https://us-central1-<PROJECT>.cloudfunctions.net/bmcWebhook
+// Config: firebase functions:config:set bmc.webhook_secret="..."
+// ---------------------------------------------------------------------------
+exports.bmcWebhook = functions.https.onRequest(async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
+    }
+
+    const webhookSecret = functions.config().bmc?.webhook_secret;
+    if (!webhookSecret) {
+        console.error('BMC webhook secret not configured (functions.config().bmc.webhook_secret)');
+        return res.status(500).send('Webhook not configured');
+    }
+
+    const signature = req.get('x-signature-sha256') || req.headers['x-signature-sha256'];
+    const rawBody = req.rawBody;
+    if (!verifyBmcWebhookSignature(rawBody, webhookSecret, signature)) {
+        console.error('BMC webhook signature verification failed');
+        return res.status(401).send('Invalid signature');
+    }
+
+    const event = req.body || {};
+    const eventType = event.type;
+    if (eventType !== 'donation.created') {
+        return res.status(200).send('ok');
+    }
+
+    const data = event.data || {};
+    const externalId = event.event_id != null ? event.event_id : data.id;
+    if (externalId == null) {
+        console.error('BMC webhook missing event_id / data.id');
+        return res.status(400).send('Missing event id');
+    }
+
+    const usersSnapshot = await db.ref('users').once('value');
+    const usersData = usersSnapshot.val() || {};
+
+    await processMatchedDonation(
+        {
+            provider: 'buy_me_a_coffee',
+            externalId,
+            donorUsername: data.supporter_name,
+            amount: data.amount != null ? data.amount : data.total_amount_charged,
+            currency: data.currency || 'USD',
+            usernameField: 'bmcUsername',
+            processedCollection: 'processedBmcDonations',
+            unmatchedReason: 'bmc_username_not_linked'
+        },
+        usersData
+    );
+
+    return res.status(200).send('ok');
+});
+
+// ---------------------------------------------------------------------------
 // pollDonations — scheduled every 5 minutes. Matches by daUsername.
-// Fetches the latest donations from DA API and updates prize pools + donor stats.
 // ---------------------------------------------------------------------------
 exports.pollDonations = functions.pubsub.schedule('every 5 minutes').onRun(async () => {
     let accessToken;

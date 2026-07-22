@@ -632,7 +632,13 @@
 }
 
 .castleImgRestricted {
-    opacity: 0.45;
+    opacity: 0.4;
+    filter: grayscale(80%);
+}
+
+.castleImgAvailable {
+    opacity: 1;
+    filter: none;
 }
 
 .castleBadge {
@@ -659,6 +665,18 @@
 .castleBadgeBan {
     background: #e07070;
     color: #fff;
+}
+
+.castleBadgeAvailable {
+    background: #6fcf8f;
+}
+
+.castleAvailabilityHint {
+    margin: 0 0 0.55rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.35;
 }
 
 .buttonGroup {

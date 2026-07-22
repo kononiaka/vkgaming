@@ -20,6 +20,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
     const [avatarBase64, setAvatarBase64] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [daUsername, setDaUsername] = useState('');
+    const [bmcUsername, setBmcUsername] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const userNickName = authCtx.userNickName || localStorage.getItem('userName');
@@ -67,6 +68,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 setUserId(resolvedId);
                 setPlayer(playerData);
                 setDaUsername(playerData.daUsername || '');
+                setBmcUsername(playerData.bmcUsername || '');
 
                 try {
                     const avatar = await getAvatar(resolvedId);
@@ -171,6 +173,19 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
             authCtx.setNotificationShown(true, 'Donation Alerts username saved.', 'success', 3);
         } catch (err) {
             authCtx.setNotificationShown(true, 'Failed to save DA username.', 'error', 5);
+        }
+    };
+
+    const saveBmcUsername = async () => {
+        try {
+            await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ bmcUsername: bmcUsername.trim() }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            authCtx.setNotificationShown(true, 'Buy Me a Coffee supporter name saved.', 'success', 3);
+        } catch (err) {
+            authCtx.setNotificationShown(true, 'Failed to save BMC supporter name.', 'error', 5);
         }
     };
 
@@ -331,6 +346,26 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 </div>
                 <button type="button" onClick={saveDaUsername} className={classes.primaryBtn}>
                     Save DA username
+                </button>
+            </div>
+
+            <div className={classes.formPanel}>
+                <h4 className={classes.panelTitle}>Buy Me a Coffee</h4>
+                <p className={classes.panelNote}>
+                    Use this exact name when tipping on Buy Me a Coffee so we can credit your KonoPlay account.
+                </p>
+                <div className={classes.formControl}>
+                    <label htmlFor="bmc-username">BMC supporter name</label>
+                    <input
+                        type="text"
+                        id="bmc-username"
+                        value={bmcUsername}
+                        onChange={(e) => setBmcUsername(e.target.value)}
+                        placeholder="e.g. CondorAwful"
+                    />
+                </div>
+                <button type="button" onClick={saveBmcUsername} className={classes.primaryBtn}>
+                    Save BMC name
                 </button>
             </div>
 

@@ -1,9 +1,9 @@
 .panel {
-    background: var(--color-bg-panel-alt);
-    border: var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 1rem 1.15rem 1.1rem;
-    margin-bottom: 1.5rem;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 0;
 }
 
 .panelHeader {

@@ -1,8 +1,9 @@
 # Buy Me a Coffee — nickname matching (parity with Donation Alerts)
 
-**Status:** Not started  
+**Status:** In progress (Phase 1 UI + Phase 2 matching scaffolded)  
 **Goal:** Credit BMC supporters to KonoPlay accounts (supporters bar, donation stats, prize-pool allocation) the same way Donation Alerts does via `daUsername`.  
-**Blocked / context:** Stripe live is unavailable (PL NIP). Support stack = DA (primary) + BMC (international) + Mono jar (optional). BMC link can ship first; this doc is for **auto-matching** later.
+**Blocked / context:** Stripe live is unavailable (PL NIP). Support stack = DA (primary) + BMC (international) + Mono jar (optional).  
+**BMC page:** https://www.buymeacoffee.com/konoplay
 
 ---
 
@@ -15,120 +16,85 @@
    - prize-pool allocation using `donationTargetTournamentIds` (same as DA)
 4. `DonatorsBar` / leaderboards already read `totalDonatedUsd` + nickname — no UI change needed once stats are written.
 
-If no profile match: still allocate to prize pools if product wants that (DA currently allocates even when unmatched, then skips donor stats — see `processDonation`). Prefer **same behavior** for BMC.
+If no profile match: still allocate to prize pools (DA currently allocates even when unmatched, then skips donor stats — see `processMatchedDonation`). Same behavior for BMC. Empty/anonymous `supporter_name` → no credit; still allocate without cup targets.
 
 ---
 
-## Current DA reference (do not reinvent)
+## Current DA / BMC reference
 
 | Piece | Location |
 |---|---|
 | Profile field `daUsername` | `src/components/Profile/ProfileForm.js` |
-| Poll + match | `functions/index.js` → `pollDonations`, `processDonation` |
-| Match key | `user.daUsername` ↔ donation `username` (trim, lower-case) |
-| Idempotency | `processedDonations/{donationId}` |
+| Profile field `bmcUsername` | `src/components/Profile/ProfileForm.js` |
+| Shared match helper | `functions/index.js` → `processMatchedDonation` |
+| DA poll | `functions/index.js` → `pollDonations` → `processDonation` |
+| BMC webhook | `functions/index.js` → `bmcWebhook` |
+| Match keys | `user.daUsername` / `user.bmcUsername` ↔ tip name (trim, lower-case) |
+| Idempotency | `processedDonations/{id}`, `processedBmcDonations/{eventId}` |
 | Donor stats | `recordDonorContribution` |
 | Prize pools | `allocateDonationToLivePrizePools` |
-| Supporters bar | `src/components/DonatorsBar/DonatorsBar.js` (reads `totalDonatedUsd`) |
-| Support page links | `src/components/Support/Support.js`, `src/UI/modalDonate/modalDonate.js` |
+| Supporters bar | `src/components/DonatorsBar/DonatorsBar.js` |
+| Support / modal links | `src/components/Support/Support.js`, `src/UI/modalDonate/modalDonate.js` |
 
-Mirror this pattern; do **not** scrape the BMC page.
+Do **not** scrape the BMC page.
 
 ---
 
-## Proposed design
+## Webhook payload (verified from BMC OpenAPI)
 
-### 1. Profile
+`donation.created` envelope:
 
-- Add `bmcUsername` (or `bmcSupporterName`) on `users/{uid}`.
-- Profile UI: panel next to Donation Alerts — label, input, save button.
-- Copy: “Use this exact name when tipping on Buy Me a Coffee so we can credit your KonoPlay account.”
-- Validate: trim; optional uniqueness warning (nice-to-have, not required for v1).
+- `event_id` — idempotency key
+- `type`: `"donation.created"`
+- `data.supporter_name` — match against `bmcUsername`
+- `data.amount` / `data.currency` (often USD)
+- Signature header: `x-signature-sha256` = HMAC-SHA256 hex of raw body with webhook signing secret
 
-### 2. Ingest path (prefer webhooks over polling)
+OpenAPI: https://cdn.buymeacoffee.com/assets/integrations/bmc-webhooks-openapi.json
 
-BMC supports webhooks (`donation.created`, etc.):
+---
 
-- https://help.buymeacoffee.com/en/articles/15743173-how-to-setup-and-use-buy-me-a-coffee-webhooks
+## Done in this branch
 
-Implement Firebase HTTPS function e.g. `bmcWebhook`:
+- [x] Support page + donate modal: BMC link (`https://www.buymeacoffee.com/konoplay`)
+- [x] Profile can save `bmcUsername`
+- [x] Shared `processMatchedDonation` extracted from DA `processDonation`
+- [x] `bmcWebhook` HTTPS function + `processedBmcDonations` rules
+- [ ] Deploy functions; set `bmc.webhook_secret`; register webhook in BMC Studio
+- [ ] Test BMC tip with matching name → `totalDonatedUsd` + DonatorsBar
+- [ ] Tip with unknown name → no user credit; prize-pool behavior matches DA
+- [ ] Duplicate webhook delivery does not double-credit
 
-1. Verify webhook signature/secret (store in `functions.config().bmc.webhook_secret` or Secret Manager).
-2. Parse supporter name + amount + currency + event id from payload (`donation.created`).
-3. Idempotency: `processedBmcDonations/{eventId}` (separate from DA `processedDonations`).
-4. Reuse shared helper extracted from `processDonation` (match field configurable: `daUsername` vs `bmcUsername`).
-5. Call `allocateDonationToLivePrizePools` + `recordDonorContribution` on match.
+---
 
-**Fallback:** BMC API polling only if webhooks unavailable for the account tier — document which BMC plan is required.
-
-### 3. Support / donate UI
-
-- Add BMC button/link (env or constant: `REACT_APP_BMC_URL` or hardcoded `https://www.buymeacoffee.com/<slug>`).
-- Keep Stripe “Coming soon” until live Stripe exists.
-- Mention in Help/Support copy that BMC matching needs Profile `bmcUsername`.
-
-### 4. Config / secrets
+## Config / deploy (ops)
 
 ```text
-firebase functions:config:set \
-  bmc.webhook_secret="..." \
-  bmc.page_slug="..."   # optional
+firebase functions:config:set bmc.webhook_secret="..." bmc.page_slug="konoplay"
+firebase deploy --only functions:bmcWebhook,database
 ```
 
 Register webhook URL:
 
-`https://us-central1-<PROJECT>.cloudfunctions.net/bmcWebhook`
+`https://us-central1-test-prod-app-81915.cloudfunctions.net/bmcWebhook`
 
-### 5. Database rules
-
-- `users/{uid}/bmcUsername` — owner write, same as `daUsername`.
-- `processedBmcDonations` — server-only (deny client write), same pattern as `processedDonations` / `processedStripe`.
-
----
-
-## Acceptance criteria
-
-- [ ] Profile can save `bmcUsername`.
-- [ ] Test BMC tip with matching name → user `totalDonatedUsd` increases; name appears on DonatorsBar.
-- [ ] Tip with unknown name → no user credit; prize-pool behavior matches DA.
-- [ ] Duplicate webhook delivery does not double-credit.
-- [ ] Support page shows BMC link; DA + Mono still work.
-- [ ] No secrets in frontend; webhook secret only on Functions.
+Select event: **donation.created**. Copy signing secret into `bmc.webhook_secret`.
 
 ---
 
 ## Out of scope / non-goals
 
 - Replacing DA (keep DA as primary).
-- Auto-matching MonoBank jar (manual / no nickname API).
+- Auto-matching MonoBank jar.
 - Stripe live / NIP.
 - Tournament attendance / host seed via BMC.
+- `recurring_donation.*` / membership events (v1 = one-time `donation.created` only).
 
 ---
 
-## Implementation checklist for next agent
+## Open questions (mostly resolved)
 
-1. Confirm BMC page exists and webhook access (Studio → Webhooks).
-2. Capture one real `donation.created` payload (supporter name field name may differ — verify against BMC OpenAPI/docs).
-3. Extract shared `processMatchedDonation({ provider, externalId, donorUsername, amount, currency, usernameField })` from DA code.
-4. Add `bmcWebhook` + `processedBmcDonations`.
-5. Profile field + save path.
-6. Support/modal links + short help text.
-7. Update `database.rules.json` / recommended rules.
-8. Manual test plan + optional unit tests for match helper.
-9. Deploy functions; register webhook; smoke-test with $1 tip.
-
----
-
-## Open questions (resolve before coding)
-
-1. Exact JSON path for supporter display name on current BMC webhook schema?
-2. Does BMC allow anonymous tips with empty name? (skip credit, still allocate?)
-3. Currency: always USD on BMC page, or multi-currency? Reuse `normalizeDonationToUsd`.
-4. Should unmatched BMC tips still fund selected cups / live pools like DA?
-
----
-
-## Related product note
-
-Ship BMC as a **plain link** anytime. This ticket is only for **DA-parity nickname matching** so BMC tips show on the sliding supporters bar and count toward pools/stats.
+1. Supporter name path: `data.supporter_name` (confirmed via OpenAPI example).
+2. Anonymous / empty name: skip credit, still allocate (same as unmatched DA).
+3. Currency: reuse `normalizeDonationToUsd` (BMC typically USD).
+4. Unmatched BMC tips: still fund selected cups only when matched user has targets; unmatched → live-pool / unallocated like DA.
