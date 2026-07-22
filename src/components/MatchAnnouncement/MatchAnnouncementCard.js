@@ -3,7 +3,7 @@ import CountryFlag from '../Country/CountryFlag';
 import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../Stars/Stars';
 import { useHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
-import konoplayLogo from '../../image/konoplay-logo-new-invert.png';
+import heroes3Logo from '../../image/konoplay-crest.png';
 import { buildMatchBannerLabel } from '../../utils/matchFixtureLabels';
 import { formatMatchSchedule } from '../tournaments/homm3/matchScheduleUtils';
 import classes from './MatchAnnouncementCard.module.css';
@@ -194,7 +194,7 @@ const MatchAnnouncementCard = ({
 
                         <div className={classes.centerStack}>
                             <div className={classes.centerDiamond}>
-                                <img src={konoplayLogo} alt="" className={classes.centerLogo} />
+                                <img src={heroes3Logo} alt="" className={classes.centerLogo} />
                             </div>
                             {predictionBlock}
                             <div className={classes.centerStackMobile}>

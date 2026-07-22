@@ -8,6 +8,7 @@ import classes from './modalDonate.module.css';
 const STRIPE_DONATIONS_ENABLED = false;
 const STRIPE_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/createStripeCheckout';
 const MIN_STRIPE_DONATION_USD = 5;
+const BMC_URL = 'https://www.buymeacoffee.com/konoplay';
 
 const ModalDonate = (props) => {
     const authCtx = useContext(AuthContext);
@@ -117,6 +118,21 @@ const ModalDonate = (props) => {
                 </a>
             </div>
 
+            <p className={classes.donate_title}>via Buy Me a Coffee</p>
+            <p className={classes.customNote}>
+                International tips — matched by your Buy Me a Coffee supporter name set in your Profile.
+            </p>
+            <div className={classes.donate_logo_block}>
+                <a
+                    href={BMC_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={!authCtx.isLogged ? () => setLoginPrompt(true) : undefined}
+                >
+                    Open Buy Me a Coffee →
+                </a>
+            </div>
+
             <p className={classes.donate_title}>via Card (Stripe)</p>
             {STRIPE_DONATIONS_ENABLED ? (
                 <>
@@ -149,7 +165,7 @@ const ModalDonate = (props) => {
             ) : (
                 <>
                     <p className={classes.customNote}>
-                        Card payments are coming soon. Use Donation Alerts or MonoBank for now.
+                        Card payments are coming soon. Use Donation Alerts, Buy Me a Coffee, or MonoBank for now.
                     </p>
                     <button type="button" className={classes.comingSoonBtn} disabled>
                         Coming soon
