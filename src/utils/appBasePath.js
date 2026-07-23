@@ -53,6 +53,19 @@ export const getTwitchRedirectUri = () => {
     return `${getSiteBaseUrl()}/auth/twitch/callback`;
 };
 
+export const getYouTubeRedirectUri = () => {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        return `${window.location.origin}${getAppBasePath()}/auth/youtube/callback`;
+    }
+
+    const configuredRedirect = String(process.env.REACT_APP_YOUTUBE_REDIRECT_URI || '').trim();
+    if (configuredRedirect) {
+        return configuredRedirect;
+    }
+
+    return `${getSiteBaseUrl()}/auth/youtube/callback`;
+};
+
 export const getAppHashUrl = (hashPath = '/') => {
     const normalized = hashPath.startsWith('/') ? hashPath : `/${hashPath}`;
     return `${getSiteBaseUrl()}/#${normalized}`;
@@ -61,13 +74,24 @@ export const getAppHashUrl = (hashPath = '/') => {
 export const isTwitchCallbackPath = (pathname = window.location.pathname) =>
     /\/auth\/twitch\/callback\/?$/.test(pathname);
 
+export const isYouTubeCallbackPath = (pathname = window.location.pathname) =>
+    /\/auth\/youtube\/callback\/?$/.test(pathname);
+
+/** Path-only: both providers use ?code=, so query alone is ambiguous. */
+export const shouldHandleTwitchOAuth = (pathname = window.location.pathname) =>
+    isTwitchCallbackPath(pathname);
+
+export const shouldHandleYouTubeOAuth = (pathname = window.location.pathname) =>
+    isYouTubeCallbackPath(pathname);
+
+export const shouldHandleOAuthCallback = (pathname = window.location.pathname) =>
+    shouldHandleTwitchOAuth(pathname) || shouldHandleYouTubeOAuth(pathname);
+
+/** @deprecated Prefer shouldHandleTwitchOAuth (path-only). Kept for older callers/tests. */
 export const isTwitchOAuthReturn = (search = window.location.search) => {
     const params = new URLSearchParams(search);
     return params.has('code') || params.has('error');
 };
-
-export const shouldHandleTwitchOAuth = (pathname = window.location.pathname, search = window.location.search) =>
-    isTwitchCallbackPath(pathname) || isTwitchOAuthReturn(search);
 
 /** Production site for local-dev warnings / docs. */
 export const DEFAULT_PRODUCTION_SITE = DEFAULT_CUSTOM_DOMAIN_SITE;

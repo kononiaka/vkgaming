@@ -78,6 +78,44 @@
     flex-shrink: 0;
 }
 
+.youtubeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    width: 100%;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    background: #c4302b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1.25rem;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.youtubeBtn:hover {
+    background: #e03c31;
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.youtubeBtn:active {
+    transform: translateY(0);
+}
+
+.youtubeIcon {
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
 .localDevWarning {
     margin: 0 0 1.25rem;
     padding: 0.75rem 0.85rem;

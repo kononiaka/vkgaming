@@ -196,6 +196,42 @@ const checkTwitchAuth = async () => {
     }
 };
 
+const checkYouTubeAuth = async () => {
+    try {
+        const url = `${functionsBase}/youtubeAuth`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: { code: 'invalid-probe', redirectUri: 'http://localhost/auth/youtube/callback' }
+            })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        const message = payload?.error?.message || '';
+
+        if (response.status === 404) {
+            fail('firebase:youtubeAuth', 'Function not found — deploy functions');
+            return false;
+        }
+
+        if (
+            message.includes('not configured') ||
+            message.includes('failed-precondition') ||
+            message.includes('Failed to exchange')
+        ) {
+            pass('firebase:youtubeAuth', 'Deployed (YouTube server config may still need client_id/secret)');
+            return true;
+        }
+
+        pass('firebase:youtubeAuth', `Reachable (${response.status})`);
+        return true;
+    } catch (error) {
+        fail('firebase:youtubeAuth', error.message);
+        return false;
+    }
+};
+
 const main = async () => {
     console.log('Konoplay production readiness\n');
     console.log(`Project:   ${projectId}`);
@@ -205,7 +241,8 @@ const main = async () => {
     const rtdbOk = await checkDatabase();
     const streamOk = await checkTwitchStreamStatus();
     const authOk = await checkTwitchAuth();
-    checkEnv({ rtdbOk, functionsOk: streamOk || authOk });
+    const youtubeAuthOk = await checkYouTubeAuth();
+    checkEnv({ rtdbOk, functionsOk: streamOk || authOk || youtubeAuthOk });
 
     console.log('');
     results.forEach((item) => {

@@ -1,11 +1,16 @@
 import { useContext, useEffect } from 'react';
 
 import AuthContext from '../../store/auth-context';
-import { DEFAULT_PRODUCTION_SITE, getTwitchRedirectUri } from '../../utils/appBasePath';
+import {
+    DEFAULT_PRODUCTION_SITE,
+    getTwitchRedirectUri,
+    getYouTubeRedirectUri
+} from '../../utils/appBasePath';
 
 import classes from './AuthForm.module.css';
 
 const TWITCH_CLIENT_ID = process.env.REACT_APP_TWITCH_CLIENT_ID;
+const YOUTUBE_OAUTH_CLIENT_ID = process.env.REACT_APP_YOUTUBE_OAUTH_CLIENT_ID;
 
 const isLocalDevHost = () => {
     if (typeof window === 'undefined') {
@@ -49,20 +54,49 @@ const AuthForm = () => {
         window.location.href = `https://id.twitch.tv/oauth2/authorize?${params.toString()}`;
     };
 
+    const handleYouTubeLogin = () => {
+        if (!YOUTUBE_OAUTH_CLIENT_ID) {
+            authCtx.setNotificationShown(true, 'YouTube login is not configured.', 'error', 5);
+            return;
+        }
+        const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        sessionStorage.setItem('youtube_oauth_state', state);
+
+        const redirectUri = getYouTubeRedirectUri();
+        const scope = [
+            'openid',
+            'email',
+            'profile',
+            'https://www.googleapis.com/auth/youtube.readonly'
+        ].join(' ');
+        const params = new URLSearchParams({
+            client_id: YOUTUBE_OAUTH_CLIENT_ID,
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            scope,
+            state,
+            access_type: 'online',
+            include_granted_scopes: 'true',
+            // Force consent so YouTube readonly scope is actually granted (not just Google profile).
+            prompt: 'consent select_account'
+        });
+        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    };
+
     return (
         <section className={classes.auth}>
             <header className={classes.header}>
                 <h1 className={classes.title}>Player login</h1>
                 <p className={classes.subtitle}>
-                    Konoplay is for streamers. Sign in with your Twitch account to register for cups and link your
-                    channel.
+                    Konoplay is for streamers. Sign in with Twitch or YouTube to register for cups and link your
+                    channel. Use the same provider each time — accounts are not shared across Twitch and YouTube.
                 </p>
             </header>
 
             {onLocalDev && (
                 <p className={classes.localDevWarning} role="alert">
                     You are on <strong>{window.location.origin}</strong>, not production. Local login uses a different
-                    Twitch callback and will fail unless dev URIs are registered. For live login, open{' '}
+                    OAuth callback and will fail unless dev URIs are registered. For live login, open{' '}
                     <a href={productionLoginUrl}>{DEFAULT_PRODUCTION_SITE}/#/auth</a>.
                 </p>
             )}
@@ -74,7 +108,13 @@ const AuthForm = () => {
                     </svg>
                     Continue with Twitch
                 </button>
-                <p className={classes.hint}>New players are created automatically on first Twitch sign-in.</p>
+                <button type="button" className={classes.youtubeBtn} onClick={handleYouTubeLogin}>
+                    <svg className={classes.youtubeIcon} viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                    Continue with YouTube
+                </button>
+                <p className={classes.hint}>New players are created automatically on first sign-in.</p>
             </div>
         </section>
     );

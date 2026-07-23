@@ -34,6 +34,20 @@ describe('production readiness — codebase wiring', () => {
         expect(functionsSource).toMatch(/client_credentials/);
     });
 
+    test('youtubeAuth function is exported', () => {
+        const functionsSource = readRepoFile('functions/index.js');
+        expect(functionsSource).toMatch(/exports\.youtubeAuth/);
+        expect(functionsSource).toMatch(/youtube:\$\{youtubeId\}/);
+        expect(functionsSource).toMatch(/authProvider:\s*'youtube'/);
+    });
+
+    test('YouTube OAuth client id is documented in env example', () => {
+        const envExample = readRepoFile('.env.example');
+        expect(envExample).toMatch(/REACT_APP_YOUTUBE_OAUTH_CLIENT_ID/);
+        expect(envExample).toMatch(/REACT_APP_YOUTUBE_REDIRECT_URI/);
+        expect(envExample).toMatch(/auth\/youtube\/callback/);
+    });
+
     test('telegram match center links to Live Arena', () => {
         const telegramSource = readRepoFile('functions/telegram.js');
         expect(telegramSource).toMatch(/\/live/);

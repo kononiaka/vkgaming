@@ -74,8 +74,12 @@ const checkMainBundle = async (scriptPath) => {
             return;
         }
 
-        if (!text.includes('kononiaka.github.io') && !text.includes('/auth/twitch/callback')) {
-            warn('site:main-js', 'Could not confirm github.io OAuth callback strings in minified bundle');
+        if (
+            !text.includes('kononiaka.github.io') &&
+            !text.includes('/auth/twitch/callback') &&
+            !text.includes('/auth/youtube/callback')
+        ) {
+            warn('site:main-js', 'Could not confirm OAuth callback strings in minified bundle');
         } else {
             pass('site:main-js', `${scriptPath} (${Math.round(text.length / 1024)} KB)`);
         }
@@ -85,21 +89,28 @@ const checkMainBundle = async (scriptPath) => {
 };
 
 const checkOAuthCallbackFallback = async () => {
-    try {
-        const { response, text } = await fetchText(`${SITE}/auth/twitch/callback/`);
-        if (!response.ok) {
-            fail('site:oauth-callback', `HTTP ${response.status} — postbuild SPA fallback missing`);
-            return;
-        }
+    const callbacks = [
+        { path: '/auth/twitch/callback/', label: 'site:oauth-callback-twitch' },
+        { path: '/auth/youtube/callback/', label: 'site:oauth-callback-youtube' }
+    ];
 
-        if (!text.includes('id="root"')) {
-            fail('site:oauth-callback', 'Callback path does not serve React shell');
-            return;
-        }
+    for (const { path, label } of callbacks) {
+        try {
+            const { response, text } = await fetchText(`${SITE}${path}`);
+            if (!response.ok) {
+                fail(label, `HTTP ${response.status} — postbuild SPA fallback missing`);
+                continue;
+            }
 
-        pass('site:oauth-callback', 'SPA fallback present at /auth/twitch/callback/');
-    } catch (error) {
-        fail('site:oauth-callback', error.message);
+            if (!text.includes('id="root"')) {
+                fail(label, 'Callback path does not serve React shell');
+                continue;
+            }
+
+            pass(label, `SPA fallback present at ${path}`);
+        } catch (error) {
+            fail(label, error.message);
+        }
     }
 };
 
@@ -218,6 +229,43 @@ const checkTwitchAuthConfig = async () => {
     }
 };
 
+const checkYouTubeAuthConfig = async () => {
+    try {
+        const response = await fetch(`${FUNCTIONS_BASE}/youtubeAuth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    code: 'uat-invalid-code',
+                    redirectUri: `${SITE}/auth/youtube/callback`
+                }
+            })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        const message = payload?.error?.message || '';
+
+        if (response.status === 404) {
+            fail('fn:youtubeAuth', 'Function not deployed');
+            return;
+        }
+
+        if (message.includes('not configured') || message.includes('failed-precondition')) {
+            warn('fn:youtubeAuth', 'YouTube client_id/secret missing in functions config (optional until enabled)');
+            return;
+        }
+
+        if (message.includes('Failed to exchange') || message.includes('unauthenticated')) {
+            pass('fn:youtubeAuth', 'Deployed with YouTube secrets (invalid code rejected as expected)');
+            return;
+        }
+
+        pass('fn:youtubeAuth', `Reachable (${message || response.status})`);
+    } catch (error) {
+        fail('fn:youtubeAuth', error.message);
+    }
+};
+
 const checkDatabasePaths = async () => {
     const paths = [
         { path: 'tournaments/heroes3', expectPublic: true },
@@ -260,6 +308,7 @@ const main = async () => {
     await checkSpa404();
     await checkLegacyPath();
     await checkTwitchAuthConfig();
+    await checkYouTubeAuthConfig();
     await checkRefreshAuthToken();
     await checkDatabasePaths();
 
@@ -275,7 +324,7 @@ const main = async () => {
     console.log('');
     if (failed.length === 0) {
         console.log(`Automated critical checks: ${results.length - warnings.length} passed, ${warnings.length} warning(s).`);
-        console.log('Manual only: Twitch login end-to-end, logged-in tournament actions, donations (if in scope).');
+        console.log('Manual only: Twitch/YouTube login end-to-end, logged-in tournament actions, donations (if in scope).');
         process.exit(warnings.length ? 0 : 0);
     }
 
