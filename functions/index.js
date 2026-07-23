@@ -1289,6 +1289,56 @@ exports.refreshAuthToken = functions.https.onCall(async (data) => {
     }
 });
 
+const normalizeAuthEmail = (email) => String(email || '').trim().toLowerCase();
+
+const findUserByEmail = (usersData, email) => {
+    const normalised = normalizeAuthEmail(email);
+    if (!normalised) {
+        return null;
+    }
+
+    for (const [id, user] of Object.entries(usersData || {})) {
+        if (user?.enteredEmail && String(user.enteredEmail).trim().toLowerCase() === normalised) {
+            return { id, user };
+        }
+    }
+
+    return null;
+};
+
+/**
+ * One OAuth provider per email: Twitch accounts cannot sign in with YouTube and vice versa.
+ * Returning users matched by provider id are always allowed.
+ */
+const assertSingleOAuthProviderPerEmail = ({ usersData, email, provider, matchedByProviderId }) => {
+    if (matchedByProviderId) {
+        return;
+    }
+
+    const hit = findUserByEmail(usersData, email);
+    if (!hit) {
+        return;
+    }
+
+    const { user } = hit;
+    const isYouTubeAccount = Boolean(user.youtubeId) || user.authProvider === 'youtube';
+    const isTwitchAccount = Boolean(user.twitchId) || user.authProvider === 'twitch';
+
+    if (provider === 'twitch' && isYouTubeAccount) {
+        throw new functions.https.HttpsError(
+            'already-exists',
+            'This email is already registered with YouTube. Please sign in with YouTube.'
+        );
+    }
+
+    if (provider === 'youtube' && isTwitchAccount) {
+        throw new functions.https.HttpsError(
+            'already-exists',
+            'This email is already registered with Twitch. Please sign in with Twitch.'
+        );
+    }
+};
+
 //
 // Required Firebase config:
 //   firebase functions:config:set twitch.client_id="..." twitch.client_secret="..."
@@ -1368,6 +1418,13 @@ exports.twitchAuth = functions.https.onCall(async (data, context) => {
             }
         }
         const existingUser = dbUserId ? usersData[dbUserId] || null : null;
+
+        assertSingleOAuthProviderPerEmail({
+            usersData,
+            email,
+            provider: 'twitch',
+            matchedByProviderId: Boolean(dbUserId)
+        });
 
         const twitchProfileUrl = `https://twitch.tv/${twitchUser.login}`;
 
@@ -1451,6 +1508,229 @@ exports.twitchAuth = functions.https.onCall(async (data, context) => {
             throw err;
         }
         throw new functions.https.HttpsError('internal', err.message || 'Twitch auth failed');
+    }
+});
+
+function buildYouTubeProfileUrl(channelId, customUrl) {
+    const handle = String(customUrl || '').trim();
+    if (handle) {
+        const withAt = handle.startsWith('@') ? handle : `@${handle}`;
+        // Older custom URLs are path segments without @ (e.g. c/Name) — prefer channel id when unsure.
+        if (handle.startsWith('@') || /^[A-Za-z0-9._-]+$/.test(handle)) {
+            return `https://www.youtube.com/${withAt}`;
+        }
+    }
+    return `https://www.youtube.com/channel/${channelId}`;
+}
+
+//
+// Required Firebase config:
+//   firebase functions:config:set youtube.client_id="..." youtube.client_secret="..."
+//
+// Request body: { "data": { "code": "...", "redirectUri": "..." } }
+// Response:     { "result": { "idToken", "refreshToken", "localId", "displayName", "profileImageUrl", "dbUserId" } }
+// ---------------------------------------------------------------------------
+exports.youtubeAuth = functions.https.onCall(async (data, context) => {
+    try {
+        const { code, redirectUri } = data;
+
+        if (!code || !redirectUri) {
+            throw new functions.https.HttpsError('invalid-argument', 'code and redirectUri are required');
+        }
+
+        const youtubeConfig = functions.config().youtube || {};
+        const clientId = youtubeConfig.client_id;
+        const clientSecret = youtubeConfig.client_secret;
+
+        if (!clientId || !clientSecret) {
+            console.error(
+                'YouTube OAuth config is missing. Set functions config youtube.client_id and youtube.client_secret.'
+            );
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'YouTube OAuth is not configured on the server.'
+            );
+        }
+
+        // 1. Exchange authorization code for Google access token
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                code,
+                grant_type: 'authorization_code',
+                redirect_uri: redirectUri
+            }).toString()
+        });
+        const tokenData = await tokenRes.json();
+
+        if (!tokenData.access_token) {
+            console.error('YouTube token exchange failed:', JSON.stringify(tokenData));
+            throw new functions.https.HttpsError('unauthenticated', 'Failed to exchange YouTube code for token');
+        }
+
+        const grantedScope = String(tokenData.scope || '');
+        const hasYouTubeScope =
+            grantedScope.includes('youtube.readonly') ||
+            grantedScope.includes('youtube.force-ssl') ||
+            grantedScope.includes('/auth/youtube');
+
+        // 2. Fetch Google profile (email) + YouTube channel
+        const [userInfoRes, channelRes] = await Promise.all([
+            fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${tokenData.access_token}` }
+            }),
+            fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+                headers: { Authorization: `Bearer ${tokenData.access_token}` }
+            })
+        ]);
+
+        const userInfo = await userInfoRes.json().catch(() => ({}));
+        const channelData = await channelRes.json().catch(() => ({}));
+
+        if (!channelData.items || channelData.items.length === 0) {
+            console.error('YouTube channel lookup failed:', {
+                hasYouTubeScope,
+                grantedScope,
+                channelData
+            });
+
+            const apiMessage = channelData?.error?.message || channelData?.error?.errors?.[0]?.reason;
+            if (apiMessage) {
+                throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    `YouTube API error: ${apiMessage}`
+                );
+            }
+
+            if (!hasYouTubeScope) {
+                throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    'YouTube permission was not granted. Add the YouTube Data API scope in Google Auth Platform → Data Access, then try again and allow YouTube access.'
+                );
+            }
+
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'No YouTube channel on this Google account. Sign in with the Google account that owns the channel (Brand Accounts must be selected), or open youtube.com with that account and create/link a channel.'
+            );
+        }
+
+        const channel = channelData.items[0];
+        const youtubeId = channel.id;
+        const snippet = channel.snippet || {};
+        const displayName = snippet.title || userInfo.name || 'YouTube Player';
+        const profileImageUrl =
+            snippet.thumbnails?.high?.url ||
+            snippet.thumbnails?.medium?.url ||
+            snippet.thumbnails?.default?.url ||
+            userInfo.picture ||
+            '';
+        const email = userInfo.email || '';
+        const youtubeProfileUrl = buildYouTubeProfileUrl(youtubeId, snippet.customUrl);
+
+        // 3. Find or create user record in Firebase Realtime DB
+        const usersSnap = await db.ref('users').once('value');
+        const usersData = usersSnap.val() || {};
+
+        let dbUserId = null;
+        for (const [id, user] of Object.entries(usersData)) {
+            if (user.youtubeId === youtubeId) {
+                dbUserId = id;
+                break;
+            }
+        }
+        const existingUser = dbUserId ? usersData[dbUserId] || null : null;
+
+        assertSingleOAuthProviderPerEmail({
+            usersData,
+            email,
+            provider: 'youtube',
+            matchedByProviderId: Boolean(dbUserId)
+        });
+
+        if (!dbUserId) {
+            const nameTaken = Object.values(usersData).some(
+                (u) => u.enteredNickname && u.enteredNickname.toLowerCase() === displayName.toLowerCase()
+            );
+            const nickname = nameTaken ? `${displayName}_yt` : displayName;
+
+            const now = new Date();
+            const detectedCountry = await resolveCountryFromIp(getRequestIp(context));
+            const newUserRef = db.ref('users').push();
+            dbUserId = newUserRef.key;
+            const newUser = {
+                enteredNickname: nickname,
+                enteredEmail: email,
+                youtubeId,
+                youtubeDisplayName: displayName,
+                youtube: youtubeProfileUrl,
+                profileImageUrl,
+                authProvider: 'youtube',
+                gamesPlayed: { heroes3: { loses: 0, wins: 0 } },
+                prizes: [],
+                ratings: 0,
+                stars: 0.5,
+                avatar: profileImageUrl || null,
+                totalPrize: 0,
+                totalDonatedUsd: 0,
+                donationCount: 0,
+                registeredAt: now.toISOString()
+            };
+
+            if (detectedCountry) {
+                newUser.countryCode = detectedCountry;
+                newUser.countryCodeSource = 'ip';
+                newUser.countryCodeUpdatedAt = now.toISOString();
+            }
+
+            await newUserRef.set(newUser);
+        } else {
+            const updates = {
+                youtubeDisplayName: displayName,
+                youtube: youtubeProfileUrl,
+                profileImageUrl,
+                lastYouTubeLogin: new Date().toISOString()
+            };
+            if ((!existingUser || !existingUser.avatar) && profileImageUrl) {
+                updates.avatar = profileImageUrl;
+            }
+            if (email && (!existingUser || !existingUser.enteredEmail)) {
+                updates.enteredEmail = email;
+            }
+            await db.ref(`users/${dbUserId}`).update(updates);
+            await applyCountryFromLogin(dbUserId, existingUser, context);
+        }
+
+        const storedNicknameSnap = await db.ref(`users/${dbUserId}/enteredNickname`).once('value');
+        const storedNickname = storedNicknameSnap.val() || displayName;
+
+        // 4. Create Firebase custom token — UID is "youtube:<youtubeId>"
+        const firebaseUid = `youtube:${youtubeId}`;
+        const customToken = await admin.auth().createCustomToken(firebaseUid, {
+            youtubeId,
+            displayName,
+            dbUserId
+        });
+
+        const session = await exchangeCustomTokenForSession(customToken);
+
+        return {
+            idToken: session.idToken,
+            refreshToken: session.refreshToken,
+            localId: session.localId,
+            displayName: storedNickname,
+            profileImageUrl,
+            dbUserId
+        };
+    } catch (err) {
+        console.error('youtubeAuth failed:', err);
+        if (err instanceof functions.https.HttpsError) {
+            throw err;
+        }
+        throw new functions.https.HttpsError('internal', err.message || 'YouTube auth failed');
     }
 });
 
@@ -1540,6 +1820,15 @@ async function resolveDbUserId(decodedToken) {
         const twitchId = uid.slice('twitch:'.length);
         for (const [id, user] of Object.entries(usersData)) {
             if (user?.twitchId === twitchId) {
+                return id;
+            }
+        }
+    }
+
+    if (uid.startsWith('youtube:')) {
+        const youtubeId = uid.slice('youtube:'.length);
+        for (const [id, user] of Object.entries(usersData)) {
+            if (user?.youtubeId === youtubeId) {
                 return id;
             }
         }

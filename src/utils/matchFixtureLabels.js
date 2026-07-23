@@ -68,6 +68,22 @@ export const formatTournamentTypeLabel = (tournamentType) => {
     }
 };
 
+export const formatStageLabelForDisplay = (label) => {
+    if (label == null || label === '') {
+        return label;
+    }
+
+    const value = String(label);
+    if (value === 'LB Final') {
+        return 'Lower Bracket Final';
+    }
+    if (value.startsWith('LB R')) {
+        return value.replace(/^LB R/, 'Lower Bracket R');
+    }
+
+    return value;
+};
+
 export const buildMatchStageLabel = (tournament, pair, stageIndex = 0) => {
     const tournamentType = tournament?.type;
     const group = pair?.group;
@@ -91,7 +107,7 @@ export const buildMatchStageLabel = (tournament, pair, stageIndex = 0) => {
             }
             return `Group ${group}`;
         }
-        return stage || `Stage ${stageIndex + 1}`;
+        return formatStageLabelForDisplay(stage || `Stage ${stageIndex + 1}`);
     }
 
     if (tournamentType === 'swiss') {
@@ -101,7 +117,7 @@ export const buildMatchStageLabel = (tournament, pair, stageIndex = 0) => {
         return stage || 'Swiss';
     }
 
-    return stage || `Stage ${stageIndex + 1}`;
+    return formatStageLabelForDisplay(stage || `Stage ${stageIndex + 1}`);
 };
 
 export const buildMatchBannerLabel = ({

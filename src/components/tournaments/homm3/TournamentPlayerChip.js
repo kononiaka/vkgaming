@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom';
 import { getAvatar, loadUserById, lookForUserId } from '../../../api/api';
 import { deriveHotaPlayerSummary, fetchHotaPlayerByLobbyNickname } from '../../../api/hotaMeta';
 import CountryFlag from '../../Country/CountryFlag';
+import AuthProviderIcon from '../../Auth/AuthProviderIcon';
 import StarsComponent from '../../Stars/Stars';
 import { resolveCountryCode } from '../../../utils/country';
+import { resolveAuthProvider } from '../../../utils/authProvider';
 import classes from './TournamentPlayerChip.module.css';
 
 const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false }) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [countryCode, setCountryCode] = useState(player?.countryCode || null);
+    const [authProvider, setAuthProvider] = useState(null);
     const [siteUserId, setSiteUserId] = useState(player?.siteUserId || null);
     const [eloDisplay, setEloDisplay] = useState(null);
 
@@ -82,13 +85,19 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
 
             setSiteUserId(userId);
 
+            const userData = await loadUserById(userId);
+            if (cancelled) {
+                return;
+            }
+
             if (!code) {
-                const userData = await loadUserById(userId);
                 code = resolveCountryCode(userData);
-                if (!cancelled && code) {
+                if (code) {
                     setCountryCode(code);
                 }
             }
+
+            setAuthProvider(resolveAuthProvider(userData));
 
             try {
                 const avatar = await getAvatar(userId);
@@ -125,6 +134,7 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
             <div className={classes.meta}>
                 <div className={classes.nameRow}>
                     <CountryFlag code={countryCode} size={14} />
+                    <AuthProviderIcon provider={authProvider} size={12} />
                     <span className={classes.name}>{player.name}</span>
                 </div>
                 <div className={classes.strengthRow}>

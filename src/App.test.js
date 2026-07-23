@@ -4,7 +4,8 @@ import App from './App';
 import AuthContext from './store/auth-context';
 
 jest.mock('./utils/appBasePath', () => ({
-    shouldHandleTwitchOAuth: () => false
+    shouldHandleTwitchOAuth: () => false,
+    shouldHandleYouTubeOAuth: () => false
 }));
 
 jest.mock('./components/StartingPage/StartingPageContent', () => () => <div>Konoplay home</div>);

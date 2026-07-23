@@ -3,6 +3,7 @@ import {
     buildMatchBannerLabel,
     buildMatchScheduleBadge,
     buildMatchStageLabel,
+    formatStageLabelForDisplay,
     formatTournamentTypeLabel,
     resolveLeagueRound
 } from '../utils/matchFixtureLabels';
@@ -79,5 +80,13 @@ describe('matchFixtureLabels', () => {
 
     test('kick-off uses bracket stage name', () => {
         expect(buildMatchStageLabel({ type: 'kick-off' }, { stage: 'Semi-final' }, 2)).toBe('Semi-final');
+    });
+
+    test('expands LB stage labels for display clarity', () => {
+        expect(formatStageLabelForDisplay('LB R1')).toBe('Lower Bracket R1');
+        expect(formatStageLabelForDisplay('LB R2')).toBe('Lower Bracket R2');
+        expect(formatStageLabelForDisplay('LB Final')).toBe('Lower Bracket Final');
+        expect(formatStageLabelForDisplay('WB Final')).toBe('WB Final');
+        expect(buildMatchStageLabel({ type: 'kick-off' }, { stage: 'LB R1' }, 0)).toBe('Lower Bracket R1');
     });
 });

@@ -41,6 +41,7 @@ import {
     repairSwissByePairs
 } from './swissUtils';
 import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
+import { formatStageLabelForDisplay } from '../../../utils/matchFixtureLabels';
 import {
     generateKnockoutBracketStages,
     getChampionsLeagueScheduleStageIndex,
@@ -4346,6 +4347,8 @@ export const TournamentBracket = ({
                     const nextDisplayStage = currentPage.right;
                     const nextStageIndex =
                         nextDisplayStage != null ? stageLabels.indexOf(nextDisplayStage) : -1;
+                    const formatKnockoutTitle = (label) =>
+                        label === 'Final' ? 'Final' : formatStageLabelForDisplay(label);
 
                     // Shared bracket layout constants
                     const BLOCK_H = 96;
@@ -4418,12 +4421,12 @@ export const TournamentBracket = ({
                                         {isMobileKnockoutView
                                             ? currentDisplayStage === 'Final'
                                                 ? 'Final & Third Place'
-                                                : currentDisplayStage
+                                                : formatKnockoutTitle(currentDisplayStage)
                                             : nextDisplayStage !== null
-                                              ? `${currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage} → ${nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}`
+                                              ? `${formatKnockoutTitle(currentDisplayStage)} → ${formatKnockoutTitle(nextDisplayStage)}`
                                               : currentDisplayStage === 'Final'
                                                 ? 'Final & Third Place'
-                                                : currentDisplayStage}
+                                                : formatKnockoutTitle(currentDisplayStage)}
                                     </div>
                                     <div className={classes.knockoutStageMeta}>
                                         View {clampedStage + 1} of {Math.max(1, knockoutPages.length)}
@@ -4456,13 +4459,13 @@ export const TournamentBracket = ({
                                         onClick={() => setActiveBracketStage(idx)}
                                         title={
                                             page.right
-                                                ? `${page.left} → ${page.right}`
-                                                : page.left
+                                                ? `${formatStageLabelForDisplay(page.left)} → ${formatStageLabelForDisplay(page.right)}`
+                                                : formatStageLabelForDisplay(page.left)
                                         }
                                         aria-label={
                                             page.right
-                                                ? `Go to ${page.left} → ${page.right}`
-                                                : `Go to ${page.left}`
+                                                ? `Go to ${formatStageLabelForDisplay(page.left)} → ${formatStageLabelForDisplay(page.right)}`
+                                                : `Go to ${formatStageLabelForDisplay(page.left)}`
                                         }
                                     />
                                 ))}
@@ -4473,7 +4476,7 @@ export const TournamentBracket = ({
                             >
                                 <div className={classes['bracket-stage-single']}>
                                     <h3 className={classes.knockoutColumnTitle}>
-                                        {currentDisplayStage === 'Final' ? 'Final' : currentDisplayStage}
+                                        {formatKnockoutTitle(currentDisplayStage)}
                                     </h3>
                                     {currentDisplayStage === 'Final' ? (
                                         /* === FINAL + THIRD PLACE === */
@@ -4872,7 +4875,7 @@ export const TournamentBracket = ({
                                     <div className={classes['bracket-stage-single']}>
                                         {/* Column header */}
                                         <h3 className={classes.knockoutColumnTitle}>
-                                            {nextDisplayStage === 'Final' ? 'Final' : nextDisplayStage}
+                                            {formatKnockoutTitle(nextDisplayStage)}
                                         </h3>
                                         {nextDisplayStage === 'Final' ? (
                                             /* === FINAL + THIRD PLACE === */

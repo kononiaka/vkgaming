@@ -42,7 +42,7 @@ const rules = [
     },
     {
         title: 'Country flags',
-        body: 'Registered players may show a country flag on profiles and player lists. On Twitch sign-in, Konoplay detects your country from your connection IP and stores only the two-letter country code (for example PL or UA), not your IP address. You can change or override the flag in your profile settings. VPNs and mobile networks may show the wrong country — pick your country manually if needed.'
+        body: 'Registered players may show a country flag on profiles and player lists. On Twitch or YouTube sign-in, Konoplay detects your country from your connection IP and stores only the two-letter country code (for example PL or UA), not your IP address. You can change or override the flag in your profile settings. VPNs and mobile networks may show the wrong country — pick your country manually if needed.'
     },
     {
         title: 'Privacy',

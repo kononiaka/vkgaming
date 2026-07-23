@@ -6,15 +6,20 @@ import {
     getAppBasePath,
     getSiteBaseUrl,
     getTwitchRedirectUri,
+    getYouTubeRedirectUri,
     isTwitchCallbackPath,
     isTwitchOAuthReturn,
-    shouldHandleTwitchOAuth
+    isYouTubeCallbackPath,
+    shouldHandleOAuthCallback,
+    shouldHandleTwitchOAuth,
+    shouldHandleYouTubeOAuth
 } from '../utils/appBasePath';
 
 describe('appBasePath', () => {
     const originalPublicUrl = process.env.PUBLIC_URL;
     const originalSiteUrl = process.env.REACT_APP_SITE_URL;
     const originalRedirectUri = process.env.REACT_APP_TWITCH_REDIRECT_URI;
+    const originalYouTubeRedirectUri = process.env.REACT_APP_YOUTUBE_REDIRECT_URI;
 
     afterEach(() => {
         if (originalPublicUrl === undefined) {
@@ -24,11 +29,15 @@ describe('appBasePath', () => {
         }
         delete process.env.REACT_APP_SITE_URL;
         delete process.env.REACT_APP_TWITCH_REDIRECT_URI;
+        delete process.env.REACT_APP_YOUTUBE_REDIRECT_URI;
         if (originalSiteUrl !== undefined) {
             process.env.REACT_APP_SITE_URL = originalSiteUrl;
         }
         if (originalRedirectUri !== undefined) {
             process.env.REACT_APP_TWITCH_REDIRECT_URI = originalRedirectUri;
+        }
+        if (originalYouTubeRedirectUri !== undefined) {
+            process.env.REACT_APP_YOUTUBE_REDIRECT_URI = originalYouTubeRedirectUri;
         }
     });
 
@@ -89,6 +98,24 @@ describe('appBasePath', () => {
         window.location = originalLocation;
     });
 
+    test('getYouTubeRedirectUri uses live origin on konoplay.com', () => {
+        process.env.REACT_APP_YOUTUBE_REDIRECT_URI = 'https://kononiaka.github.io/auth/youtube/callback';
+        const originalLocation = window.location;
+        delete window.location;
+        window.location = new URL('https://konoplay.com/');
+        expect(getYouTubeRedirectUri()).toBe('https://konoplay.com/auth/youtube/callback');
+        window.location = originalLocation;
+    });
+
+    test('getYouTubeRedirectUri uses current origin on localhost', () => {
+        process.env.REACT_APP_YOUTUBE_REDIRECT_URI = 'http://localhost:3000/auth/youtube/callback';
+        const originalLocation = window.location;
+        delete window.location;
+        window.location = new URL('http://localhost:3000/');
+        expect(getYouTubeRedirectUri()).toBe('http://localhost:3000/auth/youtube/callback');
+        window.location = originalLocation;
+    });
+
     test('getSiteBaseUrl ignores stale github.io SITE_URL on konoplay.com', () => {
         process.env.REACT_APP_SITE_URL = 'https://kononiaka.github.io';
         const originalLocation = window.location;
@@ -104,15 +131,34 @@ describe('appBasePath', () => {
         expect(isTwitchCallbackPath('/vkgaming/auth/twitch/callback/')).toBe(true);
     });
 
+    test('isYouTubeCallbackPath accepts trailing slash from GitHub Pages', () => {
+        expect(isYouTubeCallbackPath('/auth/youtube/callback/')).toBe(true);
+        expect(isYouTubeCallbackPath('/auth/youtube/callback')).toBe(true);
+        expect(isYouTubeCallbackPath('/vkgaming/auth/youtube/callback/')).toBe(true);
+        expect(isYouTubeCallbackPath('/auth/twitch/callback')).toBe(false);
+    });
+
     test('isTwitchOAuthReturn detects code in query string', () => {
         expect(isTwitchOAuthReturn('?code=abc&state=xyz')).toBe(true);
         expect(isTwitchOAuthReturn('?error=access_denied')).toBe(true);
         expect(isTwitchOAuthReturn('')).toBe(false);
     });
 
-    test('shouldHandleTwitchOAuth covers path and query callbacks', () => {
-        expect(shouldHandleTwitchOAuth('/auth/twitch/callback/', '')).toBe(true);
-        expect(shouldHandleTwitchOAuth('/', '?code=abc&state=xyz')).toBe(true);
+    test('shouldHandleTwitchOAuth is path-only so YouTube ?code= is not stolen', () => {
+        expect(shouldHandleTwitchOAuth('/auth/twitch/callback/')).toBe(true);
+        expect(shouldHandleTwitchOAuth('/auth/youtube/callback/', '?code=abc&state=xyz')).toBe(false);
+        expect(shouldHandleTwitchOAuth('/', '?code=abc&state=xyz')).toBe(false);
         expect(shouldHandleTwitchOAuth('/', '')).toBe(false);
+    });
+
+    test('shouldHandleYouTubeOAuth covers YouTube callback path', () => {
+        expect(shouldHandleYouTubeOAuth('/auth/youtube/callback/')).toBe(true);
+        expect(shouldHandleYouTubeOAuth('/auth/twitch/callback/')).toBe(false);
+    });
+
+    test('shouldHandleOAuthCallback covers both providers', () => {
+        expect(shouldHandleOAuthCallback('/auth/twitch/callback')).toBe(true);
+        expect(shouldHandleOAuthCallback('/auth/youtube/callback/')).toBe(true);
+        expect(shouldHandleOAuthCallback('/')).toBe(false);
     });
 });

@@ -7,7 +7,9 @@ import { NavLink } from 'react-router-dom';
 import StarsComponent from '../../../Stars/Stars';
 import { fetchLastGamesForPlayer, getAvatar, lookForUserId, fetchLeaderboard } from '../../../../api/api';
 import CountryFlag from '../../../Country/CountryFlag';
+import AuthProviderIcon from '../../../Auth/AuthProviderIcon';
 import { resolveCountryCode } from '../../../../utils/country';
+import { resolveAuthProvider } from '../../../../utils/authProvider';
 import classes from './PlayerBracket.module.css';
 import { getGamesPerMatch, normalizeGameType } from '../swissUtils';
 
@@ -87,6 +89,7 @@ export const PlayerBracket = (props) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [userId, setUserId] = useState(null);
     const [countryCode, setCountryCode] = useState(null);
+    const [authProvider, setAuthProvider] = useState(null);
     const [leaderboardPosition, setLeaderboardPosition] = useState(null);
     const tooltipTimeout = useRef(null);
     const cancelledRef = useRef(false);
@@ -110,20 +113,24 @@ export const PlayerBracket = (props) => {
                         if (userResponse.ok) {
                             const userData = await userResponse.json();
                             setCountryCode(resolveCountryCode(userData));
+                            setAuthProvider(resolveAuthProvider(userData));
                         }
                     } else {
                         setCountryCode(null);
+                        setAuthProvider(null);
                     }
                 } catch (error) {
                     console.error('Error fetching avatar:', error);
                     setAvatarUrl(null);
                     setUserId(null);
                     setCountryCode(null);
+                    setAuthProvider(null);
                 }
             } else {
                 setAvatarUrl(null);
                 setUserId(null);
                 setCountryCode(null);
+                setAuthProvider(null);
             }
         };
         fetchAvatar();
@@ -211,23 +218,28 @@ export const PlayerBracket = (props) => {
 
         // Capture rect before async — e.currentTarget may be null after await
         const rect = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
+        const playerName = teamPlayer;
 
-        const streakArr = await fetchLastGamesForPlayer(teamPlayer, 5);
-        if (cancelledRef.current) {
-            return;
-        }
+        // Small delay so brushing past the streak dot (e.g. toward the platform icon) does not flash.
+        tooltipTimeout.current = setTimeout(async () => {
+            const streakArr = await fetchLastGamesForPlayer(playerName, 5);
+            if (cancelledRef.current) {
+                return;
+            }
 
-        setStreak(streakArr);
-        if (rect) {
-            setTooltipPos({ x: rect.right + 8, y: rect.top });
-        }
-        setShowTooltip(true);
+            setStreak(streakArr);
+            if (rect) {
+                setTooltipPos({ x: rect.right + 8, y: rect.top });
+            }
+            setShowTooltip(true);
+        }, 180);
     };
 
     const handleMouseLeave = () => {
         cancelledRef.current = true;
         if (tooltipTimeout.current) {
             clearTimeout(tooltipTimeout.current);
+            tooltipTimeout.current = null;
         }
         setShowTooltip(false);
     };
@@ -353,11 +365,11 @@ export const PlayerBracket = (props) => {
 
     const renderPortraitStars = () => {
         if (isSourcePairHint || !playerStars || playerStars === 'TBD') {
-            return null;
+            return <span className={classes.starsSlotSpacer} aria-hidden="true" />;
         }
 
         return (
-            <div className={classes.starsOnPortrait}>
+            <div className={classes.starsSlot}>
                 <div className={classes.stars_wrapper}>
                     <StarsComponent stars={playerStars} />
                     <div className={classes.stars_details}>Ratings: {renderRatingTooltip()}</div>
@@ -368,7 +380,7 @@ export const PlayerBracket = (props) => {
 
     const renderPlayerPortrait = () => {
         if (isSourcePairHint || teamPlayer === 'TBD') {
-            return null;
+            return <span className={classes.portraitSlotSpacer} aria-hidden="true" />;
         }
 
         const portrait = avatarUrl ? (
@@ -382,14 +394,8 @@ export const PlayerBracket = (props) => {
         );
 
         return (
-            <div
-                className={classes.portraitWrap}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                onClick={handleStreakClick}
-            >
+            <div className={classes.portraitWrap} onClick={handleStreakClick}>
                 {portrait}
-                {renderPortraitStars()}
             </div>
         );
     };
@@ -626,24 +632,23 @@ export const PlayerBracket = (props) => {
             <div className={classes.playerIdentity}>
                 {!isSourcePairHint ? (
                     <div className={classes.playerTopRow}>
-                        {displayCountryCode ? (
-                            <span className={classes.playerFlagInline}>
-                                <CountryFlag code={displayCountryCode} size={18} />
-                            </span>
-                        ) : null}
-                        <div className={classes.playerPortraitCol}>
-                            <div className={classes.portraitSlot}>{renderPlayerPortrait()}</div>
-                            <div className={classes.playerMeta}>
-                                {displayCountryCode ? (
-                                    <span className={classes.playerFlagMeta}>
-                                        <CountryFlag code={displayCountryCode} size={16} />
-                                    </span>
-                                ) : (
-                                    <span className={classes.playerFlagSpacer} aria-hidden="true" />
-                                )}
-                                {renderPlayerName()}
-                            </div>
-                        </div>
+                        <span className={classes.flagSlot}>
+                            {displayCountryCode ? (
+                                <CountryFlag code={displayCountryCode} size={16} />
+                            ) : (
+                                <span className={classes.flagSlotSpacer} aria-hidden="true" />
+                            )}
+                        </span>
+                        <div className={classes.portraitSlot}>{renderPlayerPortrait()}</div>
+                        <span className={classes.providerSlot}>
+                            {authProvider ? (
+                                <AuthProviderIcon provider={authProvider} size={13} />
+                            ) : (
+                                <span className={classes.providerSlotSpacer} aria-hidden="true" />
+                            )}
+                        </span>
+                        <div className={classes.playerMeta}>{renderPlayerName()}</div>
+                        {renderPortraitStars()}
                     </div>
                 ) : (
                     <div className={`${classes.playerMeta} ${classes.playerMetaHint}`}>{renderPlayerName()}</div>

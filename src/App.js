@@ -13,6 +13,7 @@ import PlayersList from './components/Players/PlayersList';
 import UserProfile from './components/Profile/UserProfile';
 import TournamentList from './components/tournaments/homm3/Tournaments';
 import TwitchCallback from './components/Auth/TwitchCallback';
+import YouTubeCallback from './components/Auth/YouTubeCallback';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
@@ -23,16 +24,21 @@ import RulesPage from './pages/RulesPage';
 import LiveArenaPage from './pages/LiveArenaPage';
 import MatchCenterPage from './pages/MatchCenterPage';
 import AuthContext from './store/auth-context';
-import { shouldHandleTwitchOAuth } from './utils/appBasePath';
+import { shouldHandleTwitchOAuth, shouldHandleYouTubeOAuth } from './utils/appBasePath';
 
 import classes from './App.module.css';
 
 function App() {
     const authCtx = useContext(AuthContext);
     const isTwitchCallback = shouldHandleTwitchOAuth();
+    const isYouTubeCallback = shouldHandleYouTubeOAuth();
 
     if (isTwitchCallback) {
         return <TwitchCallback />;
+    }
+
+    if (isYouTubeCallback) {
+        return <YouTubeCallback />;
     }
 
     return (
@@ -55,6 +61,7 @@ function App() {
                     <Route path="/live/match/:tournamentId/:stageIndex/:pairIndex" element={<MatchCenterPage />} />
                     <Route path="/live" element={<LiveArenaPage />} />
                     <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
+                    <Route path="/auth/youtube/callback" element={<YouTubeCallback />} />
                     {!authCtx.isLogged && <Route path="/auth" element={<AuthPage />} />}
                     <Route path="/profile" element={authCtx.isLogged ? <UserProfile /> : <Navigate to="/auth" />} />
                     <Route path="*" element={<NotFound />} />
