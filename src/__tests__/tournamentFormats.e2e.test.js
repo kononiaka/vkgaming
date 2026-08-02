@@ -50,7 +50,9 @@ import {
     dropLoserToBracket,
     getDoubleElimStageLabels,
     isDoubleElimSize,
-    promoteLoserBracketWinner
+    promoteLoserBracketWinner,
+    resolveThirdPlaceFinisher,
+    shouldAwardThirdPlaceForStage
 } from '../components/tournaments/homm3/loserBracketUtils';
 
 const makePlayer = (name, ratings = '1500') => ({ name, ratings, stars: 0 });
@@ -296,6 +298,32 @@ describe('tournament format E2E flows', () => {
             expect(generated.stageLabels).toEqual(['Semi-final', 'Third Place', 'Final']);
             expect(generated.stages[0]).toHaveLength(2);
             expect(generated.stages[0].some((pair) => pair.team1 === 'P1' || pair.team2 === 'P1')).toBe(true);
+        });
+
+        test('applies separate playoff, third place, and final match types', () => {
+            const eightPlayers = players.slice(0, 8);
+            const records = {
+                P1: '3-0',
+                P2: '3-1',
+                P3: '3-1',
+                P4: '3-2',
+                P5: '2-3',
+                P6: '1-3',
+                P7: '1-3',
+                P8: '0-3'
+            };
+            const pairs = buildPairsFromRecords(records);
+            const generated = generateCsSwissPlayoffStages(pairs, eightPlayers, {
+                playoffType: 'bo-1',
+                thirdPlaceType: 'bo-3',
+                finalType: 'bo-5'
+            });
+
+            expect(generated.valid).toBe(true);
+            expect(generated.stages[0].every((pair) => pair.type === 'bo-1')).toBe(true);
+            expect(generated.stages[1][0].type).toBe('bo-3');
+            expect(generated.stages[2][0].type).toBe('bo-5');
+            expect(generated.stages[2][0].games).toHaveLength(5);
         });
     });
 
@@ -868,6 +896,16 @@ describe('tournament format E2E flows', () => {
             const grandFinal = updatedPairs[stageIdx('Grand Final')];
             expect([grandFinal[0].team1, grandFinal[0].team2]).toEqual(['A', 'B']);
 
+            expect(
+                resolveThirdPlaceFinisher({
+                    hasLoserBracket: true,
+                    stage: 'LB Final',
+                    winner: 'B',
+                    team1: 'B',
+                    team2: 'E'
+                })
+            ).toBe('E');
+
             // No stage should be left with an unfilled competitive slot
             labels.forEach((label, index) => {
                 updatedPairs[index].forEach((pair) => {
@@ -875,6 +913,53 @@ describe('tournament format E2E flows', () => {
                     expect(pair.team2).not.toBe('TBD');
                 });
             });
+        });
+
+        test('LB Final loser is recorded as 3rd place; Third Place match winner is 3rd in single elim', () => {
+            expect(shouldAwardThirdPlaceForStage(true, 'LB Final')).toBe(true);
+            expect(shouldAwardThirdPlaceForStage(true, 'Grand Final')).toBe(false);
+            expect(shouldAwardThirdPlaceForStage(false, 'Third Place')).toBe(true);
+            expect(shouldAwardThirdPlaceForStage(false, 'Final')).toBe(false);
+
+            expect(
+                resolveThirdPlaceFinisher({
+                    hasLoserBracket: true,
+                    stage: 'LB Final',
+                    winner: 'Alpha',
+                    team1: 'Alpha',
+                    team2: 'Bravo'
+                })
+            ).toBe('Bravo');
+
+            expect(
+                resolveThirdPlaceFinisher({
+                    hasLoserBracket: true,
+                    stage: 'LB Final',
+                    winner: 'Bravo',
+                    team1: 'Alpha',
+                    team2: 'Bravo'
+                })
+            ).toBe('Alpha');
+
+            expect(
+                resolveThirdPlaceFinisher({
+                    hasLoserBracket: false,
+                    stage: 'Third Place',
+                    winner: 'Charlie',
+                    team1: 'Charlie',
+                    team2: 'Delta'
+                })
+            ).toBe('Charlie');
+
+            expect(
+                resolveThirdPlaceFinisher({
+                    hasLoserBracket: true,
+                    stage: 'Grand Final',
+                    winner: 'Alpha',
+                    team1: 'Alpha',
+                    team2: 'Bravo'
+                })
+            ).toBeNull();
         });
     });
 });

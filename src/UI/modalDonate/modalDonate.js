@@ -8,6 +8,9 @@ import classes from './modalDonate.module.css';
 const STRIPE_DONATIONS_ENABLED = false;
 const STRIPE_FUNCTION_URL = 'https://us-central1-test-prod-app-81915.cloudfunctions.net/createStripeCheckout';
 const MIN_STRIPE_DONATION_USD = 5;
+const BMC_URL = process.env.REACT_APP_BMC_URL || 'https://buymeacoffee.com/konoplay';
+const DONATION_ALERTS_URL = 'https://www.donationalerts.com/r/konoplay';
+const MONOBANK_URL = 'https://send.monobank.ua/jar/834ApdUfdC';
 
 const ModalDonate = (props) => {
     const authCtx = useContext(AuthContext);
@@ -104,16 +107,32 @@ const ModalDonate = (props) => {
 
             <p className={classes.donate_title}>via Donation Alerts</p>
             <p className={classes.customNote}>
-                Donate any amount — matched by your Donation Alerts username set in your Profile.
+                Donate any amount — use your donation name from Profile as the donor name so we can credit your
+                account.
             </p>
             <div className={classes.donate_logo_block}>
                 <a
-                    href="https://www.donationalerts.com/r/konoplay"
+                    href={DONATION_ALERTS_URL}
                     target="_blank"
                     rel="noreferrer"
                     onClick={!authCtx.isLogged ? () => setLoginPrompt(true) : undefined}
                 >
                     Open Donation Alerts →
+                </a>
+            </div>
+
+            <p className={classes.donate_title}>via Buy Me a Coffee</p>
+            <p className={classes.customNote}>
+                International tips — use the same donation name from Profile as the supporter name.
+            </p>
+            <div className={classes.donate_logo_block}>
+                <a
+                    href={BMC_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={!authCtx.isLogged ? () => setLoginPrompt(true) : undefined}
+                >
+                    Open Buy Me a Coffee →
                 </a>
             </div>
 
@@ -144,12 +163,12 @@ const ModalDonate = (props) => {
                             </button>
                         </div>
                     </form>
-                    <p className={classes.customNote}>For smaller amounts, use Donation Alerts.</p>
+                    <p className={classes.customNote}>For smaller amounts, use Donation Alerts or Buy Me a Coffee.</p>
                 </>
             ) : (
                 <>
                     <p className={classes.customNote}>
-                        Card payments are coming soon. Use Donation Alerts or MonoBank for now.
+                        Card payments are coming soon. Use Donation Alerts, Buy Me a Coffee, or MonoBank for now.
                     </p>
                     <button type="button" className={classes.comingSoonBtn} disabled>
                         Coming soon
@@ -168,7 +187,7 @@ const ModalDonate = (props) => {
 
             <p className={classes.donate_title}>Other</p>
             <div className={classes.donate_logo_block}>
-                <a href="https://send.monobank.ua/jar/834ApdUfdC" target="_blank" rel="noreferrer">
+                <a href={MONOBANK_URL} target="_blank" rel="noreferrer">
                     Donate via MonoBank
                 </a>
             </div>

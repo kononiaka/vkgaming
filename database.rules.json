@@ -107,6 +107,10 @@
             ".read": false,
             ".write": false
         },
+        "processedBmcDonations": {
+            ".read": false,
+            ".write": false
+        },
         "processedStripe": {
             ".read": false,
             ".write": false

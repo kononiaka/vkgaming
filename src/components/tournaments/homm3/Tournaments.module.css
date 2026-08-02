@@ -160,6 +160,36 @@
     box-shadow: none;
 }
 
+.cardBody {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.cardMain {
+    flex: 1;
+    min-width: 0;
+}
+
+.cardAside {
+    flex: 0 0 clamp(16rem, 32%, 22rem);
+    width: clamp(16rem, 32%, 22rem);
+    position: sticky;
+    top: 0.5rem;
+}
+
+@media (max-width: 760px) {
+    .cardBody {
+        flex-direction: column;
+    }
+
+    .cardAside {
+        width: 100%;
+        flex-basis: auto;
+        position: static;
+    }
+}
+
 .tournamentTitle {
     display: flex;
     align-items: center;
@@ -188,6 +218,27 @@
     height: 24px !important;
 }
 
+.statusRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+
+.fullLabel {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    background: rgba(201, 162, 39, 0.08);
+    color: var(--color-gold);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
 .statusBadge {
     display: inline-block;
     padding: 0.25rem 0.55rem;
@@ -199,7 +250,7 @@
     text-transform: uppercase;
     font-size: 0.68rem;
     letter-spacing: 0.06em;
-    margin: 0 0 0.85rem;
+    margin: 0;
 }
 
 .statusBadge.registration {
@@ -557,7 +608,7 @@
 }
 
 .prizePool {
-    margin: 1rem 0 0;
+    margin: 0;
     padding: 0.85rem 1rem;
     background: var(--color-bg-panel-alt);
     border: var(--border-subtle);
@@ -576,7 +627,7 @@
 }
 
 .winnersSection {
-    margin: 1rem 0 0;
+    margin: 0;
     padding: 0.85rem 1rem;
     background: var(--color-bg-panel-alt);
     border: var(--border-subtle);
@@ -670,20 +721,25 @@
     flex-wrap: wrap;
 }
 
-.fullBanner {
-    padding: 0.85rem 1rem;
-    background: rgba(201, 162, 39, 0.1);
-    border: 1px solid rgba(201, 162, 39, 0.35);
-    border-radius: var(--radius-md);
-    text-align: center;
+.startCta {
     margin-top: 1rem;
 }
 
-.fullBannerTitle {
-    margin: 0 0 0.5rem;
-    color: var(--color-gold);
-    font-weight: 600;
-    font-size: 0.95rem;
+.btnStart {
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.9rem 1.25rem;
+    font-size: 1.05rem;
+    letter-spacing: 0.03em;
+    border-color: rgba(76, 175, 106, 0.65);
+    background: rgba(76, 175, 106, 0.18);
+    color: #9eddb3;
+}
+
+.btnStart:hover {
+    background: rgba(76, 175, 106, 0.28);
+    border-color: #7ec99a;
+    color: #b8ebc9;
 }
 
 .placeBadge {
@@ -731,29 +787,25 @@
 
 .winnerItem {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.65rem 0.75rem;
-    margin: 0.4rem 0;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.7rem 0.8rem;
+    margin: 0.45rem 0;
     background: var(--color-bg-deep);
     border: var(--border-subtle);
     border-left: 2px solid var(--color-gold-dim);
     border-radius: var(--radius-sm);
 }
 
-.placeLabel {
-    color: var(--color-text-muted);
-    font-weight: 500;
-    font-size: 0.8rem;
-    min-width: 36px;
-}
-
 .winnerNameLarge {
     color: var(--color-text);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     text-shadow: none;
     flex: 1;
+    min-width: 0;
+    line-height: 1.35;
+    word-break: break-word;
 }
 
 .prizeInBrackets {
@@ -766,10 +818,9 @@
 .prizeItem {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0;
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.55rem 0.15rem;
 }
 
 .prizePlace {
