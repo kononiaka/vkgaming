@@ -368,6 +368,11 @@
 
 .schedulePlayerCellRight {
     flex-direction: row-reverse;
+    justify-content: flex-start;
+}
+
+.schedulePlayerCellRight .schedulePlayerName {
+    text-align: right;
 }
 
 .schedulePlayerAvatar {
@@ -394,19 +399,38 @@
     border: 1px solid rgba(201, 162, 39, 0.25);
 }
 
-.schedulePlayerFlag {
+.schedulePlayerFlag,
+.schedulePlayerFlagSpacer {
     flex-shrink: 0;
     line-height: 1;
     display: flex;
     align-items: center;
+    width: 1.25rem;
+    justify-content: center;
 }
 
-.schedulePlayerStars {
+.schedulePlayerProvider,
+.schedulePlayerProviderSpacer {
+    flex-shrink: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    width: 0.95rem;
+    justify-content: center;
+}
+
+.schedulePlayerStars,
+.schedulePlayerStarsSpacer {
     flex-shrink: 0;
     font-size: 0.75rem;
     line-height: 1;
     display: flex;
     align-items: center;
+    min-width: 4.5rem;
+}
+
+.schedulePlayerStarsSpacer {
+    visibility: hidden;
 }
 
 .schedulePlayerName {
@@ -428,11 +452,6 @@
     color: var(--color-gold-dim);
     font-weight: 600;
     margin-right: 0.25rem;
-}
-
-.teamCellRight .placeTag {
-    margin-right: 0;
-    margin-left: 0.25rem;
 }
 
 .starsWrap {
@@ -658,17 +677,29 @@
 .playerCell {
     text-align: left !important;
     font-weight: 600;
+    min-width: 18rem;
 }
 
 .standingsPlayer {
-    display: flex;
+    display: grid;
+    grid-template-columns:
+        1.15rem
+        1.35rem
+        0.95rem
+        11rem
+        6.75rem
+        5.75rem;
     align-items: center;
-    gap: 0.45rem;
+    justify-content: start;
+    column-gap: 0.55rem;
     min-width: 0;
+    width: max-content;
+    max-width: 100%;
 }
 
 .standingsPlayerLink {
-    display: inline-flex;
+    display: block;
+    width: max-content;
     max-width: 100%;
     color: inherit;
     text-decoration: none;
@@ -708,11 +739,29 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
     flex-shrink: 0;
     line-height: 1;
 }
 
+.standingsPlayerProvider {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.standingsPlayerNameWrap {
+    min-width: 0;
+    overflow: hidden;
+}
+
 .standingsPlayerName {
+    display: block;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -727,10 +776,29 @@ a.standingsPlayerName:hover {
 }
 
 .standingsPlayerStars {
-    flex-shrink: 0;
-    display: inline-flex;
-    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 6.75rem;
+    min-height: 1.1rem;
     line-height: 1;
+}
+
+.standingsPlayerStars img {
+    display: block;
+    height: 1.05rem;
+    width: auto;
+    max-width: 6.5rem;
+    object-fit: contain;
+    object-position: left center;
+}
+
+.standingsPlayerBadge {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 5.75rem;
+    min-height: 1.1rem;
 }
 
 .leader .standingsPlayerName {
@@ -826,7 +894,6 @@ a.standingsPlayerName:hover {
 
 .qualifierBadge {
     display: inline-block;
-    margin-left: 0.45rem;
     padding: 0.08rem 0.35rem;
     font-size: 0.62rem;
     font-weight: 700;
@@ -837,6 +904,7 @@ a.standingsPlayerName:hover {
     border: 1px solid rgba(76, 175, 106, 0.4);
     border-radius: var(--radius-sm);
     vertical-align: middle;
+    white-space: nowrap;
 }
 
 .emptyNote {

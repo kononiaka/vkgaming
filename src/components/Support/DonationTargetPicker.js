@@ -5,7 +5,7 @@ import { getFirebaseUid } from '../../api/authFetch';
 import { fetchDonatableTournamentPools, resolveDonationTargetIds } from '../../utils/prizePoolData';
 import classes from './DonationTargetPicker.module.css';
 
-const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false }) => {
+const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false, variant = 'page' }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -86,8 +86,10 @@ const DonationTargetPicker = ({ selectedIds, onSelectionChange, isLogged = false
     };
 
     return (
-        <section className={classes.panel} aria-label="Choose cups to support">
-            <div className={classes.panelHeader}>
+        <section
+            className={`${classes.panel} ${variant === 'sidebar' ? classes.panelSidebar : ''}`}
+            aria-label="Choose cups to support"
+        >            <div className={classes.panelHeader}>
                 <div>
                     <h2 className={classes.title}>Choose cups to support</h2>
                     <p className={classes.subtitle}>90% of your donation is split equally among the selected cups.</p>

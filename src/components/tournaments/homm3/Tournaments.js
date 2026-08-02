@@ -2218,13 +2218,16 @@ const TournamentList = () => {
                         const getStatusClass = getTournamentStatusClass;
 
                         const getPlaceLabel = (place) => {
-                            if (place === '1st' || place === '1') {
+                            const raw = String(place || '')
+                                .toLowerCase()
+                                .trim();
+                            if (raw === '1' || raw.startsWith('1st') || raw.includes('1st ')) {
                                 return '1st';
                             }
-                            if (place === '2nd' || place === '2') {
+                            if (raw === '2' || raw.startsWith('2nd') || raw.includes('2nd ')) {
                                 return '2nd';
                             }
-                            if (place === '3rd' || place === '3') {
+                            if (raw === '3' || raw.startsWith('3rd') || raw.includes('3rd ')) {
                                 return '3rd';
                             }
                             return place;
@@ -2272,9 +2275,18 @@ const TournamentList = () => {
                                     </span>
                                     {renderTournamentAverageStars(tournament)}
                                 </h3>
-                                <div className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}>
-                                    {tournament.status}
+                                <div className={classes.statusRow}>
+                                    <div
+                                        className={`${classes.statusBadge} ${classes[getStatusClass(tournament.status)]}`}
+                                    >
+                                        {tournament.status}
+                                    </div>
+                                    {tournament.status === 'Registration finished!' ? (
+                                        <span className={classes.fullLabel}>Tournament full</span>
+                                    ) : null}
                                 </div>
+                                <div className={classes.cardBody}>
+                                <div className={classes.cardMain}>
                                 <div className={classes.infoGrid}>
                                     <div className={classes.infoItem}>
                                         <p>
@@ -2588,52 +2600,6 @@ const TournamentList = () => {
                                         </button>
                                     )}
 
-                                    {authCtx.isAdmin &&
-                                        tournament.type === 'league' &&
-                                        tournament.status === 'Registration finished!' && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() => handleStartLeague(tournament.id)}
-                                            >
-                                                Start league
-                                            </button>
-                                        )}
-
-                                    {authCtx.isAdmin &&
-                                        tournament.type === 'swiss' &&
-                                        tournament.status === 'Registration finished!' && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() => handleStartSwiss(tournament.id)}
-                                            >
-                                                Start Swiss
-                                            </button>
-                                        )}
-
-                                    {authCtx.isAdmin &&
-                                        isChampionsLeagueType(tournament.type) &&
-                                        tournament.status === 'Registration finished!' && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() => {
-                                                    setClickedId(tournament.id);
-                                                    setTournamentPlayers(tournament.players || {});
-                                                    if (tournament.randomBracket) {
-                                                        setSpinningWheelMode('champions-league');
-                                                        setShowSpinningWheel(true);
-                                                        return;
-                                                    }
-                                                    handleStartChampionsLeague(tournament.id);
-                                                }}
-                                            >
-                                                {tournament.randomBracket
-                                                    ? 'Draw groups (wheel)'
-                                                    : isChampionsLeagueTwoGroupType(tournament.type)
-                                                      ? 'Start first group stage'
-                                                      : 'Start group stage'}
-                                            </button>
-                                        )}
-
                                     {checkRegisterUser(userNickName, getTournamentPlayersObject(tournament)) ? (
                                         <div className={classes.registrationActions}>
                                             <div className={classes.registeredBadge}>You are registered</div>
@@ -2798,34 +2764,86 @@ const TournamentList = () => {
                                     </div>
                                 )}
 
-                                {tournament.status === 'Registration finished!' && (
-                                    <div className={classes.fullBanner}>
-                                        <p className={classes.fullBannerTitle}>Tournament is full</p>
-                                        {authCtx.isAdmin && !isScheduleTournamentType(tournament.type) && (
-                                            <button
-                                                className={`${classes.btn} ${classes.btnSuccess}`}
-                                                onClick={() =>
-                                                    showDetailsHandler(
-                                                        tournament.status,
-                                                        tournament.winners,
-                                                        tournament.id,
-                                                        tournament
-                                                    )
-                                                }
-                                            >
-                                                Start tournament
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                                {(authCtx.isAdmin || isTournamentCreator(tournament, userNickName)) &&
+                                    tournament.status === 'Registration finished!' && (
+                                        <div className={classes.startCta}>
+                                            {tournament.type === 'league' ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnStart}`}
+                                                    onClick={() => handleStartLeague(tournament.id)}
+                                                >
+                                                    Start league
+                                                </button>
+                                            ) : null}
+                                            {tournament.type === 'swiss' ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnStart}`}
+                                                    onClick={() => handleStartSwiss(tournament.id)}
+                                                >
+                                                    Start Swiss
+                                                </button>
+                                            ) : null}
+                                            {tournament.type === 'cs-swiss' ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnStart}`}
+                                                    onClick={() => handleStartSwiss(tournament.id)}
+                                                >
+                                                    Start CS Swiss
+                                                </button>
+                                            ) : null}
+                                            {isChampionsLeagueType(tournament.type) ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnStart}`}
+                                                    onClick={() => {
+                                                        setClickedId(tournament.id);
+                                                        setTournamentPlayers(tournament.players || {});
+                                                        if (tournament.randomBracket) {
+                                                            setSpinningWheelMode('champions-league');
+                                                            setShowSpinningWheel(true);
+                                                            return;
+                                                        }
+                                                        handleStartChampionsLeague(tournament.id);
+                                                    }}
+                                                >
+                                                    {tournament.randomBracket
+                                                        ? 'Draw groups (wheel)'
+                                                        : isChampionsLeagueTwoGroupType(tournament.type)
+                                                          ? 'Start first group stage'
+                                                          : 'Start group stage'}
+                                                </button>
+                                            ) : null}
+                                            {!isScheduleTournamentType(tournament.type) ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${classes.btn} ${classes.btnStart}`}
+                                                    onClick={() =>
+                                                        showDetailsHandler(
+                                                            tournament.status,
+                                                            tournament.winners,
+                                                            tournament.id,
+                                                            tournament
+                                                        )
+                                                    }
+                                                >
+                                                    Start tournament
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    )}
 
+                                </div>
+
+                                <aside className={classes.cardAside}>
                                 {!tournament.status.includes('Finished') && prizeBreakdown ? (
                                     <div className={classes.prizePool}>
                                         <h4>Prize pool</h4>
                                         {Object.entries(prizeBreakdown).map(([place, prize]) => (
                                             <div key={place} className={classes.prizeItem}>
                                                 <span className={classes.placeBadge}>{getPlaceLabel(place)}</span>
-                                                <span className={classes.prizePlace}>{place}:</span>
                                                 <span className={classes.prizeAmount}>
                                                     {`$${Number(prize).toLocaleString()}`}
                                                 </span>
@@ -2845,10 +2863,9 @@ const TournamentList = () => {
                                                         >
                                                             {getPlaceLabel(place)}
                                                         </span>
-                                                        <span className={classes.placeLabel}>{place}</span>
                                                         <span className={classes.winnerNameLarge}>
                                                             {winner}
-                                                            {prize && (
+                                                            {prize != null && prize !== '' && (
                                                                 <span className={classes.prizeInBrackets}>
                                                                     {' '}
                                                                     {`($${prize})`}
@@ -2861,6 +2878,8 @@ const TournamentList = () => {
                                         </div>
                                     )
                                 )}
+                                </aside>
+                                </div>
                             </li>
                         );
                     })}

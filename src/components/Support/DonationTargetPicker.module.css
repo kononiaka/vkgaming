@@ -6,6 +6,38 @@
     margin-bottom: 1.5rem;
 }
 
+.panelSidebar {
+    margin-bottom: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+}
+
+.panelSidebar .panelHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+}
+
+.panelSidebar .itemName {
+    font-size: 0.48rem;
+}
+
+.panelSidebar .progressTrack {
+    height: 1.65rem;
+}
+
+.panelSidebar .progressLabel {
+    font-size: 0.68rem;
+    padding: 0 0.5rem;
+}
+
+.panelSidebar .progressGoal {
+    right: 0.5rem;
+}
+
 .panelHeader {
     display: flex;
     align-items: flex-start;

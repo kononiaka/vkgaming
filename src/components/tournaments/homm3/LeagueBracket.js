@@ -2,11 +2,13 @@ import { FIREBASE_DATABASE_URL } from '../../../config/firebase';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { getAvatar, lookForUserId } from '../../../api/api';
+import AuthProviderIcon from '../../Auth/AuthProviderIcon';
 import CountryFlag from '../../Country/CountryFlag';
 import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../../Stars/Stars';
 import MatchScheduleControl from './MatchScheduleControl';
 import { useHeadToHeadStats } from '../../../hooks/useHeadToHeadStats';
+import { resolveAuthProvider } from '../../../utils/authProvider';
 import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
 import { isGameSessionActive, isPairLive } from '../../../utils/matchCenterData';
 import classes from './LeagueBracket.module.css';
@@ -216,11 +218,13 @@ const StandingsPlayerCell = ({
 }) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [userId, setUserId] = useState(player?.siteUserId || null);
+    const [authProvider, setAuthProvider] = useState(null);
 
     useEffect(() => {
         if (!name) {
             setAvatarUrl(null);
             setUserId(null);
+            setAuthProvider(null);
             return undefined;
         }
 
@@ -237,11 +241,26 @@ const StandingsPlayerCell = ({
                     setUserId(resolvedUserId || null);
                 }
 
-                if (resolvedUserId && !cancelled) {
-                    const avatar = await getAvatar(resolvedUserId);
-                    if (!cancelled && avatar) {
-                        setAvatarUrl(avatar);
-                    }
+                if (!resolvedUserId || cancelled) {
+                    return;
+                }
+
+                const [avatar, userResponse] = await Promise.all([
+                    getAvatar(resolvedUserId),
+                    fetch(`${FIREBASE_DATABASE_URL}/users/${resolvedUserId}.json`)
+                ]);
+
+                if (cancelled) {
+                    return;
+                }
+
+                if (avatar) {
+                    setAvatarUrl(avatar);
+                }
+
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    setAuthProvider(resolveAuthProvider(userData));
                 }
             } catch {
                 // Profile data is optional.
@@ -265,11 +284,9 @@ const StandingsPlayerCell = ({
 
     return (
         <div className={classes.standingsPlayer}>
-            {countryCode ? (
-                <span className={classes.standingsPlayerFlag}>
-                    <CountryFlag code={countryCode} size={16} />
-                </span>
-            ) : null}
+            <span className={classes.standingsPlayerFlag}>
+                {countryCode ? <CountryFlag code={countryCode} size={16} /> : null}
+            </span>
             {avatarUrl ? (
                 <img src={avatarUrl} alt="" className={classes.standingsPlayerAvatar} />
             ) : (
@@ -277,23 +294,28 @@ const StandingsPlayerCell = ({
                     {name.charAt(0).toUpperCase()}
                 </div>
             )}
-            {nameContent}
-            {stars > 0 && (
-                <span className={classes.standingsPlayerStars}>
-                    <StarsComponent stars={stars} />
-                </span>
-            )}
-            {showKnockoutBadge && <span className={classes.qualifierBadge}>{knockoutBadgeLabel}</span>}
+            <span className={classes.standingsPlayerProvider}>
+                {authProvider ? <AuthProviderIcon provider={authProvider} size={12} /> : null}
+            </span>
+            <span className={classes.standingsPlayerNameWrap}>{nameContent}</span>
+            <span className={classes.standingsPlayerStars}>
+                {stars > 0 ? <StarsComponent stars={stars} /> : null}
+            </span>
+            <span className={classes.standingsPlayerBadge}>
+                {showKnockoutBadge ? <span className={classes.qualifierBadge}>{knockoutBadgeLabel}</span> : null}
+            </span>
         </div>
     );
 };
 
-const usePlayerAvatar = (name, player) => {
+const usePlayerProfile = (name, player) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
+    const [authProvider, setAuthProvider] = useState(null);
 
     useEffect(() => {
         if (!name) {
             setAvatarUrl(null);
+            setAuthProvider(null);
             return undefined;
         }
 
@@ -306,11 +328,26 @@ const usePlayerAvatar = (name, player) => {
                     userId = await lookForUserId(name);
                 }
 
-                if (userId && !cancelled) {
-                    const avatar = await getAvatar(userId);
-                    if (!cancelled && avatar) {
-                        setAvatarUrl(avatar);
-                    }
+                if (!userId || cancelled) {
+                    return;
+                }
+
+                const [avatar, userResponse] = await Promise.all([
+                    getAvatar(userId),
+                    fetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`)
+                ]);
+
+                if (cancelled) {
+                    return;
+                }
+
+                if (avatar) {
+                    setAvatarUrl(avatar);
+                }
+
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    setAuthProvider(resolveAuthProvider(userData));
                 }
             } catch {
                 // Avatar is optional.
@@ -324,11 +361,11 @@ const usePlayerAvatar = (name, player) => {
         };
     }, [name, player?.siteUserId]);
 
-    return avatarUrl;
+    return { avatarUrl, authProvider };
 };
 
 const SchedulePlayerCell = ({ name, player, stars, place, countryCode, align = 'left', isWinner = false }) => {
-    const avatarUrl = usePlayerAvatar(name, player);
+    const { avatarUrl, authProvider } = usePlayerProfile(name, player);
     const isRight = align === 'right';
 
     const avatar = avatarUrl ? (
@@ -347,18 +384,28 @@ const SchedulePlayerCell = ({ name, player, stars, place, countryCode, align = '
                 <span className={classes.schedulePlayerFlag}>
                     <CountryFlag code={countryCode} size={16} />
                 </span>
-            ) : null}
+            ) : (
+                <span className={classes.schedulePlayerFlagSpacer} aria-hidden="true" />
+            )}
+            {avatar}
+            {authProvider ? (
+                <span className={classes.schedulePlayerProvider}>
+                    <AuthProviderIcon provider={authProvider} size={13} />
+                </span>
+            ) : (
+                <span className={classes.schedulePlayerProviderSpacer} aria-hidden="true" />
+            )}
+            <span className={`${classes.schedulePlayerName} ${isWinner ? classes.winnerName : ''}`}>
+                {place ? <span className={classes.placeTag}>#{place}</span> : null}
+                {name}
+            </span>
             {stars > 0 ? (
                 <div className={classes.schedulePlayerStars}>
                     <StarsComponent stars={stars} />
                 </div>
-            ) : null}
-            {avatar}
-            <span className={`${classes.schedulePlayerName} ${isWinner ? classes.winnerName : ''}`}>
-                {!isRight && place ? <span className={classes.placeTag}>#{place}</span> : null}
-                {name}
-                {isRight && place ? <span className={classes.placeTag}>#{place}</span> : null}
-            </span>
+            ) : (
+                <span className={classes.schedulePlayerStarsSpacer} aria-hidden="true" />
+            )}
         </div>
     );
 };

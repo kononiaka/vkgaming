@@ -472,21 +472,31 @@ export const generateNextCsSwissRoundPairings = (
 export const generateCsSwissPlayoffStages = (
     swissPairs,
     playerList,
-    gameType = 'bo-1',
+    gameTypeOrOptions = 'bo-1',
     winTarget = CS_SWISS_WIN_TARGET,
     lossLimit = CS_SWISS_LOSS_LIMIT
 ) => {
+    const options =
+        gameTypeOrOptions && typeof gameTypeOrOptions === 'object'
+            ? gameTypeOrOptions
+            : { playoffType: gameTypeOrOptions };
+    const playoffType = normalizeGameType(options.playoffType || options.gameType || 'bo-1');
+    const finalType = normalizeGameType(options.finalType || playoffType);
+    const thirdPlaceType = normalizeGameType(options.thirdPlaceType || playoffType);
+    const resolvedWinTarget = options.winTarget ?? winTarget;
+    const resolvedLossLimit = options.lossLimit ?? lossLimit;
+
     const players = normalizeSwissPlayers(playerList);
     const playerByName = new Map(players.map((player) => [String(player.name).trim(), player]));
-    const qualified = computeCsSwissStandings(swissPairs, players, winTarget, lossLimit).filter(
+    const qualified = computeCsSwissStandings(swissPairs, players, resolvedWinTarget, resolvedLossLimit).filter(
         (entry) => entry.swissStatus === 'qualified'
     );
-    const directSemi = qualified.filter((entry) => entry.record === `${winTarget}-0`);
+    const directSemi = qualified.filter((entry) => entry.record === `${resolvedWinTarget}-0`);
 
     const qualifiers = [
         ...directSemi,
         ...qualified
-            .filter((entry) => entry.record !== `${winTarget}-0`)
+            .filter((entry) => entry.record !== `${resolvedWinTarget}-0`)
             .sort((a, b) => b.wins - a.wins || a.losses - b.losses || a.name.localeCompare(b.name))
     ];
 
@@ -505,25 +515,25 @@ export const generateCsSwissPlayoffStages = (
             valid: true,
             stages: [
                 [
-                    createScheduleMatchPair(getPlayer(seeds[0]), getPlayer(seeds[3]), 1, gameType, 'Semi-final'),
-                    createScheduleMatchPair(getPlayer(seeds[1]), getPlayer(seeds[2]), 1, gameType, 'Semi-final')
+                    createScheduleMatchPair(getPlayer(seeds[0]), getPlayer(seeds[3]), 1, playoffType, 'Semi-final'),
+                    createScheduleMatchPair(getPlayer(seeds[1]), getPlayer(seeds[2]), 1, playoffType, 'Semi-final')
                 ],
-                [createEmptyKnockoutPair('Third Place', gameType)],
-                [createEmptyKnockoutPair('Final', gameType)]
+                [createEmptyKnockoutPair('Third Place', thirdPlaceType)],
+                [createEmptyKnockoutPair('Final', finalType)]
             ],
             stageLabels: ['Semi-final', 'Third Place', 'Final']
         };
     }
 
     const quarterFinals = [
-        createScheduleMatchPair(getPlayer(seeds[0]), getPlayer(seeds[7]), 1, gameType, 'Quarter-final'),
-        createScheduleMatchPair(getPlayer(seeds[3]), getPlayer(seeds[4]), 1, gameType, 'Quarter-final'),
-        createScheduleMatchPair(getPlayer(seeds[1]), getPlayer(seeds[6]), 1, gameType, 'Quarter-final'),
-        createScheduleMatchPair(getPlayer(seeds[2]), getPlayer(seeds[5]), 1, gameType, 'Quarter-final')
+        createScheduleMatchPair(getPlayer(seeds[0]), getPlayer(seeds[7]), 1, playoffType, 'Quarter-final'),
+        createScheduleMatchPair(getPlayer(seeds[3]), getPlayer(seeds[4]), 1, playoffType, 'Quarter-final'),
+        createScheduleMatchPair(getPlayer(seeds[1]), getPlayer(seeds[6]), 1, playoffType, 'Quarter-final'),
+        createScheduleMatchPair(getPlayer(seeds[2]), getPlayer(seeds[5]), 1, playoffType, 'Quarter-final')
     ];
     const semiFinals = [
-        createEmptyKnockoutPair('Semi-final', gameType),
-        createEmptyKnockoutPair('Semi-final', gameType)
+        createEmptyKnockoutPair('Semi-final', playoffType),
+        createEmptyKnockoutPair('Semi-final', playoffType)
     ];
 
     return {
@@ -531,8 +541,8 @@ export const generateCsSwissPlayoffStages = (
         stages: [
             quarterFinals,
             semiFinals,
-            [createEmptyKnockoutPair('Third Place', gameType)],
-            [createEmptyKnockoutPair('Final', gameType)]
+            [createEmptyKnockoutPair('Third Place', thirdPlaceType)],
+            [createEmptyKnockoutPair('Final', finalType)]
         ],
         stageLabels: ['Quarter-final', 'Semi-final', 'Third Place', 'Final']
     };

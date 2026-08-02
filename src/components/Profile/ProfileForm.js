@@ -19,7 +19,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
     const [player, setPlayer] = useState(null);
     const [avatarBase64, setAvatarBase64] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [daUsername, setDaUsername] = useState('');
+    const [donationNickname, setDonationNickname] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const userNickName = authCtx.userNickName || localStorage.getItem('userName');
@@ -66,7 +66,9 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
 
                 setUserId(resolvedId);
                 setPlayer(playerData);
-                setDaUsername(playerData.daUsername || '');
+                setDonationNickname(
+                    playerData.donationNickname || playerData.daUsername || playerData.bmcUsername || ''
+                );
 
                 try {
                     const avatar = await getAvatar(resolvedId);
@@ -161,16 +163,18 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
         }
     };
 
-    const saveDaUsername = async () => {
+    const saveDonationNickname = async () => {
         try {
+            const trimmed = donationNickname.trim();
             await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
                 method: 'PATCH',
-                body: JSON.stringify({ daUsername: daUsername.trim() }),
+                body: JSON.stringify({ donationNickname: trimmed }),
                 headers: { 'Content-Type': 'application/json' }
             });
-            authCtx.setNotificationShown(true, 'Donation Alerts username saved.', 'success', 3);
+            setPlayer((prev) => (prev ? { ...prev, donationNickname: trimmed } : prev));
+            authCtx.setNotificationShown(true, 'Donation name saved.', 'success', 3);
         } catch (err) {
-            authCtx.setNotificationShown(true, 'Failed to save DA username.', 'error', 5);
+            authCtx.setNotificationShown(true, 'Failed to save donation name.', 'error', 5);
         }
     };
 
@@ -293,7 +297,7 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 <>
                     <p className={classes.lobbyNickHint}>
                         Edit your lobby nickname in the profile card above. It must match your in-game Heroes III lobby
-                        name for cups and match reporting.
+                        name for cups and match reporting (and HotA Meta lookup).
                     </p>
                     <div className={classes.formPanel}>
                         <CountryField
@@ -314,25 +318,29 @@ const ProfileForm = ({ userId: userIdProp, embedded = false, onAvatarUpdated }) 
                 </div>
             )}
 
-            <div className={classes.formPanel}>
-                <h4 className={classes.panelTitle}>Donation Alerts</h4>
-                <p className={classes.panelNote}>
-                    Link your Donation Alerts username so donations are matched to your account.
-                </p>
-                <div className={classes.formControl}>
-                    <label htmlFor="da-username">DA username</label>
-                    <input
-                        type="text"
-                        id="da-username"
-                        value={daUsername}
-                        onChange={(e) => setDaUsername(e.target.value)}
-                        placeholder="e.g. CondorAwful"
-                    />
+            {isOwnProfile && (
+                <div className={classes.formPanel}>
+                    <h4 className={classes.panelTitle}>Donation name</h4>
+                    <p className={classes.panelNote}>
+                        Use this exact name when tipping on Donation Alerts or Buy Me a Coffee so we can credit your
+                        account. It can differ from your lobby nickname.
+                    </p>
+                    <div className={classes.formControl}>
+                        <label htmlFor="donation-nickname">Donation name</label>
+                        <input
+                            type="text"
+                            id="donation-nickname"
+                            value={donationNickname}
+                            onChange={(e) => setDonationNickname(e.target.value)}
+                            placeholder="Name you use when tipping"
+                            autoComplete="off"
+                        />
+                    </div>
+                    <button type="button" onClick={saveDonationNickname} className={classes.primaryBtn}>
+                        Save donation name
+                    </button>
                 </div>
-                <button type="button" onClick={saveDaUsername} className={classes.primaryBtn}>
-                    Save DA username
-                </button>
-            </div>
+            )}
 
             {isOwnProfile && (
                 <div className={classes.dangerPanel}>

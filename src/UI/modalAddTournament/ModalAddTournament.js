@@ -77,8 +77,8 @@ const Bracket = (props) => {
     const isAnyChampionsLeague = isChampionsLeague || isChampionsLeagueTwoGroup;
     const isKickOff = tournamentType === 'kick-off';
     const isScheduleFormat = isLeague || isSwiss || isCsSwiss || isAnyChampionsLeague;
-    const showFinalAndThirdPlace = isKickOff || isAnyChampionsLeague;
-    const showKnockoutMatchType = isAnyChampionsLeague;
+    const showFinalAndThirdPlace = isKickOff || isAnyChampionsLeague || isCsSwiss;
+    const showKnockoutMatchType = isAnyChampionsLeague || isCsSwiss;
     const showBracketOptions = isKickOff || isAnyChampionsLeague;
     const parsedFundingGoal = Number(fundingGoalUsd);
     const fundingGoalInvalid =
@@ -364,7 +364,8 @@ const Bracket = (props) => {
             },
             date: fromDatetimeLocalValue(date),
             tournamentPlayoffGames: tournamentPlayoffGames.current.value,
-            tournamentPlayoffGamesKnockout: isAnyChampionsLeague ? tournamentPlayoffGamesKnockout.current.value : null,
+            tournamentPlayoffGamesKnockout:
+                isAnyChampionsLeague || isCsSwiss ? tournamentPlayoffGamesKnockout.current.value : null,
             tournamentPlayoffGamesFinal: showFinalAndThirdPlace
                 ? tournamentPlayoffGamesFinal.current.value
                 : tournamentPlayoffGames.current.value,
@@ -715,9 +716,11 @@ const Bracket = (props) => {
                                 <label className={classes.label} htmlFor="tournamentPlayoffGames">
                                     {isAnyChampionsLeague
                                         ? 'Group stage match type'
-                                        : isScheduleFormat
-                                          ? 'Match type'
-                                          : 'Playoff games'}
+                                        : isCsSwiss
+                                          ? 'Swiss match type'
+                                          : isScheduleFormat
+                                            ? 'Match type'
+                                            : 'Playoff games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGames"
@@ -739,10 +742,15 @@ const Bracket = (props) => {
                                         Group stage only. Knockout rounds use the settings below.
                                     </p>
                                 )}
+                                {isCsSwiss && (
+                                    <p className={classes.fieldHint}>
+                                        Swiss phase only. Playoffs use the settings below.
+                                    </p>
+                                )}
                             </div>
                             <div className={`${classes.field} ${showKnockoutMatchType ? '' : classes.hidden}`}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesKnockout">
-                                    Knockout match type
+                                    {isCsSwiss ? 'Playoff match type' : 'Knockout match type'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesKnockout"
@@ -750,16 +758,21 @@ const Bracket = (props) => {
                                     defaultValue="1"
                                     ref={tournamentPlayoffGamesKnockout}
                                 >
-                                    {knockoutGameCountOptions.map((option) => (
+                                    {(isCsSwiss ? playoffGameCountOptions : knockoutGameCountOptions).map((option) => (
                                         <option key={option.value} value={option.value}>
                                             {option.label}
                                         </option>
                                     ))}
                                 </select>
+                                {isCsSwiss && (
+                                    <p className={classes.fieldHint}>
+                                        Quarter-finals and semi-finals (before Final / Third Place).
+                                    </p>
+                                )}
                             </div>
                             <div className={`${classes.field} ${showFinalAndThirdPlace ? '' : classes.hidden}`}>
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesFinal">
-                                    {isAnyChampionsLeague ? 'Final match type' : 'Final games'}
+                                    {isAnyChampionsLeague || isCsSwiss ? 'Final match type' : 'Final games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesFinal"
@@ -767,13 +780,14 @@ const Bracket = (props) => {
                                     defaultValue="1"
                                     ref={tournamentPlayoffGamesFinal}
                                 >
-                                    {(isChampionsLeague ? knockoutGameCountOptions : playoffGameCountOptions).map(
-                                        (option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        )
-                                    )}
+                                    {(isChampionsLeague
+                                        ? knockoutGameCountOptions
+                                        : playoffGameCountOptions
+                                    ).map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div
@@ -782,7 +796,9 @@ const Bracket = (props) => {
                                 }`}
                             >
                                 <label className={classes.label} htmlFor="tournamentPlayoffGamesThirdPlace">
-                                    {isAnyChampionsLeague ? 'Third place match type' : 'Third place games'}
+                                    {isAnyChampionsLeague || isCsSwiss
+                                        ? 'Third place match type'
+                                        : 'Third place games'}
                                 </label>
                                 <select
                                     id="tournamentPlayoffGamesThirdPlace"
@@ -790,13 +806,14 @@ const Bracket = (props) => {
                                     defaultValue="1"
                                     ref={tournamentPlayoffGamesThirdPlace}
                                 >
-                                    {(isChampionsLeague ? knockoutGameCountOptions : playoffGameCountOptions).map(
-                                        (option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        )
-                                    )}
+                                    {(isChampionsLeague
+                                        ? knockoutGameCountOptions
+                                        : playoffGameCountOptions
+                                    ).map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div

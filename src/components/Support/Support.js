@@ -14,6 +14,9 @@ import { FIREBASE_FUNCTIONS_BASE } from '../../config/firebase';
 const STRIPE_DONATIONS_ENABLED = false;
 const STRIPE_FUNCTION_URL = `${FIREBASE_FUNCTIONS_BASE}/createStripeCheckout`;
 const MIN_STRIPE_DONATION_USD = 5;
+const BMC_URL = process.env.REACT_APP_BMC_URL || 'https://buymeacoffee.com/konoplay';
+const DONATION_ALERTS_URL = 'https://www.donationalerts.com/r/konoplay';
+const MONOBANK_URL = 'https://send.monobank.ua/jar/834ApdUfdC';
 
 const Support = () => {
     const authCtx = useContext(AuthContext);
@@ -133,74 +136,89 @@ const Support = () => {
         }
     };
 
+    const handleBuyMeACoffee = handleDonationAlerts;
+
     return (
         <div className={`${classes.page} data-page`}>
-            <header className={classes.pageHeader}>
-                <div>
-                    <h1 className={classes.pageTitle}>Support</h1>
-                    <p className={classes.pageSubtitle}>Back the project and fund live tournament prize pools.</p>
-                </div>
-            </header>
-
-            <section className={classes.infoPanel}>
-                <p className={classes.infoLead}>
-                    <strong>90%</strong> of donations go to the cups you select below. <strong>10%</strong> supports
-                    platform development.
-                </p>
-                <p className={classes.infoDetail}>
-                    Donations are tracked on your account after payment via both providers.
-                </p>
-                {authCtx.isLogged && authCtx.userNickName && (
-                    <p className={classes.accountLine}>
-                        Your account: <strong>{authCtx.userNickName}</strong>
-                    </p>
-                )}
-                {!authCtx.isLogged && (
-                    <p className={classes.loginHint}>
-                        <Link to="/auth">Log in</Link> first so we know which account to credit.
-                    </p>
-                )}
-            </section>
-
-            {loginPrompt && (
-                <div className={classes.loginBanner} role="alert">
-                    <span>
-                        Please <Link to="/auth">log in</Link> first to donate.
-                    </span>
-                    <button
-                        type="button"
-                        className={classes.loginBannerClose}
-                        onClick={() => setLoginPrompt(false)}
-                        aria-label="Dismiss"
-                    >
-                        ×
-                    </button>
-                </div>
-            )}
-
-            <DonationTargetPicker
-                selectedIds={selectedTournamentIds}
-                onSelectionChange={setSelectedTournamentIds}
-                isLogged={authCtx.isLogged}
-            />
-
             <div className={classes.layout}>
                 <div className={classes.mainColumn}>
+                    <header className={classes.pageHeader}>
+                        <div>
+                            <h1 className={classes.pageTitle}>Support</h1>
+                            <p className={classes.pageSubtitle}>Back the project and fund live tournament prize pools.</p>
+                        </div>
+                    </header>
+
+                    <section className={classes.infoPanel}>
+                        <p className={classes.infoLead}>
+                            <strong>90%</strong> of donations go to the cups you select on the right.{' '}
+                            <strong>10%</strong> supports platform development.
+                        </p>
+                        <p className={classes.infoDetail}>
+                            Donations are tracked on your account after payment via both providers.
+                        </p>
+                        {authCtx.isLogged && authCtx.userNickName && (
+                            <p className={classes.accountLine}>
+                                Your account: <strong>{authCtx.userNickName}</strong>
+                            </p>
+                        )}
+                        {!authCtx.isLogged && (
+                            <p className={classes.loginHint}>
+                                <Link to="/auth">Log in</Link> first so we know which account to credit.
+                            </p>
+                        )}
+                    </section>
+
+                    {loginPrompt && (
+                        <div className={classes.loginBanner} role="alert">
+                            <span>
+                                Please <Link to="/auth">log in</Link> first to donate.
+                            </span>
+                            <button
+                                type="button"
+                                className={classes.loginBannerClose}
+                                onClick={() => setLoginPrompt(false)}
+                                aria-label="Dismiss"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+
                     <section className={classes.section}>
                         <h2 className={classes.sectionTitle}>Donation Alerts</h2>
                         <p className={classes.sectionNote}>
-                            Donate any amount — matched by your Donation Alerts username set in your{' '}
-                            <Link to="/profile">Profile</Link>.
+                            Donate any amount — use your donation name from <Link to="/profile">Profile</Link> as the
+                            donor name so we can credit your account.
                         </p>
                         <div className={classes.actionRow}>
                             <a
-                                href="https://www.donationalerts.com/r/konoplay"
+                                href={DONATION_ALERTS_URL}
                                 target="_blank"
                                 rel="noreferrer"
                                 className={classes.primaryBtn}
                                 onClick={handleDonationAlerts}
                             >
                                 Open Donation Alerts
+                            </a>
+                        </div>
+                    </section>
+
+                    <section className={classes.section}>
+                        <h2 className={classes.sectionTitle}>Buy Me a Coffee</h2>
+                        <p className={classes.sectionNote}>
+                            International tips — use the same donation name from{' '}
+                            <Link to="/profile">Profile</Link> as the supporter name.
+                        </p>
+                        <div className={classes.actionRow}>
+                            <a
+                                href={BMC_URL}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={classes.primaryBtn}
+                                onClick={handleBuyMeACoffee}
+                            >
+                                Open Buy Me a Coffee
                             </a>
                         </div>
                     </section>
@@ -236,12 +254,13 @@ const Support = () => {
                                         </button>
                                     </div>
                                 </form>
-                                <p className={classes.footnote}>For smaller amounts, use Donation Alerts.</p>
+                                <p className={classes.footnote}>For smaller amounts, use Donation Alerts or Buy Me a Coffee.</p>
                             </>
                         ) : (
                             <>
                                 <p className={classes.sectionNote}>
-                                    Card payments are coming soon. Use Donation Alerts or MonoBank for now.
+                                    Card payments are coming soon. Use Donation Alerts, Buy Me a Coffee, or MonoBank for
+                                    now.
                                 </p>
                                 <div className={classes.actionRow}>
                                     <button type="button" className={classes.comingSoonBtn} disabled>
@@ -257,7 +276,7 @@ const Support = () => {
                         <p className={classes.sectionNote}>Direct transfer via MonoBank.</p>
                         <div className={classes.actionRow}>
                             <a
-                                href="https://send.monobank.ua/jar/834ApdUfdC"
+                                href={MONOBANK_URL}
                                 target="_blank"
                                 rel="noreferrer"
                                 className={classes.secondaryBtn}
@@ -277,8 +296,18 @@ const Support = () => {
                     </p>
                 </div>
 
-                <aside className={classes.sidebarColumn} aria-label="Top supporters">
-                    <DonationLeaderboard variant="panel" limit={10} showFooter />
+                <aside className={classes.sidebarColumn} aria-label="Cups and top supporters">
+                    <div className={classes.sidebarPanel}>
+                        <DonationTargetPicker
+                            selectedIds={selectedTournamentIds}
+                            onSelectionChange={setSelectedTournamentIds}
+                            isLogged={authCtx.isLogged}
+                            variant="sidebar"
+                        />
+                    </div>
+                    <div className={classes.sidebarPanel}>
+                        <DonationLeaderboard variant="panel" limit={10} showFooter />
+                    </div>
                 </aside>
             </div>
         </div>

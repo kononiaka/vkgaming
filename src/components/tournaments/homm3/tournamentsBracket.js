@@ -40,7 +40,7 @@ import {
     normalizeGameType,
     repairSwissByePairs
 } from './swissUtils';
-import { dropLoserToBracket, promoteLoserBracketWinner } from './loserBracketUtils';
+import { dropLoserToBracket, promoteLoserBracketWinner, resolveThirdPlaceFinisher, shouldAwardThirdPlaceForStage } from './loserBracketUtils';
 import { formatStageLabelForDisplay } from '../../../utils/matchFixtureLabels';
 import {
     generateKnockoutBracketStages,
@@ -1749,7 +1749,16 @@ export const TournamentBracket = ({
             }
 
             const tournamentData = await tournamentResponse.json();
-            const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
+            const swissGameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
+            const playoffType = normalizeGameType(
+                tournamentData.tournamentPlayoffGamesKnockout || swissGameType
+            );
+            const finalType = normalizeGameType(
+                tournamentData.tournamentPlayoffGamesFinal || playoffType
+            );
+            const thirdPlaceType = normalizeGameType(
+                tournamentData.tournamentPlayoffGamesThirdPlace || playoffType
+            );
             const playerList = Object.values(tournamentData.players || {}).filter(
                 (player) =>
                     player &&
@@ -1758,13 +1767,13 @@ export const TournamentBracket = ({
                     player.name.trim() !== 'TBD' &&
                     player.name.trim() !== 'BYE'
             );
-            const generated = generateCsSwissPlayoffStages(
-                swissPairs,
-                playerList,
-                gameType,
-                swissWinTarget,
-                swissLossLimit
-            );
+            const generated = generateCsSwissPlayoffStages(swissPairs, playerList, {
+                playoffType,
+                finalType,
+                thirdPlaceType,
+                winTarget: swissWinTarget,
+                lossLimit: swissLossLimit
+            });
 
             if (!generated.valid) {
                 alert(generated.message);
@@ -3416,10 +3425,15 @@ export const TournamentBracket = ({
                     const loser = pair.team1 === winner ? pair.team2 : pair.team1;
 
                     // In double elimination the LB Final loser finishes 3rd (LB Final winner advances to the Grand Final)
-                    const isDoubleElimThirdPlace = hasLoserBracket && currentStage === 'LB Final';
-                    const thirdPlaceFinisher = isDoubleElimThirdPlace ? loser : winner;
+                    const thirdPlaceFinisher = resolveThirdPlaceFinisher({
+                        hasLoserBracket,
+                        stage: currentStage,
+                        winner,
+                        team1: pair.team1,
+                        team2: pair.team2
+                    });
 
-                    if (currentStage === 'Third Place' || isDoubleElimThirdPlace) {
+                    if (shouldAwardThirdPlaceForStage(hasLoserBracket, currentStage) && thirdPlaceFinisher) {
                         console.log(`${currentStage} game completed. 3rd place: ${thirdPlaceFinisher}`);
 
                         const confirmThirdPlacePrize = confirmWindow(

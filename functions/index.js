@@ -153,13 +153,54 @@ function isPlayerRegisteredInTournament(tournament, nickname) {
     );
 }
 
+function findUserEntryByLobbyNickname(usersData, tipName) {
+    const normalised = String(tipName || '')
+        .trim()
+        .toLowerCase();
+    if (!normalised) {
+        return null;
+    }
+
+    return (
+        Object.entries(usersData || {}).find(
+            ([, user]) =>
+                user?.enteredNickname && String(user.enteredNickname).trim().toLowerCase() === normalised
+        ) || null
+    );
+}
+
+/** Profile donation tip name: donationNickname, with legacy daUsername / bmcUsername fallback. */
+function getUserDonationNickname(user) {
+    const primary = String(user?.donationNickname || '').trim();
+    if (primary) {
+        return primary;
+    }
+    const legacyDa = String(user?.daUsername || '').trim();
+    if (legacyDa) {
+        return legacyDa;
+    }
+    return String(user?.bmcUsername || '').trim();
+}
+
+function findUserEntryByDonationNickname(usersData, tipName) {
+    const normalised = String(tipName || '')
+        .trim()
+        .toLowerCase();
+    if (!normalised) {
+        return null;
+    }
+
+    return (
+        Object.entries(usersData || {}).find(([, user]) => {
+            const donationName = getUserDonationNickname(user);
+            return donationName && donationName.toLowerCase() === normalised;
+        }) || null
+    );
+}
+
 async function findDbUserIdByNickname(nickname) {
     const usersSnap = await db.ref('users').once('value');
-    const usersData = usersSnap.val() || {};
-    const normalized = String(nickname || '').trim().toLowerCase();
-    const matchedEntry = Object.entries(usersData).find(
-        ([, user]) => user?.enteredNickname && String(user.enteredNickname).trim().toLowerCase() === normalized
-    );
+    const matchedEntry = findUserEntryByLobbyNickname(usersSnap.val() || {}, nickname);
     return matchedEntry ? matchedEntry[0] : null;
 }
 
@@ -246,15 +287,6 @@ async function processTournamentAttendancePayment(session, metadata) {
         stripeSessionId: session.id,
         paidAt: new Date().toISOString()
     });
-
-    try {
-        const dbUserId = await findDbUserIdByNickname(nickname);
-        if (dbUserId) {
-            await recordDonorContribution(dbUserId, paidAmount, 'USD');
-        }
-    } catch (statsError) {
-        console.error(`Attendance donor stats update failed for session ${session.id}:`, statsError.message);
-    }
 
     await processedRef.set({
         purpose: 'tournament_attendance',
@@ -414,75 +446,187 @@ async function recordDonorContribution(userId, amount, currency) {
     });
 }
 
-async function processDonation(donation, usersData) {
-    const donationId = String(donation.id);
-    const processedRef = db.ref(`processedDonations/${donationId}`);
-    if ((await processedRef.once('value')).exists()) return;
+/**
+ * Shared tip matching for DA / BMC (and similar providers).
+ * Allocates to prize pools always; credits donor stats only when donationNickname matches.
+ */
+async function processMatchedExternalDonation({
+    provider,
+    externalId,
+    donorUsername,
+    amount,
+    currency,
+    usersData,
+    processedPath
+}) {
+    const processedRef = db.ref(processedPath);
+    if ((await processedRef.once('value')).exists()) {
+        return { status: 'already_processed' };
+    }
 
-    const amount = parseFloat(donation.amount || 0);
-    const donorUsername = (donation.username || '').trim();
-    const currency = donation.currency || 'UAH';
+    const parsedAmount = parseFloat(amount || 0);
+    const tipName = String(donorUsername || '').trim();
+    const tipCurrency = currency || 'USD';
 
-    if (amount <= 0) {
+    if (parsedAmount <= 0) {
         await processedRef.set({
-            donorUsername,
-            amount,
+            provider,
+            donorUsername: tipName,
+            amount: parsedAmount,
             reason: 'invalid_amount',
             processedAt: new Date().toISOString()
         });
-        return;
+        return { status: 'invalid_amount' };
     }
+
+    const matchedEntry = findUserEntryByDonationNickname(usersData, tipName);
 
     try {
         let targetTournamentIds = null;
-        const matchedEntryPreview = Object.entries(usersData || {}).find(
-            ([, user]) => user.daUsername && user.daUsername.toLowerCase() === donorUsername.toLowerCase()
-        );
-        if (matchedEntryPreview) {
-            const [, userPreview] = matchedEntryPreview;
+        if (matchedEntry) {
+            const [, userPreview] = matchedEntry;
             if (Array.isArray(userPreview.donationTargetTournamentIds)) {
                 targetTournamentIds = userPreview.donationTargetTournamentIds;
             }
         }
 
-        await allocateDonationToLivePrizePools(amount, currency, targetTournamentIds);
+        await allocateDonationToLivePrizePools(parsedAmount, tipCurrency, targetTournamentIds);
     } catch (allocationError) {
-        console.error(`Prize pool allocation failed for donation ${donationId}:`, allocationError.message);
+        console.error(
+            `Prize pool allocation failed for ${provider} donation ${externalId}:`,
+            allocationError.message
+        );
     }
 
-    const normalisedUsername = donorUsername.toLowerCase();
-    const matchedEntry = Object.entries(usersData).find(
-        ([, user]) => user.daUsername && user.daUsername.toLowerCase() === normalisedUsername
-    );
-
     if (!matchedEntry) {
-        console.log(`Donation ${donationId}: no player linked DA username "${donorUsername}"`);
+        console.log(
+            `${provider} donation ${externalId}: no player donation name matching "${tipName}"`
+        );
         await processedRef.set({
-            donorUsername,
-            amount,
-            currency,
-            reason: 'da_username_not_linked',
+            provider,
+            donorUsername: tipName,
+            amount: parsedAmount,
+            currency: tipCurrency,
+            reason: 'donation_nickname_not_linked',
             processedAt: new Date().toISOString()
         });
-        return;
+        return { status: 'unmatched' };
     }
 
     const [userId] = matchedEntry;
 
     try {
-        await recordDonorContribution(userId, amount, currency);
+        await recordDonorContribution(userId, parsedAmount, tipCurrency);
     } catch (statsError) {
-        console.error(`Donor stats update failed for donation ${donationId}:`, statsError.message);
+        console.error(
+            `Donor stats update failed for ${provider} donation ${externalId}:`,
+            statsError.message
+        );
     }
 
     await processedRef.set({
-        donorUsername,
-        amount,
-        currency,
+        provider,
+        donorUsername: tipName,
+        amount: parsedAmount,
+        currency: tipCurrency,
         userId,
         processedAt: new Date().toISOString()
     });
-    console.log(`Processed donation ${donationId} by DA user "${donorUsername}"`);
+    console.log(`Processed ${provider} donation ${externalId} by donation name "${tipName}"`);
+    return { status: 'matched', userId };
+}
+
+async function processDonation(donation, usersData) {
+    const donationId = String(donation.id);
+    await processMatchedExternalDonation({
+        provider: 'donationalerts',
+        externalId: donationId,
+        donorUsername: donation.username,
+        amount: donation.amount,
+        currency: donation.currency || 'UAH',
+        usersData,
+        processedPath: `processedDonations/${donationId}`
+    });
+}
+
+function verifyBmcWebhookSignature(rawBody, secret, signature) {
+    if (!secret || !signature || rawBody == null) {
+        return false;
+    }
+
+    const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const signatureBuf = Buffer.from(String(signature), 'utf8');
+    if (expectedBuf.length !== signatureBuf.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuf, signatureBuf);
+}
+
+function pickFirstString(...candidates) {
+    for (const value of candidates) {
+        if (value == null) {
+            continue;
+        }
+        const trimmed = String(value).trim();
+        if (trimmed) {
+            return trimmed;
+        }
+    }
+    return '';
+}
+
+function pickFirstNumber(...candidates) {
+    for (const value of candidates) {
+        if (value == null || value === '') {
+            continue;
+        }
+        const parsed = parseFloat(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+    return 0;
+}
+
+/** Best-effort parse of BMC donation.created data (schema varies; verify with a test event). */
+function parseBmcDonationPayload(event) {
+    const data = event?.data || {};
+    const supporter =
+        data.supporter && typeof data.supporter === 'object' ? data.supporter : null;
+
+    const donorUsername = pickFirstString(
+        data.supporter_name,
+        data.payer_name,
+        data.coffee_payer_name,
+        data.name,
+        supporter?.name,
+        supporter?.supporter_name,
+        data.supporter_email
+    );
+
+    const amount = pickFirstNumber(
+        data.amount,
+        data.support_coffee_price,
+        data.total_amount,
+        data.amount_gross,
+        data.usd_amount,
+        data.coffee_amount
+    );
+
+    const currency = pickFirstString(data.currency, data.support_currency, data.currency_code, 'USD');
+
+    const externalId = pickFirstString(
+        event?.event_id,
+        data.support_id,
+        data.donation_id,
+        data.coffee_id,
+        data.id,
+        data.object_id
+    );
+
+    return { donorUsername, amount, currency, externalId };
 }
 
 // ---------------------------------------------------------------------------
@@ -527,8 +671,8 @@ exports.oauthCallback = functions.https.onRequest(async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// pollDonations — scheduled every 5 minutes. Matches by daUsername.
-// Fetches the latest donations from DA API and updates prize pools + donor stats.
+// pollDonations — scheduled every 5 minutes. Matches tip name to users.donationNickname
+// (legacy: daUsername). Fetches latest DA donations and updates prize pools + donor stats.
 // ---------------------------------------------------------------------------
 exports.pollDonations = functions.pubsub.schedule('every 5 minutes').onRun(async () => {
     let accessToken;
@@ -594,6 +738,59 @@ exports.debugDonations = functions.https.onRequest(async (req, res) => {
         })),
         dbNicknames: nicknames
     });
+});
+
+// ---------------------------------------------------------------------------
+// bmcWebhook — Buy Me a Coffee POSTs here (donation.created).
+// Verify x-signature-sha256, then match tip name → users.donationNickname.
+// Register: https://us-central1-test-prod-app-81915.cloudfunctions.net/bmcWebhook
+// Config: firebase functions:config:set bmc.webhook_secret="..."
+// ---------------------------------------------------------------------------
+exports.bmcWebhook = functions.https.onRequest(async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
+    }
+
+    const webhookSecret = functions.config().bmc?.webhook_secret || '';
+    const signature = req.headers['x-signature-sha256'];
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+
+    if (!verifyBmcWebhookSignature(rawBody, webhookSecret, signature)) {
+        console.error('BMC webhook signature verification failed');
+        return res.status(401).send('Invalid signature');
+    }
+
+    const event = typeof req.body === 'object' && req.body ? req.body : {};
+    const eventType = String(event.type || '');
+
+    if (eventType && eventType !== 'donation.created') {
+        return res.status(200).send('ignored');
+    }
+
+    const { donorUsername, amount, currency, externalId } = parseBmcDonationPayload(event);
+    if (!externalId) {
+        console.error('BMC webhook missing event/donation id:', JSON.stringify(event).slice(0, 500));
+        return res.status(400).send('Missing event id');
+    }
+
+    try {
+        const usersSnapshot = await db.ref('users').once('value');
+        const usersData = usersSnapshot.val() || {};
+        await processMatchedExternalDonation({
+            provider: 'bmc',
+            externalId: String(externalId),
+            donorUsername,
+            amount,
+            currency,
+            usersData,
+            processedPath: `processedBmcDonations/${externalId}`
+        });
+    } catch (error) {
+        console.error(`BMC webhook processing failed for ${externalId}:`, error.message);
+        return res.status(500).send('processing failed');
+    }
+
+    return res.status(200).send('ok');
 });
 
 // ---------------------------------------------------------------------------

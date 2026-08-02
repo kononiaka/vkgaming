@@ -280,3 +280,35 @@ export const promoteLoserBracketWinner = ({
 
     return false;
 };
+
+/**
+ * Who should be recorded as tournament 3rd place after a match report.
+ * - Single-elim "Third Place" match → series winner
+ * - Double-elim "LB Final" → series loser (winner advances to Grand Final)
+ * - Otherwise → null (this report does not set 3rd place)
+ */
+export const resolveThirdPlaceFinisher = ({
+    hasLoserBracket = false,
+    stage,
+    winner,
+    team1,
+    team2
+}) => {
+    if (!winner || !team1 || !team2) {
+        return null;
+    }
+
+    if (stage === 'Third Place') {
+        return winner;
+    }
+
+    if (hasLoserBracket && stage === 'LB Final') {
+        return team1 === winner ? team2 : team1;
+    }
+
+    return null;
+};
+
+export const shouldAwardThirdPlaceForStage = (hasLoserBracket, stage) =>
+    stage === 'Third Place' || (Boolean(hasLoserBracket) && stage === 'LB Final');
+

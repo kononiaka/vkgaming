@@ -5,6 +5,35 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 const SESSION_DURATION_MS = 6 * 60 * 60 * 1000;
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+const LOCAL_DEV_TOKEN = 'local-dev-admin';
+const LOCAL_DEV_NICKNAME = 'LocalAdmin';
+
+const isLocalDevHost = () => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const { hostname } = window.location;
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
+const isLocalDevSessionToken = (token) => token === LOCAL_DEV_TOKEN;
+
+const seedLocalDevSession = () => {
+    const nick = (localStorage.getItem('userName') || '').trim() || LOCAL_DEV_NICKNAME;
+    const expirationTime = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
+
+    localStorage.setItem('token', LOCAL_DEV_TOKEN);
+    localStorage.setItem('expirationTime', expirationTime);
+    localStorage.setItem('userName', nick);
+    localStorage.setItem('isAdmin', 'true');
+
+    return {
+        token: LOCAL_DEV_TOKEN,
+        duration: SESSION_DURATION_MS,
+        nickNameValue: nick
+    };
+};
 
 const AuthContext = React.createContext({
     token: '',
@@ -85,14 +114,18 @@ const retrieveInitToken = () => {
     const nickNameValue = localStorage.getItem('userName');
 
     if (!initToken || !initExpirationTime) {
-        return null;
+        return isLocalDevHost() ? seedLocalDevSession() : null;
     }
 
     const remainingTime = calculateRemainingTime(initExpirationTime);
 
     if (remainingTime <= 0) {
         clearStoredSession();
-        return null;
+        return isLocalDevHost() ? seedLocalDevSession() : null;
+    }
+
+    if (isLocalDevHost()) {
+        localStorage.setItem('isAdmin', 'true');
     }
 
     return {
@@ -105,6 +138,7 @@ const retrieveInitToken = () => {
 let logoutTimer;
 
 export const AuthContextProvider = (props) => {
+    const onLocalDev = isLocalDevHost();
     const tokenData = retrieveInitToken();
 
     let initToken;
@@ -121,15 +155,21 @@ export const AuthContextProvider = (props) => {
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationStatus, setNotificationStatus] = useState('');
     const [countdown, setCountdown] = useState(0);
-    const [isAdmin, setIsAdmin] = useState(localStorage.getItem('isAdmin') === 'true');
+    const [isAdmin, setIsAdmin] = useState(onLocalDev || localStorage.getItem('isAdmin') === 'true');
 
     const applyAdminStatus = useCallback((adminValue) => {
-        setIsAdmin(adminValue);
-        localStorage.setItem('isAdmin', adminValue ? 'true' : 'false');
+        const nextAdmin = isLocalDevHost() ? true : adminValue;
+        setIsAdmin(nextAdmin);
+        localStorage.setItem('isAdmin', nextAdmin ? 'true' : 'false');
     }, []);
 
     const fetchAdminStatus = useCallback(
         async (nickname, firebaseUid, authToken = getAuthToken()) => {
+            if (isLocalDevHost()) {
+                applyAdminStatus(true);
+                return;
+            }
+
             const normalizedNickname = (nickname || '').trim().toLowerCase();
             const resolvedUid = resolveFirebaseUid(firebaseUid, authToken);
 
@@ -184,22 +224,37 @@ export const AuthContextProvider = (props) => {
     const tokenRefreshTimerRef = useRef(null);
 
     const logoutHandler = useCallback(() => {
-        setToken(null);
-        setUserNickName('');
-        setIsAdmin(false);
-        clearStoredSession();
-
         if (logoutTimer) {
             clearTimeout(logoutTimer);
+            logoutTimer = null;
         }
 
         if (tokenRefreshTimerRef.current) {
             clearTimeout(tokenRefreshTimerRef.current);
             tokenRefreshTimerRef.current = null;
         }
+
+        // Keep a local admin session on localhost so UI testing never requires OAuth.
+        if (isLocalDevHost()) {
+            clearStoredSession();
+            const seeded = seedLocalDevSession();
+            setToken(seeded.token);
+            setUserNickName(seeded.nickNameValue);
+            setIsAdmin(true);
+            return;
+        }
+
+        setToken(null);
+        setUserNickName('');
+        setIsAdmin(false);
+        clearStoredSession();
     }, []);
 
     const refreshAuthToken = useCallback(async () => {
+        if (isLocalDevSessionToken(getAuthToken())) {
+            return true;
+        }
+
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) {
             return false;
@@ -262,6 +317,10 @@ export const AuthContextProvider = (props) => {
 
     const scheduleTokenRefresh = useCallback(
         (authToken) => {
+            if (isLocalDevSessionToken(authToken)) {
+                return;
+            }
+
             if (tokenRefreshTimerRef.current) {
                 clearTimeout(tokenRefreshTimerRef.current);
                 tokenRefreshTimerRef.current = null;
@@ -324,13 +383,13 @@ export const AuthContextProvider = (props) => {
     );
 
     useEffect(() => {
-        if (tokenData) {
+        if (tokenData && !isLocalDevSessionToken(tokenData.token)) {
             logoutTimer = setTimeout(logoutHandler, tokenData.duration);
         }
     }, [tokenData, logoutHandler]);
 
     useEffect(() => {
-        if (!token) {
+        if (!token || isLocalDevSessionToken(token)) {
             return;
         }
 
@@ -348,10 +407,15 @@ export const AuthContextProvider = (props) => {
     }, [token, scheduleTokenRefresh, refreshAuthToken, logoutHandler]);
 
     useEffect(() => {
+        if (onLocalDev) {
+            applyAdminStatus(true);
+            return;
+        }
+
         if (userIsLoggedIn && userNickName) {
             fetchAdminStatus(userNickName, null, token);
         }
-    }, [userIsLoggedIn, userNickName, fetchAdminStatus]);
+    }, [onLocalDev, userIsLoggedIn, userNickName, fetchAdminStatus, applyAdminStatus, token]);
 
     // Enhanced notification handler with countdown
     const setNotificationShownHandler = (value, message, status, duration = 5) => {
@@ -387,7 +451,7 @@ export const AuthContextProvider = (props) => {
         status: notificationStatus,
         countdown: countdown,
         setNotificationShown: setNotificationShownHandler,
-        isAdmin: isAdmin,
+        isAdmin: onLocalDev || isAdmin,
         setIsAdmin: setIsAdmin
     };
 

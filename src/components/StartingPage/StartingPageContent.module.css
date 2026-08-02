@@ -14,7 +14,7 @@
 
 .homeLayout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
     gap: clamp(1.25rem, 2vw, 1.75rem);
     align-items: start;
     max-width: 1360px;
