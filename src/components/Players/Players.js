@@ -20,6 +20,7 @@ import MyUpcomingMatchesSection from '../MyUpcomingMatches/MyUpcomingMatchesSect
 import PlayerTournamentsSection from '../Profile/PlayerTournamentsSection';
 import { fetchMyUpcomingMatches } from '../../utils/myUpcomingMatches';
 import { fetchPlayerTournaments } from '../../utils/playerTournaments';
+import { fetchTournamentCastleStatsForPlayer } from '../../utils/tournamentHeadToHead';
 import LobbyNicknameField from '../Profile/LobbyNicknameField';
 import PublicLinksField from '../Profile/PublicLinksField';
 import CountryFlag from '../Country/CountryFlag';
@@ -84,6 +85,9 @@ export const PlayerProfileContent = ({
     const [worstOpponent, setWorstOpponent] = useState(null);
     const [castleStats, setCastleStats] = useState(null);
     const [showPopup, setShowPopup] = useState(false);
+    const [tournamentCastleStats, setTournamentCastleStats] = useState(null);
+    const [tournamentCastleSummary, setTournamentCastleSummary] = useState(null);
+    const [showTournamentPopup, setShowTournamentPopup] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [goldStats, setGoldStats] = useState(null);
     const [restartStats, setRestartStats] = useState(null);
@@ -607,6 +611,49 @@ export const PlayerProfileContent = ({
         setShowPopup(true);
     };
 
+    const handleShowTournamentCastleStats = async () => {
+        if (showTournamentPopup) {
+            setShowTournamentPopup(false);
+            return;
+        }
+        if (tournamentCastleStats) {
+            setShowTournamentPopup(true);
+            return;
+        }
+        const result = await fetchTournamentCastleStatsForPlayer(player.enteredNickname);
+        setTournamentCastleStats(result.castleStats);
+        setTournamentCastleSummary(result.summary);
+        setShowTournamentPopup(true);
+    };
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadTournamentCastles = async () => {
+            if (!player?.enteredNickname) {
+                setTournamentCastleStats(null);
+                setTournamentCastleSummary(null);
+                return;
+            }
+            try {
+                const result = await fetchTournamentCastleStatsForPlayer(player.enteredNickname);
+                if (!cancelled) {
+                    setTournamentCastleStats(result.castleStats);
+                    setTournamentCastleSummary(result.summary);
+                }
+            } catch (error) {
+                console.error('Tournament castle stats failed:', error);
+                if (!cancelled) {
+                    setTournamentCastleStats(null);
+                    setTournamentCastleSummary(null);
+                }
+            }
+        };
+        loadTournamentCastles();
+        return () => {
+            cancelled = true;
+        };
+    }, [player?.enteredNickname]);
+
     const konoplayTotalGames = player?.gamesPlayed?.heroes3?.total || 0;
     const konoplayLosses = player?.gamesPlayed?.heroes3?.lose || 0;
     const konoplayWins = Math.max(konoplayTotalGames - konoplayLosses, 0);
@@ -930,6 +977,40 @@ export const PlayerProfileContent = ({
                             </button>
                         </>
                     )}
+
+                    <div className={classes.section}>
+                        <h3 className={classes.sectionTitle}>Tournament castles (official)</h3>
+                        <p className={classes.sectionHint}>
+                            Signature towns from Konoplay cups (game log + brackets) — not lobby / HotA ranked.
+                        </p>
+                        {tournamentCastleSummary?.mapCount > 0 ? (
+                            <div className={classes.castleInfo}>
+                                <div className={`${classes.castleCard} ${classes.best}`}>
+                                    <div className={classes.castleName}>Signature</div>
+                                    <div className={classes.castleStats}>
+                                        {tournamentCastleSummary.signature
+                                            ? `${tournamentCastleSummary.signature.castle} (${tournamentCastleSummary.signature.wins}W - ${tournamentCastleSummary.signature.loses}L · ${tournamentCastleSummary.signature.winRate.toFixed(0)}%)`
+                                            : 'N/A'}
+                                    </div>
+                                </div>
+                                <div className={`${classes.castleCard} ${classes.worst}`}>
+                                    <div className={classes.castleName}>Cup sample</div>
+                                    <div className={classes.castleStats}>
+                                        {tournamentCastleSummary.mapCount} maps ·{' '}
+                                        {tournamentCastleSummary.rows.length} castles
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className={classes.sectionHint}>No official cup maps with castles yet.</p>
+                        )}
+                        {tournamentCastleSummary?.mapCount > 0 && (
+                            <button className={classes.btn} onClick={handleShowTournamentCastleStats}>
+                                Show tournament castle statistics
+                            </button>
+                        )}
+                    </div>
+
                     {showPopup && castleStats && (
                         <>
                             <div className={classes.popupOverlay} onClick={() => setShowPopup(false)}></div>
@@ -989,6 +1070,62 @@ export const PlayerProfileContent = ({
                                     })()}
                                 </div>
                                 <button className={classes.closeBtn} onClick={() => setShowPopup(false)}>
+                                    ✖ Close
+                                </button>
+                            </div>
+                        </>
+                    )}
+                    {showTournamentPopup && tournamentCastleStats && (
+                        <>
+                            <div className={classes.popupOverlay} onClick={() => setShowTournamentPopup(false)}></div>
+                            <div className={classes.popup}>
+                                <div className={classes.castleStatsHeader}>
+                                    <div className={classes.castleStatsTitle}>CASTLE WINRATE</div>
+                                    <div className={classes.castleStatsSubtitle}>TOURNAMENTS ONLY</div>
+                                </div>
+                                <div className={classes.castleStatsGrid}>
+                                    {(() => {
+                                        const mergedData = ALL_CASTLES.map(({ name, image }) => {
+                                            const stats = tournamentCastleStats[name] || { wins: 0, loses: 0 };
+                                            const total = (stats.wins || 0) + (stats.loses || 0);
+                                            const castleWinRate =
+                                                total > 0 ? ((stats.wins / total) * 100).toFixed(2) : '0.00';
+
+                                            return {
+                                                name,
+                                                image,
+                                                total,
+                                                winRate: castleWinRate
+                                            };
+                                        });
+
+                                        mergedData.sort((a, b) => b.total - a.total);
+
+                                        return mergedData.map(({ name, image, total, winRate }) => (
+                                            <div key={name} className={classes.castleStatsCard}>
+                                                <div className={classes.castleImageWrapper}>
+                                                    {image && (
+                                                        <img
+                                                            src={image}
+                                                            alt={name}
+                                                            className={classes.castleStatsImage}
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div className={classes.castleStatsName}>{name.toUpperCase()}</div>
+                                                <div className={classes.castleStatsTotalGames}>
+                                                    <div className={classes.castleStatsLabel}>TOTAL GAMES</div>
+                                                    <div className={classes.castleStatsTotalValue}>{total}</div>
+                                                </div>
+                                                <div className={classes.castleStatsWinRate}>
+                                                    <div className={classes.castleStatsLabel}>WIN RATE</div>
+                                                    <div className={classes.castleStatsWinValue}>{winRate}%</div>
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                                <button className={classes.closeBtn} onClick={() => setShowTournamentPopup(false)}>
                                     ✖ Close
                                 </button>
                             </div>

@@ -1,4 +1,5 @@
 import { fetchHotaPlayerByLobbyNickname } from '../api/hotaMeta';
+import { fetchTournamentHeadToHead } from './tournamentHeadToHead';
 
 export const HEAD_TO_HEAD_SOURCES = {
     HOTA: 'hota-meta',
@@ -121,19 +122,28 @@ export const fetchKonoplayHeadToHead = async (playerA, playerB, { authFetch, fir
     const response = await authFetch(`${firebaseUrl}/games.json`);
     const data = await response.json();
 
+    const candidatesA = buildNicknameCandidates(playerA);
+    const candidatesB = buildNicknameCandidates(playerB);
+    const nickEq = (value, candidates) => {
+        const name = String(value || '')
+            .trim()
+            .toLowerCase();
+        return candidates.some((c) => c.trim().toLowerCase() === name);
+    };
+
     const games = Object.entries(data.heroes3 || {})
-        .filter(
-            ([, game]) =>
-                (game.opponent1 === playerA && game.opponent2 === playerB) ||
-                (game.opponent1 === playerB && game.opponent2 === playerA)
-        )
+        .filter(([, game]) => {
+            const aVsB = nickEq(game.opponent1, candidatesA) && nickEq(game.opponent2, candidatesB);
+            const bVsA = nickEq(game.opponent1, candidatesB) && nickEq(game.opponent2, candidatesA);
+            return aVsB || bVsA;
+        })
         .map(([id, game]) => ({ ...game, id }));
 
     const total = games.length;
-    const wins = games.filter((g) => g.winner === playerA).length;
-    const losses = games.filter((g) => g.winner === playerB).length;
+    const wins = games.filter((g) => nickEq(g.winner, candidatesA)).length;
+    const losses = games.filter((g) => nickEq(g.winner, candidatesB)).length;
     const winPercent = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
-    const last5Games = games.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    const last5Games = games.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 5);
 
     let restartCoeffA = 0;
     let restartCoeffB = 0;
@@ -205,16 +215,30 @@ export const fetchKonoplayHeadToHead = async (playerA, playerB, { authFetch, fir
 };
 
 export const fetchHeadToHeadStats = async (playerA, playerB, options) => {
+    const tournamentPromise = fetchTournamentHeadToHead(playerA, playerB, options).catch((error) => {
+        console.warn('Tournament head-to-head lookup failed:', error);
+        return null;
+    });
+
+    let primary = null;
     try {
         const hotaStats = await fetchHotaHeadToHead(playerA, playerB);
         if (hotaStats?.total > 0) {
-            return hotaStats;
+            primary = hotaStats;
         }
     } catch (error) {
         console.warn('HotA Meta head-to-head lookup failed, falling back to Konoplay:', error);
     }
 
-    return fetchKonoplayHeadToHead(playerA, playerB, options);
+    if (!primary) {
+        primary = await fetchKonoplayHeadToHead(playerA, playerB, options);
+    }
+
+    const tournament = await tournamentPromise;
+    return {
+        ...primary,
+        tournament
+    };
 };
 
 export const getHeadToHeadSourceLabel = (source) => (source === HEAD_TO_HEAD_SOURCES.HOTA ? 'HotA Meta' : 'Konoplay');

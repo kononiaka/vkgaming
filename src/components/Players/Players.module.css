@@ -318,6 +318,13 @@
     color: var(--color-gold);
 }
 
+.sectionHint {
+    margin: -0.35rem 0 0.85rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+}
+
 .mechanicsGrid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

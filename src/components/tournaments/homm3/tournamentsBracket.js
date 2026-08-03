@@ -26,6 +26,7 @@ import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import Modal from '../../Modal/Modal.js';
 import ReportGameModal from './ReportGameModal';
 import LeagueBracket from './LeagueBracket';
+import TournamentMeta from './TournamentMeta/TournamentMeta';
 import CsSwissRulesBlock from './CsSwissRulesBlock';
 import {
     CS_SWISS_LOSS_LIMIT,
@@ -299,6 +300,7 @@ export const TournamentBracket = ({
     const [swissLossLimit, setSwissLossLimit] = useState(CS_SWISS_LOSS_LIMIT);
     const [swissRoundDeadlines, setSwissRoundDeadlines] = useState({});
     const [usesScheduleView, setUsesScheduleView] = useState(false);
+    const [knockoutContentTab, setKnockoutContentTab] = useState('bracket');
     const [registeredPlayerNames, setRegisteredPlayerNames] = useState([]);
     const [isFinishingTournament, setIsFinishingTournament] = useState(false);
     const [showReportGameModal, setShowReportGameModal] = useState(false);
@@ -4201,6 +4203,8 @@ export const TournamentBracket = ({
                     )}
                     <LeagueBracket
                         pairs={isChampionsLeague ? activeChampionsSchedulePairs : playoffPairs[0] || []}
+                        metaPairs={playoffPairs}
+                        tournamentId={tournamentId}
                         registeredPlayers={registeredPlayerNames}
                         playersObj={playersObj}
                         roundLabel={isSwiss ? 'Round' : 'Matchday'}
@@ -4407,6 +4411,34 @@ export const TournamentBracket = ({
                                     </p>
                                 )
                             )}
+                            <div className={classes.knockoutViewTabs} role="tablist" aria-label="Knockout views">
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={knockoutContentTab === 'bracket'}
+                                    className={`${classes.knockoutViewTab} ${
+                                        knockoutContentTab === 'bracket' ? classes.knockoutViewTabActive : ''
+                                    }`}
+                                    onClick={() => setKnockoutContentTab('bracket')}
+                                >
+                                    Bracket
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={knockoutContentTab === 'meta'}
+                                    className={`${classes.knockoutViewTab} ${
+                                        knockoutContentTab === 'meta' ? classes.knockoutViewTabActive : ''
+                                    }`}
+                                    onClick={() => setKnockoutContentTab('meta')}
+                                >
+                                    Meta
+                                </button>
+                            </div>
+                            {knockoutContentTab === 'meta' ? (
+                                <TournamentMeta tournamentId={tournamentId} pairs={playoffPairs} />
+                            ) : (
+                            <>
                             <div className={classes.knockoutNav}>
                                 <button
                                     type="button"
@@ -5363,6 +5395,8 @@ export const TournamentBracket = ({
                                     </div>
                                 )}
                             </div>
+                            </>
+                            )}
                         </div>
                     );
                 })()

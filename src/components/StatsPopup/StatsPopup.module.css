@@ -22,8 +22,8 @@
 
 .popup {
     position: relative;
-    width: min(100%, 34rem);
-    max-height: 82vh;
+    width: min(100%, 52rem);
+    max-height: 86vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -186,6 +186,20 @@
     gap: 0.45rem;
 }
 
+.statsGridSingle {
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+    .statsGrid:not(.statsGridSingle) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .section:nth-of-type(2) .statsGrid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
 .statCard {
     padding: 0.65rem 0.75rem;
     background: var(--color-bg-deep);
@@ -210,6 +224,117 @@
     font-weight: 700;
     color: var(--color-gold-bright);
     font-variant-numeric: tabular-nums;
+}
+
+.statHint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    color: var(--color-text-dim);
+    line-height: 1.35;
+}
+
+.sectionTitleSpaced {
+    margin: 0.85rem 0 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-teal);
+}
+
+.emptyNote {
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    font-size: 0.84rem;
+    color: var(--color-text-muted);
+}
+
+.insightList {
+    list-style: none;
+    padding: 0;
+    margin: 0.65rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.insightList li {
+    padding: 0.5rem 0.7rem;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.seriesBlock {
+    margin-top: 0.25rem;
+}
+
+.seriesTable {
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-bg-deep);
+}
+
+.seriesHead,
+.seriesRow {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1.6fr) 4rem minmax(0, 1.2fr);
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.55rem 0.75rem;
+}
+
+.seriesHead {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+    border-bottom: var(--border-subtle);
+    background: var(--color-bg-elevated);
+}
+
+.seriesRow {
+    font-size: 0.84rem;
+    color: var(--color-text-muted);
+    border-top: var(--border-subtle);
+}
+
+.seriesRow:first-of-type {
+    border-top: none;
+}
+
+.seriesDate {
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-dim);
+}
+
+.seriesCup {
+    color: var(--color-text);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seriesScore {
+    font-weight: 700;
+    color: var(--color-gold-bright);
+    font-variant-numeric: tabular-nums;
+}
+
+.seriesWinner {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text);
 }
 
 .statsList {
@@ -284,8 +409,19 @@
         width: min(100%, 100%);
     }
 
-    .statsGrid {
-        grid-template-columns: 1fr;
+    .statsGrid,
+    .section:nth-of-type(2) .statsGrid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .seriesHead,
+    .seriesRow {
+        grid-template-columns: 5.25rem minmax(0, 1fr) 3.25rem;
+    }
+
+    .seriesHead span:last-child,
+    .seriesWinner {
+        display: none;
     }
 
     .statCardWide {
