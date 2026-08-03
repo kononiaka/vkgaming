@@ -244,6 +244,43 @@
     padding: 0.75rem 0;
 }
 
+.knockoutViewTabs {
+    display: flex;
+    width: fit-content;
+    gap: 0;
+    margin: 0 auto 1rem;
+    padding: 3px;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.knockoutViewTab {
+    padding: 0.45rem 1.1rem;
+    border: none;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.knockoutViewTab:hover {
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.knockoutViewTabActive {
+    color: var(--color-text);
+    background: var(--color-bg-elevated);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+
 .knockoutNavBtn {
     width: 2.75rem;
     height: 2.75rem;
