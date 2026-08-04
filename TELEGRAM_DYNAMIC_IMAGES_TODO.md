@@ -1,18 +1,19 @@
 # Future Todo: Dynamic Telegram Images
 
-Goal: generate a unique Telegram image for each notification, with tournament data rendered into the image itself instead of using one static announcement image.
+**Status:** Open (next product ticket)  
+**Goal:** Generate a unique Telegram image for each notification, with tournament data rendered into the image instead of one static announcement image.
 
 ## Current Behavior
 
 - Telegram channel notifications can attach an image from Firebase Functions config:
   `telegram.announcement_image_url`.
 - That image is static.
-- The caption is already dynamic and includes tournament name, stage, players, score, winner, and links.
+- The caption is already dynamic (tournament, stage, players, score, winner, links).
 - If no image URL is configured, notifications fall back to plain text.
 
 ## Desired Future Behavior
 
-Create dynamic image cards similar to ladder-style match cards:
+Dynamic image cards similar to ladder-style match cards:
 
 - Tournament name
 - Stage, round, or matchday
@@ -22,34 +23,21 @@ Create dynamic image cards similar to ladder-style match cards:
 
 ## Proposed Implementation
 
-1. Add a public Cloud Function endpoint, for example:
+1. Public Cloud Function endpoint, e.g.  
    `/telegramMatchCard?tournamentId=...&stageIdx=...&pairIdx=...&type=result`
-
-2. Fetch tournament and pair data from Firebase Realtime Database inside the function.
-
-3. Generate a PNG server-side using one of:
-   - `satori` + `resvg`
-   - `sharp`
-   - `canvas`
-
-4. Return the PNG directly from the endpoint, or save generated PNGs to Cloud Storage and return a public URL.
-
-5. Update Telegram notification builders to pass the dynamic URL as `photoUrl`.
-
-6. Keep the current caption text as fallback/context.
-
-7. Add fallback behavior:
-   - If image generation fails, send the normal text message.
-   - If Telegram rejects `sendPhoto`, retry with `sendMessage`.
+2. Fetch tournament + pair data from Realtime Database in the function.
+3. Generate PNG server-side (`satori` + `resvg`, `sharp`, or `canvas`).
+4. Return PNG directly, or store in Cloud Storage and use a public URL.
+5. Telegram builders pass the dynamic URL as `photoUrl`.
+6. Keep caption text as context / fallback.
+7. Fallbacks: generation failure → text message; `sendPhoto` reject → `sendMessage`.
 
 ## Suggested Rollout
 
-Start with match result cards first because they have stable data:
-
-1. Match result card
+1. Match result card (stable data)
 2. Live match card
 3. Schedule card
-4. Tournament finished card with winners and prizes
+4. Tournament finished card (winners + prizes)
 
 ## Test Cases
 
@@ -58,7 +46,8 @@ Start with match result cards first because they have stable data:
 - Missing avatar or flag
 - Players with no stars
 - BO1, BO2, BO3 scores
-- Swiss round
-- League matchday
-- Champions League group and knockout stages
-- Tournament finished with first, second, and third place prizes
+- Swiss round / league matchday
+- Champions League group and knockout
+- Tournament finished with 1st / 2nd / 3rd prizes
+
+See also: future product list in [`LAUNCH_PLAN.md`](LAUNCH_PLAN.md).

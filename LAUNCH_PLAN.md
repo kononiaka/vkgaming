@@ -1,10 +1,10 @@
-# Konoplay HoMM3 — Product positioning (slim)
+# Konoplay HoMM3 — Product positioning
 
-**Updated:** July 23, 2026  
+**Updated:** August 4, 2026  
 **Competitor:** [h3ladder.ru](https://h3ladder.ru) (season ladder)  
 **Wedge:** Open cups + deep stats + community funding — not “clone their league” on day one.
 
-For domain / OAuth / hosting deploy work, use **`LAUNCH_KONOPLAY_COM.md`** instead.
+Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 
 ---
 
@@ -13,50 +13,83 @@ For domain / OAuth / hosting deploy work, use **`LAUNCH_KONOPLAY_COM.md`** inste
 | h3ladder owns | Konoplay launches with |
 |---|---|
 | Season tiers, tours, round-robin culture | **Cups + formats** (kick-off, league, Swiss, CS Swiss, Champions League, double-elim) |
-| Official RU ladder narrative | **Open cups + stats hub** — honest subtitle, not “#1 ladder” |
-| Match schedule culture | Site scheduling where built; Discord/Telegram for disputes |
+| Official RU ladder narrative | **Open cups + stats hub** |
+| Match schedule culture | Site scheduling + Discord/Telegram |
 
-**You’re ahead on:** visual brackets, player analytics (castles, opponents, gold, restarts, stars), coins/gamification, multi-format tournament tooling.
+**Ahead on:** visual brackets, player analytics (castles, opponents, gold, restarts, stars), donations / prize pools, multi-format tooling.
 
 ---
 
 ## Shipped (do not re-plan)
 
-- Knockout + league + Swiss + CS Swiss to playoffs + Champions League (single + two group stages) + double-elim
+- Knockout + league + Swiss + CS Swiss to playoffs + Champions League + double-elim
 - Match reporting, BO series, ratings / stars
-- `/support`, `/rules`, donations (DA + Mono; Stripe “coming soon”)
-- Player profiles, leaderboard, home match hub pieces
-
-Remaining feature tickets:
-
-- `LEAGUE_MATCH_TABS_TODO.md` — Upcoming / Last Games on league schedule
-- `TELEGRAM_DYNAMIC_IMAGES_TODO.md` — per-match Telegram image cards
-- `BMC_NICKNAME_MATCHING_TODO.md` — Buy Me a Coffee auto-credit (match Profile donation name, same as DA)
+- League schedule sub-views: By round / Upcoming / Last games (+ castle / gold / restarts on rows)
+- Tournament-specific Meta tab; tournament H2H + profile castles
+- `/support`, `/rules`, donations (DA + BMC + Stripe host seed / attendance)
+- Admin prize-pool **funding history** (new tips logged under `prizePoolHistory`)
+- Player profiles, leaderboard, Live Arena / match hub
+- Production on **konoplay.com**
 
 ---
 
-## Still open vs h3ladder (product gaps)
+## Open product tickets
+
+| Doc | Status |
+|---|---|
+| [`TELEGRAM_DYNAMIC_IMAGES_TODO.md`](TELEGRAM_DYNAMIC_IMAGES_TODO.md) | **Open** — per-match Telegram image cards |
+
+---
+
+## Future plans (not launch blockers)
+
+### vs h3ladder (large bets)
 
 | Gap | Notes |
 |---|---|
-| **Season ladder tiers** (Top / A / B) + promotion/relegation | New data model — not a tournament-type tweak |
+| **Season ladder tiers** (Top / A / B) + promotion/relegation | New data model |
 | **Season entity** wrapping cups | e.g. `seasons/2026-s1` |
 | **Formal warnings / discipline** | Rules + admin log |
-| **Streaming enforcement** | Twitch/VOD requirements in Top League style |
-| **Application workflow** | User applies → admin approves (vs add/register flows you have) |
+| **Streaming enforcement** | Twitch/VOD requirements |
+| **Application workflow** | Apply → admin approve |
 | **i18n EN/RU** | Optional later |
-| **Multi-organizer SaaS** (h3.gg-style) | Out of scope near-term |
+| **Multi-organizer SaaS** | Out of scope near-term |
+
+### Feature follow-ups (from shipped v1)
+
+**Tournament Meta**
+
+- Persist castle counters under `/statistic/heroes3/tournaments/{id}/castles` on report
+- Pick/ban or template filters for special cup rules
+- Highlight meta outliers on Match Center / announcements
+- Hard min-sample gate (e.g. hide WR until N≥5)
+
+**Tournament H2H / profile**
+
+- Persist bans at match root when BO1 bans never land on game log
+- Filter by specific cup / championship season
+- “Always bans X” confidence thresholds
+- Shared cache for `/games/heroes3` + brackets scan (with Meta)
+
+**Prize pool / donations**
+
+- Funding history only covers tips **after** the history deploy; older totals stay aggregate-only
+- Optional: backfill or admin note when ledger sum ≠ `communityFundingUsd`
+
+**League schedule**
+
+- Prefer real `completedAt` / `reportedAt` when sorting Last games (optional field on report)
 
 ---
 
-## Event template (when running a public cup)
+## Event template (public cup)
 
 | Field | Typical value |
 |---|---|
-| Format | 16-player kick-off (or CS Swiss / CL as preferred) |
+| Format | 16-player kick-off (or CS Swiss / CL) |
 | Reporting | Players report; admin resolves disputes |
-| Marketing angle | “Deep stats + fair brackets” vs “join the official league” |
+| Marketing | “Deep stats + fair brackets” |
 
 ---
 
-*Keep this file short. Put deploy checklists in `LAUNCH_KONOPLAY_COM.md` and feature work in the TODO files above.*
+*Keep this file short. Deploy reference → `LAUNCH_KONOPLAY_COM.md`. Active feature work → `TELEGRAM_DYNAMIC_IMAGES_TODO.md`.*

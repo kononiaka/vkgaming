@@ -11,7 +11,7 @@ import TournamentMeta from './TournamentMeta/TournamentMeta';
 import { useHeadToHeadStats } from '../../../hooks/useHeadToHeadStats';
 import { resolveAuthProvider } from '../../../utils/authProvider';
 import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
-import { isGameSessionActive, isPairLive } from '../../../utils/matchCenterData';
+import { isGameSessionActive, isPairLive, parseScheduledAtMs } from '../../../utils/matchCenterData';
 import classes from './LeagueBracket.module.css';
 import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP, compareStandingsWithHeadToHead } from './championsLeagueUtils';
 import { compareCsSwissStandings } from './swissUtils';
@@ -63,6 +63,23 @@ const renderRestartTokens = (r111, r112) => {
             ))}
             <span className={`${classes.restartToken} ${show112AsUsed ? classes.restartTokenUsed : ''}`}>112</span>
         </div>
+    );
+};
+
+const hasReportedGameDetails = (game) => {
+    if (!game) {
+        return false;
+    }
+    return Boolean(
+        game.castle1 ||
+            game.castle2 ||
+            game.gold1 != null ||
+            game.gold2 != null ||
+            Number(game.restart1_111) > 0 ||
+            Number(game.restart1_112) > 0 ||
+            Number(game.restart2_111) > 0 ||
+            Number(game.restart2_112) > 0 ||
+            isGameSessionActive(game)
     );
 };
 
@@ -118,6 +135,29 @@ const parseStarsValue = (value) => {
 const FORM_BADGE_LIMIT = 5;
 const FORM_RESULT_LABELS = { W: 'Win', D: 'Draw', L: 'Loss' };
 const isPlaceholderPlayer = (name) => !name || name === 'TBD' || name === 'BYE';
+
+const isMatchFinished = (pair) => Boolean(pair?.winner && pair.winner !== 'TBD');
+
+const getLatestRatingValue = (ratingsStr) => {
+    if (!ratingsStr) {
+        return 0;
+    }
+    const str = String(ratingsStr);
+    if (str.includes(',')) {
+        return parseFloat(str.split(',').at(-1)) || 0;
+    }
+    return parseFloat(str) || 0;
+};
+
+const parsePairStars = (pairStars, playerStars) => {
+    if (pairStars != null) {
+        if (typeof pairStars === 'string' && pairStars.includes(',')) {
+            return parseFloat(pairStars.split(',').at(-1)) || 0;
+        }
+        return parseFloat(pairStars) || 0;
+    }
+    return parseFloat(playerStars) || 0;
+};
 
 const formatFormScore = (pair, playerName) => {
     const score1 = Number(pair.score1) || 0;
@@ -462,6 +502,7 @@ const LeagueBracket = ({
     swissRoundDeadlines = {}
 }) => {
     const [activeTab, setActiveTab] = useState(isSwissFormat ? 'standings' : 'schedule');
+    const [scheduleView, setScheduleView] = useState('rounds'); // rounds | upcoming | finished
     const [activeGroup, setActiveGroup] = useState(groupLabels[0] || '');
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [rankByNickname, setRankByNickname] = useState({});
@@ -683,6 +724,248 @@ const LeagueBracket = ({
         activeRoundHasOpenMatches &&
         new Date(activeRoundDeadline).getTime() < Date.now();
 
+    const indexedScopedPairs = useMemo(
+        () =>
+            pairs
+                .map((pair, idx) => ({ pair, idx }))
+                .filter(({ pair }) => !hasGroups || pair.group === activeGroup),
+        [pairs, hasGroups, activeGroup]
+    );
+
+    const upcomingMatches = useMemo(() => {
+        const now = Date.now();
+        const items = indexedScopedPairs.filter(({ pair }) => {
+            if (pair.isBye || pair.team2 === 'BYE') {
+                return false;
+            }
+            if (isMatchFinished(pair)) {
+                return false;
+            }
+            if (isPairLive(pair, now)) {
+                return false;
+            }
+            return true;
+        });
+
+        const scheduledMs = (pair) => parseScheduledAtMs(pair.scheduledAt);
+        items.sort((a, b) => {
+            const aMs = scheduledMs(a.pair);
+            const bMs = scheduledMs(b.pair);
+            const aFuture = aMs != null && aMs > now;
+            const bFuture = bMs != null && bMs > now;
+            if (aFuture && bFuture) {
+                if (aMs !== bMs) {
+                    return aMs - bMs;
+                }
+            } else if (aFuture !== bFuture) {
+                return aFuture ? -1 : 1;
+            } else if (aMs != null && bMs != null && aMs !== bMs) {
+                return aMs - bMs;
+            } else if ((aMs != null) !== (bMs != null)) {
+                return aMs != null ? -1 : 1;
+            }
+            const roundDiff = Number(a.pair.round || 0) - Number(b.pair.round || 0);
+            if (roundDiff !== 0) {
+                return roundDiff;
+            }
+            return a.idx - b.idx;
+        });
+        return items;
+    }, [indexedScopedPairs]);
+
+    const finishedMatches = useMemo(() => {
+        const items = indexedScopedPairs.filter(
+            ({ pair }) => isMatchFinished(pair) && !(pair.isBye || pair.team2 === 'BYE')
+        );
+        items.sort((a, b) => {
+            const aDone = parseScheduledAtMs(a.pair.completedAt || a.pair.reportedAt || a.pair.updatedAt);
+            const bDone = parseScheduledAtMs(b.pair.completedAt || b.pair.reportedAt || b.pair.updatedAt);
+            if (aDone != null || bDone != null) {
+                return (bDone || 0) - (aDone || 0);
+            }
+            const aSched = parseScheduledAtMs(a.pair.scheduledAt);
+            const bSched = parseScheduledAtMs(b.pair.scheduledAt);
+            if (aSched != null || bSched != null) {
+                return (bSched || 0) - (aSched || 0);
+            }
+            const roundDiff = Number(b.pair.round || 0) - Number(a.pair.round || 0);
+            if (roundDiff !== 0) {
+                return roundDiff;
+            }
+            return b.idx - a.idx;
+        });
+        return items;
+    }, [indexedScopedPairs]);
+
+    const renderMatchRow = ({ pair, idx, showRoundMeta = false }) => {
+        const isBye = pair.isBye || pair.team2 === 'BYE';
+        const isFinished = isMatchFinished(pair);
+        const showBtn = !isBye && canViewReportButton ? canViewReportButton(pair) : false;
+        const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
+        const detailGames = !isBye ? (pair.games || []).filter(hasReportedGameDetails) : [];
+        const isInProgress = !isBye && !isFinished && isPairLive(pair);
+
+        const getPlayer = (name) =>
+            name && name !== 'TBD'
+                ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
+                : null;
+
+        const p1 = getPlayer(pair.team1);
+        const p2 = getPlayer(pair.team2);
+
+        const stars1 = parsePairStars(pair.stars1, p1?.stars);
+        const stars2 = parsePairStars(pair.stars2, p2?.stars);
+
+        const place1 = rankByNickname[pair.team1] || p1?.placeInLeaderboard || null;
+        const place2 = rankByNickname[pair.team2] || p2?.placeInLeaderboard || null;
+
+        const rating1 = getLatestRatingValue(pair.ratings1 ?? p1?.ratings);
+        const rating2 = getLatestRatingValue(pair.ratings2 ?? p2?.ratings);
+
+        const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
+        const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
+        const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
+        const isHighlighted =
+            highlightPair?.pairIndex === idx &&
+            (highlightPair?.stageIndex ?? storageStageIndex) === storageStageIndex;
+
+        return (
+            <div
+                key={idx}
+                id={`pair-s${storageStageIndex}-p${idx}`}
+                className={`${classes.matchRow} ${isBye ? classes.matchBye : ''} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
+            >
+                {!isBye && (
+                    <span className={classes.matchTopLeftControls}>
+                        <HeadToHeadStatsButton
+                            team1={pair.team1}
+                            team2={pair.team2}
+                            onShow={showHeadToHeadStats}
+                            className={classes.headToHeadBtn}
+                        />
+                        {isInProgress && (
+                            <span className={classes.liveDot} title="Match is live" aria-label="Match is live" />
+                        )}
+                    </span>
+                )}
+                {showRoundMeta && pair.round != null && (
+                    <span className={classes.matchRoundTag}>
+                        {roundLabel} {pair.round}
+                    </span>
+                )}
+                <div className={classes.teamCell}>
+                    <SchedulePlayerCell
+                        name={pair.team1}
+                        player={p1}
+                        stars={stars1}
+                        place={place1}
+                        countryCode={country1}
+                        isWinner={pair.winner === pair.team1}
+                    />
+                </div>
+
+                <div className={classes.centerBlock}>
+                    {isBye ? (
+                        <div className={classes.byeCenter}>
+                            <span className={classes.byeLabel}>Round bye</span>
+                            <span className={classes.byeHint}>No match this round</span>
+                        </div>
+                    ) : isFinished ? (
+                        <span className={classes.score}>
+                            {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
+                        </span>
+                    ) : isInProgress ? (
+                        <span className={classes.liveTag}>LIVE</span>
+                    ) : (
+                        <span className={classes.vs}>vs</span>
+                    )}
+                    {!isBye && (
+                        <span className={classes.matchMetaRow}>
+                            <span className={classes.matchTypeBadge}>{formatMatchTypeLabel(pair.type)}</span>
+                        </span>
+                    )}
+                    {!isFinished && !isBye && (
+                        <div
+                            className={classes.predictionEmbed}
+                            aria-label={`Win prediction ${prediction.team1}% to ${prediction.team2}%`}
+                        >
+                            <span className={classes.predictionPct}>{prediction.team1}%</span>
+                            <span className={classes.predictionLabel}>win odds</span>
+                            <span className={classes.predictionPct}>{prediction.team2}%</span>
+                        </div>
+                    )}
+                    {showBtn && (
+                        <button
+                            className={`${classes.reportBtn} ${isFinished ? classes.reReportBtn : ''}`}
+                            onClick={() => onSelectPair(idx)}
+                            title={isFinished ? 'Re-report result' : 'Report result'}
+                        >
+                            {isFinished ? 'Edit' : 'Report'}
+                        </button>
+                    )}
+                    {(pair.scheduledAt || canSchedule) && onSaveSchedule && (
+                        <div className={classes.scheduleControl}>
+                            <MatchScheduleControl
+                                scheduledAt={pair.scheduledAt}
+                                scheduledBy={pair.scheduledBy}
+                                canEdit={canSchedule}
+                                onSave={(iso) => onSaveSchedule(idx, iso)}
+                                compact
+                                showMissingHint={canSchedule}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
+                    {isBye ? (
+                        <span className={classes.byeOpponentPlaceholder}>Automatic win</span>
+                    ) : (
+                        <SchedulePlayerCell
+                            name={pair.team2}
+                            player={p2}
+                            stars={stars2}
+                            place={place2}
+                            countryCode={country2}
+                            align="right"
+                            isWinner={pair.winner === pair.team2}
+                        />
+                    )}
+                </div>
+
+                {detailGames.map((game, gIdx) => (
+                    <div key={gIdx} className={classes.gameDetail}>
+                        <div className={classes.castleCard}>
+                            {getCastleImage(game.castle1) && (
+                                <img
+                                    src={getCastleImage(game.castle1)}
+                                    alt={game.castle1}
+                                    className={classes.castleImg}
+                                />
+                            )}
+                            <div className={classes.castleName}>{game.castle1 || '—'}</div>
+                            <div className={classes.goldRow}>Gold: {game.gold1 ?? 0}</div>
+                            {renderRestartTokens(game.restart1_111, game.restart1_112)}
+                        </div>
+                        <div className={classes.gameDetailCenter}>Game {(game.gameId ?? gIdx) + 1}</div>
+                        <div className={`${classes.castleCard} ${classes.castleCardRight}`}>
+                            {getCastleImage(game.castle2) && (
+                                <img
+                                    src={getCastleImage(game.castle2)}
+                                    alt={game.castle2}
+                                    className={classes.castleImg}
+                                />
+                            )}
+                            <div className={classes.castleName}>{game.castle2 || '—'}</div>
+                            <div className={classes.goldRow}>Gold: {game.gold2 ?? 0}</div>
+                            {renderRestartTokens(game.restart2_111, game.restart2_112)}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     useEffect(() => {
         if (dayCount === 0) {
             setActiveDayIndex(0);
@@ -814,246 +1097,115 @@ const LeagueBracket = ({
 
             {activeTab === 'schedule' && (
                 <>
-                    {dayCount > 0 && (
-                        <div className={classes.dayNav}>
-                            <button
-                                type="button"
-                                className={classes.dayNavBtn}
-                                onClick={goToPrevDay}
-                                disabled={activeDayIndex === 0}
-                                aria-label="Previous day"
-                            >
-                                ‹
-                            </button>
-                            <div className={classes.dayNavCenter}>
-                                <span className={classes.dayNavTitle}>
-                                    {roundLabel} {activeRound.round}
-                                </span>
-                                <span className={classes.dayNavMeta}>
-                                    {activeDayIndex + 1} / {dayCount}
-                                    {' · '}
-                                    {activeRound.items.length} {activeRound.items.length === 1 ? 'match' : 'matches'}
-                                </span>
-                                {activeRoundDeadlineLabel && (
-                                    <span
-                                        className={`${classes.roundDeadline} ${
-                                            isActiveRoundOverdue ? classes.roundDeadlineOverdue : ''
-                                        }`}
+                    <div className={classes.subTabs} role="tablist" aria-label="Schedule views">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={scheduleView === 'rounds'}
+                            className={`${classes.subTab} ${scheduleView === 'rounds' ? classes.subTabActive : ''}`}
+                            onClick={() => setScheduleView('rounds')}
+                        >
+                            By {roundLabel.toLowerCase()}
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={scheduleView === 'upcoming'}
+                            className={`${classes.subTab} ${scheduleView === 'upcoming' ? classes.subTabActive : ''}`}
+                            onClick={() => setScheduleView('upcoming')}
+                        >
+                            Upcoming
+                            {upcomingMatches.length > 0 ? ` (${upcomingMatches.length})` : ''}
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={scheduleView === 'finished'}
+                            className={`${classes.subTab} ${scheduleView === 'finished' ? classes.subTabActive : ''}`}
+                            onClick={() => setScheduleView('finished')}
+                        >
+                            Last games
+                            {finishedMatches.length > 0 ? ` (${finishedMatches.length})` : ''}
+                        </button>
+                    </div>
+
+                    {scheduleView === 'rounds' && (
+                        <>
+                            {dayCount > 0 && (
+                                <div className={classes.dayNav}>
+                                    <button
+                                        type="button"
+                                        className={classes.dayNavBtn}
+                                        onClick={goToPrevDay}
+                                        disabled={activeDayIndex === 0}
+                                        aria-label="Previous day"
                                     >
-                                        Deadline: {activeRoundDeadlineLabel}
-                                        {isActiveRoundOverdue ? ' · overdue' : ''}
-                                    </span>
+                                        ‹
+                                    </button>
+                                    <div className={classes.dayNavCenter}>
+                                        <span className={classes.dayNavTitle}>
+                                            {roundLabel} {activeRound.round}
+                                        </span>
+                                        <span className={classes.dayNavMeta}>
+                                            {activeDayIndex + 1} / {dayCount}
+                                            {' · '}
+                                            {activeRound.items.length}{' '}
+                                            {activeRound.items.length === 1 ? 'match' : 'matches'}
+                                        </span>
+                                        {activeRoundDeadlineLabel && (
+                                            <span
+                                                className={`${classes.roundDeadline} ${
+                                                    isActiveRoundOverdue ? classes.roundDeadlineOverdue : ''
+                                                }`}
+                                            >
+                                                Deadline: {activeRoundDeadlineLabel}
+                                                {isActiveRoundOverdue ? ' · overdue' : ''}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={classes.dayNavBtn}
+                                        onClick={goToNextDay}
+                                        disabled={activeDayIndex >= dayCount - 1}
+                                        aria-label="Next day"
+                                    >
+                                        ›
+                                    </button>
+                                </div>
+                            )}
+                            <div className={classes.schedule}>
+                                {activeRound?.items.map(({ pair, idx }) => renderMatchRow({ pair, idx }))}
+                                {scopedPairs.length === 0 && (
+                                    <p className={classes.emptyNote}>No matches generated yet.</p>
                                 )}
                             </div>
-                            <button
-                                type="button"
-                                className={classes.dayNavBtn}
-                                onClick={goToNextDay}
-                                disabled={activeDayIndex >= dayCount - 1}
-                                aria-label="Next day"
-                            >
-                                ›
-                            </button>
+                        </>
+                    )}
+
+                    {scheduleView === 'upcoming' && (
+                        <div className={classes.schedule}>
+                            {upcomingMatches.length === 0 ? (
+                                <p className={classes.emptyNote}>No upcoming matches.</p>
+                            ) : (
+                                upcomingMatches.map(({ pair, idx }) =>
+                                    renderMatchRow({ pair, idx, showRoundMeta: true })
+                                )
+                            )}
                         </div>
                     )}
-                    <div className={classes.schedule}>
-                        {activeRound?.items.map(({ pair, idx }) => {
-                            const isBye = pair.isBye || pair.team2 === 'BYE';
-                            const isFinished = Boolean(pair.winner);
-                            const showBtn = !isBye && canViewReportButton ? canViewReportButton(pair) : false;
-                            const canSchedule = canSchedulePair ? canSchedulePair(pair) : false;
-                            const inProgressGames = !isFinished
-                                ? (pair.games || []).filter((game) => isGameSessionActive(game))
-                                : [];
-                            const isInProgress = !isBye && !isFinished && isPairLive(pair);
 
-                            const getPlayer = (name) =>
-                                name && name !== 'TBD'
-                                    ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null
-                                    : null;
-
-                            const getLatestRating = (ratingsStr) => {
-                                if (!ratingsStr) {
-                                    return 0;
-                                }
-                                const str = String(ratingsStr);
-                                if (str.includes(',')) {
-                                    return parseFloat(str.split(',').at(-1)) || 0;
-                                }
-                                return parseFloat(str) || 0;
-                            };
-
-                            const p1 = getPlayer(pair.team1);
-                            const p2 = getPlayer(pair.team2);
-
-                            const stars1 =
-                                pair.stars1 != null
-                                    ? (typeof pair.stars1 === 'string' && pair.stars1.includes(',')
-                                          ? parseFloat(pair.stars1.split(',').at(-1))
-                                          : parseFloat(pair.stars1)) || 0
-                                    : parseFloat(p1?.stars) || 0;
-                            const stars2 =
-                                pair.stars2 != null
-                                    ? (typeof pair.stars2 === 'string' && pair.stars2.includes(',')
-                                          ? parseFloat(pair.stars2.split(',').at(-1))
-                                          : parseFloat(pair.stars2)) || 0
-                                    : parseFloat(p2?.stars) || 0;
-
-                            const place1 = rankByNickname[pair.team1] || p1?.placeInLeaderboard || null;
-                            const place2 = rankByNickname[pair.team2] || p2?.placeInLeaderboard || null;
-
-                            const rating1 = getLatestRating(pair.ratings1 ?? p1?.ratings);
-                            const rating2 = getLatestRating(pair.ratings2 ?? p2?.ratings);
-
-                            const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
-                            const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
-                            const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
-                            const isHighlighted =
-                                highlightPair?.pairIndex === idx &&
-                                (highlightPair?.stageIndex ?? storageStageIndex) === storageStageIndex;
-
-                            return (
-                                <div
-                                    key={idx}
-                                    id={`pair-s${storageStageIndex}-p${idx}`}
-                                    className={`${classes.matchRow} ${isBye ? classes.matchBye : ''} ${isFinished ? classes.matchFinished : isInProgress ? classes.matchInProgress : classes.matchPending} ${isHighlighted ? classes.matchHighlighted : ''}`}
-                                >
-                                    {!isBye && (
-                                        <span className={classes.matchTopLeftControls}>
-                                            <HeadToHeadStatsButton
-                                                team1={pair.team1}
-                                                team2={pair.team2}
-                                                onShow={showHeadToHeadStats}
-                                                className={classes.headToHeadBtn}
-                                            />
-                                            {isInProgress && (
-                                                <span
-                                                    className={classes.liveDot}
-                                                    title="Match is live"
-                                                    aria-label="Match is live"
-                                                />
-                                            )}
-                                        </span>
-                                    )}
-                                    <div className={classes.teamCell}>
-                                        <SchedulePlayerCell
-                                            name={pair.team1}
-                                            player={p1}
-                                            stars={stars1}
-                                            place={place1}
-                                            countryCode={country1}
-                                            isWinner={pair.winner === pair.team1}
-                                        />
-                                    </div>
-
-                                    <div className={classes.centerBlock}>
-                                        {isBye ? (
-                                            <div className={classes.byeCenter}>
-                                                <span className={classes.byeLabel}>Round bye</span>
-                                                <span className={classes.byeHint}>No match this round</span>
-                                            </div>
-                                        ) : isFinished ? (
-                                            <span className={classes.score}>
-                                                {pair.score1 ?? 0}&nbsp;:&nbsp;{pair.score2 ?? 0}
-                                            </span>
-                                        ) : isInProgress ? (
-                                            <span className={classes.liveTag}>LIVE</span>
-                                        ) : (
-                                            <span className={classes.vs}>vs</span>
-                                        )}
-                                        {!isBye && (
-                                            <span className={classes.matchMetaRow}>
-                                                <span className={classes.matchTypeBadge}>
-                                                    {formatMatchTypeLabel(pair.type)}
-                                                </span>
-                                            </span>
-                                        )}
-                                        {!isFinished && !isBye && (
-                                            <div
-                                                className={classes.predictionEmbed}
-                                                aria-label={`Win prediction ${prediction.team1}% to ${prediction.team2}%`}
-                                            >
-                                                <span className={classes.predictionPct}>{prediction.team1}%</span>
-                                                <span className={classes.predictionLabel}>win odds</span>
-                                                <span className={classes.predictionPct}>{prediction.team2}%</span>
-                                            </div>
-                                        )}
-                                        {showBtn && (
-                                            <button
-                                                className={`${classes.reportBtn} ${isFinished ? classes.reReportBtn : ''}`}
-                                                onClick={() => onSelectPair(idx)}
-                                                title={isFinished ? 'Re-report result' : 'Report result'}
-                                            >
-                                                {isFinished ? 'Edit' : 'Report'}
-                                            </button>
-                                        )}
-                                        {(pair.scheduledAt || canSchedule) && onSaveSchedule && (
-                                            <div className={classes.scheduleControl}>
-                                                <MatchScheduleControl
-                                                    scheduledAt={pair.scheduledAt}
-                                                    scheduledBy={pair.scheduledBy}
-                                                    canEdit={canSchedule}
-                                                    onSave={(iso) => onSaveSchedule(idx, iso)}
-                                                    compact
-                                                    showMissingHint={canSchedule}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className={`${classes.teamCell} ${classes.teamCellRight}`}>
-                                        {isBye ? (
-                                            <span className={classes.byeOpponentPlaceholder}>Automatic win</span>
-                                        ) : (
-                                            <SchedulePlayerCell
-                                                name={pair.team2}
-                                                player={p2}
-                                                stars={stars2}
-                                                place={place2}
-                                                countryCode={country2}
-                                                align="right"
-                                                isWinner={pair.winner === pair.team2}
-                                            />
-                                        )}
-                                    </div>
-
-                                    {isInProgress &&
-                                        inProgressGames.map((game, gIdx) => (
-                                            <div key={gIdx} className={classes.gameDetail}>
-                                                <div className={classes.castleCard}>
-                                                    {getCastleImage(game.castle1) && (
-                                                        <img
-                                                            src={getCastleImage(game.castle1)}
-                                                            alt={game.castle1}
-                                                            className={classes.castleImg}
-                                                        />
-                                                    )}
-                                                    <div className={classes.castleName}>{game.castle1 || '—'}</div>
-                                                    <div className={classes.goldRow}>Gold: {game.gold1 ?? 0}</div>
-                                                    {renderRestartTokens(game.restart1_111, game.restart1_112)}
-                                                </div>
-                                                <div className={classes.gameDetailCenter}>
-                                                    Game {(game.gameId ?? gIdx) + 1}
-                                                </div>
-                                                <div className={`${classes.castleCard} ${classes.castleCardRight}`}>
-                                                    {getCastleImage(game.castle2) && (
-                                                        <img
-                                                            src={getCastleImage(game.castle2)}
-                                                            alt={game.castle2}
-                                                            className={classes.castleImg}
-                                                        />
-                                                    )}
-                                                    <div className={classes.castleName}>{game.castle2 || '—'}</div>
-                                                    <div className={classes.goldRow}>Gold: {game.gold2 ?? 0}</div>
-                                                    {renderRestartTokens(game.restart2_111, game.restart2_112)}
-                                                </div>
-                                            </div>
-                                        ))}
-                                </div>
-                            );
-                        })}
-                        {scopedPairs.length === 0 && <p className={classes.emptyNote}>No matches generated yet.</p>}
-                    </div>
+                    {scheduleView === 'finished' && (
+                        <div className={classes.schedule}>
+                            {finishedMatches.length === 0 ? (
+                                <p className={classes.emptyNote}>No finished matches yet.</p>
+                            ) : (
+                                finishedMatches.map(({ pair, idx }) =>
+                                    renderMatchRow({ pair, idx, showRoundMeta: true })
+                                )
+                            )}
+                        </div>
+                    )}
                 </>
             )}
 

@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAvatar, loadUserById, lookForUserId } from '../../../api/api';
+import {
+    computeSiteStarsFromRank,
+    fetchLeaderboard,
+    getAvatar,
+    loadUserById,
+    lookForUserId
+} from '../../../api/api';
 import { deriveHotaPlayerSummary, fetchHotaPlayerByLobbyNickname } from '../../../api/hotaMeta';
 import CountryFlag from '../../Country/CountryFlag';
 import AuthProviderIcon from '../../Auth/AuthProviderIcon';
@@ -9,21 +15,41 @@ import { resolveCountryCode } from '../../../utils/country';
 import { resolveAuthProvider } from '../../../utils/authProvider';
 import classes from './TournamentPlayerChip.module.css';
 
+/** Ratings/stars are often stored as "a, b, c" history — use the latest value. */
+const parseLatestNumeric = (value) => {
+    if (value == null || value === '') {
+        return null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    const raw = String(value).split(',').pop().trim();
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+};
+
 const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false }) => {
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [countryCode, setCountryCode] = useState(player?.countryCode || null);
     const [authProvider, setAuthProvider] = useState(null);
     const [siteUserId, setSiteUserId] = useState(player?.siteUserId || null);
     const [eloDisplay, setEloDisplay] = useState(null);
+    const [resolvedStars, setResolvedStars] = useState(() => parseLatestNumeric(player?.stars) || 0);
+    const [dbEloFallback, setDbEloFallback] = useState(null);
+
+    useEffect(() => {
+        setResolvedStars(parseLatestNumeric(player?.stars) || 0);
+    }, [player?.stars]);
 
     useEffect(() => {
         let cancelled = false;
 
-        const konoplayRating = player?.ratings != null && player.ratings !== '' ? String(player.ratings) : null;
+        const rosterElo = parseLatestNumeric(player?.ratings);
 
-        const setKonoplayFallback = () => {
-            if (konoplayRating) {
-                setEloDisplay({ value: konoplayRating, label: 'ELO' });
+        const setKonoplayFallback = (overrideElo = null) => {
+            const value = overrideElo ?? dbEloFallback ?? rosterElo;
+            if (value != null) {
+                setEloDisplay({ value: Number(value).toFixed(2), label: 'ELO' });
             } else {
                 setEloDisplay(null);
             }
@@ -66,7 +92,7 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
         return () => {
             cancelled = true;
         };
-    }, [player?.name, player?.ratings]);
+    }, [player?.name, player?.ratings, dbEloFallback]);
 
     useEffect(() => {
         let cancelled = false;
@@ -75,6 +101,7 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
             let userId = player?.siteUserId || null;
             let code = player?.countryCode || null;
 
+            // Exact lobby nickname → users.enteredNickname
             if (!userId && player?.name) {
                 userId = await lookForUserId(player.name);
             }
@@ -86,7 +113,7 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
             setSiteUserId(userId);
 
             const userData = await loadUserById(userId);
-            if (cancelled) {
+            if (cancelled || !userData) {
                 return;
             }
 
@@ -98,6 +125,34 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
             }
 
             setAuthProvider(resolveAuthProvider(userData));
+
+            // Bandage: roster stars often stale/0 — pull live stars (or rank-based) from DB user
+            const rosterStars = parseLatestNumeric(player?.stars) || 0;
+            let stars = parseLatestNumeric(userData.stars) || 0;
+
+            if (stars <= 0) {
+                try {
+                    const rank = await fetchLeaderboard(userData);
+                    if (!cancelled && rank != null) {
+                        stars = computeSiteStarsFromRank(rank) || 0;
+                    }
+                } catch {
+                    // Rank lookup is best-effort.
+                }
+            }
+
+            if (!cancelled) {
+                if (rosterStars <= 0 && stars > 0) {
+                    setResolvedStars(stars);
+                } else if (rosterStars > 0) {
+                    setResolvedStars(rosterStars);
+                }
+
+                const latestDbElo = parseLatestNumeric(userData.ratings);
+                if (latestDbElo != null) {
+                    setDbEloFallback(latestDbElo);
+                }
+            }
 
             try {
                 const avatar = await getAvatar(userId);
@@ -114,13 +169,13 @@ const TournamentPlayerChip = ({ player, canKick = false, onKick, kicking = false
         return () => {
             cancelled = true;
         };
-    }, [player?.siteUserId, player?.countryCode, player?.name]);
+    }, [player?.siteUserId, player?.countryCode, player?.name, player?.stars]);
 
     if (!player?.name) {
         return null;
     }
 
-    const stars = Number(player.stars) || 0;
+    const stars = resolvedStars > 0 ? resolvedStars : 0;
 
     const body = (
         <>

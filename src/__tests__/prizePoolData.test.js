@@ -4,6 +4,7 @@ import {
     buildPrizePoolEntries,
     filterDonationTargetIds,
     getFundingProgress,
+    getPrizePoolHistoryEntries,
     getTournamentCollectedUsd,
     getTournamentFundingGoalUsd,
     hasSecuredPoolFunding,
@@ -213,5 +214,48 @@ describe('prizePoolData', () => {
         expect(resolveDonationTargetIds(['missing'], ['cup1', 'cup2'])).toEqual(['cup1', 'cup2']);
 
         expect(resolveDonationTargetIds(['cup2'], ['cup1', 'cup2'])).toEqual(['cup2']);
+    });
+
+    test('getPrizePoolHistoryEntries lists donations newest first and falls back to host seed', () => {
+        const withLedger = getPrizePoolHistoryEntries({
+            prizePoolHistory: {
+                a: {
+                    type: 'donation',
+                    provider: 'bmc',
+                    donorUsername: 'Alice',
+                    amountUsd: 9,
+                    grossUsd: 10,
+                    at: '2026-08-01T12:00:00.000Z'
+                },
+                b: {
+                    type: 'donation',
+                    provider: 'donationalerts',
+                    donorUsername: 'Bob',
+                    amountUsd: 4.5,
+                    grossUsd: 5,
+                    splitAcross: 2,
+                    targeted: true,
+                    at: '2026-08-02T12:00:00.000Z'
+                }
+            }
+        });
+
+        expect(withLedger).toHaveLength(2);
+        expect(withLedger[0].donorUsername).toBe('Bob');
+        expect(withLedger[0].amountUsd).toBe(4.5);
+        expect(withLedger[0].detail).toContain('Donation Alerts');
+        expect(withLedger[0].detail).toContain('selected cups');
+        expect(withLedger[1].detail).toContain('Buy Me a Coffee');
+
+        const legacy = getPrizePoolHistoryEntries({
+            poolFunded: true,
+            poolFundedAt: '2026-07-01T10:00:00.000Z',
+            hostSeedPaidUsd: 100,
+            createdBy: 'Host'
+        });
+        expect(legacy).toHaveLength(1);
+        expect(legacy[0].type).toBe('host_seed');
+        expect(legacy[0].amountUsd).toBe(95);
+        expect(legacy[0].detail).toContain('estimated');
     });
 });

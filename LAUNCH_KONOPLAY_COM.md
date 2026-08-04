@@ -1,8 +1,8 @@
 # Launch handoff: konoplay.com
 
-**Created:** 2026-06-14  
-**Target:** End-of-week production launch on custom domain  
-**Read this first** when picking up deploy, domain, OAuth, or hosting work.
+**Status:** DONE (ops cutover complete)  
+**Created:** 2026-06-14 · **Closed:** 2026-08-04  
+**Read this** for domain / OAuth / hosting reference — not an open checklist.
 
 ---
 
@@ -10,16 +10,16 @@
 
 | Item | Choice |
 |------|--------|
-| Production domain | **`konoplay.com`** (~$6/yr) |
-| Rejected | `konoplay.gg` (~$50/yr) — same brand, not worth the premium at v1 |
-| Staging (keep for now) | `https://kononiaka.github.io` (root — not `/vkgaming`) |
-| Brand | **Konoplay** (already in UI, manifest, Twitch app name KONOPLAY) |
+| Production domain | **`konoplay.com`** |
+| Rejected | `konoplay.gg` |
+| Staging (optional) | `https://kononiaka.github.io` |
+| Brand | **Konoplay** |
 | Firebase project | `test-prod-app-81915` |
-| Hosting recommendation | **Firebase Hosting** (Auth + RTDB + Functions already there) |
+| Hosting | **Firebase Hosting** (+ Auth / RTDB / Functions) |
 
 ---
 
-## Production URLs (target — no `/vkgaming` subpath)
+## Production URLs
 
 ```
 https://konoplay.com/
@@ -27,144 +27,96 @@ https://konoplay.com/#/auth
 https://konoplay.com/auth/twitch/callback
 ```
 
-OAuth callback must be a **real path** (not hash-only). `scripts/postbuild-ghpages.js` already copies `index.html` to `auth/twitch/callback/` — replicate for Firebase Hosting rewrites.
+OAuth callback is a **real path** (not hash-only). Post-build / Hosting rewrites must serve `index.html` at `/auth/twitch/callback`.
 
 ---
 
-## Current state (as of 2026-06-14)
+## Completed checklist
 
-### Working / in progress on github.io
+### Phase 0 — Pre-launch (github.io)
 
-- Twitch OAuth **request** sends correct production `redirect_uri` when opened from `kononiaka.github.io`
-- Twitch Developer app **KONOPLAY** has redirect URL configured
-- Firebase **Authorized domains** includes `kononiaka.github.io` and `localhost`
-- Deploy: `npm run deploy` → `npm run build && gh-pages -d build`
-- Live bundle example: `main.a85569d7.js` (hash changes each deploy)
-
-### Known blocker — Firebase Web API key (`AIzaSyAzjGuv...`)
-
-**Do not use Website (HTTP referrer) restrictions** on the browser API key used by this app.
-
-| Referer sent | Who sends it | Website restriction result |
-|---|---|---|
-| `https://kononiaka.github.io/` | Browser login | Blocked if not in list (even when listed, can misconfigure) |
-| `<empty>` | Cloud Function server-side call | **Always blocked** with Website restrictions |
-
-**Fix:** Google Cloud → Credentials → `AIzaSyAzjGuv...` → Application restrictions → **None** → Save.
-
-Keep **API restrictions** (Identity Toolkit API, etc.) — that is enough for Firebase web keys (they are public in the client bundle).
-
-Sign-in runs in the **browser** after `twitchAuth` returns a custom token.
-
-### Lessons from OAuth debugging
-
-1. **Stale JS cache** can bake in `localhost` redirect URIs — incognito vs normal browser behaved differently.
-2. **`getSiteBaseUrl()` / `getTwitchRedirectUri()`** in `src/utils/appBasePath.js` now prefer runtime hostname on `github.io` over baked env vars.
-3. Login from **`localhost:3000`** uses different Twitch callback than production — don't test prod flow on localhost without dev URIs registered.
-4. **Service accounts** in Google Cloud are unrelated to browser login — edit **API keys**, not service accounts.
-
----
-
-## Launch checklist (agent TODO)
-
-### Phase 0 — Pre-launch (github.io stable)
-
-- [ ] Google Cloud API key `AIzaSyAzjGuv...` → Application restrictions → **None** (not Websites)
-- [ ] Confirm Twitch login end-to-end on github.io (Twitch → callback → home)
+- [x] Google Cloud API key → Application restrictions → **None** (not Website referrers)
+- [x] Twitch login end-to-end on github.io
 
 ### Phase 1 — Domain & hosting
 
-- [ ] Domain **konoplay.com** purchased; auto-renew on
-- [ ] Set up **Firebase Hosting** (or chosen host) for the React build
-- [ ] DNS: apex + `www` → hosting (Firebase or Cloudflare)
-- [ ] HTTPS active on `konoplay.com`
-- [ ] SPA rewrites: all routes + `/auth/twitch/callback` → `index.html`
+- [x] Domain **konoplay.com** purchased; auto-renew on
+- [x] Firebase Hosting for the React build
+- [x] DNS: apex + `www` → hosting
+- [x] HTTPS on `konoplay.com`
+- [x] SPA rewrites including `/auth/twitch/callback`
 
 ### Phase 2 — App config & env
 
-Update `.env` (and CI secrets if any) before production build:
+- [x] `REACT_APP_SITE_URL` / Twitch redirect for `konoplay.com`
+- [x] Production homepage / asset paths for konoplay.com
+- [x] `appBasePath.js` production defaults → `konoplay.com`
+- [x] Fallbacks updated (Functions Telegram `site_url`, Stripe `baseUrl`, tests, `.env.example` as needed)
 
-```env
-REACT_APP_SITE_URL=https://konoplay.com
-REACT_APP_TWITCH_REDIRECT_URI=https://konoplay.com/auth/twitch/callback
-```
+### Phase 3 — External services
 
-- [ ] `package.json` → `"homepage": "https://konoplay.com"` (drops `/vkgaming` from asset paths)
-- [ ] Rebuild and deploy to new host (not gh-pages for prod)
-- [ ] Update `src/utils/appBasePath.js` — replace hardcoded `DEFAULT_PRODUCTION_SITE` github.io fallback with env-driven value or `konoplay.com`
-- [ ] Grep repo for `kononiaka.github.io` and update fallbacks in:
-  - `functions/telegram.js` (`site_url`)
-  - `functions/index.js` (`baseUrl` fallback)
-  - `.env.example`
-  - Tests in `src/__tests__/appBasePath.test.js`
+- [x] Twitch OAuth Redirect URL: `https://konoplay.com/auth/twitch/callback`
+- [x] Firebase Authorized domains: `konoplay.com`, `www.konoplay.com`
+- [x] Functions config `telegram.site_url` (and related) for production links
+- [x] Optional static Telegram image via `telegram.announcement_image_url` (dynamic cards → `TELEGRAM_DYNAMIC_IMAGES_TODO.md`)
 
-### Phase 3 — External services (all must match **exact** URLs)
+### Phase 4 — Deploy
 
-- [ ] **Twitch Developer Console** → KONOPLAY → OAuth Redirect URLs:
-  - `https://konoplay.com/auth/twitch/callback`
-  - Keep github.io URI during transition; remove later
-- [ ] **Google Cloud API key** `AIzaSyAzjGuv...` → add `https://konoplay.com/*` and `https://www.konoplay.com/*`
-- [ ] **Firebase Console** → Authentication → Authorized domains → add `konoplay.com`, `www.konoplay.com`
-- [ ] **Firebase Functions config** (Telegram links):
-  ```bash
-  firebase functions:config:set telegram.site_url="https://konoplay.com"
-  ```
-  Redeploy functions if changed.
-- [ ] Optional Telegram image setup:
-  - Static announcement image: set `telegram.announcement_image_url` to a public HTTPS image URL.
-  - Future dynamic generated cards are documented in `TELEGRAM_DYNAMIC_IMAGES_TODO.md`.
-
-### Phase 4 — Deploy scripts
-
-- [ ] Split deploy targets:
-  - `deploy:staging` → gh-pages (optional, current `npm run deploy`)
-  - `deploy:prod` → Firebase Hosting (`firebase deploy --only hosting`)
-- [ ] Add `firebase.json` hosting section if missing
-- [ ] Post-build: ensure `auth/twitch/callback/index.html` exists (reuse or adapt `scripts/postbuild-ghpages.js`)
+- [x] Hosting / deploy path for production
+- [x] `firebase.json` hosting + database + functions
+- [x] OAuth callback static fallback where required
 
 ### Phase 5 — Smoke test on konoplay.com
 
-- [ ] Open `https://konoplay.com/#/auth` — address bar must show `konoplay.com`
-- [ ] Network → Twitch `authorize` → `redirect_uri=https://konoplay.com/auth/twitch/callback`
-- [ ] Network → `signInWithCustomToken` → **200** (not 403)
-- [ ] Logged-in state persists; token refresh works (`securetoken.googleapis.com` uses same API key)
-- [ ] Live Arena, tournaments, profile load against prod Firebase
+- [x] Auth URL shows `konoplay.com`
+- [x] Twitch `redirect_uri` → konoplay.com callback
+- [x] `signInWithCustomToken` OK
+- [x] Session / token refresh OK
+- [x] Live Arena, tournaments, profile against prod Firebase
 
-### Phase 6 — Cutover & cleanup
+### Phase 6 — Cutover
 
-- [ ] Optional: 301 redirect `kononiaka.github.io/vkgaming` → `konoplay.com`
-- [ ] Update any public links (Telegram, Twitch panel, Discord) to konoplay.com
-- [ ] Remove localhost/github.io from Twitch OAuth when no longer needed
+- [x] Public links / cutover as needed
+- [x] Staging github.io retained optionally
 
 ---
 
-## Key files reference
+## Ops notes (keep)
+
+### API key
+
+**Do not use Website (HTTP referrer) restrictions** on the browser Firebase API key.
+
+| Referer | Who | Website restriction |
+|---|---|---|
+| Site origin | Browser login | Easy to misconfigure |
+| `<empty>` | Cloud Function server-side | **Always blocked** |
+
+Prefer Application restrictions → **None**; keep **API restrictions** (Identity Toolkit, etc.).
+
+### Auth flow
+
+```
+User clicks "Continue with Twitch" (AuthForm.js)
+  → id.twitch.tv with redirect_uri
+Twitch → /auth/twitch/callback?code=...
+  → TwitchCallback.js
+  → POST twitchAuth (code → customToken)
+  → signInWithCustomToken  ← API key restrictions matter here
+  → authCtx.login → /#/
+```
+
+### Key files
 
 | File | Role |
 |------|------|
 | `src/components/Auth/AuthForm.js` | Starts Twitch OAuth |
-| `src/components/Auth/TwitchCallback.js` | Exchanges code; Firebase sign-in; shows "Twitch login failed: …" |
-| `src/utils/appBasePath.js` | Site URL, OAuth redirect URI, post-login redirects |
-| `scripts/postbuild-ghpages.js` | SPA + OAuth callback fallbacks for static hosting |
-| `src/config/firebase.js` | Firebase URLs / Functions base |
-| `.env.example` | Document all `REACT_APP_*` vars |
+| `src/components/Auth/TwitchCallback.js` | Code exchange + Firebase sign-in |
+| `src/utils/appBasePath.js` | Site URL, OAuth redirect, post-login redirects |
+| `scripts/postbuild-ghpages.js` | SPA + OAuth callback fallbacks (static hosting) |
+| `src/config/firebase.js` | Firebase / Functions base |
+| `.env.example` | `REACT_APP_*` docs |
 
----
+### Staging deploy (optional)
 
-## Architecture (auth flow)
-
-```
-User clicks "Continue with Twitch" (AuthForm.js)
-  → redirect to id.twitch.tv with redirect_uri
-Twitch redirects to /auth/twitch/callback?code=...
-  → TwitchCallback.js
-  → POST Cloud Function twitchAuth (exchange code → customToken)
-  → POST identitytoolkit.googleapis.com/.../signInWithCustomToken  ← API key referrers matter here
-  → authCtx.login → redirect to /#/
-```
-
----
-
-## User intent
-
-Move off `github.io` for a professional public launch. **konoplay.com** is the chosen production domain. GitHub Pages remains acceptable as staging until cutover is verified.
+`npm run deploy` still pushes a build to github.io staging when needed. Production is **konoplay.com**.

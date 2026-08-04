@@ -167,6 +167,132 @@ export const getPrizeAmountForPlace = (breakdown, place) => {
     return null;
 };
 
+const PROVIDER_LABELS = {
+    donationalerts: 'Donation Alerts',
+    bmc: 'Buy Me a Coffee',
+    stripe: 'Stripe',
+    host_balance: 'Host balance',
+    donation: 'Donation'
+};
+
+const TYPE_LABELS = {
+    donation: 'Donation',
+    host_seed: 'Host seed',
+    attendance_fee: 'Attendance fee'
+};
+
+export const formatPrizePoolAmount = (amount) => {
+    const value = Number(amount) || 0;
+    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
+
+export const getPrizePoolHistoryEntries = (tournament, { limit = 25 } = {}) => {
+    const raw = tournament?.prizePoolHistory;
+    const fromLedger = raw && typeof raw === 'object'
+        ? Object.entries(raw).map(([id, entry]) => ({
+              id,
+              type: entry?.type || 'donation',
+              provider: entry?.provider || null,
+              donorUsername: entry?.donorUsername || null,
+              amountUsd: Number(entry?.amountUsd) || 0,
+              paidUsd: entry?.paidUsd != null ? Number(entry.paidUsd) : null,
+              grossUsd: entry?.grossUsd != null ? Number(entry.grossUsd) : null,
+              poolShareUsd: entry?.poolShareUsd != null ? Number(entry.poolShareUsd) : null,
+              currency: entry?.currency || null,
+              splitAcross: Number(entry?.splitAcross) || 1,
+              targeted: Boolean(entry?.targeted),
+              at: entry?.at || null
+          }))
+        : [];
+
+    // Older cups only have totals — surface host seed as a synthetic row when present.
+    if (
+        fromLedger.length === 0 &&
+        tournament?.poolFunded &&
+        (Number(tournament.hostSeedPaidUsd) > 0 || Number(tournament.communityFundingUsd) > 0)
+    ) {
+        const paid = Number(tournament.hostSeedPaidUsd) || 0;
+        const pool =
+            paid > 0 ? Math.round(paid * HOST_SEED_POOL_SHARE * 100) / 100 : Number(tournament.communityFundingUsd) || 0;
+        fromLedger.push({
+            id: 'legacy-host-seed',
+            type: 'host_seed',
+            provider: 'stripe',
+            donorUsername: tournament.createdBy || null,
+            amountUsd: pool,
+            paidUsd: paid || null,
+            grossUsd: null,
+            poolShareUsd: null,
+            currency: 'USD',
+            splitAcross: 1,
+            targeted: false,
+            at: tournament.poolFundedAt || null,
+            legacy: true
+        });
+    }
+
+    return fromLedger
+        .filter((entry) => entry.amountUsd > 0)
+        .sort((a, b) => {
+            const aMs = a.at ? new Date(a.at).getTime() : 0;
+            const bMs = b.at ? new Date(b.at).getTime() : 0;
+            return bMs - aMs;
+        })
+        .slice(0, limit)
+        .map((entry) => {
+            const typeLabel = TYPE_LABELS[entry.type] || 'Funding';
+            const providerLabel = entry.provider ? PROVIDER_LABELS[entry.provider] || entry.provider : null;
+            const who = entry.donorUsername || 'Unknown';
+            let detail = typeLabel;
+            if (entry.type === 'donation') {
+                detail = providerLabel ? `${providerLabel} · ${who}` : who;
+                if (entry.splitAcross > 1) {
+                    detail += entry.targeted
+                        ? ` · split across ${entry.splitAcross} selected cups`
+                        : ` · split across ${entry.splitAcross} live cups`;
+                }
+                if (entry.grossUsd != null && entry.grossUsd > 0) {
+                    detail += ` · 90% of ${formatPrizePoolAmount(entry.grossUsd)}`;
+                }
+            } else if (entry.type === 'host_seed') {
+                detail = providerLabel ? `${typeLabel} · ${providerLabel}` : typeLabel;
+                if (who && who !== 'Unknown') {
+                    detail += ` · ${who}`;
+                }
+                if (entry.paidUsd != null && entry.paidUsd > 0) {
+                    detail += ` · paid ${formatPrizePoolAmount(entry.paidUsd)}`;
+                }
+                if (entry.legacy) {
+                    detail += ' · estimated (pre-history)';
+                }
+            } else if (entry.type === 'attendance_fee') {
+                detail = `${typeLabel} · ${who}`;
+            }
+
+            let whenLabel = '';
+            if (entry.at) {
+                const date = new Date(entry.at);
+                if (!Number.isNaN(date.getTime())) {
+                    whenLabel = date.toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+
+            return {
+                ...entry,
+                typeLabel,
+                providerLabel,
+                detail,
+                whenLabel,
+                amountLabel: `+${formatPrizePoolAmount(entry.amountUsd)}`
+            };
+        });
+};
+
 export const buildPrizePoolEntry = (tournament, id) => {
     const collected = getTournamentCollectedUsd(tournament);
     const goalUsd = getTournamentFundingGoalUsd(tournament);

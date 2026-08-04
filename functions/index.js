@@ -56,6 +56,21 @@ async function recordPlatformShare(amountUsd) {
     await db.ref('prizePoolFunding/platform').transaction((current) => (current || 0) + share);
 }
 
+async function appendPrizePoolHistory(tournamentId, entry) {
+    if (!tournamentId || !entry) {
+        return;
+    }
+    const amountUsd = Number(entry.amountUsd) || 0;
+    if (amountUsd <= 0 && entry.type !== 'note') {
+        return;
+    }
+    await db.ref(`tournaments/heroes3/${tournamentId}/prizePoolHistory`).push({
+        ...entry,
+        amountUsd,
+        at: entry.at || new Date().toISOString()
+    });
+}
+
 function parseTargetTournamentIds(raw) {
     if (!raw) {
         return null;
@@ -77,12 +92,12 @@ function parseTargetTournamentIds(raw) {
     return null;
 }
 
-async function allocateDonationToLivePrizePools(amount, currency, targetTournamentIds = null) {
+async function allocateDonationToLivePrizePools(amount, currency, targetTournamentIds = null, meta = {}) {
     const usdAmount = normalizeDonationToUsd(amount, currency);
     const prizeShare = usdAmount * PUBLIC_DONATION_POOL_SHARE;
     const platformShare = usdAmount - prizeShare;
     if (prizeShare <= 0) {
-        return;
+        return { liveIds: [], sharePerTournament: 0, prizeShare: 0 };
     }
 
     const tournamentsSnap = await db.ref('tournaments/heroes3').once('value');
@@ -117,7 +132,7 @@ async function allocateDonationToLivePrizePools(amount, currency, targetTourname
                 ? `No matching selected cups — stored $${prizeShare.toFixed(2)} in unallocated prize pool funding; platform $${platformShare.toFixed(2)}`
                 : `No open cups — stored $${prizeShare.toFixed(2)} in unallocated prize pool funding; platform $${platformShare.toFixed(2)}`
         );
-        return;
+        return { liveIds: [], sharePerTournament: 0, prizeShare, unallocated: true };
     }
 
     const sharePerTournament = prizeShare / liveIds.length;
@@ -129,11 +144,28 @@ async function allocateDonationToLivePrizePools(amount, currency, targetTourname
     }
     await db.ref().update(updates);
     await recordPlatformShare(platformShare);
+
+    const historyBase = {
+        type: 'donation',
+        provider: meta.provider || 'donation',
+        donorUsername: meta.donorUsername || null,
+        userId: meta.userId || null,
+        amountUsd: Math.round(sharePerTournament * 100) / 100,
+        grossUsd: Math.round(usdAmount * 100) / 100,
+        poolShareUsd: Math.round(prizeShare * 100) / 100,
+        currency: currency || 'USD',
+        splitAcross: liveIds.length,
+        externalId: meta.externalId || null,
+        targeted: usedExplicitTargets
+    };
+    await Promise.all(liveIds.map((id) => appendPrizePoolHistory(id, historyBase)));
+
     console.log(
         usedExplicitTargets
             ? `Allocated $${prizeShare.toFixed(2)} across ${liveIds.length} selected cup(s) ($${sharePerTournament.toFixed(2)} each); platform $${platformShare.toFixed(2)}`
             : `Allocated $${prizeShare.toFixed(2)} across ${liveIds.length} live cup(s) ($${sharePerTournament.toFixed(2)} each); platform $${platformShare.toFixed(2)}`
     );
+    return { liveIds, sharePerTournament, prizeShare };
 }
 
 const OPEN_REGISTRATION_STATUSES = new Set(['Registration', 'Registration Started']);
@@ -280,6 +312,15 @@ async function processTournamentAttendancePayment(session, metadata) {
     await db.ref(`tournaments/heroes3/${tournamentId}`).update({
         communityFundingUsd: admin.database.ServerValue.increment(paidAmount)
     });
+    await appendPrizePoolHistory(tournamentId, {
+        type: 'attendance_fee',
+        provider: 'stripe',
+        donorUsername: nickname || null,
+        userId: userId || null,
+        amountUsd: paidAmount,
+        paidUsd: paidAmount,
+        externalId: session.id
+    });
 
     await paidRef.set({
         nickname,
@@ -365,14 +406,25 @@ async function processTournamentHostSeedPayment(session, metadata) {
     const poolUsd = Math.round(paidAmount * HOST_SEED_POOL_SHARE * 100) / 100;
     const platformUsd = Math.round((paidAmount - poolUsd) * 100) / 100;
 
+    const fundedAt = new Date().toISOString();
     await db.ref(`tournaments/heroes3/${tournamentId}`).update({
         communityFundingUsd: poolUsd,
         poolFunded: true,
-        poolFundedAt: new Date().toISOString(),
+        poolFundedAt: fundedAt,
         hostSeedPaidUsd: paidAmount,
         status: tournament.isPublic !== false ? 'Registration Started' : 'Draft'
     });
     await recordPlatformShare(platformUsd);
+    await appendPrizePoolHistory(tournamentId, {
+        type: 'host_seed',
+        provider: 'stripe',
+        donorUsername: nickname || null,
+        userId: userId || null,
+        amountUsd: poolUsd,
+        paidUsd: paidAmount,
+        platformUsd,
+        at: fundedAt
+    });
 
     await processedRef.set({
         purpose: 'tournament_host_seed',
@@ -480,7 +532,9 @@ async function processMatchedExternalDonation({
     }
 
     const matchedEntry = findUserEntryByDonationNickname(usersData, tipName);
+    const matchedUserId = matchedEntry ? matchedEntry[0] : null;
 
+    let allocation = null;
     try {
         let targetTournamentIds = null;
         if (matchedEntry) {
@@ -490,7 +544,12 @@ async function processMatchedExternalDonation({
             }
         }
 
-        await allocateDonationToLivePrizePools(parsedAmount, tipCurrency, targetTournamentIds);
+        allocation = await allocateDonationToLivePrizePools(parsedAmount, tipCurrency, targetTournamentIds, {
+            provider,
+            donorUsername: tipName,
+            userId: matchedUserId,
+            externalId: String(externalId)
+        });
     } catch (allocationError) {
         console.error(
             `Prize pool allocation failed for ${provider} donation ${externalId}:`,
@@ -508,6 +567,7 @@ async function processMatchedExternalDonation({
             amount: parsedAmount,
             currency: tipCurrency,
             reason: 'donation_nickname_not_linked',
+            allocatedTournamentIds: allocation?.liveIds || [],
             processedAt: new Date().toISOString()
         });
         return { status: 'unmatched' };
@@ -530,6 +590,8 @@ async function processMatchedExternalDonation({
         amount: parsedAmount,
         currency: tipCurrency,
         userId,
+        allocatedTournamentIds: allocation?.liveIds || [],
+        sharePerTournamentUsd: allocation?.sharePerTournament || 0,
         processedAt: new Date().toISOString()
     });
     console.log(`Processed ${provider} donation ${externalId} by donation name "${tipName}"`);
@@ -1197,7 +1259,12 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
             }
         }
 
-        await allocateDonationToLivePrizePools(donationAmount, currency, targetTournamentIds);
+        await allocateDonationToLivePrizePools(donationAmount, currency, targetTournamentIds, {
+            provider: 'stripe',
+            donorUsername: nickname,
+            userId: dbUserId,
+            externalId: session.id
+        });
     } catch (allocationError) {
         console.error(`Prize pool allocation failed for Stripe session ${session.id}:`, allocationError.message);
     }
