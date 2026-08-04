@@ -80,6 +80,54 @@
     background: rgba(255, 255, 255, 0.04);
 }
 
+.subTabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: -0.35rem 0 1rem;
+    padding: 2px;
+    background: var(--color-bg-deep);
+    border: var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.subTab {
+    padding: 0.35rem 0.85rem;
+    border: none;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.subTab:hover {
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.subTabActive {
+    color: var(--color-text);
+    background: var(--color-bg-elevated);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.matchRoundTag {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.55rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+}
+
 .activeTab {
     background: var(--color-bg-elevated);
     color: var(--color-gold);

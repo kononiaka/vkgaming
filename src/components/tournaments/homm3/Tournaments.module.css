@@ -626,6 +626,73 @@
     letter-spacing: 0.06em;
 }
 
+.prizePoolHistory {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: var(--border-subtle);
+}
+
+.prizePoolHistoryTitle {
+    margin: 0 0 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.prizePoolHistoryList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.prizePoolHistoryItem {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.45rem;
+    align-items: start;
+}
+
+.prizePoolHistoryAmt {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--color-gold);
+    white-space: nowrap;
+}
+
+.prizePoolHistoryMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.prizePoolHistoryDetail {
+    font-size: 0.72rem;
+    color: var(--color-text);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.prizePoolHistoryWhen {
+    font-size: 0.65rem;
+    color: var(--color-text-dim);
+}
+
+.prizePoolHistoryEmpty,
+.prizePoolHistoryNote {
+    margin: 0.35rem 0 0;
+    font-size: 0.68rem;
+    color: var(--color-text-dim);
+    line-height: 1.35;
+}
+
 .winnersSection {
     margin: 0;
     padding: 0.85rem 1rem;

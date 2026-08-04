@@ -52,7 +52,7 @@ import {
     getCommentatorRequestForUser,
     getPendingCommentatorRequests
 } from '../../../utils/tournamentCommentators';
-import { getPrizeAmountForPlace, getTournamentPrizeBreakdown } from '../../../utils/prizePoolData';
+import { getPrizeAmountForPlace, getTournamentPrizeBreakdown, getPrizePoolHistoryEntries } from '../../../utils/prizePoolData';
 import {
     calculateSwissTotalRounds,
     createSwissRoundDeadline,
@@ -2234,6 +2234,10 @@ const TournamentList = () => {
                         };
 
                         const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
+                        const prizePoolHistory = isAdmin ? getPrizePoolHistoryEntries(tournament) : [];
+                        const hasPrizePoolLedger = Boolean(
+                            tournament.prizePoolHistory && Object.keys(tournament.prizePoolHistory).length > 0
+                        );
                         const firebaseUid = getFirebaseUid();
                         const commentatorRequest = getCommentatorRequestForUser(tournament, firebaseUid);
                         const approvedCommentator = getApprovedCommentator(tournament, firebaseUid);
@@ -2849,6 +2853,45 @@ const TournamentList = () => {
                                                 </span>
                                             </div>
                                         ))}
+                                        {isAdmin && (
+                                            <div className={classes.prizePoolHistory}>
+                                                <h5 className={classes.prizePoolHistoryTitle}>Funding history</h5>
+                                                {prizePoolHistory.length === 0 ? (
+                                                    <p className={classes.prizePoolHistoryEmpty}>
+                                                        No funding events recorded yet.
+                                                    </p>
+                                                ) : (
+                                                    <ul className={classes.prizePoolHistoryList}>
+                                                        {prizePoolHistory.map((entry) => (
+                                                            <li
+                                                                key={entry.id}
+                                                                className={classes.prizePoolHistoryItem}
+                                                            >
+                                                                <span className={classes.prizePoolHistoryAmt}>
+                                                                    {entry.amountLabel}
+                                                                </span>
+                                                                <span className={classes.prizePoolHistoryMeta}>
+                                                                    <span className={classes.prizePoolHistoryDetail}>
+                                                                        {entry.detail}
+                                                                    </span>
+                                                                    {entry.whenLabel ? (
+                                                                        <span className={classes.prizePoolHistoryWhen}>
+                                                                            {entry.whenLabel}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                                {!hasPrizePoolLedger && prizePoolHistory.length > 0 ? (
+                                                    <p className={classes.prizePoolHistoryNote}>
+                                                        Full donation log starts after deploy — older pool changes were
+                                                        totals only.
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     tournament.winners && (
@@ -2875,6 +2918,33 @@ const TournamentList = () => {
                                                     </div>
                                                 );
                                             })}
+                                            {isAdmin && prizePoolHistory.length > 0 && (
+                                                <div className={classes.prizePoolHistory}>
+                                                    <h5 className={classes.prizePoolHistoryTitle}>Funding history</h5>
+                                                    <ul className={classes.prizePoolHistoryList}>
+                                                        {prizePoolHistory.map((entry) => (
+                                                            <li
+                                                                key={entry.id}
+                                                                className={classes.prizePoolHistoryItem}
+                                                            >
+                                                                <span className={classes.prizePoolHistoryAmt}>
+                                                                    {entry.amountLabel}
+                                                                </span>
+                                                                <span className={classes.prizePoolHistoryMeta}>
+                                                                    <span className={classes.prizePoolHistoryDetail}>
+                                                                        {entry.detail}
+                                                                    </span>
+                                                                    {entry.whenLabel ? (
+                                                                        <span className={classes.prizePoolHistoryWhen}>
+                                                                            {entry.whenLabel}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
                                     )
                                 )}

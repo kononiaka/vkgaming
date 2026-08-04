@@ -59,6 +59,9 @@
                     "pricePull": {
                         ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
                     },
+                    "prizePoolHistory": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
                     ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('createdByUid').val() === auth.uid))"
                 },
                 ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid))"

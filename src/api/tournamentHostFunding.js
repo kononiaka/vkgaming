@@ -7,6 +7,7 @@ const CONFIRM_HOST_SEED_URL = `${FIREBASE_FUNCTIONS_BASE}/confirmTournamentHostS
 
 export const activateFundedTournament = async (tournamentId, goalUsd, { isPublic = true } = {}) => {
     const { poolUsd, platformUsd } = splitHostSeedPayment(goalUsd);
+    const fundedAt = new Date().toISOString();
 
     await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}.json`, {
         method: 'PATCH',
@@ -14,11 +15,28 @@ export const activateFundedTournament = async (tournamentId, goalUsd, { isPublic
         body: JSON.stringify({
             communityFundingUsd: poolUsd,
             poolFunded: true,
-            poolFundedAt: new Date().toISOString(),
+            poolFundedAt: fundedAt,
             hostSeedPaidUsd: goalUsd,
             status: isPublic ? 'Registration Started' : 'Draft'
         })
     });
+
+    try {
+        await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/prizePoolHistory.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'host_seed',
+                provider: 'host_balance',
+                amountUsd: poolUsd,
+                paidUsd: goalUsd,
+                platformUsd,
+                at: fundedAt
+            })
+        });
+    } catch (historyError) {
+        console.warn('Could not append prize pool history:', historyError);
+    }
 
     return { poolUsd, platformUsd };
 };

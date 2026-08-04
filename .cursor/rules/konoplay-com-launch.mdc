@@ -1,5 +1,5 @@
 ---
-description: Production launch to konoplay.com — read LAUNCH_KONOPLAY_COM.md for deploy, domain, OAuth, and hosting handoff
+description: Production launch to konoplay.com — cutover DONE; read LAUNCH_KONOPLAY_COM.md for domain/OAuth/hosting reference
 alwaysApply: false
 ---
 
@@ -7,9 +7,9 @@ alwaysApply: false
 
 When the user asks about **launch**, **production**, **custom domain**, **konoplay.com**, **deploy**, **hosting**, or **moving off github.io**:
 
-1. **Read `LAUNCH_KONOPLAY_COM.md`** at the repo root first — it has the full checklist, decisions, and current blockers.
-2. Production domain is **`konoplay.com`** (not `.gg`, not github.io long-term).
-3. Staging may stay on `https://kononiaka.github.io` (root) until cutover.
-4. OAuth/Twitch/Firebase/Google API key referrers must all use the **exact** production callback:
-   `https://konoplay.com/auth/twitch/callback`
-5. Do not confuse Google **API key** HTTP referrers (browser login) with Firebase **Authorized domains** or Twitch redirect URIs — all three must be updated on domain change.
+1. **Read `LAUNCH_KONOPLAY_COM.md`** — cutover is **DONE**; doc is the ops reference (URLs, API key notes, auth flow).
+2. Production domain is **`konoplay.com`**.
+3. Staging may still use `https://kononiaka.github.io` optionally.
+4. OAuth callback: `https://konoplay.com/auth/twitch/callback`
+5. Do not confuse Google **API key** HTTP referrers (browser login) with Firebase **Authorized domains** or Twitch redirect URIs.
+6. Open product work and future plans: **`LAUNCH_PLAN.md`**. Active feature ticket: **`TELEGRAM_DYNAMIC_IMAGES_TODO.md`**.
