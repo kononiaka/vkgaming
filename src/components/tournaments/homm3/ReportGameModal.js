@@ -663,7 +663,9 @@ const ReportGameModal = ({
                       restart1_112: g.restart1_112 || 0,
                       restart2_111: g.restart2_111 || 0,
                       restart2_112: g.restart2_112 || 0,
-                      restartsFinished: g.restartsFinished || false
+                      restartsFinished: g.restartsFinished || false,
+                      bannedCastles1: Array.isArray(g.bannedCastles1) ? g.bannedCastles1 : [],
+                      bannedCastles2: Array.isArray(g.bannedCastles2) ? g.bannedCastles2 : []
                   }))
                 : [
                       {
@@ -681,7 +683,9 @@ const ReportGameModal = ({
                           restart1_112: restart1_112,
                           restart2_111: restart2_111,
                           restart2_112: restart2_112,
-                          restartsFinished: restartsFinished
+                          restartsFinished: restartsFinished,
+                          bannedCastles1: Array.isArray(bannedCastlesBO1_1) ? bannedCastlesBO1_1 : [],
+                          bannedCastles2: Array.isArray(bannedCastlesBO1_2) ? bannedCastlesBO1_2 : []
                       }
                   ]
         };

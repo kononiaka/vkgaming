@@ -36,6 +36,10 @@ const MyUpcomingMatchesSection = ({ matches = [], title = 'My upcoming matches',
                         gameNumber={match.gameNumber}
                         team1Stars={match.team1Stars}
                         team2Stars={match.team2Stars}
+                        team1TwitchLogin={match.team1TwitchLogin}
+                        team2TwitchLogin={match.team2TwitchLogin}
+                        team1YoutubeUrl={match.team1YoutubeUrl}
+                        team2YoutubeUrl={match.team2YoutubeUrl}
                         compact
                     />
                 ))}

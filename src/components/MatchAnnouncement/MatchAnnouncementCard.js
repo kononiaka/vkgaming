@@ -3,10 +3,17 @@ import CountryFlag from '../Country/CountryFlag';
 import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../Stars/Stars';
 import { useHeadToHeadStats } from '../../hooks/useHeadToHeadStats';
-import konoplayLogo from '../../image/konoplay-logo-new-invert.png';
+import konoplayCrest from '../../image/konoplay-crest.png';
 import { buildMatchBannerLabel } from '../../utils/matchFixtureLabels';
+import { getTwitchWatchUrl } from '../../utils/twitchUtils';
 import { formatMatchSchedule } from '../tournaments/homm3/matchScheduleUtils';
 import classes from './MatchAnnouncementCard.module.css';
+
+const TWITCH_ICON_PATH =
+    'M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z';
+
+const YOUTUBE_ICON_PATH =
+    'M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z';
 
 const formatAnnounceTime = (iso) => formatMatchSchedule(iso) || 'TBD';
 
@@ -18,6 +25,56 @@ const formatSeriesLabel = (seriesType) => {
         return 'BO3';
     }
     return 'BO1';
+};
+
+const stopCardNav = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+};
+
+const openExternal = (event, url) => {
+    stopCardNav(event);
+    if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+};
+
+const PlayerStreamBadges = ({ twitchLogin, youtubeUrl, playerName }) => {
+    const twitchUrl = getTwitchWatchUrl(twitchLogin);
+    if (!twitchUrl && !youtubeUrl) {
+        return null;
+    }
+
+    return (
+        <div className={classes.streamBadges}>
+            {twitchUrl ? (
+                <button
+                    type="button"
+                    className={`${classes.streamBadge} ${classes.streamBadgeTwitch}`}
+                    aria-label={`${playerName} on Twitch`}
+                    title={`${playerName} on Twitch`}
+                    onClick={(event) => openExternal(event, twitchUrl)}
+                >
+                    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
+                        <path d={TWITCH_ICON_PATH} fill="currentColor" />
+                    </svg>
+                </button>
+            ) : null}
+            {youtubeUrl ? (
+                <button
+                    type="button"
+                    className={`${classes.streamBadge} ${classes.streamBadgeYoutube}`}
+                    aria-label={`${playerName} on YouTube`}
+                    title={`${playerName} on YouTube`}
+                    onClick={(event) => openExternal(event, youtubeUrl)}
+                >
+                    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
+                        <path d={YOUTUBE_ICON_PATH} fill="currentColor" />
+                    </svg>
+                </button>
+            ) : null}
+        </div>
+    );
 };
 
 const PlayerPortrait = ({ avatar, name, stars = 0 }) => {
@@ -68,6 +125,10 @@ const MatchAnnouncementCard = ({
     team2Stars = 0,
     team1Prediction = null,
     team2Prediction = null,
+    team1TwitchLogin = null,
+    team2TwitchLogin = null,
+    team1YoutubeUrl = null,
+    team2YoutubeUrl = null,
     matchCenterUrl = null,
     watchUrl = null,
     streamLive = false,
@@ -103,10 +164,20 @@ const MatchAnnouncementCard = ({
         const avatar = isLeft ? team1Avatar : team2Avatar;
         const countryCode = isLeft ? team1CountryCode : team2CountryCode;
         const stars = isLeft ? team1Stars : team2Stars;
+        const twitchLogin = isLeft ? team1TwitchLogin : team2TwitchLogin;
+        const youtubeUrl = isLeft ? team1YoutubeUrl : team2YoutubeUrl;
+        const hasStreamLinks = Boolean(getTwitchWatchUrl(twitchLogin) || youtubeUrl);
 
         return (
             <div className={`${classes.playerCol} ${isLeft ? classes.playerColLeft : classes.playerColRight}`}>
-                <div className={classes.portraitSlot}>
+                <div
+                    className={`${classes.portraitSlot} ${hasStreamLinks ? classes.portraitSlotWithStreams : ''}`}
+                >
+                    <PlayerStreamBadges
+                        twitchLogin={twitchLogin}
+                        youtubeUrl={youtubeUrl}
+                        playerName={name}
+                    />
                     <PlayerPortrait avatar={avatar} name={name} stars={stars} />
                 </div>
                 <div className={classes.playerMeta}>
@@ -194,7 +265,7 @@ const MatchAnnouncementCard = ({
 
                         <div className={classes.centerStack}>
                             <div className={classes.centerDiamond}>
-                                <img src={konoplayLogo} alt="" className={classes.centerLogo} />
+                                <img src={konoplayCrest} alt="" className={classes.centerLogo} />
                             </div>
                             {predictionBlock}
                             <div className={classes.centerStackMobile}>

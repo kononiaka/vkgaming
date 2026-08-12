@@ -193,6 +193,11 @@
     margin-bottom: 0.2rem;
 }
 
+.rateMuted {
+    color: var(--color-text-dim);
+    font-weight: 600;
+}
+
 .rateBar {
     height: 4px;
     background: rgba(255, 255, 255, 0.08);

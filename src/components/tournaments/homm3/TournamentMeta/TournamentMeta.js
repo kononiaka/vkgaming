@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchHotaFactions } from '../../../../api/hotaMeta';
 import { getCastleImage } from '../../../../utils/castleImages';
-import { buildTournamentMetaRows, fetchTournamentGameLog } from '../../../../utils/tournamentMetaStats';
+import { buildTournamentMetaRows, fetchTournamentGameLog, META_MIN_SAMPLE } from '../../../../utils/tournamentMetaStats';
 import classes from './TournamentMeta.module.css';
 
 const formatRate = (value) => {
@@ -162,6 +162,7 @@ const TournamentMeta = ({ tournamentId, pairs = [], compact = false }) => {
                         <tbody>
                             {rows.map((row, index) => {
                                 const image = getCastleImage(row.name);
+                                const cupRate = row.displayWinRate;
                                 const deltaClass =
                                     row.delta == null
                                         ? ''
@@ -190,15 +191,26 @@ const TournamentMeta = ({ tournamentId, pairs = [], compact = false }) => {
                                         <td className={`${classes.numCol} ${classes.winCol}`}>{row.win}</td>
                                         <td className={`${classes.numCol} ${classes.loseCol}`}>{row.lose}</td>
                                         <td className={classes.rateCol}>
-                                            <span className={classes.rateValue}>{formatRate(row.winRate)}</span>
-                                            <div className={classes.rateBar}>
-                                                <div
-                                                    className={classes.rateBarFill}
-                                                    style={{
-                                                        width: `${Math.min(Math.max(row.winRate, 0), 100)}%`
-                                                    }}
-                                                />
-                                            </div>
+                                            {cupRate == null ? (
+                                                <span
+                                                    className={classes.rateMuted}
+                                                    title={`Needs ${META_MIN_SAMPLE}+ maps for a stable cup WR`}
+                                                >
+                                                    —
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span className={classes.rateValue}>{formatRate(cupRate)}</span>
+                                                    <div className={classes.rateBar}>
+                                                        <div
+                                                            className={classes.rateBarFill}
+                                                            style={{
+                                                                width: `${Math.min(Math.max(cupRate, 0), 100)}%`
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </td>
                                         <td className={classes.rateCol}>{formatRate(row.hotaWinRate)}</td>
                                         <td className={`${classes.deltaCol} ${deltaClass}`}>
@@ -212,9 +224,9 @@ const TournamentMeta = ({ tournamentId, pairs = [], compact = false }) => {
                 </div>
             )}
 
-            {gameCount > 0 && gameCount < 8 && (
+            {rows.some((row) => !row.sampleReliable) && (
                 <p className={classes.sampleNote}>
-                    Small sample — rates will settle as more maps are played in this tournament.
+                    Cup WR and Δ need {META_MIN_SAMPLE}+ maps per castle before rates are shown.
                 </p>
             )}
         </div>

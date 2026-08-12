@@ -47,6 +47,30 @@
                     "bracket": {
                         ".write": "auth != null"
                     },
+                    "swissCurrentRound": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "swissTotalRounds": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "swissRoundDeadlines": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "swissPhase": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "swissMode": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "swissWinTarget": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "swissLossLimit": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
+                    "stageLabels": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
+                    },
                     "submitProgress": {
                         ".write": "auth != null"
                     },

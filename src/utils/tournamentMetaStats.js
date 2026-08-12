@@ -158,6 +158,8 @@ export const mergeTournamentGames = (...lists) => {
     return [...byKey.values()];
 };
 
+export const META_MIN_SAMPLE = 5;
+
 export const aggregateCastleStats = (games = []) => {
     const byCastle = {};
     const list = Array.isArray(games) ? games : [];
@@ -194,7 +196,8 @@ export const aggregateCastleStats = (games = []) => {
     return Object.values(byCastle)
         .map((row) => ({
             ...row,
-            winRate: row.total > 0 ? (row.win / row.total) * 100 : 0
+            winRate: row.total > 0 ? (row.win / row.total) * 100 : 0,
+            sampleReliable: row.total >= META_MIN_SAMPLE
         }))
         .sort((a, b) => b.winRate - a.winRate || b.total - a.total || a.name.localeCompare(b.name));
 };
@@ -216,9 +219,13 @@ export const mergeWithHotaFactions = (castleRows, hotaFactions) => {
         const hota = hotaByKonoplay.get(row.name);
         const hotaWinRate =
             hota?.winrate != null && Number.isFinite(Number(hota.winrate)) ? Number(hota.winrate) : null;
-        const delta = hotaWinRate != null ? row.winRate - hotaWinRate : null;
+        const sampleReliable = row.sampleReliable !== false && row.total >= META_MIN_SAMPLE;
+        const delta =
+            sampleReliable && hotaWinRate != null ? row.winRate - hotaWinRate : null;
         return {
             ...row,
+            sampleReliable,
+            displayWinRate: sampleReliable ? row.winRate : null,
             hotaWinRate,
             hotaGames: hota?.games ?? null,
             hotaPickRate: hota?.pick_rate ?? null,

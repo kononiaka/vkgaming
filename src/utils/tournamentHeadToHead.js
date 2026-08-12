@@ -246,8 +246,13 @@ const mergeMatchSources = (gamesById, bracketMatches) => {
 const collectBansForPlayer = (match, playerCandidates, banCounts) => {
     const games = Array.isArray(match.games) ? match.games : [];
     const isOpp1 = nickMatches(match.opponent1, playerCandidates);
+    let mapsPlayed = 0;
 
     games.forEach((game) => {
+        if (!game) {
+            return;
+        }
+        mapsPlayed += 1;
         const bans = isOpp1 ? game.bannedCastles1 || [] : game.bannedCastles2 || [];
         (Array.isArray(bans) ? bans : []).forEach((raw) => {
             const castle = normalizeCastleName(raw);
@@ -257,6 +262,8 @@ const collectBansForPlayer = (match, playerCandidates, banCounts) => {
             banCounts[castle] = (banCounts[castle] || 0) + 1;
         });
     });
+
+    return mapsPlayed;
 };
 
 const topBanEntries = (banCounts, limit = 3) =>
@@ -264,6 +271,24 @@ const topBanEntries = (banCounts, limit = 3) =>
         .map(([castle, count]) => ({ castle, count }))
         .sort((a, b) => b.count - a.count || a.castle.localeCompare(b.castle))
         .slice(0, limit);
+
+/** Min ban count + share of maps before showing a ban insight. */
+export const BAN_INSIGHT_MIN_COUNT = 3;
+export const BAN_INSIGHT_MIN_RATE = 0.5;
+
+const buildBanInsight = (player, opponent, topBan, mapsPlayed) => {
+    if (!topBan || !player || mapsPlayed <= 0) {
+        return null;
+    }
+    if (topBan.count < BAN_INSIGHT_MIN_COUNT) {
+        return null;
+    }
+    const rate = topBan.count / mapsPlayed;
+    if (rate < BAN_INSIGHT_MIN_RATE) {
+        return null;
+    }
+    return `${player} often bans ${topBan.castle} vs ${opponent} (${topBan.count}×)`;
+};
 
 const filterSeriesForYear = (series, year) => {
     if (year == null) {
@@ -307,6 +332,8 @@ export const buildTournamentHeadToHeadFromMatches = (matches, playerA, playerB, 
     const series = [];
     const bansA = {};
     const bansB = {};
+    let mapsA = 0;
+    let mapsB = 0;
 
     (matches || []).forEach((match) => {
         if (!isTournamentMatch(match)) {
@@ -340,8 +367,8 @@ export const buildTournamentHeadToHeadFromMatches = (matches, playerA, playerB, 
             opponent2: match.opponent2
         });
 
-        collectBansForPlayer(match, candidatesA, bansA);
-        collectBansForPlayer(match, candidatesB, bansB);
+        mapsA += collectBansForPlayer(match, candidatesA, bansA);
+        mapsB += collectBansForPlayer(match, candidatesB, bansB);
     });
 
     series.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
@@ -419,12 +446,8 @@ export const buildTournamentHeadToHeadFromMatches = (matches, playerA, playerB, 
         recentSeries: series.slice(0, 5),
         bansA: bansATop,
         bansB: bansBTop,
-        banInsightA: bansATop[0]
-            ? `${playerA} most often bans ${bansATop[0].castle} vs ${playerB} (${bansATop[0].count}×)`
-            : null,
-        banInsightB: bansBTop[0]
-            ? `${playerB} most often bans ${bansBTop[0].castle} vs ${playerA} (${bansBTop[0].count}×)`
-            : null
+        banInsightA: buildBanInsight(playerA, playerB, bansATop[0], mapsA),
+        banInsightB: buildBanInsight(playerB, playerA, bansBTop[0], mapsB)
     };
 };
 
