@@ -215,6 +215,10 @@ const LiveArenaPage = () => {
                 team2Stars={enriched.team2Stars}
                 team1Prediction={enriched.team1Prediction}
                 team2Prediction={enriched.team2Prediction}
+                team1TwitchLogin={enriched.team1TwitchLogin}
+                team2TwitchLogin={enriched.team2TwitchLogin}
+                team1YoutubeUrl={enriched.team1YoutubeUrl}
+                team2YoutubeUrl={enriched.team2YoutubeUrl}
                 castle1Image={getCastleImage(enriched.castle1)}
                 castle2Image={getCastleImage(enriched.castle2)}
                 matchCenterUrl={matchCenterUrl}

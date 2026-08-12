@@ -22,7 +22,9 @@ import { buildMatchStageLabel, resolveLeagueRound } from '../../utils/matchFixtu
 import { getMatchCenterLink } from '../../utils/matchCenterRoute';
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
 import { getHeadToHeadPrediction } from '../../utils/matchPredictions';
-import { isGameSessionActive, isPairLive, hasScheduledAt } from '../../utils/matchCenterData';
+import { isGameSessionActive, isPairLive, hasScheduledAt, resolvePlayerTwitchLogin, resolvePlayerYoutubeUrl } from '../../utils/matchCenterData';
+import { extractTwitchLogin } from '../../utils/twitchUtils';
+import { normalizeSocialUrl } from '../../utils/publicLinks';
 import classes from './StartingPageContent.module.css';
 
 const MATCH_CENTER_PREVIEW_LIMIT = 5;
@@ -76,6 +78,8 @@ const StartingPageContent = () => {
                 const avatarByNickname = {};
                 const countryLookup = buildCountryLookup(usersData);
                 const rankByNickname = {};
+                const twitchByNickname = {};
+                const youtubeByNickname = {};
 
                 const getLatestRating = (u) => {
                     const r = u.ratings;
@@ -96,6 +100,13 @@ const StartingPageContent = () => {
                 Object.values(usersData || {}).forEach((user) => {
                     if (user?.enteredNickname) {
                         avatarByNickname[user.enteredNickname] = user.avatar || null;
+                        twitchByNickname[user.enteredNickname] =
+                            extractTwitchLogin(user.twitch) ||
+                            extractTwitchLogin(user.links?.twitch) ||
+                            extractTwitchLogin(user.twitchDisplayName);
+                        youtubeByNickname[user.enteredNickname] =
+                            normalizeSocialUrl(user.youtube, 'youtube') ||
+                            normalizeSocialUrl(user.links?.youtube, 'youtube');
                     }
                 });
 
@@ -161,6 +172,23 @@ const StartingPageContent = () => {
                                         const pairIsLive = isPairLive(pair);
                                         const activeGame = (pair.games || []).find(isGameSessionActive) || null;
                                         const round = resolveLeagueRound(tournament, pair);
+                                        const team1TwitchLogin = resolvePlayerTwitchLogin(pair.team1, {
+                                            twitchByNickname,
+                                            tournamentPlayer: team1Player,
+                                            streamLogin: pair.streamLogin
+                                        });
+                                        const team2TwitchLogin = resolvePlayerTwitchLogin(pair.team2, {
+                                            twitchByNickname,
+                                            tournamentPlayer: team2Player
+                                        });
+                                        const team1YoutubeUrl = resolvePlayerYoutubeUrl(pair.team1, {
+                                            youtubeByNickname,
+                                            tournamentPlayer: team1Player
+                                        });
+                                        const team2YoutubeUrl = resolvePlayerYoutubeUrl(pair.team2, {
+                                            youtubeByNickname,
+                                            tournamentPlayer: team2Player
+                                        });
 
                                         if (pairIsLive && !seriesDone && team1Ready && team2Ready) {
                                             const game = activeGame;
@@ -197,6 +225,10 @@ const StartingPageContent = () => {
                                                 gameNumber: game ? (game.gameId || 0) + 1 : ps1 + ps2 + 1,
                                                 team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
                                                 team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                                                team1TwitchLogin,
+                                                team2TwitchLogin,
+                                                team1YoutubeUrl,
+                                                team2YoutubeUrl,
                                                 team1Place:
                                                     rankByNickname[pair.team1] ||
                                                     team1Player?.placeInLeaderboard ||
@@ -255,6 +287,10 @@ const StartingPageContent = () => {
                                                 stageIndex,
                                                 pairIndex,
                                                 round,
+                                                team1TwitchLogin,
+                                                team2TwitchLogin,
+                                                team1YoutubeUrl,
+                                                team2YoutubeUrl,
                                                 team1Place:
                                                     rankByNickname[pair.team1] ||
                                                     team1Player?.placeInLeaderboard ||
@@ -321,6 +357,10 @@ const StartingPageContent = () => {
             team2Stars={match.team2Stars}
             team1Prediction={match.team1Prediction}
             team2Prediction={match.team2Prediction}
+            team1TwitchLogin={match.team1TwitchLogin}
+            team2TwitchLogin={match.team2TwitchLogin}
+            team1YoutubeUrl={match.team1YoutubeUrl}
+            team2YoutubeUrl={match.team2YoutubeUrl}
             matchCenterUrl={getMatchCenterLink(match)}
         />
     );

@@ -24,7 +24,7 @@ Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 
 - Knockout + league + Swiss + CS Swiss to playoffs + Champions League + double-elim
 - Match reporting, BO series, ratings / stars
-- League schedule sub-views: By round / Upcoming / Last games (+ castle / gold / restarts on rows)
+- League schedule with round/day navigation (+ castle / gold / restarts on rows)
 - Tournament-specific Meta tab; tournament H2H + profile castles
 - `/support`, `/rules`, donations (DA + BMC + Stripe host seed / attendance)
 - Admin prize-pool **funding history** (new tips logged under `prizePoolHistory`)
@@ -59,26 +59,22 @@ Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 
 **Tournament Meta**
 
+- [x] Hard min-sample gate (hide Cup WR / Δ until N≥5 per castle)
 - Persist castle counters under `/statistic/heroes3/tournaments/{id}/castles` on report
 - Pick/ban or template filters for special cup rules
 - Highlight meta outliers on Match Center / announcements
-- Hard min-sample gate (e.g. hide WR until N≥5)
 
 **Tournament H2H / profile**
 
-- Persist bans at match root when BO1 bans never land on game log
+- [x] Persist bans on report into durable `games[]` / game log (series + BO1)
+- [x] Ban insight confidence (≥3 bans and ≥50% of maps → “often bans X”)
 - Filter by specific cup / championship season
-- “Always bans X” confidence thresholds
 - Shared cache for `/games/heroes3` + brackets scan (with Meta)
 
 **Prize pool / donations**
 
 - Funding history only covers tips **after** the history deploy; older totals stay aggregate-only
 - Optional: backfill or admin note when ledger sum ≠ `communityFundingUsd`
-
-**League schedule**
-
-- Prefer real `completedAt` / `reportedAt` when sorting Last games (optional field on report)
 
 ---
 

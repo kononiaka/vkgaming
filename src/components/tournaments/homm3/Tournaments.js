@@ -2990,6 +2990,8 @@ const TournamentList = () => {
                             tournamentStatus={tournamentStatus}
                             tournamentWinners={tournamentWinnersObject}
                             strictCastlePick={Boolean(activeTournament.strictCastlePick)}
+                            createdBy={activeTournament.createdBy || null}
+                            createdByUid={activeTournament.createdByUid || null}
                         />
                     )}
                 </div>

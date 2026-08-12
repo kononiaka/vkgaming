@@ -43,6 +43,7 @@ import {
 } from './swissUtils';
 import { dropLoserToBracket, promoteLoserBracketWinner, resolveThirdPlaceFinisher, shouldAwardThirdPlaceForStage } from './loserBracketUtils';
 import { formatStageLabelForDisplay } from '../../../utils/matchFixtureLabels';
+import { canManageTournamentSwiss } from '../../../utils/tournamentVisibility';
 import {
     generateKnockoutBracketStages,
     getChampionsLeagueScheduleStageIndex,
@@ -255,7 +256,9 @@ export const TournamentBracket = ({
     tournamentStatus,
     tournamentWinners,
     fullScreen = false,
-    strictCastlePick = false
+    strictCastlePick = false,
+    createdBy = null,
+    createdByUid = null
 }) => {
     const setDetailedProgressStage = (stage, extra = {}) => {
         setPlayoffPairs((prevPairs) => {
@@ -269,6 +272,10 @@ export const TournamentBracket = ({
         });
     };
     const authCtx = useContext(AuthContext);
+    const canManageSwiss = canManageTournamentSwiss(
+        { createdBy, createdByUid },
+        { isAdmin: authCtx.isAdmin, userNickName: authCtx.userNickName }
+    );
     const [stageLabels, setStageLabels] = useState([]);
     const [playoffPairs, setPlayoffPairs] = useState([]);
     const [startTournament, setStartTournament] = useState(false);
@@ -1636,6 +1643,11 @@ export const TournamentBracket = ({
     };
 
     const handleGenerateNextSwissRound = async () => {
+        if (!canManageSwiss) {
+            alert('Only the tournament owner or an admin can generate the next Swiss round.');
+            return;
+        }
+
         const pairs = playoffPairs[0] || [];
         if (!isSwissRoundComplete(pairs, swissCurrentRound)) {
             alert(`Round ${swissCurrentRound} is not complete yet.`);
@@ -1731,6 +1743,11 @@ export const TournamentBracket = ({
     };
 
     const handleStartCsSwissPlayoffs = async () => {
+        if (!canManageSwiss) {
+            alert('Only the tournament owner or an admin can start CS Swiss playoffs.');
+            return;
+        }
+
         const swissPairs = playoffPairs[0] || [];
         if (!isCsSwissComplete(swissPairs, registeredPlayerNames, swissWinTarget, swissLossLimit)) {
             alert('CS Swiss is not complete yet. Players must reach 3 wins or 3 losses first.');
@@ -4272,7 +4289,7 @@ export const TournamentBracket = ({
                                 </button>
                             </div>
                         )}
-                    {authCtx.isAdmin &&
+                    {canManageSwiss &&
                         isSwiss &&
                         !isCsSwiss &&
                         tournamentStatus !== 'Tournament Finished' &&
@@ -4284,7 +4301,7 @@ export const TournamentBracket = ({
                                 </button>
                             </div>
                         )}
-                    {authCtx.isAdmin &&
+                    {canManageSwiss &&
                         isCsSwiss &&
                         swissPhase === 'swiss' &&
                         tournamentStatus !== 'Tournament Finished' &&
@@ -4301,7 +4318,7 @@ export const TournamentBracket = ({
                                 </button>
                             </div>
                         )}
-                    {authCtx.isAdmin &&
+                    {canManageSwiss &&
                         isCsSwiss &&
                         swissPhase === 'swiss' &&
                         tournamentStatus !== 'Tournament Finished' &&

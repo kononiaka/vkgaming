@@ -2,6 +2,7 @@ import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { isPublicTournament } from './tournamentVisibility';
 import { buildCountryLookup, lookupCountryCode } from './country';
 import { extractTwitchLogin } from './twitchUtils';
+import { normalizeSocialUrl } from './publicLinks';
 import { getActiveCommentatorLogins } from './tournamentCommentators';
 import { buildMatchStageLabel, resolveLeagueRound } from './matchFixtureLabels';
 
@@ -17,6 +18,7 @@ const buildUserLookups = (usersData = {}) => {
     const countryLookup = buildCountryLookup(usersData);
     const rankByNickname = {};
     const twitchByNickname = {};
+    const youtubeByNickname = {};
 
     const getLatestRating = (user) => {
         const rating = user.ratings;
@@ -43,11 +45,32 @@ const buildUserLookups = (usersData = {}) => {
 
         avatarByNickname[user.enteredNickname] = user.avatar || user.profileImageUrl || null;
         twitchByNickname[user.enteredNickname] =
-            extractTwitchLogin(user.twitch) || extractTwitchLogin(user.twitchDisplayName);
+            extractTwitchLogin(user.twitch) ||
+            extractTwitchLogin(user.links?.twitch) ||
+            extractTwitchLogin(user.twitchDisplayName);
+        youtubeByNickname[user.enteredNickname] =
+            normalizeSocialUrl(user.youtube, 'youtube') || normalizeSocialUrl(user.links?.youtube, 'youtube');
     });
 
-    return { avatarByNickname, countryLookup, rankByNickname, twitchByNickname };
+    return { avatarByNickname, countryLookup, rankByNickname, twitchByNickname, youtubeByNickname };
 };
+
+export const resolvePlayerTwitchLogin = (
+    nickname,
+    { twitchByNickname = {}, tournamentPlayer = null, streamLogin = null } = {}
+) =>
+    extractTwitchLogin(streamLogin) ||
+    twitchByNickname[nickname] ||
+    extractTwitchLogin(tournamentPlayer?.twitch) ||
+    extractTwitchLogin(tournamentPlayer?.links?.twitch);
+
+export const resolvePlayerYoutubeUrl = (
+    nickname,
+    { youtubeByNickname = {}, tournamentPlayer = null } = {}
+) =>
+    youtubeByNickname[nickname] ||
+    normalizeSocialUrl(tournamentPlayer?.youtube, 'youtube') ||
+    normalizeSocialUrl(tournamentPlayer?.links?.youtube, 'youtube');
 
 export const isMapLiveGame = (game) => Boolean(game?.castle1 && game?.castle2 && !game?.castleWinner);
 
@@ -105,6 +128,7 @@ const enrichPair = (pair, context) => {
         avatarByNickname,
         countryLookup,
         twitchByNickname,
+        youtubeByNickname = {},
         commentatorStreamLogin = null
     } = context;
 
@@ -120,9 +144,23 @@ const enrichPair = (pair, context) => {
     const team1Ready = pair.team1 && pair.team1 !== 'TBD' && pair.team1 !== 'null';
     const team2Ready = pair.team2 && pair.team2 !== 'TBD' && pair.team2 !== 'null';
 
-    const team1TwitchLogin =
-        extractTwitchLogin(pair.streamLogin) || twitchByNickname[pair.team1] || extractTwitchLogin(team1Player?.twitch);
-    const team2TwitchLogin = twitchByNickname[pair.team2] || extractTwitchLogin(team2Player?.twitch);
+    const team1TwitchLogin = resolvePlayerTwitchLogin(pair.team1, {
+        twitchByNickname,
+        tournamentPlayer: team1Player,
+        streamLogin: pair.streamLogin
+    });
+    const team2TwitchLogin = resolvePlayerTwitchLogin(pair.team2, {
+        twitchByNickname,
+        tournamentPlayer: team2Player
+    });
+    const team1YoutubeUrl = resolvePlayerYoutubeUrl(pair.team1, {
+        youtubeByNickname,
+        tournamentPlayer: team1Player
+    });
+    const team2YoutubeUrl = resolvePlayerYoutubeUrl(pair.team2, {
+        youtubeByNickname,
+        tournamentPlayer: team2Player
+    });
     const streamLogin =
         extractTwitchLogin(commentatorStreamLogin) ||
         extractTwitchLogin(pair.streamUrl) ||
@@ -163,6 +201,8 @@ const enrichPair = (pair, context) => {
             gameNumber: game ? (game.gameId || 0) + 1 : ps1 + ps2 + 1,
             team1TwitchLogin,
             team2TwitchLogin,
+            team1YoutubeUrl,
+            team2YoutubeUrl,
             streamLogin,
             commentatorStreamLogin,
             team1Stars,
@@ -196,6 +236,8 @@ const enrichPair = (pair, context) => {
                   round,
                   team1TwitchLogin,
                   team2TwitchLogin,
+                  team1YoutubeUrl,
+                  team2YoutubeUrl,
                   streamLogin,
                   commentatorStreamLogin,
                   team1Stars,
@@ -221,7 +263,8 @@ export const fetchMatchCenterMatches = async () => {
         return { liveGames: [], upcomingMatches: [] };
     }
 
-    const { avatarByNickname, countryLookup, twitchByNickname } = buildUserLookups(usersData);
+    const { avatarByNickname, countryLookup, twitchByNickname, youtubeByNickname } =
+        buildUserLookups(usersData);
     const liveGames = [];
     const upcomingMatches = [];
 
@@ -251,6 +294,7 @@ export const fetchMatchCenterMatches = async () => {
                     avatarByNickname,
                     countryLookup,
                     twitchByNickname,
+                    youtubeByNickname,
                     commentatorStreamLogin
                 });
 
@@ -301,7 +345,8 @@ export const fetchMatchCenterMatch = async (tournamentId, stageIndex, pairIndex)
         return null;
     }
 
-    const { avatarByNickname, countryLookup, twitchByNickname } = buildUserLookups(usersData);
+    const { avatarByNickname, countryLookup, twitchByNickname, youtubeByNickname } =
+        buildUserLookups(usersData);
     const commentatorStreamLogin = getActiveCommentatorLogins(tournament)[0] || null;
     const context = {
         tournamentId,
@@ -311,6 +356,7 @@ export const fetchMatchCenterMatch = async (tournamentId, stageIndex, pairIndex)
         avatarByNickname,
         countryLookup,
         twitchByNickname,
+        youtubeByNickname,
         commentatorStreamLogin
     };
 
@@ -321,11 +367,23 @@ export const fetchMatchCenterMatch = async (tournamentId, stageIndex, pairIndex)
         const tournamentPlayers = Object.values(tournament?.players || {}).filter(Boolean);
         const team1Player = tournamentPlayers.find((player) => player.name === pair.team1);
         const team2Player = tournamentPlayers.find((player) => player.name === pair.team2);
-        const team1TwitchLogin =
-            extractTwitchLogin(pair.streamLogin) ||
-            twitchByNickname[pair.team1] ||
-            extractTwitchLogin(team1Player?.twitch);
-        const team2TwitchLogin = twitchByNickname[pair.team2] || extractTwitchLogin(team2Player?.twitch);
+        const team1TwitchLogin = resolvePlayerTwitchLogin(pair.team1, {
+            twitchByNickname,
+            tournamentPlayer: team1Player,
+            streamLogin: pair.streamLogin
+        });
+        const team2TwitchLogin = resolvePlayerTwitchLogin(pair.team2, {
+            twitchByNickname,
+            tournamentPlayer: team2Player
+        });
+        const team1YoutubeUrl = resolvePlayerYoutubeUrl(pair.team1, {
+            youtubeByNickname,
+            tournamentPlayer: team1Player
+        });
+        const team2YoutubeUrl = resolvePlayerYoutubeUrl(pair.team2, {
+            youtubeByNickname,
+            tournamentPlayer: team2Player
+        });
 
         match = {
             tournamentId,
@@ -348,6 +406,8 @@ export const fetchMatchCenterMatch = async (tournamentId, stageIndex, pairIndex)
             round: resolveLeagueRound(tournament, pair),
             team1TwitchLogin,
             team2TwitchLogin,
+            team1YoutubeUrl,
+            team2YoutubeUrl,
             streamLogin:
                 extractTwitchLogin(commentatorStreamLogin) ||
                 extractTwitchLogin(pair.streamUrl) ||

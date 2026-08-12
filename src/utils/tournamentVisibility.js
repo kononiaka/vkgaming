@@ -33,6 +33,12 @@ export const canDeleteTournament = (tournament, { isAdmin, userNickName, firebas
     return isTournamentCreator(tournament, userNickName, firebaseUid);
 };
 
+/** Admin or cup owner — Swiss / CS Swiss round generation and related progression. */
+export const canManageTournamentSwiss = (
+    tournament,
+    { isAdmin, userNickName, firebaseUid = getFirebaseUid() } = {}
+) => Boolean(isAdmin || isTournamentCreator(tournament, userNickName, firebaseUid));
+
 export const canInviteTournamentPlayers = (
     tournament,
     { isAdmin, userNickName, firebaseUid = getFirebaseUid(), registeredCount, maxPlayers }
