@@ -1372,22 +1372,60 @@ async function applyCountryFromLogin(dbUserId, existingUser, context) {
 // twitchAuth — exchanges a Twitch OAuth authorization code for a Firebase
 // custom token. Called from the React frontend after Twitch redirects back.
 // ---------------------------------------------------------------------------
-// hotameta.com proxies (no CORS on their API)
+// hotameta.com proxies
 // ---------------------------------------------------------------------------
 const https = require('https');
 
-function fetchHotametaJson(path) {
+// Identify ourselves to the upstream API. Anonymous no-UA traffic is hard
+// for them to attribute (or contact anyone about); a self-identifying UA is
+// the convention their other integrations follow.
+const HOTAMETA_UA = 'vkgaming/1.0 (+https://github.com/kononiaka/vkgaming)';
+
+// Shared lookups (summary, factions, leaderboard) return the same data for
+// every visitor, so cache them per function instance for a minute. Keyed by
+// path, so different query strings never collide.
+const hotametaCache = new Map();
+const HOTAMETA_CACHE_MS = 60 * 1000;
+
+function fetchHotametaJson(path, { cacheMs = 0 } = {}) {
+    if (cacheMs) {
+        const cached = hotametaCache.get(path);
+        if (cached && Date.now() - cached.at < cacheMs) {
+            return Promise.resolve(cached.data);
+        }
+    }
     const url = `https://hotameta.com/api/${path}`;
     return new Promise((resolve, reject) => {
         https
-            .get(url, (res) => {
+            .get(url, { headers: { 'User-Agent': HOTAMETA_UA } }, (res) => {
                 let body = '';
                 res.on('data', (chunk) => {
                     body += chunk;
                 });
                 res.on('end', () => {
+                    if (res.statusCode !== 200) {
+                        // A 429 or 5xx body is an error page, not JSON —
+                        // surface the status instead of a parse error.
+                        const code =
+                            res.statusCode === 404
+                                ? 'not-found'
+                                : res.statusCode === 429
+                                  ? 'resource-exhausted'
+                                  : 'unavailable';
+                        reject(
+                            new functions.https.HttpsError(
+                                code,
+                                `hotameta responded ${res.statusCode} for ${path}`
+                            )
+                        );
+                        return;
+                    }
                     try {
-                        resolve(JSON.parse(body));
+                        const data = JSON.parse(body);
+                        if (cacheMs) {
+                            hotametaCache.set(path, { at: Date.now(), data });
+                        }
+                        resolve(data);
                     } catch (e) {
                         reject(
                             new functions.https.HttpsError('internal', 'Failed to parse hotameta response')
@@ -1411,14 +1449,18 @@ exports.hotaSearch = functions.https.onCall(async (data) => {
 });
 
 exports.hotaSummary = functions.https.onCall(async () => {
-    const summary = await fetchHotametaJson('summary');
+    const summary = await fetchHotametaJson('summary', { cacheMs: HOTAMETA_CACHE_MS });
     return { summary };
 });
 
 exports.hotaFactions = functions.https.onCall(async () => {
-    const factions = await Promise.all(
-        Array.from({ length: 12 }, (_, id) => fetchHotametaJson(`faction/${id}`))
-    );
+    // One bulk request instead of twelve /faction/{id} calls. Mapped back to
+    // an id-indexed array so callers see the same shape as before.
+    const { factions: list } = await fetchHotametaJson('factions', { cacheMs: HOTAMETA_CACHE_MS });
+    const factions = [];
+    (list || []).forEach((f) => {
+        factions[f.faction_id] = f;
+    });
     return { factions };
 });
 
@@ -1450,7 +1492,9 @@ exports.hotaPlayerMatches = functions.https.onCall(async (data) => {
 
 exports.hotaLeaderboard = functions.https.onCall(async (data) => {
     const limit = Math.min(Math.max(Number(data?.limit) || 100, 1), 500);
-    const leaderboard = await fetchHotametaJson(`leaderboard?limit=${limit}`);
+    const leaderboard = await fetchHotametaJson(`leaderboard?limit=${limit}`, {
+        cacheMs: HOTAMETA_CACHE_MS
+    });
     return { leaderboard: Array.isArray(leaderboard) ? leaderboard : [] };
 });
 
