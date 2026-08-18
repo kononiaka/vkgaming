@@ -94,7 +94,12 @@ async function sendTelegramMessage(text, options = {}) {
             photoBody.parse_mode = options.parseMode;
         }
 
-        return postTelegramPhoto(photoBody);
+        const photoResult = await postTelegramPhoto(photoBody);
+        if (photoResult.ok || photoResult.skipped) {
+            return photoResult;
+        }
+
+        console.warn('Telegram sendPhoto failed — falling back to sendMessage');
     }
 
     const body = {
@@ -127,7 +132,12 @@ async function sendTelegramDirectMessage(chatId, text, options = {}) {
             photoBody.parse_mode = options.parseMode;
         }
 
-        return postTelegramPhoto(photoBody);
+        const photoResult = await postTelegramPhoto(photoBody);
+        if (photoResult.ok || photoResult.skipped) {
+            return photoResult;
+        }
+
+        console.warn('Telegram DM sendPhoto failed — falling back to sendMessage');
     }
 
     const body = {
