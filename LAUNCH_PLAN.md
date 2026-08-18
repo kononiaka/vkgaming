@@ -37,7 +37,7 @@ Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 
 | Doc | Status |
 |---|---|
-| [`TELEGRAM_DYNAMIC_IMAGES_TODO.md`](TELEGRAM_DYNAMIC_IMAGES_TODO.md) | **Open** — per-match Telegram image cards |
+| [`TELEGRAM_DYNAMIC_IMAGES_TODO.md`](TELEGRAM_DYNAMIC_IMAGES_TODO.md) | **Done for channel posts** — result/live/schedule/status/digest dynamic cards |
 
 ---
 

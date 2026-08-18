@@ -2260,3 +2260,4 @@ exports.reportBug = functions.https.onCall(async (data, context) => {
 // Telegram channel notifications (@vkgamingplay) — see telegramNotifications.js
 Object.assign(exports, require('./telegramNotifications'));
 Object.assign(exports, require('./telegramBot'));
+Object.assign(exports, require('./telegramMatchCard'));

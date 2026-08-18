@@ -38,12 +38,49 @@ const NOTIFY_STATUSES = new Set([
 ]);
 
 const DEDUPE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const DEFAULT_FUNCTIONS_BASE = 'https://us-central1-test-prod-app-81915.cloudfunctions.net';
+
+function getFunctionsBaseUrl() {
+    const cfg = functions.config().telegram || {};
+    const configured = String(cfg.functions_base_url || '').trim().replace(/\/$/, '');
+    return configured || DEFAULT_FUNCTIONS_BASE;
+}
+
+function buildMatchCardPhotoUrl(params = {}) {
+    const type = String(params.type || 'result');
+    const search = new URLSearchParams({ type });
+
+    if (params.tournamentId) {
+        search.set('tournamentId', String(params.tournamentId));
+    }
+    if (params.stageIdx != null && params.stageIdx !== '') {
+        search.set('stageIdx', String(params.stageIdx));
+    }
+    if (params.pairIdx != null && params.pairIdx !== '') {
+        search.set('pairIdx', String(params.pairIdx));
+    }
+    if (params.gameIdx != null && params.gameIdx !== '') {
+        search.set('gameIdx', String(params.gameIdx));
+    }
+    if (params.status) {
+        search.set('status', String(params.status));
+    }
+    if (params.slot) {
+        search.set('slot', String(params.slot));
+    }
+    if (params.dateKey) {
+        search.set('dateKey', String(params.dateKey));
+    }
+
+    return `${getFunctionsBaseUrl()}/telegramMatchCard?${search.toString()}`;
+}
 
 function channelAnnouncementOptions(options = {}) {
     const { announcementImageUrl } = getTelegramConfig();
+    const photoUrl = options.photoUrl || announcementImageUrl || '';
     return {
         ...options,
-        ...(announcementImageUrl ? { photoUrl: announcementImageUrl } : {})
+        ...(photoUrl ? { photoUrl } : {})
     };
 }
 
@@ -108,7 +145,12 @@ async function postDailyDigest(slot) {
         return { ok: false, skipped: true, reason: 'empty_message' };
     }
 
-    const result = await sendOnce(dedupeKey, text, { parseMode: 'HTML', disablePreview: false });
+    const photoUrl = buildMatchCardPhotoUrl({ type: 'digest', slot, dateKey });
+    const result = await sendOnce(
+        dedupeKey,
+        text,
+        channelAnnouncementOptions({ parseMode: 'HTML', disablePreview: false, photoUrl })
+    );
     return { ok: Boolean(result?.ok), skipped: false, matchCount: rows.length };
 }
 
@@ -215,7 +257,18 @@ exports.notifyTelegramTournamentStatus = functions.database
             return null;
         }
 
-        await sendOnce(`status-${tournamentId}-${after}`, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
+        await sendOnce(
+            `status-${tournamentId}-${after}`,
+            text,
+            channelAnnouncementOptions({
+                parseMode: 'HTML',
+                photoUrl: buildMatchCardPhotoUrl({
+                    type: 'status',
+                    tournamentId,
+                    status: after
+                })
+            })
+        );
         return null;
     });
 
@@ -243,7 +296,17 @@ exports.notifyTelegramMatchSchedule = functions.database
         if (useDigestOnlyMode()) {
             await markEveningDigestNeeded(after);
         } else {
-            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
+            const photoUrl = buildMatchCardPhotoUrl({
+                type: 'schedule',
+                tournamentId,
+                stageIdx,
+                pairIdx
+            });
+            await sendOnce(
+                dedupeKey,
+                text,
+                channelAnnouncementOptions({ parseMode: 'HTML', photoUrl })
+            );
         }
 
         await notifyLinkedUsersForPair({
@@ -251,7 +314,15 @@ exports.notifyTelegramMatchSchedule = functions.database
             dedupeKey,
             text,
             pair,
-            options: { parseMode: 'HTML' }
+            options: {
+                parseMode: 'HTML',
+                photoUrl: buildMatchCardPhotoUrl({
+                    type: 'schedule',
+                    tournamentId,
+                    stageIdx,
+                    pairIdx
+                })
+            }
         });
         return null;
     });
@@ -289,9 +360,16 @@ exports.notifyTelegramMatchLive = functions.database
             `<a href="${watchLink}">Watch</a>`;
 
         const dedupeKey = `live-${tournamentId}-${stageIdx}-${pairIdx}-${gameIdx}`;
+        const photoUrl = buildMatchCardPhotoUrl({
+            type: 'live',
+            tournamentId,
+            stageIdx,
+            pairIdx,
+            gameIdx
+        });
 
         if (!useDigestOnlyMode()) {
-            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
+            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML', photoUrl }));
         }
 
         await notifyLinkedUsersForPair({
@@ -299,7 +377,7 @@ exports.notifyTelegramMatchLive = functions.database
             dedupeKey,
             text,
             pair,
-            options: { parseMode: 'HTML' }
+            options: { parseMode: 'HTML', photoUrl }
         });
         return null;
     });
@@ -336,9 +414,22 @@ exports.notifyTelegramMatchResult = functions.database
             `<a href="${link}">Bracket</a>`;
 
         const dedupeKey = `result-${tournamentId}-${stageIdx}-${pairIdx}-${after}`;
+        const photoUrl = buildMatchCardPhotoUrl({
+            type: 'result',
+            tournamentId,
+            stageIdx,
+            pairIdx
+        });
 
         if (!useDigestOnlyMode()) {
-            await sendOnce(dedupeKey, text, channelAnnouncementOptions({ parseMode: 'HTML' }));
+            await sendOnce(
+                dedupeKey,
+                text,
+                channelAnnouncementOptions({
+                    parseMode: 'HTML',
+                    ...(photoUrl ? { photoUrl } : {})
+                })
+            );
         }
 
         await notifyLinkedUsersForPair({
@@ -346,7 +437,7 @@ exports.notifyTelegramMatchResult = functions.database
             dedupeKey,
             text,
             pair,
-            options: { parseMode: 'HTML' }
+            options: { parseMode: 'HTML', photoUrl }
         });
         return null;
     });

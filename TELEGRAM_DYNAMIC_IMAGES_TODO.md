@@ -1,53 +1,51 @@
 # Future Todo: Dynamic Telegram Images
 
-**Status:** Open (next product ticket)  
+**Status:** All channel card types deployed (branch `feature/telegram-dynamic-match-cards`)  
 **Goal:** Generate a unique Telegram image for each notification, with tournament data rendered into the image instead of one static announcement image.
+
+**Live endpoint:**  
+`https://us-central1-test-prod-app-81915.cloudfunctions.net/telegramMatchCard?type=...`
 
 ## Current Behavior
 
-- Telegram channel notifications can attach an image from Firebase Functions config:
-  `telegram.announcement_image_url`.
-- That image is static.
-- The caption is already dynamic (tournament, stage, players, score, winner, links).
-- If no image URL is configured, notifications fall back to plain text.
+- Channel posts use dynamic PNGs from `telegramMatchCard` when possible:
+  - `type=result` — match finished / winner set
+  - `type=live` — map went live
+  - `type=schedule` — match time set/changed
+  - `type=status` — registration open/closed / tournament finished
+  - `type=digest` — morning/evening digest
+- Match-related DMs also attach the same dynamic card when available.
+- Captions remain dynamic HTML.
+- If `sendPhoto` fails, senders fall back to plain text (`sendMessage`).
+- Static `telegram.announcement_image_url` remains fallback when no dynamic URL is built.
 
-## Desired Future Behavior
+## Card query examples
 
-Dynamic image cards similar to ladder-style match cards:
-
-- Tournament name
-- Stage, round, or matchday
-- Player names, avatars, flags, and stars
-- Score, live map, winner, or scheduled time
-- Konoplay branding
-
-## Proposed Implementation
-
-1. Public Cloud Function endpoint, e.g.  
-   `/telegramMatchCard?tournamentId=...&stageIdx=...&pairIdx=...&type=result`
-2. Fetch tournament + pair data from Realtime Database in the function.
-3. Generate PNG server-side (`satori` + `resvg`, `sharp`, or `canvas`).
-4. Return PNG directly, or store in Cloud Storage and use a public URL.
-5. Telegram builders pass the dynamic URL as `photoUrl`.
-6. Keep caption text as context / fallback.
-7. Fallbacks: generation failure → text message; `sendPhoto` reject → `sendMessage`.
+```
+/telegramMatchCard?type=result&tournamentId=...&stageIdx=0&pairIdx=0
+/telegramMatchCard?type=live&tournamentId=...&stageIdx=0&pairIdx=0&gameIdx=0
+/telegramMatchCard?type=schedule&tournamentId=...&stageIdx=0&pairIdx=0
+/telegramMatchCard?type=status&tournamentId=...&status=Registration%20Started
+/telegramMatchCard?type=digest&slot=morning&dateKey=2026-08-14
+```
 
 ## Suggested Rollout
 
-1. Match result card (stable data)
-2. Live match card
-3. Schedule card
-4. Tournament finished card (winners + prizes)
+1. [x] Match result card
+2. [x] Live match card
+3. [x] Schedule card
+4. [x] Tournament status / finished card
+5. [x] Daily digest card
 
-## Test Cases
+## Key files
 
-- Completed match with normal player names
-- Long player names
-- Missing avatar or flag
-- Players with no stars
-- BO1, BO2, BO3 scores
-- Swiss round / league matchday
-- Champions League group and knockout
-- Tournament finished with 1st / 2nd / 3rd prizes
+| File | Role |
+|---|---|
+| `functions/telegramMatchCard.js` | HTTPS PNG endpoint + data loaders |
+| `functions/telegramMatchCardRender.js` | Satori layouts for all card types |
+| `functions/telegramNotifications.js` | photoUrl wiring for channel + match DMs |
+| `functions/telegram.js` | Photo → text fallback |
+| `functions/assets/fonts/*` | Inter fonts for cards |
+| `functions/assets/images/konoplay-crest.png` | Brand crest |
 
 See also: future product list in [`LAUNCH_PLAN.md`](LAUNCH_PLAN.md).
