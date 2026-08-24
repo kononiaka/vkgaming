@@ -6,7 +6,7 @@ import {
 } from '../utils/tournamentHeadToHead';
 
 describe('tournamentMetaStats sample gate', () => {
-    test('marks castles reliable only at META_MIN_SAMPLE maps', () => {
+    test('shows cup WR and Δ immediately, and marks reliability at META_MIN_SAMPLE maps', () => {
         expect(META_MIN_SAMPLE).toBe(5);
 
         const games = [];
@@ -20,12 +20,12 @@ describe('tournamentMetaStats sample gate', () => {
             });
         }
 
-        const low = mergeWithHotaFactions(aggregateCastleStats(games), []);
+        const low = mergeWithHotaFactions(aggregateCastleStats(games), [{ faction_name: 'Castle', winrate: 50 }]);
         const castleRow = low.find((row) => row.name === 'Castle');
         expect(castleRow.total).toBe(4);
         expect(castleRow.sampleReliable).toBe(false);
-        expect(castleRow.displayWinRate).toBeNull();
-        expect(castleRow.delta).toBeNull();
+        expect(castleRow.displayWinRate).toBe(50);
+        expect(castleRow.delta).toBe(0);
 
         games.push({
             castle1: 'Castle',
@@ -34,9 +34,7 @@ describe('tournamentMetaStats sample gate', () => {
             team1: 'A',
             team2: 'B'
         });
-        const enough = mergeWithHotaFactions(aggregateCastleStats(games), [
-            { faction_name: 'Castle', winrate: 50 }
-        ]);
+        const enough = mergeWithHotaFactions(aggregateCastleStats(games), [{ faction_name: 'Castle', winrate: 50 }]);
         const reliable = enough.find((row) => row.name === 'Castle');
         expect(reliable.sampleReliable).toBe(true);
         expect(reliable.displayWinRate).not.toBeNull();
