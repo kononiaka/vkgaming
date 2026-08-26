@@ -149,6 +149,16 @@
         "bugReports": {
             ".read": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true",
             ".write": false
+        },
+        "gazette": {
+            "current": {
+                ".read": true,
+                ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+            },
+            "draft": {
+                ".read": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true",
+                ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+            }
         }
     }
 }

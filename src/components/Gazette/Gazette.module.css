@@ -1,0 +1,202 @@
+.wrap {
+    margin-bottom: 1.5rem;
+}
+
+.frame {
+    padding: 0.7rem;
+    background: radial-gradient(circle at 20% 0%, rgba(201, 162, 39, 0.18), transparent 45%),
+        linear-gradient(180deg, #3a2a16 0%, #1c140c 100%);
+    border: 3px solid #8a6f1f;
+    box-shadow:
+        inset 0 0 0 1px rgba(232, 201, 120, 0.35),
+        0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.paper {
+    padding: 0.9rem 1rem 1.1rem;
+    background: repeating-linear-gradient(
+            0deg,
+            rgba(90, 70, 40, 0.04) 0,
+            rgba(90, 70, 40, 0.04) 1px,
+            transparent 1px,
+            transparent 22px
+        ),
+        linear-gradient(180deg, #f3e6c4 0%, #e4d2a4 100%);
+    color: #2a2118;
+    box-shadow: inset 0 -8px 12px rgba(90, 60, 20, 0.12);
+}
+
+.masthead {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.5rem;
+    align-items: end;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 3px double #2a2118;
+    font-family: var(--font-nav);
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.masthead span:first-child {
+    text-align: left;
+}
+
+.masthead span:last-child {
+    text-align: right;
+}
+
+.mastheadTitle {
+    font-family: var(--font-display);
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.headline {
+    margin: 0 0 0.75rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+    line-height: 1.15;
+    font-weight: 700;
+    color: #1c140c;
+}
+
+.art {
+    display: block;
+    width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    margin: 0 auto 0.85rem;
+    background: #1a120c;
+    border: 2px solid #5c4630;
+}
+
+.body {
+    margin: 0 0 0.85rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.cupLink {
+    color: #6b4e16;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+.cupLink:hover {
+    color: #8a6f1f;
+    text-decoration: underline;
+}
+
+.empty,
+.loading {
+    margin: 0;
+    padding: 1.25rem 0.25rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #5c4630;
+}
+
+.editLabel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b4e16;
+}
+
+.headlineInput,
+.bodyInput {
+    width: 100%;
+    border: 1px solid #8a6f1f;
+    background: rgba(255, 255, 255, 0.45);
+    color: #1c140c;
+    font-family: Georgia, 'Times New Roman', serif;
+    padding: 0.45rem 0.55rem;
+}
+
+.headlineInput {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.bodyInput {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    resize: vertical;
+}
+
+.adminBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem 0.75rem;
+    margin-top: 0.7rem;
+}
+
+.adminBtn,
+.adminBtnPrimary {
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.adminBtn {
+    border: var(--border-subtle);
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
+}
+
+.adminBtnPrimary {
+    border: 1px solid var(--color-gold-dim);
+    background: var(--color-gold);
+    color: var(--color-bg-deep);
+}
+
+.adminBtn:disabled,
+.adminBtnPrimary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.adminHint,
+.status {
+    margin: 0;
+    flex: 1 1 12rem;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+}
+
+.status {
+    color: var(--color-gold-bright);
+}
+
+@media (max-width: 768px) {
+    .masthead {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .masthead span:first-child,
+    .masthead span:last-child {
+        text-align: center;
+    }
+
+    .art {
+        max-height: 140px;
+    }
+}
