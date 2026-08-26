@@ -14,6 +14,7 @@ import confluxImg from '../../image/castles/conflux.jpeg';
 import coveImg from '../../image/castles/cove.jpeg';
 import factoryImg from '../../image/castles/factory.jpeg';
 import kronverkImg from '../../image/castles/kronverk.jpeg';
+import Gazette from '../Gazette/Gazette';
 import MatchAnnouncementCard from '../MatchAnnouncement/MatchAnnouncementCard';
 import PrizePoolPanel from '../PrizePoolPanel/PrizePoolPanel';
 import { buildCountryLookup, lookupCountryCode } from '../../utils/country';
@@ -22,7 +23,13 @@ import { buildMatchStageLabel, resolveLeagueRound } from '../../utils/matchFixtu
 import { getMatchCenterLink } from '../../utils/matchCenterRoute';
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
 import { getHeadToHeadPrediction } from '../../utils/matchPredictions';
-import { isGameSessionActive, isPairLive, hasScheduledAt, resolvePlayerTwitchLogin, resolvePlayerYoutubeUrl } from '../../utils/matchCenterData';
+import {
+    isGameSessionActive,
+    isPairLive,
+    hasScheduledAt,
+    resolvePlayerTwitchLogin,
+    resolvePlayerYoutubeUrl
+} from '../../utils/matchCenterData';
 import { extractTwitchLogin } from '../../utils/twitchUtils';
 import { normalizeSocialUrl } from '../../utils/publicLinks';
 import classes from './StartingPageContent.module.css';
@@ -369,6 +376,7 @@ const StartingPageContent = () => {
         <section className={classes.starting}>
             <div className={classes.homeLayout}>
                 <div className={classes.homeMain}>
+                    <Gazette />
                     <div className={`${classes.matchCenterSection} ${classes.homeSectionFirst}`}>
                         <div className={classes.sectionHeader}>
                             <div>

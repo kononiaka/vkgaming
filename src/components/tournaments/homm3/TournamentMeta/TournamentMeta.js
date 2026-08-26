@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchHotaFactions } from '../../../../api/hotaMeta';
 import { getCastleImage } from '../../../../utils/castleImages';
-import { buildTournamentMetaRows, fetchTournamentGameLog, META_MIN_SAMPLE } from '../../../../utils/tournamentMetaStats';
+import {
+    buildTournamentMetaRows,
+    fetchTournamentGameLog,
+    META_MIN_SAMPLE
+} from '../../../../utils/tournamentMetaStats';
 import classes from './TournamentMeta.module.css';
 
 const formatRate = (value) => {
@@ -133,17 +137,13 @@ const TournamentMeta = ({ tournamentId, pairs = [], compact = false }) => {
             </div>
 
             {(logError || hotaError) && (
-                <p className={classes.notice}>
-                    {[logError, hotaError].filter(Boolean).join(' ')}
-                </p>
+                <p className={classes.notice}>{[logError, hotaError].filter(Boolean).join(' ')}</p>
             )}
 
             {loading && gameCount === 0 && rows.length === 0 ? (
                 <p className={classes.loading}>Loading tournament meta…</p>
             ) : rows.length === 0 ? (
-                <p className={classes.empty}>
-                    No finished maps with castles yet. Meta fills in as games are reported.
-                </p>
+                <p className={classes.empty}>No finished maps with castles yet. Meta fills in as games are reported.</p>
             ) : (
                 <div className={classes.tableWrapper}>
                     <table className={classes.table}>
@@ -177,30 +177,32 @@ const TournamentMeta = ({ tournamentId, pairs = [], compact = false }) => {
                                         <td className={classes.rankCol}>{index + 1}</td>
                                         <td className={classes.castleCol}>
                                             <div className={classes.castleCell}>
-                                                {image && (
-                                                    <img
-                                                        src={image}
-                                                        alt=""
-                                                        className={classes.castleThumb}
-                                                    />
-                                                )}
+                                                {image && <img src={image} alt="" className={classes.castleThumb} />}
                                                 <span>{row.name}</span>
                                             </div>
                                         </td>
                                         <td className={classes.numCol}>{row.total}</td>
                                         <td className={`${classes.numCol} ${classes.winCol}`}>{row.win}</td>
                                         <td className={`${classes.numCol} ${classes.loseCol}`}>{row.lose}</td>
-                                        <td className={classes.rateCol}>
+                                        <td
+                                            className={classes.rateCol}
+                                            title={
+                                                row.sampleReliable
+                                                    ? undefined
+                                                    : `Early read — fewer than ${META_MIN_SAMPLE} maps`
+                                            }
+                                        >
                                             {cupRate == null ? (
-                                                <span
-                                                    className={classes.rateMuted}
-                                                    title={`Needs ${META_MIN_SAMPLE}+ maps for a stable cup WR`}
-                                                >
-                                                    —
-                                                </span>
+                                                <span className={classes.rateMuted}>—</span>
                                             ) : (
                                                 <>
-                                                    <span className={classes.rateValue}>{formatRate(cupRate)}</span>
+                                                    <span
+                                                        className={`${classes.rateValue} ${
+                                                            row.sampleReliable ? '' : classes.rateMuted
+                                                        }`}
+                                                    >
+                                                        {formatRate(cupRate)}
+                                                    </span>
                                                     <div className={classes.rateBar}>
                                                         <div
                                                             className={classes.rateBarFill}
@@ -226,7 +228,7 @@ const TournamentMeta = ({ tournamentId, pairs = [], compact = false }) => {
 
             {rows.some((row) => !row.sampleReliable) && (
                 <p className={classes.sampleNote}>
-                    Cup WR and Δ need {META_MIN_SAMPLE}+ maps per castle before rates are shown.
+                    Cup WR and Δ with fewer than {META_MIN_SAMPLE} maps per castle are early reads.
                 </p>
             )}
         </div>

@@ -53,6 +53,8 @@ import {
     getPendingCommentatorRequests
 } from '../../../utils/tournamentCommentators';
 import { getPrizeAmountForPlace, getTournamentPrizeBreakdown, getPrizePoolHistoryEntries } from '../../../utils/prizePoolData';
+import { parseTournamentHubTab, setTournamentHubTabParam } from '../../../utils/tournamentHub';
+import TournamentHub from './TournamentHub/TournamentHub';
 import {
     calculateSwissTotalRounds,
     createSwissRoundDeadline,
@@ -1249,6 +1251,11 @@ const TournamentList = () => {
         setSpinningWheelMode('kickoff');
         const status = searchParams.get('status');
         navigate(status ? `/tournaments/homm3?status=${encodeURIComponent(status)}` : '/tournaments/homm3');
+    };
+
+    const hubTab = parseTournamentHubTab(searchParams.get('tab'));
+    const handleHubTabChange = (tabId) => {
+        setSearchParams(setTournamentHubTabParam(searchParams, tabId), { replace: true });
     };
 
     const closeModalHandler = closeTournamentView;
@@ -2975,25 +2982,31 @@ const TournamentList = () => {
                     </div>
                 </div>
                 <div className={classes.tournamentFullPageBody}>
-                    {showSpinningWheel ? (
-                        <SpinningWheel
-                            players={tournamentPlayers}
-                            onStartTournament={handleStartTournament}
-                            mode={spinningWheelMode}
-                        />
-                    ) : (
-                        <TournamentBracket
-                            key={clickedId}
-                            fullScreen
-                            maxPlayers={activeTournament.maxPlayers}
-                            tournamentId={clickedId}
-                            tournamentStatus={tournamentStatus}
-                            tournamentWinners={tournamentWinnersObject}
-                            strictCastlePick={Boolean(activeTournament.strictCastlePick)}
-                            createdBy={activeTournament.createdBy || null}
-                            createdByUid={activeTournament.createdByUid || null}
-                        />
-                    )}
+                    <TournamentHub
+                        tournament={activeTournament}
+                        activeTab={hubTab}
+                        onTabChange={handleHubTabChange}
+                    >
+                        {showSpinningWheel ? (
+                            <SpinningWheel
+                                players={tournamentPlayers}
+                                onStartTournament={handleStartTournament}
+                                mode={spinningWheelMode}
+                            />
+                        ) : (
+                            <TournamentBracket
+                                key={clickedId}
+                                fullScreen
+                                maxPlayers={activeTournament.maxPlayers}
+                                tournamentId={clickedId}
+                                tournamentStatus={tournamentStatus}
+                                tournamentWinners={tournamentWinnersObject}
+                                strictCastlePick={Boolean(activeTournament.strictCastlePick)}
+                                createdBy={activeTournament.createdBy || null}
+                                createdByUid={activeTournament.createdByUid || null}
+                            />
+                        )}
+                    </TournamentHub>
                 </div>
             </div>
         );

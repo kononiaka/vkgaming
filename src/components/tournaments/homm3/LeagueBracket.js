@@ -7,7 +7,6 @@ import CountryFlag from '../../Country/CountryFlag';
 import { HeadToHeadStatsButton, HeadToHeadStatsPortal } from '../../HeadToHead/HeadToHeadStatsButton';
 import StarsComponent from '../../Stars/Stars';
 import MatchScheduleControl from './MatchScheduleControl';
-import TournamentMeta from './TournamentMeta/TournamentMeta';
 import { useHeadToHeadStats } from '../../../hooks/useHeadToHeadStats';
 import { resolveAuthProvider } from '../../../utils/authProvider';
 import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
@@ -522,8 +521,6 @@ const getDefaultDayIndex = (groups) => {
 
 const LeagueBracket = ({
     pairs = [],
-    metaPairs = null,
-    tournamentId = null,
     onSelectPair,
     canViewReportButton,
     canSchedulePair,
@@ -1090,15 +1087,6 @@ const LeagueBracket = ({
                 >
                     Standings
                 </button>
-                <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'meta'}
-                    className={`${classes.tab} ${activeTab === 'meta' ? classes.activeTab : ''}`}
-                    onClick={() => setActiveTab('meta')}
-                >
-                    Meta
-                </button>
             </div>
 
             {activeTab === 'schedule' && (
@@ -1260,10 +1248,6 @@ const LeagueBracket = ({
                                   : 'Win pts: 3 (no restarts) · 2.5 (1× 111) · 2 (2× 111 or 112)'}
                     </p>
                 </div>
-            )}
-
-            {activeTab === 'meta' && (
-                <TournamentMeta tournamentId={tournamentId} pairs={metaPairs ?? pairs} compact />
             )}
 
             <HeadToHeadStatsPortal

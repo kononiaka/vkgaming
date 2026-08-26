@@ -130,6 +130,9 @@ const AdminPanel = () => {
                     <Link to="/games/homm3" className={classes.matchLogLink}>
                         Open match log
                     </Link>
+                    <Link to="/" className={classes.matchLogLink}>
+                        Open home Gazette
+                    </Link>
                 </div>
             </section>
 

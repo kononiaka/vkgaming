@@ -206,9 +206,7 @@ export const mergeWithHotaFactions = (castleRows, hotaFactions) => {
     const hotaByKonoplay = new Map();
     (hotaFactions || []).forEach((faction) => {
         const hotaName = faction.faction_name || faction.name;
-        const mapping = HOTA_FACTIONS.find(
-            (entry) => entry.name === hotaName || entry.konoplayName === hotaName
-        );
+        const mapping = HOTA_FACTIONS.find((entry) => entry.name === hotaName || entry.konoplayName === hotaName);
         const key = mapping?.konoplayName || normalizeCastleName(hotaName);
         if (key) {
             hotaByKonoplay.set(key, faction);
@@ -220,12 +218,12 @@ export const mergeWithHotaFactions = (castleRows, hotaFactions) => {
         const hotaWinRate =
             hota?.winrate != null && Number.isFinite(Number(hota.winrate)) ? Number(hota.winrate) : null;
         const sampleReliable = row.sampleReliable !== false && row.total >= META_MIN_SAMPLE;
-        const delta =
-            sampleReliable && hotaWinRate != null ? row.winRate - hotaWinRate : null;
+        const displayWinRate = row.total > 0 ? row.winRate : null;
+        const delta = displayWinRate != null && hotaWinRate != null ? displayWinRate - hotaWinRate : null;
         return {
             ...row,
             sampleReliable,
-            displayWinRate: sampleReliable ? row.winRate : null,
+            displayWinRate,
             hotaWinRate,
             hotaGames: hota?.games ?? null,
             hotaPickRate: hota?.pick_rate ?? null,

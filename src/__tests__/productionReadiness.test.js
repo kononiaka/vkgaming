@@ -28,6 +28,13 @@ describe('production readiness — codebase wiring', () => {
         expect(headerSource).toMatch(/to="\/live"/);
     });
 
+    test('generateGazette function is exported', () => {
+        const functionsSource = readRepoFile('functions/index.js');
+        const gazetteSource = readRepoFile('functions/gazette.js');
+        expect(functionsSource).toMatch(/require\('\.\/gazette'\)/);
+        expect(gazetteSource).toMatch(/exports\.generateGazette/);
+    });
+
     test('twitchStreamStatus function is exported', () => {
         const functionsSource = readRepoFile('functions/index.js');
         expect(functionsSource).toMatch(/exports\.twitchStreamStatus/);
