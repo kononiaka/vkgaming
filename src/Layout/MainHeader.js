@@ -91,6 +91,12 @@ const MainHeader = () => {
                     </li>
 
                     <li className={classes['navLink-item']}>
+                        <Link to="/gazette" className={classes['navLink-link']} onClick={closeMenu}>
+                            Gazette
+                        </Link>
+                    </li>
+
+                    <li className={classes['navLink-item']}>
                         <Link to="/leaderboard" className={classes['navLink-link']} onClick={closeMenu}>
                             Leaderboard
                         </Link>

@@ -1,3 +1,5 @@
+import { getTournamentEntryStars } from '../../../utils/playerStars';
+
 export const MIN_SWISS_PLAYERS = 4;
 export const CS_SWISS_SIZES = [8, 16];
 export const MIN_CS_SWISS_PLAYERS = CS_SWISS_SIZES[0];
@@ -184,8 +186,8 @@ export const createScheduleMatchPair = (player1, player2, round, gameType, stage
         score1: 0,
         score2: 0,
         stage,
-        stars1: player1?.stars || 0,
-        stars2: player2?.stars || 0,
+        stars1: getTournamentEntryStars(player1?.stars),
+        stars2: getTournamentEntryStars(player2?.stars),
         team1: player1.name,
         team2: player2.name,
         type: gameType,

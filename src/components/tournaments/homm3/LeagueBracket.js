@@ -13,6 +13,7 @@ import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
 import { isGameSessionActive, isPairLive } from '../../../utils/matchCenterData';
 import classes from './LeagueBracket.module.css';
 import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP, compareStandingsWithHeadToHead } from './championsLeagueUtils';
+import { getTournamentEntryStars } from '../../../utils/playerStars';
 import { compareCsSwissStandings } from './swissUtils';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -120,16 +121,7 @@ const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team
     return { team1: pred1.toFixed(1), team2: (100 - pred1).toFixed(1) };
 };
 
-const parseStarsValue = (value) => {
-    if (value == null) {
-        return 0;
-    }
-    const str = String(value);
-    if (str.includes(',')) {
-        return parseFloat(str.split(',').at(-1)) || 0;
-    }
-    return parseFloat(str) || 0;
-};
+const parseStarsValue = (value) => getTournamentEntryStars(value);
 
 const FORM_BADGE_LIMIT = 5;
 const SCHEDULE_FORM_LIMIT = 3;
@@ -150,13 +142,13 @@ const getLatestRatingValue = (ratingsStr) => {
 };
 
 const parsePairStars = (pairStars, playerStars) => {
-    if (pairStars != null) {
-        if (typeof pairStars === 'string' && pairStars.includes(',')) {
-            return parseFloat(pairStars.split(',').at(-1)) || 0;
-        }
-        return parseFloat(pairStars) || 0;
+    if (playerStars != null && playerStars !== '') {
+        return getTournamentEntryStars(playerStars);
     }
-    return parseFloat(playerStars) || 0;
+    if (pairStars != null) {
+        return getTournamentEntryStars(pairStars);
+    }
+    return 0;
 };
 
 const formatFormScore = (pair, playerName) => {
@@ -696,6 +688,10 @@ const LeagueBracket = ({
         name && name !== 'TBD' ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null : null;
 
     const getPlayerStars = (name) => {
+        const player = getPlayerByName(name);
+        if (player && player.stars != null && player.stars !== '') {
+            return parseStarsValue(player.stars);
+        }
         for (const pair of scopedPairs) {
             if (pair.team1 === name && pair.stars1 != null) {
                 return parseStarsValue(pair.stars1);
@@ -704,7 +700,7 @@ const LeagueBracket = ({
                 return parseStarsValue(pair.stars2);
             }
         }
-        return parseStarsValue(getPlayerByName(name)?.stars);
+        return 0;
     };
 
     // Group matches into days using pair.round if available, else compute via circle method

@@ -1,3 +1,4 @@
+import { getTournamentEntryStars } from './playerStars';
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { isPublicTournament } from './tournamentVisibility';
 import { buildCountryLookup, lookupCountryCode } from './country';
@@ -166,8 +167,8 @@ const enrichPair = (pair, context) => {
         extractTwitchLogin(pair.streamUrl) ||
         team1TwitchLogin ||
         team2TwitchLogin;
-    const team1Stars = parseNumericValue(pair.stars1 ?? team1Player?.stars);
-    const team2Stars = parseNumericValue(pair.stars2 ?? team2Player?.stars);
+    const team1Stars = getTournamentEntryStars(team1Player?.stars ?? pair.stars1);
+    const team2Stars = getTournamentEntryStars(team2Player?.stars ?? pair.stars2);
     const stageLabel = buildMatchStageLabel(tournament, pair, stageIndex);
     const round = resolveLeagueRound(tournament, pair);
 
@@ -414,8 +415,8 @@ export const fetchMatchCenterMatch = async (tournamentId, stageIndex, pairIndex)
                 team1TwitchLogin ||
                 team2TwitchLogin,
             commentatorStreamLogin,
-            team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-            team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+            team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+            team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2),
             variant: 'upcoming',
             statusLabel: 'Match'
         };

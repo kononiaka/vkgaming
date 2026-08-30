@@ -53,6 +53,7 @@ import {
     getPendingCommentatorRequests
 } from '../../../utils/tournamentCommentators';
 import { getPrizeAmountForPlace, getTournamentPrizeBreakdown, getPrizePoolHistoryEntries } from '../../../utils/prizePoolData';
+import { getTournamentEntryStars } from '../../../utils/playerStars';
 import { parseTournamentHubTab, setTournamentHubTabParam } from '../../../utils/tournamentHub';
 import TournamentHub from './TournamentHub/TournamentHub';
 import {
@@ -1394,8 +1395,8 @@ const TournamentList = () => {
                         score1: 0,
                         score2: 0,
                         stage: 'League',
-                        stars1: p1.stars || 0,
-                        stars2: p2.stars || 0,
+                        stars1: getTournamentEntryStars(p1.stars),
+                        stars2: getTournamentEntryStars(p2.stars),
                         team1: p1.name,
                         team2: p2.name,
                         type: gameType,
@@ -1850,8 +1851,8 @@ const TournamentList = () => {
                     score1: 0,
                     score2: 0,
                     stage: currentStageLabels[0] || 'Quarter-final',
-                    stars1: player1?.stars || 0,
-                    stars2: player2?.stars || 0,
+                    stars1: getTournamentEntryStars(player1?.stars),
+                    stars2: getTournamentEntryStars(player2?.stars),
                     team1: pair[0],
                     team2: pair[1],
                     type: getGameTypeForStage(currentStageLabels[0] || 'Quarter-final'),

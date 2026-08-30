@@ -41,6 +41,7 @@ import {
     repairSwissByePairs
 } from './swissUtils';
 import { dropLoserToBracket, promoteLoserBracketWinner, resolveThirdPlaceFinisher, shouldAwardThirdPlaceForStage } from './loserBracketUtils';
+import { getTournamentEntryStars } from '../../../utils/playerStars';
 import { formatStageLabelForDisplay } from '../../../utils/matchFixtureLabels';
 import { canManageTournamentSwiss } from '../../../utils/tournamentVisibility';
 import {
@@ -1357,8 +1358,8 @@ export const TournamentBracket = ({
                 score1: 0,
                 score2: 0,
                 stage: currentStageLabels[0] || 'Quarter-final',
-                stars1: player1?.stars || 0,
-                stars2: player2?.stars || 0,
+                stars1: getTournamentEntryStars(player1?.stars),
+                stars2: getTournamentEntryStars(player2?.stars),
                 team1: pair[0],
                 team2: pair[1],
                 type: gameType,

@@ -1,3 +1,4 @@
+import { getTournamentEntryStars } from '../../../utils/playerStars';
 import { setStageLabels } from '../tournament_api';
 
 export const DOUBLE_ELIM_SIZES = [4, 8, 16, 32];
@@ -130,7 +131,7 @@ const normalizePlayers = (shuffledNames) =>
     shuffledNames.map((player) => ({
         name: typeof player === 'string' ? player : player?.name || 'TBD',
         ratings: typeof player === 'string' ? '0' : player?.ratings || '0',
-        stars: typeof player === 'string' ? 0 : player?.stars || 0
+        stars: typeof player === 'string' ? 0 : getTournamentEntryStars(player?.stars)
     }));
 
 export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, maxPlayers) => {
@@ -167,8 +168,8 @@ export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGam
                 pair.team2 = player2?.name || 'TBD';
                 pair.ratings1 = player1?.ratings || '0';
                 pair.ratings2 = player2?.ratings || '0';
-                pair.stars1 = player1?.stars || 0;
-                pair.stars2 = player2?.stars || 0;
+                pair.stars1 = getTournamentEntryStars(player1?.stars);
+                pair.stars2 = getTournamentEntryStars(player2?.stars);
             }
 
             pairs.push(pair);

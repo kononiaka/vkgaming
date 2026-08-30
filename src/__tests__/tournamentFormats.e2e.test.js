@@ -155,6 +155,22 @@ describe('tournament format E2E flows', () => {
             expect(round2.filter((pair) => pair.isBye)).toHaveLength(0);
         });
 
+        test('later Swiss rounds keep entry stars, not post-match star history', () => {
+            const ratedPlayers = ['A', 'B', 'C', 'D'].map((name, index) => ({
+                name,
+                ratings: '1500',
+                stars: `${4 - index}, ${5 - index}`
+            }));
+            const round1 = generateSwissRound1Pairings(ratedPlayers, 'bo-1');
+            const afterRound1 = markRoundWinners(round1, 1);
+            const round2 = generateNextSwissRoundPairings(ratedPlayers, afterRound1, 2, 'bo-1');
+            const pairStars = [...round1, ...round2].flatMap((pair) => [pair.stars1, pair.stars2]);
+
+            expect(pairStars).toEqual(pairStars.map((stars) => Number(stars)));
+            expect(pairStars.every((stars) => stars <= 4)).toBe(true);
+            expect(round2.some((pair) => pair.stars1 === 5 || pair.stars2 === 5)).toBe(false);
+        });
+
         test('repairs persisted invalid BYE pairs for even Swiss player counts', () => {
             const eightPlayers = Array.from({ length: 8 }, (_, index) => makePlayer(`P${index + 1}`));
             const round1 = generateSwissRound1Pairings(eightPlayers, 'bo-1');

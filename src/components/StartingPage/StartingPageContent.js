@@ -30,6 +30,7 @@ import {
     resolvePlayerTwitchLogin,
     resolvePlayerYoutubeUrl
 } from '../../utils/matchCenterData';
+import { getTournamentEntryStars } from '../../utils/playerStars';
 import { extractTwitchLogin } from '../../utils/twitchUtils';
 import { normalizeSocialUrl } from '../../utils/publicLinks';
 import classes from './StartingPageContent.module.css';
@@ -171,8 +172,8 @@ const StartingPageContent = () => {
                                                 team2Place: team2Player?.placeInLeaderboard,
                                                 team1Rating: pair.ratings1 ?? team1Player?.ratings,
                                                 team2Rating: pair.ratings2 ?? team2Player?.ratings,
-                                                team1Stars: pair.stars1 ?? team1Player?.stars,
-                                                team2Stars: pair.stars2 ?? team2Player?.stars
+                                                team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                                                team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2)
                                             }
                                         );
 
@@ -230,8 +231,8 @@ const StartingPageContent = () => {
                                                 color1: game?.color1 || pair.color1 || 'red',
                                                 color2: game?.color2 || pair.color2 || 'blue',
                                                 gameNumber: game ? (game.gameId || 0) + 1 : ps1 + ps2 + 1,
-                                                team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-                                                team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                                                team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                                                team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2),
                                                 team1TwitchLogin,
                                                 team2TwitchLogin,
                                                 team1YoutubeUrl,
@@ -308,8 +309,8 @@ const StartingPageContent = () => {
                                                     '-',
                                                 team1Prediction: pairPrediction.team1,
                                                 team2Prediction: pairPrediction.team2,
-                                                team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-                                                team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                                                team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                                                team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2),
                                                 statusLabel: ps1 + ps2 > 0 ? 'Next map' : 'Upcoming'
                                             });
                                         }
