@@ -56,15 +56,17 @@
 
     overflow: hidden;
 
-    border-radius: 14px;
+    border-radius: 12px;
 
     text-decoration: none;
 
     color: #f0e6d8;
 
-    border: 1px solid rgba(212, 168, 75, 0.28);
+    border: 2px solid rgba(212, 168, 75, 0.45);
 
-    box-shadow: 0 10px 28px rgba(20, 12, 6, 0.4);
+    box-shadow:
+        0 10px 28px rgba(20, 12, 6, 0.4),
+        inset 0 0 0 1px rgba(240, 230, 216, 0.08);
 
     transition:
         transform 0.18s ease,
@@ -73,11 +75,13 @@
 }
 
 .card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
 
-    border-color: rgba(232, 196, 106, 0.55);
+    border-color: rgba(232, 196, 106, 0.7);
 
-    box-shadow: 0 14px 32px rgba(20, 12, 6, 0.5);
+    box-shadow:
+        0 16px 34px rgba(20, 12, 6, 0.5),
+        inset 0 0 0 1px rgba(240, 230, 216, 0.12);
 }
 
 .featured {

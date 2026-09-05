@@ -11,10 +11,14 @@ import logoCrest from '../image/konoplay-crest.png';
 
 import classes from './MainHeader.module.css';
 
+const pathMatches = (pathname, prefixes) =>
+    prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
 const MainHeader = () => {
     const authCtx = useContext(AuthContext);
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
+    const path = location.pathname;
 
     useEffect(() => {
         setMenuOpen(false);
@@ -29,6 +33,9 @@ const MainHeader = () => {
 
     const closeMenu = () => setMenuOpen(false);
     const toggleMenu = () => setMenuOpen((open) => !open);
+
+    const navClass = (prefixes) =>
+        `${classes['navLink-link']}${pathMatches(path, prefixes) ? ` ${classes.navLinkActive}` : ''}`;
 
     return (
         <header className={classes.header}>
@@ -60,7 +67,12 @@ const MainHeader = () => {
             <nav id="main-navigation" className={`${classes.nav} ${menuOpen ? classes.navOpen : ''}`}>
                 <ul className={classes.navLink}>
                     <li className={classes['navLink-item']}>
-                        <Link to="/tournaments/homm3" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/tournaments/homm3"
+                            className={navClass(['/tournaments', '/games'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/tournaments', '/games']) ? 'page' : undefined}
+                        >
                             Tournaments
                         </Link>
                         <div className={classes['navLink-dropdown']}>
@@ -85,43 +97,78 @@ const MainHeader = () => {
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/live" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/live"
+                            className={navClass(['/live'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/live']) ? 'page' : undefined}
+                        >
                             Live Arena
                         </Link>
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/gazette" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/gazette"
+                            className={navClass(['/gazette'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/gazette']) ? 'page' : undefined}
+                        >
                             Gazette
                         </Link>
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/leaderboard" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/leaderboard"
+                            className={navClass(['/leaderboard'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/leaderboard']) ? 'page' : undefined}
+                        >
                             Leaderboard
                         </Link>
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/players" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/players"
+                            className={navClass(['/players'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/players']) ? 'page' : undefined}
+                        >
                             Players
                         </Link>
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/rules" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/rules"
+                            className={navClass(['/rules'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/rules']) ? 'page' : undefined}
+                        >
                             Rules
                         </Link>
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/support" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/support"
+                            className={navClass(['/support'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/support']) ? 'page' : undefined}
+                        >
                             Support
                         </Link>
                     </li>
 
                     <li className={classes['navLink-item']}>
-                        <Link to="/help" className={classes['navLink-link']} onClick={closeMenu}>
+                        <Link
+                            to="/help"
+                            className={navClass(['/help'])}
+                            onClick={closeMenu}
+                            aria-current={pathMatches(path, ['/help']) ? 'page' : undefined}
+                        >
                             Help
                         </Link>
                     </li>

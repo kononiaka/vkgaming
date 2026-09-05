@@ -8,18 +8,26 @@ export const getTournamentPrizeLabel = (tournament) => {
         return null;
     }
 
+    const formatPool = (amount) => {
+        const value = Number(amount);
+        if (!Number.isFinite(value) || value <= 0) {
+            return null;
+        }
+        return `$${value.toFixed(1)} prize pool`;
+    };
+
     const collected = Number(tournament.communityFundingUsd) || 0;
     if (collected > 0) {
-        return `$${collected.toLocaleString()} prize pool`;
+        return formatPool(collected);
     }
 
     if (tournament.prizeType === 'money' && tournament.totalPrizeUsd) {
-        return `$${Number(tournament.totalPrizeUsd).toLocaleString()} prize pool`;
+        return formatPool(tournament.totalPrizeUsd);
     }
     if (tournament.pricePull && typeof tournament.pricePull === 'object') {
         const total = Object.values(tournament.pricePull).reduce((sum, v) => sum + Number(v || 0), 0);
         if (total > 0) {
-            return `$${total.toLocaleString()} prize pool`;
+            return formatPool(total);
         }
     }
     return null;

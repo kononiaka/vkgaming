@@ -48,10 +48,13 @@ import {
     DOUBLE_ELIM_SIZES,
     createDoubleElimPlayoffPairs,
     dropLoserToBracket,
+    getDisplayableWinnerEntries,
     getDoubleElimStageLabels,
     isDoubleElimSize,
+    isPlaceholderWinnerName,
     promoteLoserBracketWinner,
     resolveThirdPlaceFinisher,
+    resolveThirdPlaceFromPlayoffPairs,
     shouldAwardThirdPlaceForStage
 } from '../components/tournaments/homm3/loserBracketUtils';
 
@@ -976,6 +979,39 @@ describe('tournament format E2E flows', () => {
                     team2: 'Bravo'
                 })
             ).toBeNull();
+        });
+
+        test('backfills 3rd place from completed LB Final / Third Place pairs and hides TBD slots', () => {
+            const doubleElimPairs = [
+                [{ stage: 'WB Final', team1: 'A', team2: 'B', winner: 'A' }],
+                [{ stage: 'LB Final', team1: 'C', team2: 'B', winner: 'C' }],
+                [{ stage: 'Grand Final', team1: 'A', team2: 'C', winner: 'A' }]
+            ];
+
+            expect(
+                resolveThirdPlaceFromPlayoffPairs(doubleElimPairs, { hasLoserBracket: true })
+            ).toBe('B');
+
+            const singleElimPairs = [
+                [{ stage: 'Third Place', team1: 'X', team2: 'Y', winner: 'Y' }],
+                [{ stage: 'Final', team1: 'A', team2: 'B', winner: 'A' }]
+            ];
+            expect(
+                resolveThirdPlaceFromPlayoffPairs(singleElimPairs, { hasLoserBracket: false })
+            ).toBe('Y');
+
+            expect(isPlaceholderWinnerName('TBD')).toBe(true);
+            expect(isPlaceholderWinnerName('Chester (demo)')).toBe(false);
+            expect(
+                getDisplayableWinnerEntries({
+                    '1st place': 'Chester (demo)',
+                    '2nd place': 'Imrael (demo)',
+                    '3rd place': 'TBD'
+                })
+            ).toEqual([
+                ['1st place', 'Chester (demo)'],
+                ['2nd place', 'Imrael (demo)']
+            ]);
         });
     });
 });

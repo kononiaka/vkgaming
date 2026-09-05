@@ -139,7 +139,7 @@ describe('tournamentHub utils', () => {
 
         expect(items.map((item) => item.label)).toEqual(['Date', 'Players', 'Prize pool', 'Stream']);
         expect(items.find((item) => item.label === 'Players').value).toBe('2 / 16');
-        expect(items.find((item) => item.label === 'Prize pool').value).toBe('$750');
+        expect(items.find((item) => item.label === 'Prize pool').value).toBe('$750.0');
         expect(items.find((item) => item.label === 'Stream').value).toBe('On air');
     });
 

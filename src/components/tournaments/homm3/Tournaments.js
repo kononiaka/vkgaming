@@ -68,7 +68,13 @@ import {
     MIN_SWISS_PLAYERS,
     normalizeGameType
 } from './swissUtils';
-import { createDoubleElimPlayoffPairs, getDoubleElimStageLabels } from './loserBracketUtils';
+import {
+    createDoubleElimPlayoffPairs,
+    getDisplayableWinnerEntries,
+    getDoubleElimStageLabels,
+    isPlaceholderWinnerName,
+    resolveThirdPlaceFromPlayoffPairs
+} from './loserBracketUtils';
 import {
     isChampionsLeagueTwoGroupType,
     isChampionsLeagueType,
@@ -79,6 +85,63 @@ import {
 } from './championsLeagueUtils';
 
 const ADMIN_ONLY_TOURNAMENT_FILTERS = new Set(['all', 'registrationFinished', 'finished', 'draft']);
+
+/** Repair finished double-elim cups that still have seeded TBD in 3rd place. */
+const backfillMissingDoubleElimThirdPlace = async (tournamentList) => {
+    if (!Array.isArray(tournamentList) || tournamentList.length === 0) {
+        return tournamentList;
+    }
+
+    let didChange = false;
+    const repaired = [...tournamentList];
+
+    await Promise.all(
+        repaired.map(async (tournament, index) => {
+            if (tournament?.loserBracket !== true) {
+                return;
+            }
+            if (!String(tournament.status || '').includes('Finished')) {
+                return;
+            }
+            if (!isPlaceholderWinnerName(tournament.winners?.['3rd place'])) {
+                return;
+            }
+
+            const third = resolveThirdPlaceFromPlayoffPairs(tournament.bracket?.playoffPairs, {
+                hasLoserBracket: true
+            });
+            if (!third) {
+                return;
+            }
+
+            try {
+                const response = await authFetch(
+                    `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournament.id}/winners/3rd place.json`,
+                    {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(third)
+                    }
+                );
+                if (!response.ok) {
+                    return;
+                }
+                didChange = true;
+                repaired[index] = {
+                    ...tournament,
+                    winners: {
+                        ...(tournament.winners || {}),
+                        '3rd place': third
+                    }
+                };
+            } catch (error) {
+                console.warn(`Could not backfill 3rd place for ${tournament.id}:`, error);
+            }
+        })
+    );
+
+    return didChange ? repaired : tournamentList;
+};
 
 const getTournamentPlayersObject = (tournament) => {
     const players = tournament?.players;
@@ -103,6 +166,12 @@ const getAverageTournamentStars = (tournament) => {
 };
 
 const roundToHalfStar = (stars) => Math.round(Number(stars) * 2) / 2;
+
+const getWinnerStars = (tournament, winnerName) => {
+    const players = Object.values(getTournamentPlayersObject(tournament));
+    const match = players.find((player) => player?.name === winnerName);
+    return getTournamentEntryStars(match?.stars);
+};
 
 const renderTournamentAverageStars = (tournament) => {
     const averageStars = getAverageTournamentStars(tournament);
@@ -244,7 +313,8 @@ const TournamentList = () => {
                         return tournament ? { id: key, ...tournament } : null;
                     })
                     .filter(Boolean);
-                setTournaments(tournamentList);
+                const withThirdPlace = await backfillMissingDoubleElimThirdPlace(tournamentList);
+                setTournaments(withThirdPlace);
                 // Set default filter: 'started' if any in-progress tournament exists, else 'finished'
                 setStatusFilter((prev) => {
                     if (prev !== null) {
@@ -2242,6 +2312,7 @@ const TournamentList = () => {
                         };
 
                         const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
+                        const displayableWinners = getDisplayableWinnerEntries(tournament.winners);
                         const prizePoolHistory = isAdmin ? getPrizePoolHistoryEntries(tournament) : [];
                         const hasPrizePoolLedger = Boolean(
                             tournament.prizePoolHistory && Object.keys(tournament.prizePoolHistory).length > 0
@@ -2301,45 +2372,74 @@ const TournamentList = () => {
                                 <div className={classes.cardMain}>
                                 <div className={classes.infoGrid}>
                                     <div className={classes.infoItem}>
-                                        <p>
-                                            <strong>{countRegisteredPlayers(tournament)}</strong> /{' '}
-                                            {maxTournamnetPlayers}
-                                        </p>
+                                        <div className={classes.infoItemTop}>
+                                            <span
+                                                className={`${classes.infoIcon} ${classes.infoIconPlayers}`}
+                                                aria-hidden="true"
+                                            />
+                                            <p>
+                                                <strong>{countRegisteredPlayers(tournament)}</strong> /{' '}
+                                                {maxTournamnetPlayers}
+                                            </p>
+                                        </div>
                                         <p className={classes.infoLabel}>Players registered</p>
                                     </div>
                                     <div className={classes.infoItem}>
-                                        <p>
-                                            <strong>{maxTournamnetPlayers}</strong>
-                                        </p>
+                                        <div className={classes.infoItemTop}>
+                                            <span
+                                                className={`${classes.infoIcon} ${classes.infoIconCapacity}`}
+                                                aria-hidden="true"
+                                            />
+                                            <p>
+                                                <strong>{maxTournamnetPlayers}</strong>
+                                            </p>
+                                        </div>
                                         <p className={classes.infoLabel}>Max players</p>
                                     </div>
                                     {getTournamentPrizeLabel(tournament) && (
                                         <div className={classes.infoItem}>
-                                            <p>
-                                                <strong>{getTournamentPrizeLabel(tournament)}</strong>
-                                            </p>
+                                            <div className={classes.infoItemTop}>
+                                                <span
+                                                    className={`${classes.infoIcon} ${classes.infoIconPrize}`}
+                                                    aria-hidden="true"
+                                                />
+                                                <p>
+                                                    <strong>{getTournamentPrizeLabel(tournament)}</strong>
+                                                </p>
+                                            </div>
                                             <p className={classes.infoLabel}>Prize pool</p>
                                         </div>
                                     )}
                                     {getAttendanceFeeUsd(tournament) > 0 && isRegistrationOpen(tournament.status) && (
                                         <div className={classes.infoItem}>
-                                            <p>
-                                                <strong>${getAttendanceFeeUsd(tournament)}</strong>
-                                            </p>
+                                            <div className={classes.infoItemTop}>
+                                                <span
+                                                    className={`${classes.infoIcon} ${classes.infoIconFee}`}
+                                                    aria-hidden="true"
+                                                />
+                                                <p>
+                                                    <strong>${Number(getAttendanceFeeUsd(tournament)).toFixed(1)}</strong>
+                                                </p>
+                                            </div>
                                             <p className={classes.infoLabel}>Self-registration fee</p>
                                         </div>
                                     )}
                                     {tournament.winner && tournament.status.includes('Finished') && (
                                         <div className={`${classes.infoItem} ${classes.infoItemFull}`}>
                                             <div className={classes.winnersPreview}>
-                                                {Object.entries(tournament.winners)
-                                                    .slice(0, 3)
-                                                    .map(([place, winner]) => (
+                                                {displayableWinners.slice(0, 3).map(([place, winner]) => (
                                                         <div key={place} className={classes.winnerPreviewItem}>
                                                             <span className={classes.placeBadge}>
                                                                 {getPlaceLabel(place)}
                                                             </span>
                                                             <span className={classes.winnerName}>{winner}</span>
+                                                            <span className={classes.winnerStars}>
+                                                                <StarsComponent
+                                                                    stars={roundToHalfStar(
+                                                                        getWinnerStars(tournament, winner)
+                                                                    )}
+                                                                />
+                                                            </span>
                                                         </div>
                                                     ))}
                                             </div>
@@ -2902,10 +3002,11 @@ const TournamentList = () => {
                                         )}
                                     </div>
                                 ) : (
-                                    tournament.winners && (
+                                    (displayableWinners.length > 0 ||
+                                        (isAdmin && prizePoolHistory.length > 0)) && (
                                         <div className={classes.winnersSection}>
-                                            <h4>Tournament winners</h4>
-                                            {Object.entries(tournament.winners).map(([place, winner]) => {
+                                            {displayableWinners.length > 0 ? <h4>Tournament winners</h4> : null}
+                                            {displayableWinners.map(([place, winner]) => {
                                                 const prize = getPrizeAmountForPlace(prizeBreakdown, place);
                                                 return (
                                                     <div key={place} className={classes.winnerItem}>
@@ -2919,9 +3020,16 @@ const TournamentList = () => {
                                                             {prize != null && prize !== '' && (
                                                                 <span className={classes.prizeInBrackets}>
                                                                     {' '}
-                                                                    {`($${prize})`}
+                                                                    {`($${Number(prize).toFixed(1)})`}
                                                                 </span>
                                                             )}
+                                                        </span>
+                                                        <span className={classes.winnerStars}>
+                                                            <StarsComponent
+                                                                stars={roundToHalfStar(
+                                                                    getWinnerStars(tournament, winner)
+                                                                )}
+                                                            />
                                                         </span>
                                                     </div>
                                                 );
