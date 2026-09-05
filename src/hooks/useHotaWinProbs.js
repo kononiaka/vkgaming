@@ -64,51 +64,60 @@ export function useHotaWinProbs(pairs = []) {
         let cancelled = false;
 
         const run = async () => {
-            if (!pairList.length) {
-                setByPairKey({});
-                return;
-            }
-
-            const next = {};
-            const pending = [];
-
-            pairList.forEach((pair) => {
-                if (winProbCache.has(pair.key)) {
-                    next[pair.key] = winProbCache.get(pair.key);
-                } else {
-                    pending.push(pair);
-                }
-            });
-
-            if (!cancelled) {
-                setByPairKey({ ...next });
-            }
-
-            for (let i = 0; i < pending.length; i += CONCURRENCY) {
-                if (cancelled) {
+            try {
+                if (!pairList.length) {
+                    setByPairKey({});
                     return;
                 }
 
-                const batch = pending.slice(i, i + CONCURRENCY);
-                const results = await Promise.all(
-                    batch.map(async (pair) => {
-                        const formatted = await resolveWinProb(pair.team1, pair.team2);
-                        winProbCache.set(pair.key, formatted);
-                        return [pair.key, formatted];
-                    })
-                );
+                const next = {};
+                const pending = [];
 
-                results.forEach(([key, value]) => {
-                    next[key] = value;
+                pairList.forEach((pair) => {
+                    if (winProbCache.has(pair.key)) {
+                        next[pair.key] = winProbCache.get(pair.key);
+                    } else {
+                        pending.push(pair);
+                    }
                 });
 
                 if (!cancelled) {
                     setByPairKey({ ...next });
                 }
+
+                for (let i = 0; i < pending.length; i += CONCURRENCY) {
+                    if (cancelled) {
+                        return;
+                    }
+
+                    const batch = pending.slice(i, i + CONCURRENCY);
+                    const results = await Promise.all(
+                        batch.map(async (pair) => {
+                            try {
+                                const formatted = await resolveWinProb(pair.team1, pair.team2);
+                                winProbCache.set(pair.key, formatted);
+                                return [pair.key, formatted];
+                            } catch {
+                                winProbCache.set(pair.key, null);
+                                return [pair.key, null];
+                            }
+                        })
+                    );
+
+                    results.forEach(([key, value]) => {
+                        next[key] = value;
+                    });
+
+                    if (!cancelled) {
+                        setByPairKey({ ...next });
+                    }
+                }
+            } catch {
+                // HotA predictions are optional; never break the page if they fail.
             }
         };
 
-        run();
+        run().catch(() => {});
 
         return () => {
             cancelled = true;

@@ -5,8 +5,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: transparent;
-    border-bottom: 2px solid var(--color-gold-dim);
+    background: linear-gradient(180deg, rgba(38, 32, 26, 0.55) 0%, rgba(18, 16, 14, 0.25) 100%);
+    border-bottom: 2px solid rgba(212, 168, 75, 0.45);
+    box-shadow: 0 8px 24px rgba(20, 12, 6, 0.25);
     overflow: visible;
     z-index: 1;
 }
@@ -29,7 +30,8 @@
     text-decoration: none;
     margin-left: 12px;
     margin-right: 12px;
-    font-size: 1.35rem;
+    padding: 0.55rem 0.35rem;
+    font-size: 1.45rem;
     font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -46,10 +48,11 @@
     color: var(--color-text-muted);
     background: none;
     border: none;
-    padding: 0;
+    min-height: var(--control-height-md);
+    padding: 0.55rem 0.35rem;
     margin-left: 12px;
     margin-right: 12px;
-    font-size: 1.35rem;
+    font-size: 1.45rem;
     font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -99,10 +102,12 @@
     border: var(--border-subtle);
     border-left: 2px solid var(--color-gold-dim);
     width: 100%;
-    padding: 10px 12px;
-    font-size: 1.15rem;
+    min-height: var(--control-height-md);
+    padding: 0.75rem 1rem;
+    font-size: 1.2rem;
     text-decoration: none;
-    display: block;
+    display: flex;
+    align-items: center;
     color: var(--color-text);
     background: var(--color-bg-panel);
     margin-bottom: 1px;
@@ -138,7 +143,7 @@
 }
 
 .navLink-item:hover {
-    background: rgba(201, 162, 39, 0.06);
+    background: rgba(212, 168, 75, 0.1);
     box-shadow: inset 0 -2px 0 0 var(--color-gold-dim);
 }
 
@@ -158,7 +163,8 @@
 .navLink-nickname {
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    min-height: var(--control-height-md);
+    padding: 0.45rem 0.85rem;
     margin-right: 0.5rem;
     background: var(--color-bg-panel-alt);
     border: var(--border-subtle);
@@ -172,7 +178,7 @@
     font-family: var(--font-body);
     color: var(--color-text);
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: var(--control-font-size-sm);
     white-space: nowrap;
     display: block;
 }

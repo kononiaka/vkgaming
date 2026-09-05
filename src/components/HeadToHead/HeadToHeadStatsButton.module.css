@@ -1,6 +1,8 @@
 .iconBtn {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    min-width: var(--control-height-sm);
+    min-height: var(--control-height-sm);
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
@@ -9,7 +11,8 @@
     border: 1px solid rgba(201, 162, 39, 0.45);
     color: var(--color-gold);
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: 0.85rem;
+    padding: 0;
     cursor: pointer;
     transition:
         background 0.15s ease,
@@ -28,12 +31,14 @@
 .textBtn {
     display: inline-flex;
     align-items: center;
-    padding: 0.45rem 0.85rem;
-    border-radius: var(--radius-sm);
+    justify-content: center;
+    min-height: var(--control-height-sm);
+    padding: var(--control-pad-y-sm) var(--control-pad-x-sm);
+    border-radius: var(--radius-md);
     border: 1px solid rgba(201, 162, 39, 0.45);
     background: rgba(201, 162, 39, 0.12);
     color: var(--color-gold);
-    font-size: 0.82rem;
+    font-size: var(--control-font-size-sm);
     font-weight: 600;
     cursor: pointer;
     transition:
