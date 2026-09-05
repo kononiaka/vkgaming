@@ -595,6 +595,16 @@
     }
 }
 
+.predictionStack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    width: 100%;
+    min-width: 118px;
+    max-width: 140px;
+}
+
 .predictionEmbed {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
@@ -607,6 +617,18 @@
     border-top: 1px solid rgba(201, 162, 39, 0.26);
     border-bottom: 1px solid rgba(201, 162, 39, 0.26);
     font-variant-numeric: tabular-nums;
+}
+
+.predictionEmbedHota {
+    border-color: rgba(80, 140, 200, 0.35);
+}
+
+.predictionEmbedHota .predictionPct {
+    color: #3a7eb8;
+}
+
+.predictionEmbedHota .predictionLabel {
+    color: #4a6f8c;
 }
 
 .predictionPct {

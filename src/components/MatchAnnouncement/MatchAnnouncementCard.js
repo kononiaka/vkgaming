@@ -125,6 +125,8 @@ const MatchAnnouncementCard = ({
     team2Stars = 0,
     team1Prediction = null,
     team2Prediction = null,
+    team1HotaPrediction = null,
+    team2HotaPrediction = null,
     team1TwitchLogin = null,
     team2TwitchLogin = null,
     team1YoutubeUrl = null,
@@ -155,6 +157,7 @@ const MatchAnnouncementCard = ({
     const dateLabel = bannerLabel;
     const timeLabel = variant === 'live' ? `${score1} : ${score2}` : formatAnnounceTime(tournamentDate);
     const showPrediction = team1Prediction != null && team2Prediction != null;
+    const showHotaPrediction = team1HotaPrediction != null && team2HotaPrediction != null;
 
     const isUpcoming = variant === 'upcoming';
 
@@ -196,16 +199,32 @@ const MatchAnnouncementCard = ({
 
     const scoreClassName = `${classes.dateBadge} ${classes.timeBadge} ${variant === 'live' ? classes.timeBadgeLive : ''}`;
 
-    const predictionBlock = showPrediction ? (
-        <div
-            className={classes.predictionEmbed}
-            aria-label={`Win prediction ${team1Prediction}% to ${team2Prediction}%`}
-        >
-            <span className={classes.predictionPct}>{team1Prediction}%</span>
-            <span className={classes.predictionLabel}>win odds</span>
-            <span className={classes.predictionPct}>{team2Prediction}%</span>
-        </div>
-    ) : null;
+    const predictionBlock =
+        showPrediction || showHotaPrediction ? (
+            <div className={classes.predictionStack}>
+                {showPrediction ? (
+                    <div
+                        className={classes.predictionEmbed}
+                        aria-label={`Win prediction ${team1Prediction}% to ${team2Prediction}%`}
+                    >
+                        <span className={classes.predictionPct}>{team1Prediction}%</span>
+                        <span className={classes.predictionLabel}>win odds</span>
+                        <span className={classes.predictionPct}>{team2Prediction}%</span>
+                    </div>
+                ) : null}
+                {showHotaPrediction ? (
+                    <div
+                        className={`${classes.predictionEmbed} ${classes.predictionEmbedHota}`}
+                        aria-label={`HotA Meta prediction ${team1HotaPrediction}% to ${team2HotaPrediction}%`}
+                        title="HotA Meta ML win probability"
+                    >
+                        <span className={classes.predictionPct}>{team1HotaPrediction}%</span>
+                        <span className={classes.predictionLabel}>HotA</span>
+                        <span className={classes.predictionPct}>{team2HotaPrediction}%</span>
+                    </div>
+                ) : null}
+            </div>
+        ) : null;
 
     const watchControl = matchCenterUrl ? (
         <Link to={matchCenterUrl} className={`${classes.watchBtn} ${streamLive ? classes.watchBtnLive : ''}`}>

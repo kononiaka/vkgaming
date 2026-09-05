@@ -254,6 +254,20 @@
     display: block;
 }
 
+.predictionStack {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 0.2rem;
+
+    width: 100%;
+
+    max-width: 132px;
+}
+
 .predictionEmbed {
     display: grid;
 
@@ -274,8 +288,32 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.22);
 }
 
+.predictionEmbedHota {
+    border-color: rgba(120, 190, 255, 0.35);
+}
+
+.predictionEmbedHota .predictionPct {
+    color: #9fd0ff;
+}
+
+.predictionEmbedHota .predictionLabel {
+    color: rgba(159, 208, 255, 0.85);
+}
+
 .plain .predictionEmbed {
     border-color: rgba(201, 162, 39, 0.28);
+}
+
+.plain .predictionEmbedHota {
+    border-color: rgba(80, 140, 200, 0.35);
+}
+
+.plain .predictionEmbedHota .predictionPct {
+    color: #3a7eb8;
+}
+
+.plain .predictionEmbedHota .predictionLabel {
+    color: #4a6f8c;
 }
 
 .predictionPct {

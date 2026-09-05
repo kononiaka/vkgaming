@@ -56,6 +56,11 @@ export const fetchHotaLeaderboard = async ({ limit = 100 } = {}) => {
     return leaderboard || [];
 };
 
+export const fetchHotaWinProb = async (player1, player2) => {
+    const { winprob } = await callHotaFunction('hotaWinProb', { player1, player2 });
+    return winprob || null;
+};
+
 export const findHotaLeaderboardRank = (nickname, leaderboard) => {
     const query = nickname?.trim().toLowerCase();
     if (!query || !Array.isArray(leaderboard)) {

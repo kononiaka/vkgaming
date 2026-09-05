@@ -1,5 +1,5 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import castleImg from '../../image/castles/castle.jpeg';
@@ -23,6 +23,8 @@ import { buildMatchStageLabel, resolveLeagueRound } from '../../utils/matchFixtu
 import { getMatchCenterLink } from '../../utils/matchCenterRoute';
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
 import { getHeadToHeadPrediction } from '../../utils/matchPredictions';
+import { hotaWinProbPairKey } from '../../utils/hotaWinProb';
+import { useHotaWinProbs } from '../../hooks/useHotaWinProbs';
 import {
     isGameSessionActive,
     isPairLive,
@@ -332,46 +334,63 @@ const StartingPageContent = () => {
         fetchActiveTournaments();
     }, []);
 
-    const previewUpcoming = upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
-    const previewLive = liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT).map((match) => ({ ...match, variant: 'live' }));
+    const previewUpcoming = useMemo(
+        () => upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT),
+        [upcomingMatches]
+    );
+    const previewLive = useMemo(
+        () => liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT).map((match) => ({ ...match, variant: 'live' })),
+        [liveGames]
+    );
     const remainingUpcoming = previewUpcoming;
+    const hotaWinProbPairs = useMemo(
+        () => [...previewLive, ...previewUpcoming].map((match) => ({ team1: match.team1, team2: match.team2 })),
+        [previewLive, previewUpcoming]
+    );
+    const hotaWinProbs = useHotaWinProbs(hotaWinProbPairs);
 
     const getBracketLink = getTournamentMatchLink;
 
-    const renderAnnouncementCard = (match, key) => (
-        <MatchAnnouncementCard
-            key={key}
-            to={getBracketLink(match)}
-            team1={match.team1}
-            team2={match.team2}
-            team1Avatar={match.team1Avatar}
-            team2Avatar={match.team2Avatar}
-            team1CountryCode={match.team1CountryCode}
-            team2CountryCode={match.team2CountryCode}
-            score1={match.score1}
-            score2={match.score2}
-            tournamentName={match.tournamentName}
-            tournamentType={match.tournamentType}
-            stageLabel={match.stageLabel}
-            tournamentDate={match.tournamentDate}
-            variant={match.variant || 'upcoming'}
-            statusLabel={match.statusLabel}
-            type={match.type}
-            compact
-            castle1Image={getCastleImage(match.castle1)}
-            castle2Image={getCastleImage(match.castle2)}
-            gameNumber={match.gameNumber}
-            team1Stars={match.team1Stars}
-            team2Stars={match.team2Stars}
-            team1Prediction={match.team1Prediction}
-            team2Prediction={match.team2Prediction}
-            team1TwitchLogin={match.team1TwitchLogin}
-            team2TwitchLogin={match.team2TwitchLogin}
-            team1YoutubeUrl={match.team1YoutubeUrl}
-            team2YoutubeUrl={match.team2YoutubeUrl}
-            matchCenterUrl={getMatchCenterLink(match)}
-        />
-    );
+    const renderAnnouncementCard = (match, key) => {
+        const hota = hotaWinProbs[hotaWinProbPairKey(match.team1, match.team2)];
+
+        return (
+            <MatchAnnouncementCard
+                key={key}
+                to={getBracketLink(match)}
+                team1={match.team1}
+                team2={match.team2}
+                team1Avatar={match.team1Avatar}
+                team2Avatar={match.team2Avatar}
+                team1CountryCode={match.team1CountryCode}
+                team2CountryCode={match.team2CountryCode}
+                score1={match.score1}
+                score2={match.score2}
+                tournamentName={match.tournamentName}
+                tournamentType={match.tournamentType}
+                stageLabel={match.stageLabel}
+                tournamentDate={match.tournamentDate}
+                variant={match.variant || 'upcoming'}
+                statusLabel={match.statusLabel}
+                type={match.type}
+                compact
+                castle1Image={getCastleImage(match.castle1)}
+                castle2Image={getCastleImage(match.castle2)}
+                gameNumber={match.gameNumber}
+                team1Stars={match.team1Stars}
+                team2Stars={match.team2Stars}
+                team1Prediction={match.team1Prediction}
+                team2Prediction={match.team2Prediction}
+                team1HotaPrediction={hota?.team1 ?? null}
+                team2HotaPrediction={hota?.team2 ?? null}
+                team1TwitchLogin={match.team1TwitchLogin}
+                team2TwitchLogin={match.team2TwitchLogin}
+                team1YoutubeUrl={match.team1YoutubeUrl}
+                team2YoutubeUrl={match.team2YoutubeUrl}
+                matchCenterUrl={getMatchCenterLink(match)}
+            />
+        );
+    };
 
     return (
         <section className={classes.starting}>
