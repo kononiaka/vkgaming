@@ -149,11 +149,11 @@
 }
 
 .bracket {
-    background: var(--color-bg-deep);
-    border: var(--border-subtle);
-    border-left: 2px solid var(--color-gold-dim);
+    background: linear-gradient(180deg, rgba(44, 36, 28, 0.55) 0%, rgba(24, 20, 16, 0.92) 100%);
+    border: 1px solid rgba(212, 168, 75, 0.22);
+    border-left: 3px solid var(--color-gold-dim);
     border-radius: var(--radius-md);
-    padding: 1.25rem 1.35rem;
+    padding: 1.15rem 1.25rem 1.2rem;
     transition:
         border-color 0.15s ease,
         background 0.15s ease;
@@ -161,15 +161,31 @@
 
 .bracket:hover {
     border-left-color: var(--color-gold);
-    background: var(--color-bg-elevated);
+    border-color: rgba(212, 168, 75, 0.35);
+    background: linear-gradient(180deg, rgba(52, 42, 32, 0.7) 0%, rgba(28, 24, 20, 0.96) 100%);
     transform: none;
     box-shadow: none;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.85rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(212, 168, 75, 0.14);
+}
+
+.cardHeaderMain {
+    min-width: 0;
+    flex: 1;
 }
 
 .cardBody {
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 1.1rem;
 }
 
 .cardMain {
@@ -178,8 +194,8 @@
 }
 
 .cardAside {
-    flex: 0 0 clamp(16rem, 32%, 22rem);
-    width: clamp(16rem, 32%, 22rem);
+    flex: 0 0 clamp(15rem, 30%, 20rem);
+    width: clamp(15rem, 30%, 20rem);
     position: sticky;
     top: 0.5rem;
 }
@@ -198,64 +214,91 @@
 
 .tournamentTitle {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    color: var(--color-text) !important;
-    font-size: 1.05rem !important;
-    font-weight: 600 !important;
-    margin: 0 0 0.65rem 0 !important;
+    gap: 0.4rem 0.5rem;
+    color: var(--color-gold-bright) !important;
+    font-family: var(--font-display);
+    font-size: 0.72rem !important;
+    font-weight: 400 !important;
+    line-height: 1.55 !important;
+    letter-spacing: 0.04em;
+    margin: 0 0 0.45rem 0 !important;
     text-shadow: none;
-    border-bottom: var(--border-subtle);
-    padding-bottom: 0.65rem;
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
-.tournamentTitleMain {
+.tournamentName {
     min-width: 0;
+    color: inherit;
+}
+
+.cardMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.35rem;
+    margin: 0 0 0.55rem;
+    color: var(--color-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+.metaDot {
+    color: var(--color-text-dim);
+    user-select: none;
+}
+
+.metaPrize {
+    color: var(--color-gold);
+    font-weight: 600;
 }
 
 .tournamentAverageStars {
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
+    margin-top: 0.15rem;
+    opacity: 0.92;
 }
 
 .tournamentAverageStars img {
-    height: 24px !important;
+    height: 18px !important;
 }
 
 .statusRow {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.85rem;
+    gap: 0.45rem;
+    margin-bottom: 0;
 }
 
 .fullLabel {
     display: inline-block;
-    padding: 0.2rem 0.5rem;
+    padding: 0.15rem 0.45rem;
     border-radius: var(--radius-sm);
-    border: 1px solid rgba(201, 162, 39, 0.35);
+    border: 1px solid rgba(201, 162, 39, 0.3);
     background: rgba(201, 162, 39, 0.08);
     color: var(--color-gold);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
 .statusBadge {
     display: inline-block;
-    padding: 0.25rem 0.55rem;
+    padding: 0.2rem 0.5rem;
     background: var(--color-bg-panel-alt);
     border: var(--border-subtle);
     border-radius: var(--radius-sm);
     color: var(--color-text-muted);
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.68rem;
-    letter-spacing: 0.06em;
+    font-size: 0.65rem;
+    letter-spacing: 0.07em;
     margin: 0;
 }
 
@@ -272,9 +315,9 @@
 }
 
 .statusBadge.finished {
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.12);
     color: var(--color-text-dim);
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.22);
 }
 
 .statusBadge.draft {
@@ -285,15 +328,30 @@
 
 .privateTag {
     display: inline-block;
-    margin-left: 0.5rem;
-    padding: 0.1rem 0.45rem;
+    padding: 0.08rem 0.4rem;
     border-radius: var(--radius-sm);
-    font-size: 0.72rem;
+    font-family: var(--font-body);
+    font-size: 0.65rem;
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #d8a0a0;
-    border: 1px solid rgba(168, 92, 92, 0.45);
+    border: 1px solid rgba(168, 92, 92, 0.4);
+    vertical-align: middle;
+}
+
+.formatTag {
+    display: inline-block;
+    padding: 0.08rem 0.4rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+    border: 1px solid rgba(212, 168, 75, 0.35);
+    background: rgba(212, 168, 75, 0.08);
     vertical-align: middle;
 }
 
@@ -321,82 +379,13 @@
     display: block;
 }
 
-.infoGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.65rem;
-    margin: 0 0 1rem;
-}
-
-.infoItem {
-    background: var(--color-bg-panel-alt);
-    padding: 0.75rem 0.85rem;
-    border: var(--border-subtle);
-    border-radius: var(--radius-sm);
-}
-
-.infoItemTop {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    margin-bottom: 0.2rem;
-}
-
-.infoIcon {
-    width: 1.35rem;
-    height: 1.35rem;
-    flex-shrink: 0;
-    border-radius: 4px;
-    background-color: rgba(212, 168, 75, 0.16);
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 0.85rem 0.85rem;
-    border: 1px solid rgba(212, 168, 75, 0.35);
-}
-
-.infoIconPlayers {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4a84b'%3E%3Cpath d='M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z'/%3E%3C/svg%3E");
-}
-
-.infoIconCapacity {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4a84b'%3E%3Cpath d='M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z'/%3E%3C/svg%3E");
-}
-
-.infoIconPrize {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4a84b'%3E%3Cpath d='M12 2 9.5 8H3l5.5 4-2 7L12 15l5.5 4-2-7L21 8h-6.5L12 2z'/%3E%3C/svg%3E");
-}
-
-.infoIconFee {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4a84b'%3E%3Cpath d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 15h-2v-2h2v2zm1.1-5.3-.9.9c-.5.5-.8 1-.9 1.7H10c.1-.9.4-1.7 1.1-2.4l1.2-1.3c.4-.3.6-.8.6-1.3 0-1-.8-1.8-1.9-1.8s-1.9.8-1.9 1.8H7c0-2.1 1.7-3.8 3.9-3.8S15 7.7 15 9.8c0 .9-.4 1.7-1 2.3z'/%3E%3C/svg%3E");
-}
-
-.infoItem p {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: 0.8rem;
-}
-
-.infoItemTop p {
-    min-width: 0;
-}
-
-.infoItem strong {
-    color: var(--color-text);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.infoItemFull {
-    grid-column: 1 / -1;
-}
-
 .infoLabel {
     font-size: 0.75rem !important;
     color: var(--color-text-dim) !important;
 }
 
 .playersSection {
-    margin: 0.75rem 0;
+    margin: 0 0 0.35rem;
 }
 
 .playersHeader {
@@ -424,10 +413,14 @@
 
 .actionButtons {
     display: flex;
-    gap: 0.5rem;
-    margin: 1rem 0 0.5rem;
+    gap: 0.45rem;
+    margin: 0.85rem 0 0.35rem;
     flex-wrap: wrap;
     align-items: center;
+}
+
+.actionButtons .btnPrimary {
+    order: -1;
 }
 
 .btn {
@@ -522,6 +515,18 @@
 .btnDanger:hover {
     background: rgba(199, 92, 92, 0.15);
     border-color: #c97a7a;
+}
+
+.btnDangerQuiet {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: transparent;
+    color: var(--color-text-dim);
+}
+
+.btnDangerQuiet:hover:not(:disabled) {
+    border-color: rgba(199, 92, 92, 0.45);
+    background: rgba(199, 92, 92, 0.08);
+    color: #c97a7a;
 }
 
 .btnToggle {
@@ -659,21 +664,21 @@
 
 .prizePool {
     margin: 0;
-    padding: 0.85rem 1rem;
-    background: var(--color-bg-panel-alt);
-    border: var(--border-subtle);
-    border-left: 2px solid var(--color-gold-dim);
+    padding: 0.75rem 0.85rem;
+    background: rgba(20, 16, 12, 0.55);
+    border: 1px solid rgba(212, 168, 75, 0.18);
     border-radius: var(--radius-md);
 }
 
 .prizePool h4 {
     color: var(--color-gold);
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.55rem;
     text-shadow: none;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 0.58rem;
+    font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
 }
 
 .prizePoolHistory {
@@ -745,21 +750,21 @@
 
 .winnersSection {
     margin: 0;
-    padding: 0.85rem 1rem;
-    background: var(--color-bg-panel-alt);
-    border: var(--border-subtle);
-    border-left: 2px solid var(--color-gold-dim);
+    padding: 0.75rem 0.85rem;
+    background: rgba(20, 16, 12, 0.55);
+    border: 1px solid rgba(212, 168, 75, 0.18);
     border-radius: var(--radius-md);
 }
 
 .winnersSection h4 {
     color: var(--color-gold);
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.55rem;
     text-shadow: none;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 0.58rem;
+    font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
 }
 
 .inputGroup {
@@ -879,26 +884,33 @@
     font-size: 0.85rem;
 }
 
+.placeOrdinal {
+    flex-shrink: 0;
+    min-width: 1.6rem;
+    color: var(--color-gold);
+    font-family: var(--font-display);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+
 .winnersPreview {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.35rem;
 }
 
 .winnerPreviewItem {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    padding: 0.5rem 0.65rem;
-    background: var(--color-bg-deep);
-    border-radius: var(--radius-sm);
-    border-left: 2px solid var(--color-gold-dim);
+    gap: 0.55rem;
+    padding: 0.25rem 0;
 }
 
 .winnerPreviewItem .winnerName {
     color: var(--color-text);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     text-shadow: none;
     min-width: 0;
     flex: 1;
@@ -909,10 +921,11 @@
     align-items: center;
     margin-left: auto;
     flex-shrink: 0;
+    opacity: 0.9;
 }
 
 .winnerStars img {
-    height: 16px !important;
+    height: 13px !important;
     width: auto;
     display: block;
 }
@@ -920,13 +933,18 @@
 .winnerItem {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    padding: 0.7rem 0.8rem;
-    margin: 0.45rem 0;
-    background: var(--color-bg-deep);
-    border: var(--border-subtle);
-    border-left: 2px solid var(--color-gold-dim);
-    border-radius: var(--radius-sm);
+    gap: 0.55rem;
+    padding: 0.4rem 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0;
+}
+
+.winnerItem:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0.15rem;
 }
 
 .winnerNameLarge {
@@ -934,16 +952,23 @@
     flex: 1;
     min-width: 0;
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     text-shadow: none;
-    line-height: 1.35;
+    line-height: 1.3;
     word-break: break-word;
 }
 
+.prizeMuted {
+    color: var(--color-text-dim);
+    font-size: 0.78rem;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
 .prizeInBrackets {
-    color: var(--color-teal);
-    font-size: 0.85rem;
-    font-weight: 600;
+    color: var(--color-text-dim);
+    font-size: 0.8rem;
+    font-weight: 500;
     margin-left: 0.35rem;
 }
 
