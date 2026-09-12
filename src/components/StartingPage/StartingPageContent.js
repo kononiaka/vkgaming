@@ -334,10 +334,7 @@ const StartingPageContent = () => {
         fetchActiveTournaments();
     }, []);
 
-    const previewUpcoming = useMemo(
-        () => upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT),
-        [upcomingMatches]
-    );
+    const previewUpcoming = useMemo(() => upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT), [upcomingMatches]);
     const previewLive = useMemo(
         () => liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT).map((match) => ({ ...match, variant: 'live' })),
         [liveGames]
@@ -415,59 +412,59 @@ const StartingPageContent = () => {
                             </div>
                         </div>
 
-                        {previewLive.length > 0 ? (
-                            <div className={classes.matchFeedBlock}>
-                                <h3 className={classes.matchCenterLabel}>Live now</h3>
-                                <div className={classes.announcementList}>
-                                    {previewLive.map((match, index) =>
-                                        renderAnnouncementCard(
-                                            match,
-                                            `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
-                                        )
+                        <div className={classes.matchCenterDeck}>
+                            {previewLive.length > 0 ? (
+                                <div className={classes.matchFeedBlock}>
+                                    <h3 className={classes.matchCenterLabel}>Live now</h3>
+                                    <div className={classes.announcementList}>
+                                        {previewLive.map((match, index) =>
+                                            renderAnnouncementCard(
+                                                match,
+                                                `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
+                                            )
+                                        )}
+                                    </div>
+                                    {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                        <Link to="/live" className={classes.viewMoreLink}>
+                                            +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
+                                        </Link>
                                     )}
                                 </div>
-                                {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                    <Link to="/live" className={classes.viewMoreLink}>
-                                        +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
-                                    </Link>
-                                )}
-                            </div>
-                        ) : (
-                            <div className={classes.emptyLive}>
-                                <p className={classes.emptyLiveTitle}>No live games in progress</p>
-                                <p className={classes.emptyLiveHint}>
-                                    Matches will appear here when players start a game.
-                                </p>
-                            </div>
-                        )}
-
-                        <div className={classes.matchFeedBlock}>
-                            <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
-                            {upcomingMatches.length > 0 ? (
-                                remainingUpcoming.length > 0 ? (
-                                    <>
-                                        <div className={classes.announcementList}>
-                                            {remainingUpcoming.map((match, index) =>
-                                                renderAnnouncementCard(
-                                                    { ...match, variant: 'upcoming' },
-                                                    `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
-                                                )
-                                            )}
-                                        </div>
-                                        {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                            <Link to="/live" className={classes.viewMoreLink}>
-                                                +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming —
-                                                Open Live Arena
-                                            </Link>
-                                        )}
-                                    </>
-                                ) : null
                             ) : (
-                                <div className={classes.emptyUpcoming}>
-                                    <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
-                                    <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
+                                <div className={classes.emptyLive}>
+                                    <p className={classes.emptyLiveTitle}>No live games</p>
+                                    <p className={classes.emptyLiveHint}>Matches appear here when a cup game starts.</p>
                                 </div>
                             )}
+
+                            <div className={classes.matchFeedBlock}>
+                                <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
+                                {upcomingMatches.length > 0 ? (
+                                    remainingUpcoming.length > 0 ? (
+                                        <>
+                                            <div className={classes.announcementList}>
+                                                {remainingUpcoming.map((match, index) =>
+                                                    renderAnnouncementCard(
+                                                        { ...match, variant: 'upcoming' },
+                                                        `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                                    )
+                                                )}
+                                            </div>
+                                            {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                                <Link to="/live" className={classes.viewMoreLink}>
+                                                    +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming
+                                                    — Open Live Arena
+                                                </Link>
+                                            )}
+                                        </>
+                                    ) : null
+                                ) : (
+                                    <div className={classes.emptyUpcoming}>
+                                        <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
+                                        <p className={classes.emptyLiveHint}>Open a bracket to see who plays next.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

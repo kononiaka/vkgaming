@@ -4,12 +4,12 @@
     margin: 0 -0.75rem;
     text-align: left;
     padding: 1.75rem clamp(1rem, 4vw, 3rem) 2.5rem;
-    background: linear-gradient(180deg, rgba(38, 32, 26, 0.92) 0%, rgba(28, 24, 20, 0.96) 100%);
+    background: linear-gradient(180deg, rgba(42, 34, 26, 0.94) 0%, rgba(28, 24, 20, 0.97) 100%);
     border: none;
-    border-top: var(--border-panel);
+    border-top: var(--border-panel-lit);
     border-bottom: var(--border-panel);
     border-radius: 0;
-    box-shadow: inset 0 1px 0 rgba(240, 230, 216, 0.04);
+    box-shadow: inset 0 1px 0 rgba(240, 230, 216, 0.07);
 }
 
 .homeLayout {
@@ -50,16 +50,16 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 2px;
+    height: 3px;
     background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(212, 168, 75, 0.2) 10%,
-        rgba(212, 168, 75, 0.55) 50%,
-        rgba(212, 168, 75, 0.2) 90%,
+        rgba(223, 179, 79, 0.35) 8%,
+        rgba(240, 203, 106, 0.95) 50%,
+        rgba(223, 179, 79, 0.35) 92%,
         transparent 100%
     );
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
 .starting > .homeSection:first-child::before,
@@ -79,29 +79,43 @@
 }
 
 .matchCenterTitle {
-    font-family: var(--font-nav);
-    font-size: 1.65rem;
-    letter-spacing: 0.08em;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--color-gold-bright);
-    margin-bottom: 0.35rem;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+    margin: 0 0 0.4rem;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
 }
 
 .matchCenterSubtitle {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     color: var(--color-text-muted);
+}
+
+.matchCenterDeck {
+    margin-top: 1rem;
+    padding: 1.1rem 1.15rem 1.2rem;
+    background: var(--panel-wood-lit);
+    border: var(--border-panel-lit);
+    border-radius: var(--radius-md);
+    box-shadow:
+        var(--shadow-panel),
+        var(--shadow-inset-wood),
+        0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .matchCenterLabel {
     margin: 0;
     font-family: var(--font-nav);
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--color-copper);
+    letter-spacing: 0.14em;
+    color: var(--color-gold-bright);
+    border-bottom: 2px solid rgba(223, 179, 79, 0.45);
+    padding-bottom: 0.3rem;
 }
 
 .matchCenterLinks {
@@ -181,6 +195,8 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--color-gold-bright);
+    border-bottom: 2px solid rgba(223, 179, 79, 0.4);
+    padding-bottom: 0.35rem;
 }
 
 .activeCupsList {
@@ -198,19 +214,19 @@
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.75rem 0.85rem;
+    border: 1px solid rgba(223, 179, 79, 0.28);
     border-radius: var(--radius-md);
-    border: 1px solid rgba(212, 168, 75, 0.25);
-    background: rgba(18, 16, 14, 0.55);
+    background: rgba(16, 14, 12, 0.55);
     text-decoration: none;
+    color: var(--color-text);
     transition:
         border-color 0.15s ease,
-        background 0.15s ease,
-        transform 0.15s ease;
+        background 0.15s ease;
 }
 
 .activeCupLink:hover {
-    border-color: rgba(212, 168, 75, 0.5);
-    background: rgba(212, 168, 75, 0.1);
+    border-color: rgba(240, 203, 106, 0.55);
+    background: rgba(223, 179, 79, 0.1);
     transform: translateX(2px);
 }
 
@@ -323,11 +339,40 @@
 }
 
 .emptyUpcoming {
-    text-align: center;
-    padding: 1.5rem 1rem;
-    background: var(--color-bg-deep);
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-md);
+    text-align: left;
+    padding: 1.15rem 1.1rem;
+    background: rgba(12, 10, 8, 0.55);
+    border: 1px solid rgba(223, 179, 79, 0.28);
+    border-left: 3px solid var(--color-gold-dim);
+    border-radius: var(--radius-sm);
+}
+
+.emptyLive {
+    text-align: left;
+    padding: 1.25rem 1.15rem;
+    margin-bottom: 1rem;
+    background: rgba(12, 10, 8, 0.55);
+    border: 1px solid rgba(223, 179, 79, 0.28);
+    border-left: 3px solid var(--color-gold);
+    border-radius: var(--radius-sm);
+}
+
+.emptyLiveTitle {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-nav);
+    font-size: 1.35rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-gold-bright);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.emptyLiveHint {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
 }
 
 /* ── Sections below: calm data-page tone ── */
@@ -352,7 +397,7 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin: 0 0 1rem;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
 }
 
 .sectionTitleLines {
@@ -366,12 +411,13 @@
 .sectionTitleLines::after {
     content: '';
     flex: 1;
-    height: 2px;
+    height: 3px;
     background: linear-gradient(
         90deg,
         transparent,
-        rgba(212, 168, 75, 0.4) 30%,
-        rgba(212, 168, 75, 0.4) 70%,
+        rgba(223, 179, 79, 0.55) 25%,
+        rgba(240, 203, 106, 0.9) 50%,
+        rgba(223, 179, 79, 0.55) 75%,
         transparent
     );
 }
@@ -507,27 +553,6 @@
 .liveGameCard .tournamentName {
     color: var(--color-gold);
     font-size: 0.95rem;
-}
-
-.emptyLive {
-    text-align: center;
-    padding: 2.5rem 1.5rem;
-    background: var(--color-bg-deep);
-    border: 1px dashed rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-md);
-}
-
-.emptyLiveTitle {
-    margin: 0 0 0.35rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-}
-
-.emptyLiveHint {
-    margin: 0;
-    font-size: 0.875rem;
-    color: var(--color-text-dim);
 }
 
 .matchup {

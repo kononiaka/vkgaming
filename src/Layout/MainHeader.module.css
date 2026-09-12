@@ -6,11 +6,11 @@
     align-items: center;
     justify-content: space-between;
     background: var(--panel-wood-raised);
-    border-bottom: 3px solid var(--color-gold-dim);
+    border-bottom: 3px solid var(--color-gold);
     box-shadow:
         0 10px 28px rgba(20, 12, 6, 0.4),
         inset 0 -1px 0 rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(240, 230, 216, 0.08);
+        inset 0 1px 0 rgba(240, 230, 216, 0.1);
     overflow: visible;
     z-index: 1;
 }
@@ -36,7 +36,7 @@
 
 .navLink-link {
     font-family: var(--font-nav);
-    color: var(--color-text-muted);
+    color: var(--color-text);
     text-decoration: none;
     margin-left: 0;
     margin-right: 0;
@@ -57,12 +57,12 @@
 .navLink-link:hover {
     color: var(--color-gold-bright);
     background: transparent;
-    border-bottom-color: rgba(212, 168, 75, 0.45);
+    border-bottom-color: var(--color-gold);
 }
 
 .navSupportBtn {
     font-family: var(--font-nav);
-    color: var(--color-text-muted);
+    color: var(--color-text);
     background: none;
     border: none;
     min-height: 0;
@@ -85,7 +85,7 @@
 .navSupportBtn:hover {
     color: var(--color-gold-bright);
     background: transparent;
-    border-bottom-color: rgba(212, 168, 75, 0.45);
+    border-bottom-color: var(--color-gold);
 }
 
 .navLinkActive {
