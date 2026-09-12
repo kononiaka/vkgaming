@@ -13,6 +13,9 @@ import { buildCountryLookup, lookupCountryCode } from '../../../utils/country';
 import { isGameSessionActive, isPairLive } from '../../../utils/matchCenterData';
 import classes from './LeagueBracket.module.css';
 import { CHAMPIONS_LEAGUE_QUALIFIERS_PER_GROUP, compareStandingsWithHeadToHead } from './championsLeagueUtils';
+import { getTournamentEntryStars } from '../../../utils/playerStars';
+import { hotaWinProbPairKey } from '../../../utils/hotaWinProb';
+import { useHotaWinProbs } from '../../../hooks/useHotaWinProbs';
 import { compareCsSwissStandings } from './swissUtils';
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -120,16 +123,7 @@ const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team
     return { team1: pred1.toFixed(1), team2: (100 - pred1).toFixed(1) };
 };
 
-const parseStarsValue = (value) => {
-    if (value == null) {
-        return 0;
-    }
-    const str = String(value);
-    if (str.includes(',')) {
-        return parseFloat(str.split(',').at(-1)) || 0;
-    }
-    return parseFloat(str) || 0;
-};
+const parseStarsValue = (value) => getTournamentEntryStars(value);
 
 const FORM_BADGE_LIMIT = 5;
 const SCHEDULE_FORM_LIMIT = 3;
@@ -150,13 +144,13 @@ const getLatestRatingValue = (ratingsStr) => {
 };
 
 const parsePairStars = (pairStars, playerStars) => {
-    if (pairStars != null) {
-        if (typeof pairStars === 'string' && pairStars.includes(',')) {
-            return parseFloat(pairStars.split(',').at(-1)) || 0;
-        }
-        return parseFloat(pairStars) || 0;
+    if (playerStars != null && playerStars !== '') {
+        return getTournamentEntryStars(playerStars);
     }
-    return parseFloat(playerStars) || 0;
+    if (pairStars != null) {
+        return getTournamentEntryStars(pairStars);
+    }
+    return 0;
 };
 
 const formatFormScore = (pair, playerName) => {
@@ -557,6 +551,14 @@ const LeagueBracket = ({
     } = useHeadToHeadStats({ playoffPairs: headToHeadPairs });
     const hasGroups = groupLabels.length > 0;
     const scopedPairs = hasGroups ? pairs.filter((pair) => pair.group === activeGroup) : pairs;
+    const hotaWinProbPairs = useMemo(
+        () =>
+            scopedPairs
+                .filter((pair) => !isMatchFinished(pair) && !pair.isBye && pair.team2 !== 'BYE')
+                .map((pair) => ({ team1: pair.team1, team2: pair.team2 })),
+        [scopedPairs]
+    );
+    const hotaWinProbs = useHotaWinProbs(hotaWinProbPairs);
     const scopedRegisteredPlayers = (
         hasGroups ? scopedPairs.flatMap((pair) => [pair.team1, pair.team2]) : registeredPlayers
     ).filter((name) => !isPlaceholderPlayer(name));
@@ -696,6 +698,10 @@ const LeagueBracket = ({
         name && name !== 'TBD' ? Object.values(playersObj || {}).find((p) => p && p.name === name) || null : null;
 
     const getPlayerStars = (name) => {
+        const player = getPlayerByName(name);
+        if (player && player.stars != null && player.stars !== '') {
+            return parseStarsValue(player.stars);
+        }
         for (const pair of scopedPairs) {
             if (pair.team1 === name && pair.stars1 != null) {
                 return parseStarsValue(pair.stars1);
@@ -704,7 +710,7 @@ const LeagueBracket = ({
                 return parseStarsValue(pair.stars2);
             }
         }
-        return parseStarsValue(getPlayerByName(name)?.stars);
+        return 0;
     };
 
     // Group matches into days using pair.round if available, else compute via circle method
@@ -787,6 +793,7 @@ const LeagueBracket = ({
         const rating2 = getLatestRatingValue(pair.ratings2 ?? p2?.ratings);
 
         const prediction = getWinPrediction(rating1, rating2, stars1, stars2, place1, place2);
+        const hotaPrediction = hotaWinProbs[hotaWinProbPairKey(pair.team1, pair.team2)];
         const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
         const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
         const showFormStreak = isSwissFormat || isCsSwissFormat;
@@ -852,13 +859,26 @@ const LeagueBracket = ({
                         </span>
                     )}
                     {!isFinished && !isBye && (
-                        <div
-                            className={classes.predictionEmbed}
-                            aria-label={`Win prediction ${prediction.team1}% to ${prediction.team2}%`}
-                        >
-                            <span className={classes.predictionPct}>{prediction.team1}%</span>
-                            <span className={classes.predictionLabel}>win odds</span>
-                            <span className={classes.predictionPct}>{prediction.team2}%</span>
+                        <div className={classes.predictionStack}>
+                            <div
+                                className={classes.predictionEmbed}
+                                aria-label={`Win prediction ${prediction.team1}% to ${prediction.team2}%`}
+                            >
+                                <span className={classes.predictionPct}>{prediction.team1}%</span>
+                                <span className={classes.predictionLabel}>win odds</span>
+                                <span className={classes.predictionPct}>{prediction.team2}%</span>
+                            </div>
+                            {hotaPrediction ? (
+                                <div
+                                    className={`${classes.predictionEmbed} ${classes.predictionEmbedHota}`}
+                                    aria-label={`HotA Meta prediction ${hotaPrediction.team1}% to ${hotaPrediction.team2}%`}
+                                    title="HotA Meta ML win probability"
+                                >
+                                    <span className={classes.predictionPct}>{hotaPrediction.team1}%</span>
+                                    <span className={classes.predictionLabel}>HotA</span>
+                                    <span className={classes.predictionPct}>{hotaPrediction.team2}%</span>
+                                </div>
+                            ) : null}
                         </div>
                     )}
                     {showBtn && (

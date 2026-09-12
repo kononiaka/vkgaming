@@ -56,6 +56,28 @@ export const fetchHotaLeaderboard = async ({ limit = 100 } = {}) => {
     return leaderboard || [];
 };
 
+export const fetchHotaWinProb = async (player1, player2) => {
+    const a = String(player1 || '').trim();
+    const b = String(player2 || '').trim();
+    if (a.length < 2 || b.length < 2) {
+        return null;
+    }
+
+    // HotA Meta documents CORS for public read endpoints, so the browser can
+    // call winprob directly. That avoids depending on an undeployed Firebase proxy.
+    try {
+        const res = await fetch(
+            `https://hotameta.com/api/h2h/${encodeURIComponent(a)}/${encodeURIComponent(b)}/winprob`
+        );
+        if (!res.ok) {
+            return null;
+        }
+        return await res.json();
+    } catch {
+        return null;
+    }
+};
+
 export const findHotaLeaderboardRank = (nickname, leaderboard) => {
     const query = nickname?.trim().toLowerCase();
     if (!query || !Array.isArray(leaderboard)) {

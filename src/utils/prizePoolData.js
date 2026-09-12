@@ -120,7 +120,7 @@ export const getFundingProgress = (collected, goal) => {
 
 export const formatFundingUsd = (amount) => {
     const value = Number(amount) || 0;
-    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    return `$${value.toFixed(1)}`;
 };
 
 export const buildUsdPrizesFromFunding = (tournament) => {
@@ -183,7 +183,7 @@ const TYPE_LABELS = {
 
 export const formatPrizePoolAmount = (amount) => {
     const value = Number(amount) || 0;
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    return `$${value.toFixed(1)}`;
 };
 
 export const getPrizePoolHistoryEntries = (tournament, { limit = 25 } = {}) => {

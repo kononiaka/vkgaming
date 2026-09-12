@@ -158,6 +158,10 @@
             "draft": {
                 ".read": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true",
                 ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+            },
+            "issues": {
+                ".read": true,
+                ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
             }
         }
     }

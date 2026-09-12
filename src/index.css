@@ -7,46 +7,66 @@
     /* DOS terminal — readable retro for menus / nav */
     --font-nav: 'VT323', 'Courier New', monospace;
 
-    /* Surfaces — HoMM3 stone / night */
-    --color-bg-deep: #0a0d14;
-    --color-bg-panel: #141a24;
-    --color-bg-panel-alt: #1a222e;
-    --color-bg-elevated: #222c3a;
+    /* Surfaces — cozy night (warm charcoal / wood shop) */
+    --color-bg-deep: #100e0c;
+    --color-bg-panel: #1e1914;
+    --color-bg-panel-alt: #2a231c;
+    --color-bg-elevated: #362e25;
 
-    /* Accents — muted gold primary, teal secondary */
-    --color-gold: #c9a227;
-    --color-gold-bright: #dbb84a;
-    --color-gold-dim: #8a6f1f;
-    --color-teal: #4a8f9c;
-    --color-teal-dim: #3a6f7a;
+    /* Accents — lamp gold primary, warm olive/copper secondary */
+    --color-gold: #dfb34f;
+    --color-gold-bright: #f0cb6a;
+    --color-gold-dim: #a67d2a;
+    --color-teal: #8a9a6e;
+    --color-teal-dim: #6b7a54;
+    --color-copper: #d0864f;
 
-    /* Text */
-    --color-text: #e8ecf1;
-    --color-text-muted: #8b9aab;
-    --color-text-dim: #5c6b7a;
+    /* Text — warmer parchment, higher contrast */
+    --color-text: #f5ecdf;
+    --color-text-muted: #c4b49a;
+    --color-text-dim: #8a7d6c;
 
-    /* Borders & shadows */
-    --border-panel: 1px solid rgba(201, 162, 39, 0.35);
-    --border-subtle: 1px solid rgba(255, 255, 255, 0.08);
-    --shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.45);
+    /* Borders & shadows — harder shop-counter edges */
+    --border-panel: 2px solid rgba(223, 179, 79, 0.58);
+    --border-panel-lit: 2px solid rgba(240, 203, 106, 0.85);
+    --border-subtle: 1px solid rgba(240, 230, 216, 0.16);
+    --shadow-panel: 0 6px 22px rgba(12, 8, 4, 0.55);
+    --shadow-inset-wood: inset 0 1px 0 rgba(240, 230, 216, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+    --panel-wood: linear-gradient(165deg, #342b21 0%, #1e1914 48%, #15120e 100%);
+    --panel-wood-raised: linear-gradient(180deg, #403528 0%, #2a231c 55%, #1e1914 100%);
+    --panel-wood-lit: linear-gradient(165deg, #3d3226 0%, #261f18 42%, #18140f 100%);
 
     /* Layout */
-    --header-height: 5.5rem;
-    --mobile-header-height: 4.25rem;
+    --header-height: 5.75rem;
+    --mobile-header-height: 4.5rem;
     --donators-bar-height: 1.75rem;
     --donators-bar-active-height: 0px;
     --layout-top-offset: calc(var(--header-height) + var(--donators-bar-active-height));
     --site-chrome-height: var(--header-height);
-    --radius-sm: 2px;
-    --radius-md: 4px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
 
-    /* Page backdrop — layered mesh (no bitmap) */
-    --bg-mesh: radial-gradient(ellipse 100% 60% at 50% -10%, rgba(201, 162, 39, 0.32) 0%, transparent 62%),
-        radial-gradient(ellipse 50% 50% at 92% 28%, rgba(74, 143, 156, 0.22) 0%, transparent 58%),
-        radial-gradient(ellipse 45% 45% at 8% 72%, rgba(58, 111, 122, 0.18) 0%, transparent 55%),
-        radial-gradient(ellipse 55% 40% at 50% 105%, rgba(26, 34, 46, 0.85) 0%, transparent 60%),
-        radial-gradient(ellipse 90% 80% at 50% 50%, transparent 42%, rgba(0, 0, 0, 0.28) 100%),
-        linear-gradient(155deg, #161c28 0%, #0c1018 38%, #0a1219 62%, #070a10 100%);
+    /* Control scale — friendlier tap targets */
+    --control-height-sm: 36px;
+    --control-height-md: 44px;
+    --control-height-lg: 52px;
+    --control-pad-y: 0.7rem;
+    --control-pad-x: 1.25rem;
+    --control-pad-y-sm: 0.45rem;
+    --control-pad-x-sm: 0.85rem;
+    --control-font-size: 0.9375rem;
+    --control-font-size-sm: 0.8125rem;
+    --nameplate-min-height: 60px;
+    --nameplate-portrait: 56px;
+
+    /* Page backdrop — amber lamp / tavern night + stronger top glow */
+    --bg-mesh: radial-gradient(ellipse 90% 55% at 50% -8%, rgba(223, 179, 79, 0.4) 0%, transparent 58%),
+        radial-gradient(ellipse 45% 40% at 88% 18%, rgba(208, 134, 79, 0.16) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 45% at 10% 70%, rgba(90, 70, 40, 0.28) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 35% at 50% 100%, rgba(223, 179, 79, 0.1) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 45% at 50% 110%, rgba(40, 28, 18, 0.92) 0%, transparent 58%),
+        radial-gradient(ellipse 90% 80% at 50% 50%, transparent 40%, rgba(12, 8, 5, 0.55) 100%),
+        linear-gradient(160deg, #1a1612 0%, #14110e 40%, #100e0b 70%, #0c0a08 100%);
     --bg-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
@@ -70,7 +90,7 @@ html {
     font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    background-color: #0c1018;
+    background-color: #100e0b;
     background-image: var(--bg-mesh);
     background-size: cover;
     background-position: center top;
@@ -89,7 +109,7 @@ html::after {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.08;
+    opacity: 0.06;
     background-image: var(--bg-noise);
     background-size: 180px 180px;
 }
@@ -118,7 +138,7 @@ body {
 
 button {
     font-family: var(--font-body);
-    font-size: 0.875rem;
+    font-size: var(--control-font-size-sm);
     font-weight: 600;
     cursor: pointer;
 }
@@ -141,13 +161,38 @@ button:active {
 .focused {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-text);
+    color: var(--color-gold-bright);
     font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Shared shop-counter panel — memorable Konoplay surface */
+.shop-panel {
+    background: var(--panel-wood);
+    border: var(--border-panel);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel), var(--shadow-inset-wood);
+}
+
+.shop-sign {
+    font-family: var(--font-nav);
+    font-size: 1.55rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gold-bright);
+    line-height: 1.1;
 }
 
 @media (max-width: 768px) {
     :root {
         --header-height: var(--mobile-header-height);
+        --control-height-sm: 40px;
+        --control-height-md: 44px;
+        --control-pad-y: 0.6rem;
+        --control-pad-x: 1.05rem;
+        --nameplate-min-height: 56px;
+        --nameplate-portrait: 48px;
     }
 
     html {

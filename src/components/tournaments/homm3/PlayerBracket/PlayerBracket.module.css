@@ -1,23 +1,29 @@
 .player_bracket {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.75rem;
     width: 100%;
     min-width: 0;
-    padding: 0.45rem 0.55rem;
+    min-height: var(--nameplate-min-height);
+    padding: 0.65rem 0.85rem;
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--panel-wood-raised);
+    border: 2px solid rgba(212, 168, 75, 0.32);
+    box-shadow:
+        var(--shadow-inset-wood),
+        0 3px 10px rgba(20, 12, 6, 0.3);
     transition:
         background 0.15s ease,
-        border-color 0.15s ease;
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
 }
 
 .desktopLayout {
     display: flex;
     align-items: center;
     flex: 1;
-    gap: 0.65rem;
+    gap: 0.75rem;
     min-width: 0;
     position: relative;
 }
@@ -27,17 +33,28 @@
 }
 
 .player_bracket:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(201, 162, 39, 0.18);
+    border-color: rgba(212, 168, 75, 0.55);
+    transform: translateY(-1px);
+    box-shadow:
+        var(--shadow-inset-wood),
+        0 5px 14px rgba(20, 12, 6, 0.35);
 }
 
 .playerWinner {
-    border-color: rgba(201, 162, 39, 0.35);
-    background: rgba(201, 162, 39, 0.06);
+    border-color: rgba(232, 196, 106, 0.75);
+    background: linear-gradient(180deg, #4a3a24 0%, #312a22 55%, #26201a 100%);
+    box-shadow:
+        inset 0 0 0 1px rgba(232, 196, 106, 0.25),
+        inset 0 1px 0 rgba(240, 230, 216, 0.12),
+        0 3px 12px rgba(20, 12, 6, 0.35);
 }
 
 .playerLoser {
-    opacity: 0.72;
+    opacity: 0.55;
+    border-color: rgba(240, 230, 216, 0.08);
+    background: rgba(18, 16, 14, 0.85);
+    box-shadow: none;
+    transform: none;
 }
 
 .playerIdentity {
@@ -113,8 +130,8 @@
 
 .portraitSlot {
     position: relative;
-    width: 42px;
-    height: 42px;
+    width: var(--nameplate-portrait);
+    height: var(--nameplate-portrait);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -123,8 +140,8 @@
 
 .portraitSlotSpacer {
     display: block;
-    width: 42px;
-    height: 42px;
+    width: var(--nameplate-portrait);
+    height: var(--nameplate-portrait);
 }
 
 .portraitWrap {
@@ -135,10 +152,10 @@
 
 .portraitImage,
 .portraitFallback {
-    width: 42px;
-    height: 42px;
-    border-radius: 8px;
-    border: 2px solid rgba(201, 162, 39, 0.45);
+    width: var(--nameplate-portrait);
+    height: var(--nameplate-portrait);
+    border-radius: 10px;
+    border: 2px solid rgba(201, 162, 39, 0.5);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
     flex-shrink: 0;
     object-fit: cover;
@@ -175,8 +192,9 @@
 
 :global(.knockout-players-stack) .player_bracket {
     align-items: center;
-    padding: 0.2rem 0.55rem 0.2rem 0.4rem;
-    gap: 0.45rem;
+    min-height: 52px;
+    padding: 0.45rem 0.7rem 0.45rem 0.55rem;
+    gap: 0.55rem;
 }
 
 :global(.knockout-players-stack) .statusLabel .statusWon,
@@ -217,15 +235,15 @@
 
 :global(.knockout-players-stack) .portraitSlot,
 :global(.knockout-players-stack) .portraitSlotSpacer {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
 }
 
 :global(.knockout-players-stack) .portraitImage,
 :global(.knockout-players-stack) .portraitFallback {
-    width: 40px;
-    height: 40px;
-    border-radius: 6px;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
 }
 
@@ -245,7 +263,7 @@
 
 :global(.knockout-players-stack) .playerNameUnder,
 :global(.knockout-players-stack) .playerName {
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     width: auto;
     white-space: nowrap;
     overflow: hidden;
@@ -316,7 +334,7 @@
 .playerNameUnder {
     display: block;
     width: 100%;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -429,8 +447,8 @@ a.playerNameUnder:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 600;
-    font-size: 0.88rem;
+    font-weight: 700;
+    font-size: 1rem;
     color: var(--color-text);
     text-decoration: none;
     transition: color 0.15s ease;
@@ -485,23 +503,28 @@ a.playerName:hover {
 }
 
 .scoreBox {
-    width: 2.5rem;
-    padding: 0.35rem 0.25rem;
+    width: 3rem;
+    min-height: 2.5rem;
+    padding: 0.45rem 0.3rem;
     text-align: center;
-    border: 1px solid rgba(201, 162, 39, 0.35);
+    border: 1px solid rgba(201, 162, 39, 0.4);
     border-radius: var(--radius-md);
     background: var(--color-bg-deep);
     color: var(--color-gold-bright);
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.15rem;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
     user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .playerWinner .scoreBox {
-    border-color: rgba(201, 162, 39, 0.55);
-    box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.15);
+    border-color: rgba(201, 162, 39, 0.7);
+    background: rgba(201, 162, 39, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.2);
 }
 
 /* Legacy class names kept for castle/game UI */
@@ -848,8 +871,9 @@ a.playerName:hover {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 0.35rem 0.4rem;
-        padding: 0.45rem 0.5rem;
+        gap: 0.4rem 0.5rem;
+        min-height: 52px;
+        padding: 0.55rem 0.6rem;
     }
 
     .desktopLayout {
@@ -877,16 +901,16 @@ a.playerName:hover {
 
     .portraitSlot,
     .portraitSlotSpacer {
-        width: 38px;
-        height: 38px;
+        width: 48px;
+        height: 48px;
     }
 
     .portraitImage,
     .portraitFallback {
-        width: 38px;
-        height: 38px;
-        border-radius: 6px;
-        border-width: 1px;
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        border-width: 2px;
     }
 
     .starsSlot,
@@ -895,7 +919,7 @@ a.playerName:hover {
     }
 
     .starsSlot img {
-        height: 13px !important;
+        height: 14px !important;
     }
 
     .playerMeta {
@@ -904,9 +928,9 @@ a.playerName:hover {
     }
 
     .playerNameUnder {
-        font-size: 0.6rem;
+        font-size: 0.72rem;
         line-height: 1.15;
-        max-width: 130px;
+        max-width: 140px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -946,9 +970,10 @@ a.playerName:hover {
     }
 
     .scoreBox {
-        width: 1.85rem;
-        padding: 0.22rem 0.15rem;
-        font-size: 0.78rem;
+        width: 2.35rem;
+        min-height: 2.2rem;
+        padding: 0.3rem 0.2rem;
+        font-size: 0.95rem;
     }
 }
 

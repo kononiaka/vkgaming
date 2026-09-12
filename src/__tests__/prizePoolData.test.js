@@ -116,7 +116,7 @@ describe('prizePoolData', () => {
 
         expect(entries[0].collected).toBe(250);
 
-        expect(entries[0].collectedLabel).toBe('$250');
+        expect(entries[0].collectedLabel).toBe('$250.0');
 
         // 250 vs expected pool from $1000 (95% = $950) → 26%
         expect(entries[0].progressPct).toBe(26);
@@ -125,7 +125,7 @@ describe('prizePoolData', () => {
 
         const leagueA = entries.find((entry) => entry.name === 'League A');
 
-        expect(leagueA.collectedLabel).toBe('$0');
+        expect(leagueA.collectedLabel).toBe('$0.0');
 
         expect(leagueA.progressPct).toBe(0);
 
@@ -153,7 +153,7 @@ describe('prizePoolData', () => {
 
         expect(entry.collected).toBe(700);
 
-        expect(entry.collectedLabel).toBe('$700');
+        expect(entry.collectedLabel).toBe('$700.0');
 
         // 700 vs expected pool from $2000 seed (95% = $1900) → 37%
         expect(

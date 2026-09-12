@@ -8,18 +8,26 @@ export const getTournamentPrizeLabel = (tournament) => {
         return null;
     }
 
+    const formatPool = (amount) => {
+        const value = Number(amount);
+        if (!Number.isFinite(value) || value <= 0) {
+            return null;
+        }
+        return `$${value.toFixed(1)} prize pool`;
+    };
+
     const collected = Number(tournament.communityFundingUsd) || 0;
     if (collected > 0) {
-        return `$${collected.toLocaleString()} prize pool`;
+        return formatPool(collected);
     }
 
     if (tournament.prizeType === 'money' && tournament.totalPrizeUsd) {
-        return `$${Number(tournament.totalPrizeUsd).toLocaleString()} prize pool`;
+        return formatPool(tournament.totalPrizeUsd);
     }
     if (tournament.pricePull && typeof tournament.pricePull === 'object') {
         const total = Object.values(tournament.pricePull).reduce((sum, v) => sum + Number(v || 0), 0);
         if (total > 0) {
-            return `$${total.toLocaleString()} prize pool`;
+            return formatPool(total);
         }
     }
     return null;
@@ -203,81 +211,34 @@ export const addScoreToUser = async (userId, data, scoreToAdd, winner, tournamen
 
         const result = findByName(tournamentData, team, safeScoreToAdd);
 
-        if (tournamentData.hasOwnProperty(result.id)) {
-            let existingStars = tournamentData[result.id].stars;
-            let existingRatings = tournamentData[result.id].ratings;
-            tournamentData[result.id].stars = existingStars;
-            tournamentData[result.id].ratings = existingRatings;
+        if (result?.id && tournamentData.hasOwnProperty(result.id)) {
+            tournamentData[result.id].ratings += `, ${safeScoreToAdd.toFixed(2)}`;
 
             try {
-                const response = await fetch(`${FIREBASE_DATABASE_URL}/users.json`);
-                if (!response.ok) {
-                    throw new Error('Unable to fetch data from the server.');
-                }
-                const userData = await response.json();
-
-                const playerObj = Object.entries(userData)
-                    .map(([id, player]) => ({
-                        id,
-                        enteredNickname: player.enteredNickname,
-                        ratings: player.ratings ? parseFloat(player.ratings).toFixed(2) : '0.00',
-                        games: player.gamesPlayed ? player.gamesPlayed.heroes3.total : 0,
-                        stars: player.stars
-                    }))
-                    .sort((a, b) => parseFloat(b.ratings) - parseFloat(a.ratings));
-                const highestRating = playerObj[0].ratings;
-                const lowestRating = Math.min(
-                    ...playerObj
-                        .filter((player) => player.ratings > 0)
-                        .map((player) => {
-                            console.log(player.ratings);
-                            return player.ratings;
-                        })
-                );
-
-                let newStars = calculateStarsFromRating(safeScoreToAdd, highestRating, lowestRating);
-                // console.log('tournamentData before', tournamentData);
-
-                tournamentData[result.id].stars += `, ${newStars}`;
-                tournamentData[result.id].ratings += `, ${safeScoreToAdd.toFixed(2)}`;
-                // console.log('tournamentData after', tournamentData);
-                // let updatedStars = typeof stars === 'number' ? [stars, newStars] : [newStars];
-
-                // console.log('updatedStars:', updatedStars);
-                // console.log('updateRatings:', updatedRatings);
-
-                // Skip redundant confirmation - user already confirmed in updatePlayerRatings()
-                // Directly update the database for both winner and loser
-                try {
-                    const userResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            gamesPlayed: {
-                                heroes3: {
-                                    total: games.heroes3.total + 1,
-                                    win: userId === winner ? games.heroes3.win + 1 : games.heroes3.win,
-                                    lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
-                                }
-                            },
-                            ratings: updatedRatings
-                            // NOTE: Stars are NOT updated here - only at tournament end
-                            // This preserves tournament entry stars throughout the tournament
-                        }),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (userResponse.ok) {
-                        console.log(`✓ ${team} rating updated successfully to ${safeScoreToAdd.toFixed(2)}`);
-                    } else {
-                        console.error(`✗ Failed to update ${team} rating. Status: ${userResponse.status}`);
+                const userResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users/${userId}.json`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        gamesPlayed: {
+                            heroes3: {
+                                total: games.heroes3.total + 1,
+                                win: userId === winner ? games.heroes3.win + 1 : games.heroes3.win,
+                                lose: userId === winner ? games.heroes3.lose : games.heroes3.lose + 1
+                            }
+                        },
+                        ratings: updatedRatings
+                        // Stars stay frozen until the tournament is marked finished.
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                } catch (error) {
-                    console.error(`✗ Error updating ${team} rating:`, error);
+                });
+                if (userResponse.ok) {
+                    console.log(`✓ ${team} rating updated successfully to ${safeScoreToAdd.toFixed(2)}`);
+                } else {
+                    console.error(`✗ Failed to update ${team} rating. Status: ${userResponse.status}`);
                 }
-            } catch (e) {
-                //
-                console.error('Error fetching user data:', e);
+            } catch (error) {
+                console.error(`✗ Error updating ${team} rating:`, error);
             }
         }
 

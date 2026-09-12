@@ -28,6 +28,16 @@ describe('production readiness — codebase wiring', () => {
         expect(headerSource).toMatch(/to="\/live"/);
     });
 
+    test('Gazette archive route and nav are registered', () => {
+        const appSource = readRepoFile('src/App.js');
+        const headerSource = readRepoFile('src/Layout/MainHeader.js');
+
+        expect(appSource).toMatch(/path="\/gazette"/);
+        expect(appSource).toMatch(/GazettePage/);
+        expect(headerSource).toMatch(/to="\/gazette"/);
+        expect(headerSource).toMatch(/Gazette/);
+    });
+
     test('generateGazette function is exported', () => {
         const functionsSource = readRepoFile('functions/index.js');
         const gazetteSource = readRepoFile('functions/gazette.js');
