@@ -131,7 +131,7 @@
 .bracket-stages-container {
     color: var(--color-text);
     display: flex;
-    gap: 3rem;
+    gap: 3.5rem;
     padding: 2rem 0;
     position: relative;
     z-index: 1;
@@ -143,12 +143,14 @@
 
 .bracket-stages-column {
     min-width: 600px;
-    background: linear-gradient(135deg, rgba(62, 32, 192, 0.3) 0%, rgba(45, 20, 150, 0.3) 100%);
-    border: 2px solid rgba(255, 215, 0, 0.3);
+    background: linear-gradient(145deg, rgba(49, 42, 34, 0.85) 0%, rgba(28, 24, 20, 0.92) 100%);
+    border: 2px solid rgba(212, 168, 75, 0.35);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 4px 16px rgba(20, 12, 6, 0.35),
+        inset 0 1px 0 rgba(240, 230, 216, 0.06);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -161,18 +163,18 @@
 .bracket-stages-column:not(:last-child)::after {
     content: '';
     position: absolute;
-    right: -3rem;
+    right: -3.5rem;
     top: 50%;
     transform: translateY(-50%);
-    width: 3rem;
+    width: 3.5rem;
     height: 2px;
-    background: linear-gradient(90deg, rgba(255, 215, 0, 0.5) 0%, rgba(255, 215, 0, 0.2) 100%);
+    background: linear-gradient(90deg, rgba(212, 168, 75, 0.55) 0%, rgba(212, 168, 75, 0.15) 100%);
     z-index: 0;
 }
 
 /* Add spacing between game blocks in semi-finals and later stages */
 .bracket-stages-column:nth-child(n + 2) .game-block {
-    margin-bottom: 3rem;
+    margin-bottom: 3.5rem;
 }
 
 .bracket-stages-column:nth-child(n + 2) .game-block:last-child {
@@ -189,13 +191,15 @@
 }
 
 .game-block {
-    background: var(--color-bg-panel);
-    border: var(--border-subtle);
-    border-left: 3px solid rgba(201, 162, 39, 0.45);
+    background: linear-gradient(165deg, rgba(38, 32, 26, 0.98) 0%, rgba(28, 24, 20, 1) 100%);
+    border: 1px solid rgba(212, 168, 75, 0.22);
+    border-left: 3px solid rgba(212, 168, 75, 0.5);
     border-radius: var(--radius-md);
     margin-bottom: 1rem;
     padding: 1rem 1.1rem 1.15rem;
-    box-shadow: var(--shadow-panel);
+    box-shadow:
+        var(--shadow-panel),
+        inset 0 1px 0 rgba(240, 230, 216, 0.05);
     transition:
         border-color 0.15s ease,
         box-shadow 0.15s ease,
@@ -213,15 +217,15 @@
 }
 
 .game-block:hover {
-    border-color: rgba(201, 162, 39, 0.28);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    border-color: rgba(212, 168, 75, 0.4);
+    box-shadow: 0 8px 24px rgba(20, 12, 6, 0.35);
 }
 
 .game-blockHighlighted {
-    outline: 2px solid rgba(201, 162, 39, 0.65);
+    outline: 2px solid rgba(212, 168, 75, 0.65);
     box-shadow:
-        0 0 0 1px rgba(201, 162, 39, 0.25),
-        0 0 24px rgba(201, 162, 39, 0.18);
+        0 0 0 1px rgba(212, 168, 75, 0.25),
+        0 0 20px rgba(212, 168, 75, 0.12);
 }
 
 .game-block:last-child {
@@ -394,14 +398,18 @@
 }
 
 .knockoutReportBtn {
-    padding: 0.45rem 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--control-height-md);
+    padding: var(--control-pad-y-sm) var(--control-pad-x);
     background: var(--color-gold);
     border: 1px solid var(--color-gold-dim);
     border-radius: var(--radius-md);
     color: var(--color-bg-deep);
     font-family: var(--font-body);
-    font-weight: 600;
-    font-size: 0.78rem;
+    font-weight: 700;
+    font-size: var(--control-font-size);
     cursor: pointer;
     white-space: nowrap;
     transition:
@@ -428,8 +436,8 @@
 .knockoutScheduleWrap {
     position: relative;
     z-index: 4;
-    min-height: 2.35rem;
-    margin-bottom: 0.35rem;
+    min-height: var(--control-height-md);
+    margin-bottom: 0.45rem;
     padding: 0 0.25rem;
     pointer-events: auto;
 }

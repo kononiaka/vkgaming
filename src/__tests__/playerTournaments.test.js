@@ -49,7 +49,7 @@ describe('playerTournaments', () => {
             name: 'Spring Cup',
             statusLabel: 'In progress',
             typeLabel: 'League',
-            prizePoolLabel: '$750 prize pool',
+            prizePoolLabel: '$750.0 prize pool',
             link: getTournamentProfileLink('cup1', 'Started!')
         });
 

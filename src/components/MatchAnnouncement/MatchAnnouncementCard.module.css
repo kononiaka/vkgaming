@@ -29,11 +29,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
+    min-height: var(--control-height-md);
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--radius-md);
     background: #9146ff;
     color: #fff;
-    font-size: 0.78rem;
+    font-size: var(--control-font-size);
     font-weight: 700;
     text-decoration: none;
     letter-spacing: 0.02em;
@@ -55,15 +56,17 @@
 
     overflow: hidden;
 
-    border-radius: 14px;
+    border-radius: 12px;
 
     text-decoration: none;
 
-    color: #f8f4ea;
+    color: #f0e6d8;
 
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 2px solid rgba(212, 168, 75, 0.45);
 
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+    box-shadow:
+        0 10px 28px rgba(20, 12, 6, 0.4),
+        inset 0 0 0 1px rgba(240, 230, 216, 0.08);
 
     transition:
         transform 0.18s ease,
@@ -72,11 +75,13 @@
 }
 
 .card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
 
-    border-color: rgba(245, 196, 0, 0.45);
+    border-color: rgba(232, 196, 106, 0.7);
 
-    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 16px 34px rgba(20, 12, 6, 0.5),
+        inset 0 0 0 1px rgba(240, 230, 216, 0.12);
 }
 
 .featured {
@@ -88,7 +93,7 @@
 
     inset: 0;
 
-    background: var(--color-bg-panel);
+    background: linear-gradient(165deg, #26201a 0%, #1c1814 55%, #161310 100%);
 }
 
 .plain .frame {
@@ -102,7 +107,7 @@
 }
 
 .plain .connector {
-    border-color: rgba(201, 162, 39, 0.35);
+    border-color: rgba(212, 168, 75, 0.4);
 }
 
 .backdropSplitLeft,
@@ -137,8 +142,8 @@
 
     inset: 0;
 
-    background: linear-gradient(180deg, rgba(8, 12, 20, 0.25) 0%, rgba(8, 12, 20, 0.78) 100%),
-        radial-gradient(circle at 50% 42%, transparent 18%, rgba(0, 0, 0, 0.35) 100%);
+    background: linear-gradient(180deg, rgba(28, 20, 12, 0.35) 0%, rgba(18, 14, 10, 0.82) 100%),
+        radial-gradient(circle at 50% 42%, transparent 18%, rgba(12, 8, 5, 0.4) 100%);
 }
 
 .frame {
@@ -203,15 +208,19 @@
 
 .liveBadge {
     flex-shrink: 0;
-    padding: 0.3rem 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--control-height-sm);
+    padding: 0.4rem 0.75rem;
 
-    border-radius: 6px;
+    border-radius: var(--radius-md);
 
     background: linear-gradient(180deg, #ff7b7b 0%, #e23b3b 100%);
 
     color: #fff;
 
-    font-size: 0.68rem;
+    font-size: 0.75rem;
 
     font-weight: 800;
 
@@ -254,6 +263,20 @@
     display: block;
 }
 
+.predictionStack {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 0.28rem;
+
+    width: 100%;
+
+    max-width: 152px;
+}
+
 .predictionEmbed {
     display: grid;
 
@@ -261,25 +284,49 @@
 
     align-items: center;
 
-    gap: 0.35rem;
+    gap: 0.4rem;
 
     width: 100%;
 
-    max-width: 132px;
+    max-width: 152px;
 
-    padding: 0.35rem 0.5rem;
+    padding: 0.45rem 0.6rem;
 
     border-top: 1px solid rgba(255, 255, 255, 0.22);
 
     border-bottom: 1px solid rgba(255, 255, 255, 0.22);
 }
 
+.predictionEmbedHota {
+    border-color: rgba(120, 190, 255, 0.35);
+}
+
+.predictionEmbedHota .predictionPct {
+    color: #9fd0ff;
+}
+
+.predictionEmbedHota .predictionLabel {
+    color: rgba(159, 208, 255, 0.85);
+}
+
 .plain .predictionEmbed {
     border-color: rgba(201, 162, 39, 0.28);
 }
 
+.plain .predictionEmbedHota {
+    border-color: rgba(80, 140, 200, 0.35);
+}
+
+.plain .predictionEmbedHota .predictionPct {
+    color: #3a7eb8;
+}
+
+.plain .predictionEmbedHota .predictionLabel {
+    color: #4a6f8c;
+}
+
 .predictionPct {
-    font-size: 0.72rem;
+    font-size: 0.82rem;
 
     font-weight: 800;
 
@@ -291,7 +338,7 @@
 }
 
 .predictionLabel {
-    font-size: 0.58rem;
+    font-size: 0.64rem;
 
     font-weight: 700;
 
@@ -391,9 +438,9 @@
 .portraitSlot {
     position: relative;
     width: auto;
-    min-width: 58px;
+    min-width: 72px;
     padding: 0 10px;
-    height: 72px;
+    height: 88px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -402,7 +449,7 @@
 }
 
 .portraitSlotWithStreams {
-    height: 88px;
+    height: 104px;
 }
 
 .streamBadges {
@@ -561,7 +608,7 @@
 
 .playerNameUnder {
     width: 100%;
-    font-size: 0.74rem;
+    font-size: 0.85rem;
 
     font-weight: 700;
 
@@ -569,7 +616,7 @@
 
     text-transform: uppercase;
 
-    color: #f8f4ea;
+    color: #f0e6d8;
 
     text-align: center;
 
@@ -587,29 +634,29 @@
 }
 
 .compact .frame {
-    min-height: 250px;
+    min-height: 268px;
 
-    padding: 1.1rem 1rem 0.85rem;
+    padding: 1.2rem 1rem 0.95rem;
 }
 
 .compact .dateBadge {
     min-width: 0;
     max-width: 100%;
-    padding: 0.4rem 0.55rem;
-    font-size: 0.62rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.7rem;
     line-height: 1.25;
     white-space: normal;
 }
 
 .compact .matchArena {
-    grid-template-columns: minmax(0, 1fr) minmax(108px, 118px) minmax(0, 1fr);
-    gap: 0.4rem;
+    grid-template-columns: minmax(0, 1fr) minmax(124px, 140px) minmax(0, 1fr);
+    gap: 0.5rem;
     padding: 0 0.35rem;
 }
 
 .compact .centerStack {
     width: 100%;
-    max-width: 118px;
+    max-width: 140px;
 }
 
 .compact .matchRow {
@@ -650,11 +697,11 @@
 
 .portraitImage,
 .portraitFallback {
-    width: 58px;
+    width: 68px;
 
-    height: 58px;
+    height: 68px;
 
-    border-radius: 8px;
+    border-radius: 10px;
 
     border: 2px solid rgba(255, 255, 255, 0.75);
 
@@ -870,8 +917,8 @@
 
     .matchArena {
         order: 1;
-        grid-template-columns: minmax(68px, 1fr) minmax(104px, 118px) minmax(68px, 1fr);
-        column-gap: 0.3rem;
+        grid-template-columns: minmax(68px, 1fr) minmax(120px, 132px) minmax(68px, 1fr);
+        column-gap: 0.35rem;
         row-gap: 0;
         align-items: start;
     }
@@ -882,19 +929,19 @@
 
     .portraitSlot {
         width: auto;
-        min-width: 54px;
+        min-width: 60px;
         padding: 0 8px;
-        height: 68px;
+        height: 78px;
     }
 
     .portraitSlotWithStreams {
-        height: 84px;
+        height: 94px;
     }
 
     .portraitSlot .portraitImage,
     .portraitSlot .portraitFallback {
-        width: 54px;
-        height: 54px;
+        width: 60px;
+        height: 60px;
     }
 
     .portraitSlot .starsOnPortrait {
@@ -906,22 +953,22 @@
     }
 
     .playerMeta {
-        min-height: 2.45rem;
-        max-width: 92px;
-        gap: 0.15rem;
+        min-height: 2.6rem;
+        max-width: 104px;
+        gap: 0.2rem;
     }
 
     .playerNameUnder {
-        font-size: 0.64rem;
+        font-size: 0.72rem;
         line-height: 1.2;
-        max-width: 92px;
+        max-width: 104px;
         white-space: normal;
         word-break: break-word;
     }
 
     .centerStack {
         width: 100%;
-        max-width: 118px;
+        max-width: 132px;
         justify-self: center;
         gap: 0.4rem;
         padding-top: 0.15rem;
@@ -931,10 +978,14 @@
         display: none;
     }
 
+    .predictionStack {
+        max-width: 132px;
+    }
+
     .predictionEmbed {
         width: 100%;
-        max-width: 118px;
-        padding: 0.3rem 0.45rem;
+        max-width: 132px;
+        padding: 0.4rem 0.5rem;
         border-top: 1px solid rgba(255, 255, 255, 0.18);
         border-bottom: 1px solid rgba(255, 255, 255, 0.18);
         background: rgba(8, 12, 20, 0.35);
@@ -942,11 +993,17 @@
     }
 
     .predictionPct {
-        font-size: 0.68rem;
+        font-size: 0.74rem;
     }
 
     .predictionLabel {
-        font-size: 0.54rem;
+        font-size: 0.58rem;
+    }
+
+    .watchBtn {
+        min-height: var(--control-height-sm);
+        padding: 0.45rem 0.85rem;
+        font-size: var(--control-font-size-sm);
     }
 
     .centerStackMobile {

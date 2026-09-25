@@ -18,9 +18,22 @@ const getMatchFormatLabel = (type) => {
     return 'BO1';
 };
 
-const isSeriesGameHidden = (game, idx, score1, score2, requiredWins) =>
-    (!game.castle1 && !game.castle2 && !game.winner && Math.max(score1, score2) >= requiredWins) ||
-    idx >= Math.min(score1, score2) + requiredWins;
+/** Hide a series game slot that isn't needed yet, or whose previous game isn't finished. */
+const isSeriesGameHidden = (game, idx, score1, score2, requiredWins, gameResults = []) => {
+    // Sequential: don't show Game N+1 until Game N has a winner
+    if (idx > 0) {
+        const previous = gameResults[idx - 1];
+        if (!previous?.winner) {
+            return true;
+        }
+    }
+
+    // Best-of padding: hide unused trailing games once the series is decided
+    return (
+        (!game.castle1 && !game.castle2 && !game.winner && Math.max(score1, score2) >= requiredWins) ||
+        idx >= Math.min(score1, score2) + requiredWins
+    );
+};
 // Import local castle images
 import castleImg from '../../../image/castles/castle.jpeg';
 import rampartImg from '../../../image/castles/rampart.jpeg';
@@ -849,7 +862,7 @@ const ReportGameModal = ({
                         <div style={{ position: 'relative', zIndex: 2 }}>
                             {/* Series match game results */}
                             {gameResults.map((game, idx) => {
-                                if (isSeriesGameHidden(game, idx, score1, score2, requiredWins)) {
+                                if (isSeriesGameHidden(game, idx, score1, score2, requiredWins, gameResults)) {
                                     return null;
                                 }
 

@@ -12,6 +12,10 @@ import { fetchMatchCenterMatches } from '../../utils/matchCenterData';
 
 import { enrichMatchWithPrediction } from '../../utils/matchPredictions';
 
+import { hotaWinProbPairKey } from '../../utils/hotaWinProb';
+
+import { useHotaWinProbs } from '../../hooks/useHotaWinProbs';
+
 import { getMatchCenterLink } from '../../utils/matchCenterRoute';
 
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
@@ -180,6 +184,17 @@ const LiveArenaPage = () => {
         [liveGames, featuredMatchKey]
     );
 
+    const hotaWinProbPairs = useMemo(
+        () =>
+            [...liveGames, ...upcomingMatches].map((match) => ({
+                team1: match.team1,
+                team2: match.team2
+            })),
+        [liveGames, upcomingMatches]
+    );
+
+    const hotaWinProbs = useHotaWinProbs(hotaWinProbPairs);
+
     const getBracketLink = getTournamentMatchLink;
 
     const renderMatchCard = (match, key, { featured = false } = {}) => {
@@ -188,6 +203,8 @@ const LiveArenaPage = () => {
         const streamLogin = pickMatchStreamLogin(enriched, liveLogins);
 
         const matchCenterUrl = getMatchCenterLink(enriched);
+
+        const hota = hotaWinProbs[hotaWinProbPairKey(enriched.team1, enriched.team2)];
 
         return (
             <MatchAnnouncementCard
@@ -215,6 +232,8 @@ const LiveArenaPage = () => {
                 team2Stars={enriched.team2Stars}
                 team1Prediction={enriched.team1Prediction}
                 team2Prediction={enriched.team2Prediction}
+                team1HotaPrediction={hota?.team1 ?? null}
+                team2HotaPrediction={hota?.team2 ?? null}
                 team1TwitchLogin={enriched.team1TwitchLogin}
                 team2TwitchLogin={enriched.team2TwitchLogin}
                 team1YoutubeUrl={enriched.team1YoutubeUrl}

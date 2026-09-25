@@ -3,6 +3,7 @@ import { authFetch } from '../../api/authFetch';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAddGame } from '../../store/add-game-context';
+import { buildGazetteFacts, unpublishedGazetteEvents } from '../../utils/gazette';
 import classes from './AdminPanel.module.css';
 
 const getFirebaseUidForUser = (userId, userData) => {
@@ -17,6 +18,7 @@ const AdminPanel = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+    const [gazetteNewsCount, setGazetteNewsCount] = useState(0);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -51,6 +53,32 @@ const AdminPanel = () => {
         };
 
         fetchUsers();
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadGazetteNews = async () => {
+            try {
+                const [currentResponse, cupsResponse] = await Promise.all([
+                    fetch(`${FIREBASE_DATABASE_URL}/gazette/current.json`),
+                    fetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3.json`)
+                ]);
+                const current = currentResponse.ok ? await currentResponse.json() : null;
+                const cups = cupsResponse.ok ? await cupsResponse.json() : {};
+                const unpublished = unpublishedGazetteEvents(buildGazetteFacts(cups), current?.eventId);
+                if (!cancelled) {
+                    setGazetteNewsCount(unpublished.length);
+                }
+            } catch (error) {
+                console.error('Error checking Gazette news:', error);
+            }
+        };
+
+        loadGazetteNews();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     const toggleAdminStatus = async (userId, currentStatus) => {
@@ -130,8 +158,13 @@ const AdminPanel = () => {
                     <Link to="/games/homm3" className={classes.matchLogLink}>
                         Open match log
                     </Link>
-                    <Link to="/" className={classes.matchLogLink}>
-                        Open home Gazette
+                    <Link to="/gazette" className={classes.matchLogLink}>
+                        Open Gazette desk
+                        {gazetteNewsCount > 0 ? (
+                            <span className={classes.gazetteNewsBadge}>
+                                {gazetteNewsCount === 1 ? '1 new story' : `${gazetteNewsCount} new stories`}
+                            </span>
+                        ) : null}
                     </Link>
                 </div>
             </section>

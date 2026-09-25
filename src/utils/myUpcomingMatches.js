@@ -1,15 +1,9 @@
+import { getTournamentEntryStars } from './playerStars';
 import { FIREBASE_DATABASE_URL } from '../config/firebase';
 import { buildCountryLookup, lookupCountryCode } from './country';
 import { buildMatchStageLabel } from './matchFixtureLabels';
 import { isPublicTournament } from './tournamentVisibility';
 import { isGameSessionActive, isPairLive, hasScheduledAt } from './matchCenterData';
-
-const parseNumericValue = (value) => {
-    if (typeof value === 'string' && value.includes(',')) {
-        return Number(value.split(',').at(-1).trim()) || 0;
-    }
-    return Number(value) || 0;
-};
 
 const buildRankByNickname = (usersData = {}) => {
     const getLatestRating = (user) => {
@@ -116,8 +110,8 @@ export const collectMyUpcomingMatches = (
                     type: pair.type,
                     variant: isLive ? 'live' : 'upcoming',
                     statusLabel: isLive ? 'Live' : 'Upcoming',
-                    team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-                    team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                    team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                    team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2),
                     team1Place: rankByNickname[pair.team1] || team1Player?.placeInLeaderboard || null,
                     team2Place: rankByNickname[pair.team2] || team2Player?.placeInLeaderboard || null,
                     castle1: activeGame?.castle1 || null,

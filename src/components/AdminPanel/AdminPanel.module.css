@@ -75,6 +75,21 @@
     text-decoration: underline;
 }
 
+.gazetteNewsBadge {
+    display: inline-block;
+    margin-left: 0.45rem;
+    padding: 0.1rem 0.45rem;
+    border: 1px solid #c9a227;
+    border-radius: 999px;
+    background: rgba(255, 215, 0, 0.16);
+    color: #ffd700;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
 .filterButtons {
     display: flex;
     gap: 1rem;

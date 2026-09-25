@@ -1,3 +1,4 @@
+import { getTournamentEntryStars } from '../../../utils/playerStars';
 import { setStageLabels } from '../tournament_api';
 
 export const DOUBLE_ELIM_SIZES = [4, 8, 16, 32];
@@ -130,7 +131,7 @@ const normalizePlayers = (shuffledNames) =>
     shuffledNames.map((player) => ({
         name: typeof player === 'string' ? player : player?.name || 'TBD',
         ratings: typeof player === 'string' ? '0' : player?.ratings || '0',
-        stars: typeof player === 'string' ? 0 : player?.stars || 0
+        stars: typeof player === 'string' ? 0 : getTournamentEntryStars(player?.stars)
     }));
 
 export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGamesFinal, shuffledNames, maxPlayers) => {
@@ -167,8 +168,8 @@ export const createDoubleElimPlayoffPairs = (playoffsGames, tournamentPlayoffGam
                 pair.team2 = player2?.name || 'TBD';
                 pair.ratings1 = player1?.ratings || '0';
                 pair.ratings2 = player2?.ratings || '0';
-                pair.stars1 = player1?.stars || 0;
-                pair.stars2 = player2?.stars || 0;
+                pair.stars1 = getTournamentEntryStars(player1?.stars);
+                pair.stars2 = getTournamentEntryStars(player2?.stars);
             }
 
             pairs.push(pair);
@@ -311,4 +312,69 @@ export const resolveThirdPlaceFinisher = ({
 
 export const shouldAwardThirdPlaceForStage = (hasLoserBracket, stage) =>
     stage === 'Third Place' || (Boolean(hasLoserBracket) && stage === 'LB Final');
+
+export const isPlaceholderWinnerName = (name) => {
+    const value = String(name || '').trim();
+    return !value || value === 'TBD' || value === 'BYE' || value === 'null';
+};
+
+const placeSortRank = (place) => {
+    const raw = String(place || '')
+        .toLowerCase()
+        .trim();
+    if (raw.startsWith('1') || raw.includes('1st')) {
+        return 1;
+    }
+    if (raw.startsWith('2') || raw.includes('2nd')) {
+        return 2;
+    }
+    if (raw.startsWith('3') || raw.includes('3rd')) {
+        return 3;
+    }
+    return 99;
+};
+
+/** Winner slots that should appear on finished-cup cards (drops TBD / empty). */
+export const getDisplayableWinnerEntries = (winners) => {
+    if (!winners || typeof winners !== 'object') {
+        return [];
+    }
+
+    return Object.entries(winners)
+        .filter(([, winner]) => !isPlaceholderWinnerName(winner))
+        .sort(([placeA], [placeB]) => placeSortRank(placeA) - placeSortRank(placeB));
+};
+
+/**
+ * Infer 3rd place from an already-completed LB Final / Third Place pair in the bracket.
+ * Used to backfill winners when prize payout skipped writing the placement name.
+ */
+export const resolveThirdPlaceFromPlayoffPairs = (playoffPairs, { hasLoserBracket = false } = {}) => {
+    if (!Array.isArray(playoffPairs)) {
+        return null;
+    }
+
+    const pairs = playoffPairs.flat().filter(Boolean);
+    const targetStage = hasLoserBracket ? 'LB Final' : 'Third Place';
+    const match = pairs.find(
+        (pair) =>
+            pair?.stage === targetStage &&
+            pair?.winner &&
+            pair.winner !== 'draw' &&
+            !isPlaceholderWinnerName(pair.team1) &&
+            !isPlaceholderWinnerName(pair.team2)
+    );
+
+    if (!match) {
+        return null;
+    }
+
+    return resolveThirdPlaceFinisher({
+        hasLoserBracket,
+        stage: match.stage,
+        winner: match.winner,
+        team1: match.team1,
+        team2: match.team2
+    });
+};
 

@@ -4,10 +4,12 @@
     max-width: 1100px;
     margin: 0 auto;
     padding: 1.75rem 1.5rem 2.5rem;
-    background: var(--color-bg-panel);
+    background: linear-gradient(165deg, rgba(38, 32, 26, 0.95) 0%, rgba(28, 24, 20, 0.98) 100%);
     border: var(--border-panel);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-panel);
+    box-shadow:
+        var(--shadow-panel),
+        inset 0 1px 0 rgba(240, 230, 216, 0.06);
 }
 
 .pageTitle {
@@ -100,12 +102,16 @@
 }
 
 .btnSecondary {
-    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--control-height-md);
+    padding: var(--control-pad-y) var(--control-pad-x);
     border: 1px solid var(--color-teal-dim);
     background: transparent;
     color: var(--color-text);
     font-weight: 600;
-    font-size: 0.8125rem;
+    font-size: var(--control-font-size);
     border-radius: var(--radius-md);
     cursor: pointer;
     transition:
@@ -137,12 +143,13 @@
 .searchInput {
     width: 100%;
     max-width: 360px;
-    padding: 0.55rem 0.75rem;
+    min-height: var(--control-height-md);
+    padding: 0.7rem 0.9rem;
     border: var(--border-subtle);
     border-radius: var(--radius-md);
     background: var(--color-bg-deep);
     color: var(--color-text);
-    font-size: 0.9rem;
+    font-size: var(--control-font-size);
     outline: none;
     transition: border-color 0.15s ease;
 }

@@ -1,3 +1,4 @@
+import { getTournamentEntryStars } from '../../../utils/playerStars';
 import { setStageLabels } from '../tournament_api';
 
 export const CHAMPIONS_LEAGUE_GROUP_SIZE = 4;
@@ -265,8 +266,8 @@ export const generateChampionsLeagueGroupPairs = (groups, gameType, options = {}
                     stage: `Group ${groupLabel}${stageSuffix}`,
                     group: groupLabel,
                     groupPhase,
-                    stars1: player1.stars || 0,
-                    stars2: player2.stars || 0,
+                    stars1: getTournamentEntryStars(player1.stars),
+                    stars2: getTournamentEntryStars(player2.stars),
                     team1: player1.name,
                     team2: player2.name,
                     type: gameType,
@@ -425,7 +426,7 @@ export const getQualifiedPlayers = (groups, pairs, scoringMode = 'restart', grou
                 group: groupLabel,
                 place: index + 1,
                 ratings: getPlayerRating(player),
-                stars: player?.stars || 0,
+                stars: getTournamentEntryStars(player?.stars),
                 points: entry.points
             });
         });
@@ -531,12 +532,12 @@ export const generateKnockoutBracketStages = (
                 if (player1) {
                     pair.team1 = player1.name;
                     pair.ratings1 = player1.ratings;
-                    pair.stars1 = player1.stars;
+                    pair.stars1 = getTournamentEntryStars(player1.stars);
                 }
                 if (player2) {
                     pair.team2 = player2.name;
                     pair.ratings2 = player2.ratings;
-                    pair.stars2 = player2.stars;
+                    pair.stars2 = getTournamentEntryStars(player2.stars);
                 }
             }
 

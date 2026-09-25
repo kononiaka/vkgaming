@@ -11,6 +11,7 @@ import AuthProviderIcon from '../../../Auth/AuthProviderIcon';
 import { resolveCountryCode } from '../../../../utils/country';
 import { resolveAuthProvider } from '../../../../utils/authProvider';
 import classes from './PlayerBracket.module.css';
+import { getTournamentEntryStars } from '../../../../utils/playerStars';
 import { getGamesPerMatch, normalizeGameType } from '../swissUtils';
 
 // Import local castle images
@@ -51,10 +52,7 @@ export const PlayerBracket = (props) => {
     const { team1, team2, stars1, stars2, score1, score2, winner, castle1, castle2 } = pair;
 
     let teamPlayer = team === 'team1' ? team1 : team2;
-    let playerStars =
-        team === 'team1'
-            ? Number(typeof stars1 === 'string' && stars1.includes(',') ? stars1.split(',').at(-1) : stars1) || null
-            : Number(typeof stars2 === 'string' && stars2.includes(',') ? stars2.split(',').at(-1) : stars2) || null;
+    let playerStars = getTournamentEntryStars(team === 'team1' ? stars1 : stars2) || null;
     let playerScore =
         team === 'team1'
             ? Number(typeof score1 === 'string' && score1.includes(',') ? score1.split(',').at(-1) : score1) || null

@@ -12,7 +12,6 @@ import {
     lookForUserPrevScore,
     pullTournamentPrizes,
     fetchCastlesList,
-    calculateStarsFromRating,
     snapshotLeaderboardRanks,
     getPairProgress,
     savePairProgress,
@@ -40,7 +39,19 @@ import {
     normalizeGameType,
     repairSwissByePairs
 } from './swissUtils';
-import { dropLoserToBracket, promoteLoserBracketWinner, resolveThirdPlaceFinisher, shouldAwardThirdPlaceForStage } from './loserBracketUtils';
+import {
+    dropLoserToBracket,
+    isPlaceholderWinnerName,
+    promoteLoserBracketWinner,
+    resolveThirdPlaceFinisher,
+    resolveThirdPlaceFromPlayoffPairs,
+    shouldAwardThirdPlaceForStage
+} from './loserBracketUtils';
+import {
+    getTournamentEntryStars,
+    recalculateSitePlayerStars,
+    refreshAndFreezeTournamentStars
+} from '../../../utils/playerStars';
 import { formatStageLabelForDisplay } from '../../../utils/matchFixtureLabels';
 import { canManageTournamentSwiss } from '../../../utils/tournamentVisibility';
 import {
@@ -533,55 +544,8 @@ export const TournamentBracket = ({
         return true;
     };
 
-    const getCurrentRating = (ratings) => {
-        if (typeof ratings === 'string' && ratings.includes(',')) {
-            return parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
-        }
-
-        return ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
-    };
-
-    const recalculatePlayerStars = async ({ attendeeNames = null } = {}) => {
-        const usersResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
-        const usersData = await usersResponse.json();
-
-        const allPlayers = Object.entries(usersData || {})
-            .map(([id, userData]) => ({
-                id,
-                name: userData.enteredNickname || userData.name,
-                ratings: getCurrentRating(userData.ratings)
-            }))
-            .filter((player) => player.name && player.ratings > 0)
-            .sort((a, b) => b.ratings - a.ratings);
-
-        if (allPlayers.length === 0) {
-            return { updatedCount: 0 };
-        }
-
-        const highestRating = allPlayers[0].ratings;
-        const lowestRating = Math.min(...allPlayers.map((player) => player.ratings));
-        const playersToUpdate = attendeeNames
-            ? allPlayers.filter((player) => attendeeNames.includes(player.name))
-            : allPlayers;
-
-        for (const player of playersToUpdate) {
-            const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
-
-            await authFetch(`${FIREBASE_DATABASE_URL}/users/${player.id}.json`, {
-                method: 'PATCH',
-                body: JSON.stringify({ stars: newStars }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            console.log(`Updated ${player.name}: ${player.ratings} rating -> ${newStars} stars`);
-        }
-
-        return {
-            updatedCount: playersToUpdate.length,
-            highestRating,
-            lowestRating
-        };
-    };
+    const recalculatePlayerStars = async ({ attendeeNames = null } = {}) =>
+        recalculateSitePlayerStars({ attendeeNames, authFetch, firebaseUrl: FIREBASE_DATABASE_URL });
 
     // Determine the stage label based on the number of max players
     //TODO when there is a winner move him to the prior stage
@@ -996,29 +960,28 @@ export const TournamentBracket = ({
             console.log('playersObj:', playersObj);
             // let tournamentData = {};
 
-            // Recalculate stars for tournament attendees before starting
+            // Refresh site stars then freeze them on the roster for the whole cup
             const confirmRecalculateStars = confirmWindow(
-                `Recalculate stars for tournament attendees?\n\nThis will update stars for players participating in this tournament.\n\nRecalculate stars?`
+                `Recalculate and freeze stars for tournament attendees?\n\nSite stars refresh now; roster stars stay frozen until the cup finishes.\n\nContinue?`
             );
 
-            if (confirmRecalculateStars) {
-                try {
-                    const attendeeNames = Object.values(playersObj)
-                        .filter((player) => player && player.name)
-                        .map((player) => player.name);
-                    const result = await recalculatePlayerStars({ attendeeNames });
-
-                    console.log(
-                        `Tournament attendees stars recalculated successfully. Updated ${result.updatedCount} players.`
-                    );
-                    alert('Tournament attendees stars recalculated successfully!');
-                } catch (error) {
-                    console.error('Error recalculating stars:', error);
-                    alert('Error recalculating stars: ' + error.message);
-                    return;
+            try {
+                const result = await refreshAndFreezeTournamentStars(tournamentId, playersObj, {
+                    recalculate: confirmRecalculateStars,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                playersObj = result.players;
+                console.log(
+                    `Tournament stars frozen. Updated ${result.updatedCount || 0} site profiles; roster stamped.`
+                );
+                if (confirmRecalculateStars) {
+                    alert('Tournament stars recalculated and frozen for this cup.');
                 }
-            } else {
-                console.log('Star recalculation cancelled by user');
+            } catch (error) {
+                console.error('Error freezing tournament stars:', error);
+                alert('Error freezing tournament stars: ' + error.message);
+                return;
             }
 
             setStartTournament(true);
@@ -1125,6 +1088,31 @@ export const TournamentBracket = ({
     const confirmWindow = (message) => {
         console.log('Auto-confirmed:', message);
         return true;
+    };
+
+    const persistTournamentWinnerSlot = async (winnerKey, playerName) => {
+        if (isPlaceholderWinnerName(playerName) || !winnerKey) {
+            return false;
+        }
+
+        await authFetch(`${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/${winnerKey}.json`, {
+            method: 'PUT',
+            body: JSON.stringify(playerName),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return true;
+    };
+
+    const ensureThirdPlaceWinnerRecorded = async (playerName) => {
+        if (isPlaceholderWinnerName(playerName)) {
+            return false;
+        }
+
+        const wrote = await persistTournamentWinnerSlot('3rd place', playerName);
+        if (wrote) {
+            console.log(`Tournament 3rd place winner recorded: ${playerName}`);
+        }
+        return wrote;
     };
 
     const handleScoreChange = (stageName, pairIndex, teamIndex, newScore) => {
@@ -1357,8 +1345,8 @@ export const TournamentBracket = ({
                 score1: 0,
                 score2: 0,
                 stage: currentStageLabels[0] || 'Quarter-final',
-                stars1: player1?.stars || 0,
-                stars2: player2?.stars || 0,
+                stars1: getTournamentEntryStars(player1?.stars),
+                stars2: getTournamentEntryStars(player2?.stars),
                 team1: pair[0],
                 team2: pair[1],
                 type: gameType,
@@ -3436,6 +3424,40 @@ export const TournamentBracket = ({
                     await updatePairProgressStage(tournamentId, selectedPairId, 'promotion');
                 }
 
+                // Placement names must not depend on prize payout / user-id lookup succeeding.
+                // Double-elim 3rd = LB Final loser; single-elim 3rd = Third Place winner.
+                if (!reportData.mockMode && reportData.winner && reportData.winner !== 'draw') {
+                    const placementStage =
+                        pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
+                    const placementThird = resolveThirdPlaceFinisher({
+                        hasLoserBracket,
+                        stage: placementStage,
+                        winner: reportData.winner,
+                        team1: pair.team1,
+                        team2: pair.team2
+                    });
+                    if (placementThird) {
+                        try {
+                            await ensureThirdPlaceWinnerRecorded(placementThird);
+                        } catch (error) {
+                            console.error('Failed to record 3rd place winner:', error);
+                        }
+                    }
+
+                    if (placementStage === 'Final' || (hasLoserBracket && placementStage === 'Grand Final')) {
+                        const backfilledThird = resolveThirdPlaceFromPlayoffPairs(updatedPairs, {
+                            hasLoserBracket
+                        });
+                        if (backfilledThird) {
+                            try {
+                                await ensureThirdPlaceWinnerRecorded(backfilledThird);
+                            } catch (error) {
+                                console.error('Failed to backfill 3rd place winner:', error);
+                            }
+                        }
+                    }
+                }
+
                 if (!skipPrizes) {
                     const currentStage = pair.stage || getStageLabelForStorageIndex(selectedStageIndex, updatedPairs);
                     const winner = reportData.winner;
@@ -3453,66 +3475,44 @@ export const TournamentBracket = ({
                     if (shouldAwardThirdPlaceForStage(hasLoserBracket, currentStage) && thirdPlaceFinisher) {
                         console.log(`${currentStage} game completed. 3rd place: ${thirdPlaceFinisher}`);
 
-                        const confirmThirdPlacePrize = confirmWindow(
-                            `Award Third Place prize to ${thirdPlaceFinisher}?\n\nThis will update the tournament winners and player's prize record.\n\nAward prize?`
-                        );
+                        try {
+                            await ensureThirdPlaceWinnerRecorded(thirdPlaceFinisher);
 
-                        if (confirmThirdPlacePrize) {
-                            try {
-                                // Get tournament prizes
-                                const prizes = await pullTournamentPrizes(tournamentId);
-                                const prizeAmount = prizes['3rd Place'];
+                            const prizes = await pullTournamentPrizes(tournamentId);
+                            const prizeAmount = Number(prizes?.['3rd Place']) || 0;
+                            console.log('Third Place Prize:', prizeAmount);
 
-                                console.log('Third Place Prize:', prizeAmount);
+                            if (prizeAmount > 0) {
+                                const confirmThirdPlacePrize = confirmWindow(
+                                    `Award Third Place prize ($${prizeAmount}) to ${thirdPlaceFinisher}?\n\nThis will update the player's prize record.\n\nAward prize?`
+                                );
 
-                                // Find and update player record
-                                const playerId = await lookForUserId(thirdPlaceFinisher);
-                                if (playerId) {
-                                    const playerData = await loadUserById(playerId);
-
-                                    if (playerData) {
-                                        // Initialize prizes array if it doesn't exist
-                                        if (!playerData.prizes) {
-                                            playerData.prizes = [];
-                                        }
-
-                                        // Add new prize
-                                        playerData.prizes.push({
-                                            tournamentName: tournamentName,
-                                            place: '3rd Place',
-                                            prizeAmount: prizeAmount
-                                        });
-
-                                        // Calculate new total prize
-                                        const currentTotal = await getPlayerPrizeTotal(playerId);
-                                        const newTotal = parseFloat(currentTotal || 0) + parseFloat(prizeAmount);
-                                        playerData.totalPrize = newTotal;
-
-                                        console.log('Updated player data:', playerData);
-
-                                        // Update tournament winners
-                                        const confirmUpdateWinner = confirmWindow(
-                                            `Update tournament 3rd place winner?\n\nWinner: ${thirdPlaceFinisher}\nPrize: ${prizeAmount}\n\nUpdate?`
+                                if (confirmThirdPlacePrize) {
+                                    const playerId = await lookForUserId(thirdPlaceFinisher);
+                                    if (!playerId) {
+                                        console.log('Player ID not found for 3rd place prize payout');
+                                        alert(
+                                            `3rd place recorded as ${thirdPlaceFinisher}, but prize payout skipped (player account not found).`
                                         );
+                                    } else {
+                                        const playerData = await loadUserById(playerId);
+                                        if (!playerData) {
+                                            alert('Could not load player data for prize award');
+                                        } else {
+                                            if (!playerData.prizes) {
+                                                playerData.prizes = [];
+                                            }
+                                            playerData.prizes.push({
+                                                tournamentName: tournamentName,
+                                                place: '3rd Place',
+                                                prizeAmount: prizeAmount
+                                            });
 
-                                        if (confirmUpdateWinner) {
-                                            await authFetch(
-                                                `${FIREBASE_DATABASE_URL}/tournaments/heroes3/${tournamentId}/winners/3rd place.json`,
-                                                {
-                                                    method: 'PUT',
-                                                    body: JSON.stringify(thirdPlaceFinisher),
-                                                    headers: { 'Content-Type': 'application/json' }
-                                                }
-                                            );
-                                            console.log('Tournament 3rd place winner updated');
-                                        }
+                                            const currentTotal = await getPlayerPrizeTotal(playerId);
+                                            const newTotal =
+                                                parseFloat(currentTotal || 0) + parseFloat(prizeAmount);
+                                            playerData.totalPrize = newTotal;
 
-                                        // Update player record
-                                        const confirmUpdatePlayer = confirmWindow(
-                                            `Update player record with prize?\n\nPlayer: ${thirdPlaceFinisher}\nOld Total: ${currentTotal}\nNew Total: ${newTotal}\n\nUpdate?`
-                                        );
-
-                                        if (confirmUpdatePlayer) {
                                             await authFetch(`${FIREBASE_DATABASE_URL}/users/${playerId}.json`, {
                                                 method: 'PUT',
                                                 body: JSON.stringify(playerData),
@@ -3520,24 +3520,18 @@ export const TournamentBracket = ({
                                             });
                                             console.log('Player record updated with 3rd place prize');
                                         }
-                                    } else {
-                                        console.log('Player data not found');
-                                        alert('Could not load player data for prize award');
                                     }
                                 } else {
-                                    console.log('Player ID not found');
-                                    alert('Could not find player ID for prize award');
+                                    console.log('Third Place prize award cancelled by user');
                                 }
-                            } catch (error) {
-                                console.error('Error awarding Third Place prize:', error);
-                                alert('Error awarding Third Place prize: ' + error.message);
                             }
-
-                            console.log('Third Place prizes awarded');
-                            await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
-                        } else {
-                            console.log('Third Place prize award cancelled by user');
+                        } catch (error) {
+                            console.error('Error awarding Third Place prize:', error);
+                            alert('Error awarding Third Place prize: ' + error.message);
                         }
+
+                        console.log('Third Place placement processed');
+                        await updatePairProgressStage(tournamentId, selectedPairId, 'prizes');
                     } else if (currentStage === 'Final' || (hasLoserBracket && currentStage === 'Grand Final')) {
                         // Award Final prizes to winner (1st place) and loser (2nd place)
                         console.log(`${currentStage} game completed. Winner: ${winner}, Runner-up: ${loser}`);
@@ -3955,17 +3949,17 @@ export const TournamentBracket = ({
                             <div className={classes.headerTitle}>{tournamentName}</div>
                             {tournamentWinners && (
                                 <div className={classes.headerWinners}>
-                                    {tournamentWinners['1st place'] && (
+                                    {!isPlaceholderWinnerName(tournamentWinners['1st place']) && (
                                         <span className={classes.headerWinnerGold}>
                                             🥇 Gold: {tournamentWinners['1st place']}
                                         </span>
                                     )}
-                                    {tournamentWinners['2nd place'] && (
+                                    {!isPlaceholderWinnerName(tournamentWinners['2nd place']) && (
                                         <span className={classes.headerWinnerSilver}>
                                             🥈 Silver: {tournamentWinners['2nd place']}
                                         </span>
                                     )}
-                                    {tournamentWinners['3rd place'] && (
+                                    {!isPlaceholderWinnerName(tournamentWinners['3rd place']) && (
                                         <span className={classes.headerWinnerBronze}>
                                             🥉 Bronze: {tournamentWinners['3rd place']}
                                         </span>

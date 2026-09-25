@@ -116,7 +116,7 @@ describe('prizePoolData', () => {
 
         expect(entries[0].collected).toBe(250);
 
-        expect(entries[0].collectedLabel).toBe('$250');
+        expect(entries[0].collectedLabel).toBe('$250.0');
 
         // 250 vs expected pool from $1000 (95% = $950) → 26%
         expect(entries[0].progressPct).toBe(26);
@@ -125,7 +125,7 @@ describe('prizePoolData', () => {
 
         const leagueA = entries.find((entry) => entry.name === 'League A');
 
-        expect(leagueA.collectedLabel).toBe('$0');
+        expect(leagueA.collectedLabel).toBe('$0.0');
 
         expect(leagueA.progressPct).toBe(0);
 
@@ -153,7 +153,9 @@ describe('prizePoolData', () => {
 
         expect(entry.collected).toBe(700);
 
-        expect(entry.collectedLabel).toBe('$700');
+        expect(entry.collectedLabel).toBe('$700.0');
+
+        expect(entry.recentFunding).toEqual([]);
 
         // 700 vs expected pool from $2000 seed (95% = $1900) → 37%
         expect(
@@ -162,6 +164,60 @@ describe('prizePoolData', () => {
                 getTournamentFundingGoalUsd({ fundingGoalUsd: 2000 })
             )
         ).toBe(37);
+    });
+
+    test('includes recentFunding from prize pool history on prize pool entries', () => {
+        const entry = buildPrizePoolEntry(
+            {
+                name: 'Funded Cup',
+                status: 'Started!',
+                isPublic: true,
+                communityFundingUsd: 12.2,
+                prizePoolHistory: {
+                    a: {
+                        type: 'donation',
+                        provider: 'donationalerts',
+                        donorUsername: 'Alice',
+                        amountUsd: 9,
+                        grossUsd: 10,
+                        at: '2026-07-20T12:00:00.000Z'
+                    },
+                    b: {
+                        type: 'host_seed',
+                        provider: 'stripe',
+                        donorUsername: 'Host',
+                        amountUsd: 4.8,
+                        paidUsd: 5,
+                        at: '2026-07-19T12:00:00.000Z'
+                    },
+                    c: {
+                        type: 'donation',
+                        provider: 'bmc',
+                        donorUsername: 'Bob',
+                        amountUsd: 2.7,
+                        grossUsd: 3,
+                        at: '2026-07-21T12:00:00.000Z'
+                    },
+                    d: {
+                        type: 'donation',
+                        provider: 'bmc',
+                        donorUsername: 'Older',
+                        amountUsd: 1,
+                        grossUsd: 1.2,
+                        at: '2026-07-18T12:00:00.000Z'
+                    }
+                }
+            },
+            'funded'
+        );
+
+        expect(entry.recentFunding).toHaveLength(3);
+        expect(entry.recentFunding.map((gift) => gift.id)).toEqual(['c', 'a', 'b']);
+        expect(entry.recentFunding[0]).toMatchObject({
+            amountLabel: '+$2.7',
+            detail: expect.stringContaining('Bob')
+        });
+        expect(entry.recentFunding[0].whenLabel).toBeTruthy();
     });
 
     test('full host seed fills the progress bar to 100%', () => {

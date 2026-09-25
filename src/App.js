@@ -15,6 +15,7 @@ import TournamentList from './components/tournaments/homm3/Tournaments';
 import TwitchCallback from './components/Auth/TwitchCallback';
 import YouTubeCallback from './components/Auth/YouTubeCallback';
 import AuthPage from './pages/AuthPage';
+import GazettePage from './pages/GazettePage';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
 import SupportPage from './pages/SupportPage';
@@ -58,6 +59,8 @@ function App() {
                     <Route path="/players" element={<PlayersList />} />
                     <Route path="/players/:id" element={<Players />} />
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/gazette" element={<GazettePage />} />
+                    <Route path="/gazette/:issueId" element={<GazettePage />} />
                     <Route path="/live/match/:tournamentId/:stageIndex/:pairIndex" element={<MatchCenterPage />} />
                     <Route path="/live" element={<LiveArenaPage />} />
                     <Route path="/auth/twitch/callback" element={<TwitchCallback />} />

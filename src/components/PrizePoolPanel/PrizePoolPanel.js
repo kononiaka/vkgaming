@@ -89,6 +89,21 @@ const PrizePoolPanel = ({ compact = false, className = '', showSupportButton = t
                                 <div className={classes.progressFill} style={{ width: `${entry.progressPct}%` }} />
                                 <span className={classes.progressLabel}>Collected {entry.collectedLabel}</span>
                             </div>
+                            {Array.isArray(entry.recentFunding) && entry.recentFunding.length > 0 ? (
+                                <ul className={classes.recentFundingList} aria-label={`Recent funding for ${entry.name}`}>
+                                    {entry.recentFunding.map((gift) => (
+                                        <li key={gift.id} className={classes.recentFundingItem}>
+                                            <span className={classes.recentFundingAmt}>{gift.amountLabel}</span>
+                                            <span className={classes.recentFundingMeta}>
+                                                <span className={classes.recentFundingDetail}>{gift.detail}</span>
+                                                {gift.whenLabel ? (
+                                                    <span className={classes.recentFundingWhen}>{gift.whenLabel}</span>
+                                                ) : null}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
                         </article>
                     ))}
                 </div>

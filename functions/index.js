@@ -1498,6 +1498,21 @@ exports.hotaLeaderboard = functions.https.onCall(async (data) => {
     return { leaderboard: Array.isArray(leaderboard) ? leaderboard : [] };
 });
 
+exports.hotaWinProb = functions.https.onCall(async (data) => {
+    const player1 = typeof data?.player1 === 'string' ? data.player1.trim() : '';
+    const player2 = typeof data?.player2 === 'string' ? data.player2.trim() : '';
+    if (player1.length < 2 || player2.length < 2) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'player1 and player2 must be at least 2 characters'
+        );
+    }
+
+    const path = `h2h/${encodeURIComponent(player1)}/${encodeURIComponent(player2)}/winprob`;
+    const winprob = await fetchHotametaJson(path);
+    return { winprob };
+});
+
 const { GoogleAuth } = require('google-auth-library');
 
 const FIREBASE_PROJECT_ID = process.env.GCLOUD_PROJECT || 'test-prod-app-81915';

@@ -1,5 +1,5 @@
 import { FIREBASE_DATABASE_URL } from '../../config/firebase';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import castleImg from '../../image/castles/castle.jpeg';
@@ -23,6 +23,8 @@ import { buildMatchStageLabel, resolveLeagueRound } from '../../utils/matchFixtu
 import { getMatchCenterLink } from '../../utils/matchCenterRoute';
 import { getTournamentMatchLink } from '../../utils/tournamentBracketNavigation';
 import { getHeadToHeadPrediction } from '../../utils/matchPredictions';
+import { hotaWinProbPairKey } from '../../utils/hotaWinProb';
+import { useHotaWinProbs } from '../../hooks/useHotaWinProbs';
 import {
     isGameSessionActive,
     isPairLive,
@@ -30,6 +32,7 @@ import {
     resolvePlayerTwitchLogin,
     resolvePlayerYoutubeUrl
 } from '../../utils/matchCenterData';
+import { getTournamentEntryStars } from '../../utils/playerStars';
 import { extractTwitchLogin } from '../../utils/twitchUtils';
 import { normalizeSocialUrl } from '../../utils/publicLinks';
 import classes from './StartingPageContent.module.css';
@@ -171,8 +174,8 @@ const StartingPageContent = () => {
                                                 team2Place: team2Player?.placeInLeaderboard,
                                                 team1Rating: pair.ratings1 ?? team1Player?.ratings,
                                                 team2Rating: pair.ratings2 ?? team2Player?.ratings,
-                                                team1Stars: pair.stars1 ?? team1Player?.stars,
-                                                team2Stars: pair.stars2 ?? team2Player?.stars
+                                                team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                                                team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2)
                                             }
                                         );
 
@@ -230,8 +233,8 @@ const StartingPageContent = () => {
                                                 color1: game?.color1 || pair.color1 || 'red',
                                                 color2: game?.color2 || pair.color2 || 'blue',
                                                 gameNumber: game ? (game.gameId || 0) + 1 : ps1 + ps2 + 1,
-                                                team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-                                                team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                                                team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                                                team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2),
                                                 team1TwitchLogin,
                                                 team2TwitchLogin,
                                                 team1YoutubeUrl,
@@ -308,8 +311,8 @@ const StartingPageContent = () => {
                                                     '-',
                                                 team1Prediction: pairPrediction.team1,
                                                 team2Prediction: pairPrediction.team2,
-                                                team1Stars: parseNumericValue(pair.stars1 ?? team1Player?.stars),
-                                                team2Stars: parseNumericValue(pair.stars2 ?? team2Player?.stars),
+                                                team1Stars: getTournamentEntryStars(team1Player?.stars ?? pair.stars1),
+                                                team2Stars: getTournamentEntryStars(team2Player?.stars ?? pair.stars2),
                                                 statusLabel: ps1 + ps2 > 0 ? 'Next map' : 'Upcoming'
                                             });
                                         }
@@ -331,46 +334,60 @@ const StartingPageContent = () => {
         fetchActiveTournaments();
     }, []);
 
-    const previewUpcoming = upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT);
-    const previewLive = liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT).map((match) => ({ ...match, variant: 'live' }));
+    const previewUpcoming = useMemo(() => upcomingMatches.slice(0, MATCH_CENTER_PREVIEW_LIMIT), [upcomingMatches]);
+    const previewLive = useMemo(
+        () => liveGames.slice(0, MATCH_CENTER_PREVIEW_LIMIT).map((match) => ({ ...match, variant: 'live' })),
+        [liveGames]
+    );
     const remainingUpcoming = previewUpcoming;
+    const hotaWinProbPairs = useMemo(
+        () => [...previewLive, ...previewUpcoming].map((match) => ({ team1: match.team1, team2: match.team2 })),
+        [previewLive, previewUpcoming]
+    );
+    const hotaWinProbs = useHotaWinProbs(hotaWinProbPairs);
 
     const getBracketLink = getTournamentMatchLink;
 
-    const renderAnnouncementCard = (match, key) => (
-        <MatchAnnouncementCard
-            key={key}
-            to={getBracketLink(match)}
-            team1={match.team1}
-            team2={match.team2}
-            team1Avatar={match.team1Avatar}
-            team2Avatar={match.team2Avatar}
-            team1CountryCode={match.team1CountryCode}
-            team2CountryCode={match.team2CountryCode}
-            score1={match.score1}
-            score2={match.score2}
-            tournamentName={match.tournamentName}
-            tournamentType={match.tournamentType}
-            stageLabel={match.stageLabel}
-            tournamentDate={match.tournamentDate}
-            variant={match.variant || 'upcoming'}
-            statusLabel={match.statusLabel}
-            type={match.type}
-            compact
-            castle1Image={getCastleImage(match.castle1)}
-            castle2Image={getCastleImage(match.castle2)}
-            gameNumber={match.gameNumber}
-            team1Stars={match.team1Stars}
-            team2Stars={match.team2Stars}
-            team1Prediction={match.team1Prediction}
-            team2Prediction={match.team2Prediction}
-            team1TwitchLogin={match.team1TwitchLogin}
-            team2TwitchLogin={match.team2TwitchLogin}
-            team1YoutubeUrl={match.team1YoutubeUrl}
-            team2YoutubeUrl={match.team2YoutubeUrl}
-            matchCenterUrl={getMatchCenterLink(match)}
-        />
-    );
+    const renderAnnouncementCard = (match, key) => {
+        const hota = hotaWinProbs[hotaWinProbPairKey(match.team1, match.team2)];
+
+        return (
+            <MatchAnnouncementCard
+                key={key}
+                to={getBracketLink(match)}
+                team1={match.team1}
+                team2={match.team2}
+                team1Avatar={match.team1Avatar}
+                team2Avatar={match.team2Avatar}
+                team1CountryCode={match.team1CountryCode}
+                team2CountryCode={match.team2CountryCode}
+                score1={match.score1}
+                score2={match.score2}
+                tournamentName={match.tournamentName}
+                tournamentType={match.tournamentType}
+                stageLabel={match.stageLabel}
+                tournamentDate={match.tournamentDate}
+                variant={match.variant || 'upcoming'}
+                statusLabel={match.statusLabel}
+                type={match.type}
+                compact
+                castle1Image={getCastleImage(match.castle1)}
+                castle2Image={getCastleImage(match.castle2)}
+                gameNumber={match.gameNumber}
+                team1Stars={match.team1Stars}
+                team2Stars={match.team2Stars}
+                team1Prediction={match.team1Prediction}
+                team2Prediction={match.team2Prediction}
+                team1HotaPrediction={hota?.team1 ?? null}
+                team2HotaPrediction={hota?.team2 ?? null}
+                team1TwitchLogin={match.team1TwitchLogin}
+                team2TwitchLogin={match.team2TwitchLogin}
+                team1YoutubeUrl={match.team1YoutubeUrl}
+                team2YoutubeUrl={match.team2YoutubeUrl}
+                matchCenterUrl={getMatchCenterLink(match)}
+            />
+        );
+    };
 
     return (
         <section className={classes.starting}>
@@ -395,59 +412,59 @@ const StartingPageContent = () => {
                             </div>
                         </div>
 
-                        {previewLive.length > 0 ? (
-                            <div className={classes.matchFeedBlock}>
-                                <h3 className={classes.matchCenterLabel}>Live now</h3>
-                                <div className={classes.announcementList}>
-                                    {previewLive.map((match, index) =>
-                                        renderAnnouncementCard(
-                                            match,
-                                            `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
-                                        )
+                        <div className={classes.matchCenterDeck}>
+                            {previewLive.length > 0 ? (
+                                <div className={classes.matchFeedBlock}>
+                                    <h3 className={classes.matchCenterLabel}>Live now</h3>
+                                    <div className={classes.announcementList}>
+                                        {previewLive.map((match, index) =>
+                                            renderAnnouncementCard(
+                                                match,
+                                                `live-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${match.gameNumber || 0}-${index}`
+                                            )
+                                        )}
+                                    </div>
+                                    {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                        <Link to="/live" className={classes.viewMoreLink}>
+                                            +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
+                                        </Link>
                                     )}
                                 </div>
-                                {liveGames.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                    <Link to="/live" className={classes.viewMoreLink}>
-                                        +{liveGames.length - MATCH_CENTER_PREVIEW_LIMIT} more live — Open Live Arena
-                                    </Link>
-                                )}
-                            </div>
-                        ) : (
-                            <div className={classes.emptyLive}>
-                                <p className={classes.emptyLiveTitle}>No live games in progress</p>
-                                <p className={classes.emptyLiveHint}>
-                                    Matches will appear here when players start a game.
-                                </p>
-                            </div>
-                        )}
-
-                        <div className={classes.matchFeedBlock}>
-                            <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
-                            {upcomingMatches.length > 0 ? (
-                                remainingUpcoming.length > 0 ? (
-                                    <>
-                                        <div className={classes.announcementList}>
-                                            {remainingUpcoming.map((match, index) =>
-                                                renderAnnouncementCard(
-                                                    { ...match, variant: 'upcoming' },
-                                                    `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
-                                                )
-                                            )}
-                                        </div>
-                                        {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
-                                            <Link to="/live" className={classes.viewMoreLink}>
-                                                +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming —
-                                                Open Live Arena
-                                            </Link>
-                                        )}
-                                    </>
-                                ) : null
                             ) : (
-                                <div className={classes.emptyUpcoming}>
-                                    <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
-                                    <p className={classes.emptyLiveHint}>Open brackets to see who plays next.</p>
+                                <div className={classes.emptyLive}>
+                                    <p className={classes.emptyLiveTitle}>No live games</p>
+                                    <p className={classes.emptyLiveHint}>Matches appear here when a cup game starts.</p>
                                 </div>
                             )}
+
+                            <div className={classes.matchFeedBlock}>
+                                <h3 className={classes.matchCenterLabel}>Upcoming matches</h3>
+                                {upcomingMatches.length > 0 ? (
+                                    remainingUpcoming.length > 0 ? (
+                                        <>
+                                            <div className={classes.announcementList}>
+                                                {remainingUpcoming.map((match, index) =>
+                                                    renderAnnouncementCard(
+                                                        { ...match, variant: 'upcoming' },
+                                                        `upcoming-${match.tournamentId}-${match.stageIndex}-${match.pairIndex}-${index}`
+                                                    )
+                                                )}
+                                            </div>
+                                            {upcomingMatches.length > MATCH_CENTER_PREVIEW_LIMIT && (
+                                                <Link to="/live" className={classes.viewMoreLink}>
+                                                    +{upcomingMatches.length - MATCH_CENTER_PREVIEW_LIMIT} more upcoming
+                                                    — Open Live Arena
+                                                </Link>
+                                            )}
+                                        </>
+                                    ) : null
+                                ) : (
+                                    <div className={classes.emptyUpcoming}>
+                                        <p className={classes.emptyLiveTitle}>No upcoming fixtures</p>
+                                        <p className={classes.emptyLiveHint}>Open a bracket to see who plays next.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -35,13 +35,17 @@
 }
 
 .btn {
-    padding: 0.28rem 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--control-height-sm);
+    padding: var(--control-pad-y-sm) var(--control-pad-x-sm);
     border: 1px solid rgba(201, 162, 39, 0.35);
     border-radius: var(--radius-md);
     background: rgba(201, 162, 39, 0.08);
     color: var(--color-gold);
     font-family: var(--font-body);
-    font-size: 0.72rem;
+    font-size: var(--control-font-size-sm);
     font-weight: 600;
     cursor: pointer;
     transition:
@@ -74,13 +78,14 @@
 
 .picker {
     min-width: 11.5rem;
-    padding: 0.32rem 0.5rem;
+    min-height: var(--control-height-sm);
+    padding: 0.45rem 0.65rem;
     border: 1px solid rgba(201, 162, 39, 0.35);
     border-radius: var(--radius-md);
     background: var(--color-bg-deep);
     color: var(--color-text);
     font-family: var(--font-body);
-    font-size: 0.75rem;
+    font-size: var(--control-font-size-sm);
     cursor: pointer;
 }
 
@@ -141,10 +146,14 @@
 
 .primaryBtn,
 .secondaryBtn {
-    padding: 0.45rem 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--control-height-md);
+    padding: var(--control-pad-y-sm) var(--control-pad-x);
     border-radius: var(--radius-md);
     font-family: var(--font-body);
-    font-size: 0.8125rem;
+    font-size: var(--control-font-size);
     font-weight: 600;
     cursor: pointer;
 }

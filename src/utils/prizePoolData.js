@@ -120,7 +120,7 @@ export const getFundingProgress = (collected, goal) => {
 
 export const formatFundingUsd = (amount) => {
     const value = Number(amount) || 0;
-    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    return `$${value.toFixed(1)}`;
 };
 
 export const buildUsdPrizesFromFunding = (tournament) => {
@@ -183,7 +183,7 @@ const TYPE_LABELS = {
 
 export const formatPrizePoolAmount = (amount) => {
     const value = Number(amount) || 0;
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    return `$${value.toFixed(1)}`;
 };
 
 export const getPrizePoolHistoryEntries = (tournament, { limit = 25 } = {}) => {
@@ -297,6 +297,12 @@ export const buildPrizePoolEntry = (tournament, id) => {
     const collected = getTournamentCollectedUsd(tournament);
     const goalUsd = getTournamentFundingGoalUsd(tournament);
     const status = tournament?.status;
+    const recentFunding = getPrizePoolHistoryEntries(tournament, { limit: 3 }).map((entry) => ({
+        id: entry.id,
+        amountLabel: entry.amountLabel,
+        detail: entry.detail,
+        whenLabel: entry.whenLabel
+    }));
 
     return {
         id,
@@ -308,7 +314,8 @@ export const buildPrizePoolEntry = (tournament, id) => {
         progressPct: getFundingProgress(collected, goalUsd),
         status,
         statusLabel: status === 'Started!' ? 'In progress' : 'Registration open',
-        tournamentLink: getTournamentPrizePoolLink({ ...tournament, id })
+        tournamentLink: getTournamentPrizePoolLink({ ...tournament, id }),
+        recentFunding
     };
 };
 
