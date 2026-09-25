@@ -57,7 +57,7 @@ import {
     getTournamentPrizeBreakdown,
     getPrizePoolHistoryEntries
 } from '../../../utils/prizePoolData';
-import { getTournamentEntryStars } from '../../../utils/playerStars';
+import { getTournamentEntryStars, refreshAndFreezeTournamentStars } from '../../../utils/playerStars';
 import { parseTournamentHubTab, setTournamentHubTabParam } from '../../../utils/tournamentHub';
 import TournamentHub from './TournamentHub/TournamentHub';
 import {
@@ -1430,6 +1430,20 @@ const TournamentList = () => {
             }
             const tournamentData = await response.json();
 
+            let playersObj = tournamentData.players || {};
+            try {
+                const freezeResult = await refreshAndFreezeTournamentStars(leagueTournamentId, playersObj, {
+                    recalculate: true,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                playersObj = freezeResult.players;
+            } catch (freezeError) {
+                console.error('Error freezing league stars:', freezeError);
+                alert('Error freezing tournament stars: ' + freezeError.message);
+                return;
+            }
+
             const rawGameType = tournamentData.tournamentPlayoffGames || 'bo-1';
             const gameType =
                 rawGameType === 'BO-5' || rawGameType === 'bo-5' || rawGameType === '5'
@@ -1441,7 +1455,7 @@ const TournamentList = () => {
                         : 'bo-1';
             const numGames = gameType === 'bo-5' ? 5 : gameType === 'bo-3' ? 3 : gameType === 'bo-2' ? 2 : 1;
 
-            const playerList = Object.values(tournamentData.players || {}).filter(
+            const playerList = Object.values(playersObj).filter(
                 (p) => p && p.name && p.name.trim() !== '' && p.name.trim() !== 'TBD'
             );
             if (playerList.length < 2) {
@@ -1566,8 +1580,22 @@ const TournamentList = () => {
         }
 
         try {
+            let playersObj = tournamentData.players || {};
+            try {
+                const freezeResult = await refreshAndFreezeTournamentStars(swissTournamentId, playersObj, {
+                    recalculate: true,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                playersObj = freezeResult.players;
+            } catch (freezeError) {
+                console.error('Error freezing Swiss stars:', freezeError);
+                alert('Error freezing tournament stars: ' + freezeError.message);
+                return;
+            }
+
             const gameType = normalizeGameType(tournamentData.tournamentPlayoffGames || 'bo-1');
-            const playerList = Object.values(tournamentData.players || {}).filter(
+            const playerList = Object.values(playersObj).filter(
                 (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
             );
 
@@ -1727,7 +1755,21 @@ const TournamentList = () => {
             }
 
             const tournamentData = await response.json();
-            const playerList = Object.values(tournamentData.players || {}).filter(
+            let playersObj = tournamentData.players || {};
+            try {
+                const freezeResult = await refreshAndFreezeTournamentStars(championsTournamentId, playersObj, {
+                    recalculate: true,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                playersObj = freezeResult.players;
+            } catch (freezeError) {
+                console.error('Error freezing Champions League stars:', freezeError);
+                alert('Error freezing tournament stars: ' + freezeError.message);
+                return;
+            }
+
+            const playerList = Object.values(playersObj).filter(
                 (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
             );
 
@@ -1758,7 +1800,21 @@ const TournamentList = () => {
             }
 
             const tournamentData = await response.json();
-            const playerList = Object.values(tournamentData.players || {}).filter(
+            let playersObj = tournamentData.players || {};
+            try {
+                const freezeResult = await refreshAndFreezeTournamentStars(clickedId, playersObj, {
+                    recalculate: true,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                playersObj = freezeResult.players;
+            } catch (freezeError) {
+                console.error('Error freezing Champions League stars:', freezeError);
+                alert('Error freezing tournament stars: ' + freezeError.message);
+                return;
+            }
+
+            const playerList = Object.values(playersObj).filter(
                 (player) => player && player.name && player.name.trim() !== '' && player.name.trim() !== 'TBD'
             );
             const prepared = isGroupDrawGridComplete(drawResult)
@@ -1814,6 +1870,20 @@ const TournamentList = () => {
             }
 
             const tournamentData = await tournamentResponseGET.json();
+            let players = tournamentData.players || {};
+            try {
+                const freezeResult = await refreshAndFreezeTournamentStars(clickedId, players, {
+                    recalculate: true,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                players = freezeResult.players;
+            } catch (freezeError) {
+                console.error('Error freezing tournament stars:', freezeError);
+                alert('Error freezing tournament stars: ' + freezeError.message);
+                return;
+            }
+
             const maxPlayers = tournamentData.maxPlayers;
             const useLoserBracket = tournamentData.loserBracket === true;
             const tournamentPlayoffGamesRaw = tournamentData.tournamentPlayoffGames || 'bo-1';
@@ -1824,7 +1894,6 @@ const TournamentList = () => {
             const gameTypeThirdPlace = normalizeMatchType(
                 tournamentData.tournamentPlayoffGamesThirdPlace || tournamentPlayoffGamesRaw
             );
-            const players = tournamentData.players;
 
             const getNumGames = (type) => (type === 'bo-5' ? 5 : type === 'bo-3' ? 3 : 1);
             const getGameTypeForStage = (stageName) => {
@@ -2354,7 +2423,7 @@ const TournamentList = () => {
 
                         const prizeBreakdown = getTournamentPrizeBreakdown(tournament);
                         const displayableWinners = getDisplayableWinnerEntries(tournament.winners);
-                        const prizePoolHistory = isAdmin ? getPrizePoolHistoryEntries(tournament) : [];
+                        const prizePoolHistory = getPrizePoolHistoryEntries(tournament, { limit: 8 });
                         const hasPrizePoolLedger = Boolean(
                             tournament.prizePoolHistory && Object.keys(tournament.prizePoolHistory).length > 0
                         );
@@ -2974,11 +3043,9 @@ const TournamentList = () => {
                                                         </span>
                                                     </div>
                                                 ))}
-                                                {isAdmin && (
+                                                {prizePoolHistory.length > 0 || isAdmin ? (
                                                     <div className={classes.prizePoolHistory}>
-                                                        <h5 className={classes.prizePoolHistoryTitle}>
-                                                            Funding history
-                                                        </h5>
+                                                        <h5 className={classes.prizePoolHistoryTitle}>Funding</h5>
                                                         {prizePoolHistory.length === 0 ? (
                                                             <p className={classes.prizePoolHistoryEmpty}>
                                                                 No funding events recorded yet.
@@ -3022,11 +3089,10 @@ const TournamentList = () => {
                                                             </p>
                                                         ) : null}
                                                     </div>
-                                                )}
+                                                ) : null}
                                             </div>
                                         ) : (
-                                            (displayableWinners.length > 0 ||
-                                                (isAdmin && prizePoolHistory.length > 0)) && (
+                                            (displayableWinners.length > 0 || prizePoolHistory.length > 0) && (
                                                 <div className={classes.winnersSection}>
                                                     {displayableWinners.length > 0 ? <h4>Winners</h4> : null}
                                                     {displayableWinners.map(([place, winner]) => {
@@ -3054,7 +3120,7 @@ const TournamentList = () => {
                                                             </div>
                                                         );
                                                     })}
-                                                    {isAdmin && prizePoolHistory.length > 0 && (
+                                                    {prizePoolHistory.length > 0 && (
                                                         <div className={classes.prizePoolHistory}>
                                                             <h5 className={classes.prizePoolHistoryTitle}>Funding</h5>
                                                             <ul className={classes.prizePoolHistoryList}>
@@ -3087,6 +3153,12 @@ const TournamentList = () => {
                                                                     </li>
                                                                 ))}
                                                             </ul>
+                                                            {!hasPrizePoolLedger ? (
+                                                                <p className={classes.prizePoolHistoryNote}>
+                                                                    Full donation log starts after deploy — older pool
+                                                                    changes were totals only.
+                                                                </p>
+                                                            ) : null}
                                                         </div>
                                                     )}
                                                 </div>

@@ -12,7 +12,6 @@ import {
     lookForUserPrevScore,
     pullTournamentPrizes,
     fetchCastlesList,
-    calculateStarsFromRating,
     snapshotLeaderboardRanks,
     getPairProgress,
     savePairProgress,
@@ -48,7 +47,11 @@ import {
     resolveThirdPlaceFromPlayoffPairs,
     shouldAwardThirdPlaceForStage
 } from './loserBracketUtils';
-import { getTournamentEntryStars } from '../../../utils/playerStars';
+import {
+    getTournamentEntryStars,
+    recalculateSitePlayerStars,
+    refreshAndFreezeTournamentStars
+} from '../../../utils/playerStars';
 import { formatStageLabelForDisplay } from '../../../utils/matchFixtureLabels';
 import { canManageTournamentSwiss } from '../../../utils/tournamentVisibility';
 import {
@@ -541,55 +544,8 @@ export const TournamentBracket = ({
         return true;
     };
 
-    const getCurrentRating = (ratings) => {
-        if (typeof ratings === 'string' && ratings.includes(',')) {
-            return parseFloat(parseFloat(ratings.split(',').at(-1)).toFixed(2));
-        }
-
-        return ratings ? parseFloat(Number(ratings).toFixed(2)) : 0;
-    };
-
-    const recalculatePlayerStars = async ({ attendeeNames = null } = {}) => {
-        const usersResponse = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
-        const usersData = await usersResponse.json();
-
-        const allPlayers = Object.entries(usersData || {})
-            .map(([id, userData]) => ({
-                id,
-                name: userData.enteredNickname || userData.name,
-                ratings: getCurrentRating(userData.ratings)
-            }))
-            .filter((player) => player.name && player.ratings > 0)
-            .sort((a, b) => b.ratings - a.ratings);
-
-        if (allPlayers.length === 0) {
-            return { updatedCount: 0 };
-        }
-
-        const highestRating = allPlayers[0].ratings;
-        const lowestRating = Math.min(...allPlayers.map((player) => player.ratings));
-        const playersToUpdate = attendeeNames
-            ? allPlayers.filter((player) => attendeeNames.includes(player.name))
-            : allPlayers;
-
-        for (const player of playersToUpdate) {
-            const newStars = calculateStarsFromRating(player.ratings, highestRating, lowestRating);
-
-            await authFetch(`${FIREBASE_DATABASE_URL}/users/${player.id}.json`, {
-                method: 'PATCH',
-                body: JSON.stringify({ stars: newStars }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            console.log(`Updated ${player.name}: ${player.ratings} rating -> ${newStars} stars`);
-        }
-
-        return {
-            updatedCount: playersToUpdate.length,
-            highestRating,
-            lowestRating
-        };
-    };
+    const recalculatePlayerStars = async ({ attendeeNames = null } = {}) =>
+        recalculateSitePlayerStars({ attendeeNames, authFetch, firebaseUrl: FIREBASE_DATABASE_URL });
 
     // Determine the stage label based on the number of max players
     //TODO when there is a winner move him to the prior stage
@@ -1004,29 +960,28 @@ export const TournamentBracket = ({
             console.log('playersObj:', playersObj);
             // let tournamentData = {};
 
-            // Recalculate stars for tournament attendees before starting
+            // Refresh site stars then freeze them on the roster for the whole cup
             const confirmRecalculateStars = confirmWindow(
-                `Recalculate stars for tournament attendees?\n\nThis will update stars for players participating in this tournament.\n\nRecalculate stars?`
+                `Recalculate and freeze stars for tournament attendees?\n\nSite stars refresh now; roster stars stay frozen until the cup finishes.\n\nContinue?`
             );
 
-            if (confirmRecalculateStars) {
-                try {
-                    const attendeeNames = Object.values(playersObj)
-                        .filter((player) => player && player.name)
-                        .map((player) => player.name);
-                    const result = await recalculatePlayerStars({ attendeeNames });
-
-                    console.log(
-                        `Tournament attendees stars recalculated successfully. Updated ${result.updatedCount} players.`
-                    );
-                    alert('Tournament attendees stars recalculated successfully!');
-                } catch (error) {
-                    console.error('Error recalculating stars:', error);
-                    alert('Error recalculating stars: ' + error.message);
-                    return;
+            try {
+                const result = await refreshAndFreezeTournamentStars(tournamentId, playersObj, {
+                    recalculate: confirmRecalculateStars,
+                    authFetch,
+                    firebaseUrl: FIREBASE_DATABASE_URL
+                });
+                playersObj = result.players;
+                console.log(
+                    `Tournament stars frozen. Updated ${result.updatedCount || 0} site profiles; roster stamped.`
+                );
+                if (confirmRecalculateStars) {
+                    alert('Tournament stars recalculated and frozen for this cup.');
                 }
-            } else {
-                console.log('Star recalculation cancelled by user');
+            } catch (error) {
+                console.error('Error freezing tournament stars:', error);
+                alert('Error freezing tournament stars: ' + error.message);
+                return;
             }
 
             setStartTournament(true);

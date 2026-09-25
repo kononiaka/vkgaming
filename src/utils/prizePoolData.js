@@ -297,6 +297,12 @@ export const buildPrizePoolEntry = (tournament, id) => {
     const collected = getTournamentCollectedUsd(tournament);
     const goalUsd = getTournamentFundingGoalUsd(tournament);
     const status = tournament?.status;
+    const recentFunding = getPrizePoolHistoryEntries(tournament, { limit: 3 }).map((entry) => ({
+        id: entry.id,
+        amountLabel: entry.amountLabel,
+        detail: entry.detail,
+        whenLabel: entry.whenLabel
+    }));
 
     return {
         id,
@@ -308,7 +314,8 @@ export const buildPrizePoolEntry = (tournament, id) => {
         progressPct: getFundingProgress(collected, goalUsd),
         status,
         statusLabel: status === 'Started!' ? 'In progress' : 'Registration open',
-        tournamentLink: getTournamentPrizePoolLink({ ...tournament, id })
+        tournamentLink: getTournamentPrizePoolLink({ ...tournament, id }),
+        recentFunding
     };
 };
 

@@ -126,7 +126,6 @@ const getWinPrediction = (team1Rating, team2Rating, team1Stars, team2Stars, team
 const parseStarsValue = (value) => getTournamentEntryStars(value);
 
 const FORM_BADGE_LIMIT = 5;
-const SCHEDULE_FORM_LIMIT = 3;
 const FORM_RESULT_LABELS = { W: 'Win', D: 'Draw', L: 'Loss' };
 const isPlaceholderPlayer = (name) => !name || name === 'TBD' || name === 'BYE';
 
@@ -144,11 +143,12 @@ const getLatestRatingValue = (ratingsStr) => {
 };
 
 const parsePairStars = (pairStars, playerStars) => {
+    // Prefer pair stamp (set when the match was created from frozen roster), then roster entry.
+    if (pairStars != null && pairStars !== '') {
+        return getTournamentEntryStars(pairStars);
+    }
     if (playerStars != null && playerStars !== '') {
         return getTournamentEntryStars(playerStars);
-    }
-    if (pairStars != null) {
-        return getTournamentEntryStars(pairStars);
     }
     return 0;
 };
@@ -195,7 +195,12 @@ const getPlayerFormHistory = (pairs, playerName, limit = FORM_BADGE_LIMIT, exclu
         };
     });
 
-    return results.slice(-limit).reverse();
+    // Newest first. limit null/<=0 = all prior results (Swiss schedule uses round - 1).
+    const newestFirst = results.slice().reverse();
+    if (limit == null || limit <= 0) {
+        return newestFirst;
+    }
+    return newestFirst.slice(0, limit);
 };
 
 const StandingsFormCell = ({ form }) => (
@@ -797,11 +802,13 @@ const LeagueBracket = ({
         const country1 = lookupCountryCode(pair.team1, countryLookup, p1);
         const country2 = lookupCountryCode(pair.team2, countryLookup, p2);
         const showFormStreak = isSwissFormat || isCsSwissFormat;
+        // Match cards: show every prior result (round N → up to N-1 games), not a fixed last-3 trim.
+        const scheduleFormLimit = Number(pair.round) > 0 ? Math.max(0, Number(pair.round) - 1) : null;
         const form1 = showFormStreak
-            ? getPlayerFormHistory(scopedPairs, pair.team1, SCHEDULE_FORM_LIMIT, pair)
+            ? getPlayerFormHistory(scopedPairs, pair.team1, scheduleFormLimit, pair)
             : null;
         const form2 = showFormStreak
-            ? getPlayerFormHistory(scopedPairs, pair.team2, SCHEDULE_FORM_LIMIT, pair)
+            ? getPlayerFormHistory(scopedPairs, pair.team2, scheduleFormLimit, pair)
             : null;
         const isHighlighted =
             highlightPair?.pairIndex === idx &&
