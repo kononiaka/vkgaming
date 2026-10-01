@@ -76,8 +76,17 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--color-text);
-    margin: 0 0 0.4rem;
+    margin: 0 0 0.45rem;
     text-shadow: none;
+}
+
+.matchCenterTitle::after {
+    content: '';
+    display: block;
+    width: 4.25rem;
+    height: 3px;
+    margin-top: 0.45rem;
+    background: var(--color-gold);
 }
 
 .matchCenterSubtitle {
@@ -378,9 +387,11 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     gap: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(226, 193, 90, 0.28);
 }
 
 .sectionTitle {

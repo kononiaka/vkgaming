@@ -18,8 +18,17 @@
     text-align: left;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    margin: 0 0 0.35rem;
+    margin: 0 0 0.45rem;
     line-height: 1;
+}
+
+.pageTitle::after {
+    content: '';
+    display: block;
+    width: 4.25rem;
+    height: 3px;
+    margin-top: 0.45rem;
+    background: var(--color-gold);
 }
 
 .pageSubtitle {
