@@ -4,12 +4,10 @@
     margin: 0 -0.75rem;
     text-align: left;
     padding: 1.75rem clamp(1rem, 4vw, 3rem) 2.5rem;
-    background: linear-gradient(180deg, rgba(42, 34, 26, 0.94) 0%, rgba(28, 24, 20, 0.97) 100%);
+    background: transparent;
     border: none;
-    border-top: var(--border-panel-lit);
-    border-bottom: var(--border-panel);
     border-radius: 0;
-    box-shadow: inset 0 1px 0 rgba(240, 230, 216, 0.07);
+    box-shadow: none;
 }
 
 .homeLayout {
@@ -50,16 +48,9 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(223, 179, 79, 0.35) 8%,
-        rgba(240, 203, 106, 0.95) 50%,
-        rgba(223, 179, 79, 0.35) 92%,
-        transparent 100%
-    );
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    height: 1px;
+    background: rgba(226, 193, 90, 0.35);
+    box-shadow: none;
 }
 
 .starting > .homeSection:first-child::before,
@@ -80,12 +71,13 @@
 
 .matchCenterTitle {
     font-family: var(--font-display);
-    font-size: 0.78rem;
+    font-size: 2rem;
+    font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--color-gold-bright);
+    color: var(--color-text);
     margin: 0 0 0.4rem;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+    text-shadow: none;
 }
 
 .matchCenterSubtitle {
@@ -109,12 +101,12 @@
 .matchCenterLabel {
     margin: 0;
     font-family: var(--font-nav);
-    font-size: 1.25rem;
-    font-weight: 400;
+    font-size: 0.72rem;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--color-gold-bright);
-    border-bottom: 2px solid rgba(223, 179, 79, 0.45);
+    letter-spacing: 0.12em;
+    color: var(--color-gold);
+    border-bottom: 1px solid rgba(226, 193, 90, 0.35);
     padding-bottom: 0.3rem;
 }
 
@@ -146,25 +138,24 @@
     min-height: var(--control-height-sm);
     padding: 0.4rem 0.9rem;
     font-family: var(--font-nav);
-    font-size: 1.2rem;
-    font-weight: 400;
-    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-bg-deep);
+    color: var(--color-text);
     text-decoration: none;
     white-space: nowrap;
-    background: linear-gradient(180deg, var(--color-gold-bright) 0%, var(--color-gold) 100%);
-    border: 1px solid var(--color-gold-dim);
-    border-radius: var(--radius-md);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.2),
-        0 2px 0 rgba(0, 0, 0, 0.3);
+    background: #12160f;
+    border: 1px solid rgba(226, 193, 90, 0.55);
+    border-radius: 2px;
+    box-shadow: none;
 }
 
 .viewAllLink:hover,
 .viewMoreLink:hover {
-    color: var(--color-bg-deep);
-    filter: brightness(1.06);
+    color: var(--color-gold-bright);
+    border-color: var(--color-gold-bright);
+    filter: none;
 }
 
 .viewMoreLink {
@@ -190,12 +181,12 @@
 .activeCupsTitle {
     margin: 0 0 0.75rem;
     font-family: var(--font-nav);
-    font-size: 1.35rem;
-    font-weight: 400;
+    font-size: 0.78rem;
+    font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--color-gold-bright);
-    border-bottom: 2px solid rgba(223, 179, 79, 0.4);
+    color: var(--color-gold);
+    border-bottom: 1px solid rgba(226, 193, 90, 0.35);
     padding-bottom: 0.35rem;
 }
 
@@ -233,8 +224,11 @@
 .activeCupName {
     min-width: 0;
     font-family: var(--font-display);
-    font-size: 0.58rem;
-    line-height: 1.4;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
     color: var(--color-text);
 }
 

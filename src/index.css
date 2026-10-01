@@ -1,40 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Press+Start+2P&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
 
 :root {
-    /* Typography */
+    /* Condensed titles (CoH board), mono labels (DOS menu), plain body */
     --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-display: 'Press Start 2P', monospace;
-    /* DOS terminal — readable retro for menus / nav */
-    --font-nav: 'VT323', 'Courier New', monospace;
+    --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+    --font-nav: 'IBM Plex Mono', ui-monospace, monospace;
 
-    /* Surfaces — cozy night (warm charcoal / wood shop) */
-    --color-bg-deep: #100e0c;
-    --color-bg-panel: #1e1914;
-    --color-bg-panel-alt: #2a231c;
-    --color-bg-elevated: #362e25;
+    /* Near-black pitch, not a wood counter */
+    --color-bg-deep: #070907;
+    --color-bg-panel: #10140e;
+    --color-bg-panel-alt: #171c14;
+    --color-bg-elevated: #1c2418;
 
-    /* Accents — lamp gold primary, warm olive/copper secondary */
-    --color-gold: #dfb34f;
-    --color-gold-bright: #f0cb6a;
-    --color-gold-dim: #a67d2a;
-    --color-teal: #8a9a6e;
-    --color-teal-dim: #6b7a54;
-    --color-copper: #d0864f;
+    /* Cheese gold labels, SWOS pitch green, tomato for losses */
+    --color-gold: #e2c15a;
+    --color-gold-bright: #f3dc8a;
+    --color-gold-dim: #8d7340;
+    --color-teal: #3ddc6a;
+    --color-teal-dim: #1f7a3a;
+    --color-copper: #e25b4a;
 
-    /* Text — warmer parchment, higher contrast */
-    --color-text: #f5ecdf;
-    --color-text-muted: #c4b49a;
-    --color-text-dim: #8a7d6c;
+    --color-text: #f4f6f0;
+    --color-text-muted: #a3aa9a;
+    --color-text-dim: #6e7668;
 
-    /* Borders & shadows — harder shop-counter edges */
-    --border-panel: 2px solid rgba(223, 179, 79, 0.58);
-    --border-panel-lit: 2px solid rgba(240, 203, 106, 0.85);
-    --border-subtle: 1px solid rgba(240, 230, 216, 0.16);
-    --shadow-panel: 0 6px 22px rgba(12, 8, 4, 0.55);
-    --shadow-inset-wood: inset 0 1px 0 rgba(240, 230, 216, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.4);
-    --panel-wood: linear-gradient(165deg, #342b21 0%, #1e1914 48%, #15120e 100%);
-    --panel-wood-raised: linear-gradient(180deg, #403528 0%, #2a231c 55%, #1e1914 100%);
-    --panel-wood-lit: linear-gradient(165deg, #3d3226 0%, #261f18 42%, #18140f 100%);
+    --border-panel: 1px solid rgba(226, 193, 90, 0.32);
+    --border-panel-lit: 1px solid rgba(243, 220, 138, 0.55);
+    --border-subtle: 1px solid rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 12px 32px rgba(0, 0, 0, 0.35);
+    --shadow-inset-wood: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --panel-wood: #10140e;
+    --panel-wood-raised: #0c0f0a;
+    --panel-wood-lit: #141a12;
 
     /* Layout */
     --header-height: 5.75rem;
@@ -43,8 +40,8 @@
     --donators-bar-active-height: 0px;
     --layout-top-offset: calc(var(--header-height) + var(--donators-bar-active-height));
     --site-chrome-height: var(--header-height);
-    --radius-sm: 4px;
-    --radius-md: 8px;
+    --radius-sm: 2px;
+    --radius-md: 2px;
 
     /* Control scale — friendlier tap targets */
     --control-height-sm: 36px;
@@ -59,14 +56,10 @@
     --nameplate-min-height: 60px;
     --nameplate-portrait: 56px;
 
-    /* Page backdrop — amber lamp / tavern night + stronger top glow */
-    --bg-mesh: radial-gradient(ellipse 90% 55% at 50% -8%, rgba(223, 179, 79, 0.4) 0%, transparent 58%),
-        radial-gradient(ellipse 45% 40% at 88% 18%, rgba(208, 134, 79, 0.16) 0%, transparent 55%),
-        radial-gradient(ellipse 40% 45% at 10% 70%, rgba(90, 70, 40, 0.28) 0%, transparent 55%),
-        radial-gradient(ellipse 70% 35% at 50% 100%, rgba(223, 179, 79, 0.1) 0%, transparent 55%),
-        radial-gradient(ellipse 60% 45% at 50% 110%, rgba(40, 28, 18, 0.92) 0%, transparent 58%),
-        radial-gradient(ellipse 90% 80% at 50% 50%, transparent 40%, rgba(12, 8, 5, 0.55) 100%),
-        linear-gradient(160deg, #1a1612 0%, #14110e 40%, #100e0b 70%, #0c0a08 100%);
+    /* Faded chart under a dark pitch — map wash, not a lamp */
+    --bg-mesh: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(90, 78, 48, 0.28) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 12% 80%, rgba(40, 90, 48, 0.12) 0%, transparent 60%),
+        linear-gradient(180deg, #12150f 0%, #0a0c09 42%, #070806 100%);
     --bg-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
@@ -90,7 +83,7 @@ html {
     font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    background-color: #100e0b;
+    background-color: #070806;
     background-image: var(--bg-mesh);
     background-size: cover;
     background-position: center top;
@@ -109,9 +102,10 @@ html::after {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.06;
-    background-image: var(--bg-noise);
-    background-size: 180px 180px;
+    opacity: 0.55;
+    background-image: linear-gradient(rgba(61, 220, 106, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(226, 193, 90, 0.035) 1px, transparent 1px);
+    background-size: 100% 56px, 84px 100%;
 }
 
 body,
@@ -177,7 +171,8 @@ button:active {
 
 .shop-sign {
     font-family: var(--font-nav);
-    font-size: 1.55rem;
+    font-size: 0.82rem;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-gold-bright);
