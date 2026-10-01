@@ -42,6 +42,8 @@
     --site-chrome-height: var(--header-height);
     --radius-sm: 2px;
     --radius-md: 2px;
+    --type-page-title-size: 2.6rem;
+    --type-section-title-size: 1.55rem;
 
     /* Control scale — friendlier tap targets */
     --control-height-sm: 36px;
@@ -196,5 +198,10 @@ button:active {
 
     .focused {
         font-size: 1.5rem;
+    }
+
+    :root {
+        --type-page-title-size: 1.85rem;
+        --type-section-title-size: 1.25rem;
     }
 }

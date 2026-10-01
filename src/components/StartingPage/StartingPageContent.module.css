@@ -71,9 +71,9 @@
 
 .matchCenterTitle {
     font-family: var(--font-display);
-    font-size: 2rem;
+    font-size: var(--type-page-title-size);
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--color-text);
     margin: 0 0 0.4rem;
@@ -180,12 +180,12 @@
 
 .activeCupsTitle {
     margin: 0 0 0.75rem;
-    font-family: var(--font-nav);
-    font-size: 0.78rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
+    font-family: var(--font-display);
+    font-size: var(--type-section-title-size);
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--color-gold);
+    color: var(--color-text);
     border-bottom: 1px solid rgba(226, 193, 90, 0.35);
     padding-bottom: 0.35rem;
 }
