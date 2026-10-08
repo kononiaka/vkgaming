@@ -397,7 +397,7 @@ const StartingPageContent = () => {
                     <div className={`${classes.matchCenterSection} ${classes.homeSectionFirst}`}>
                         <div className={classes.sectionHeader}>
                             <div>
-                                <h2 className={`${classes.sectionTitle} ${classes.matchCenterTitle}`}>Match center</h2>
+                                <h2 className={classes.matchCenterTitle}>Match center</h2>
                                 <p className={classes.matchCenterSubtitle}>
                                     Live tournament games and bracket fixtures
                                 </p>

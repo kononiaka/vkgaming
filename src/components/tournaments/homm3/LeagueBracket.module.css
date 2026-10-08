@@ -731,13 +731,14 @@
 }
 
 .standingsTable th {
-    color: var(--color-text-muted);
-    font-weight: 600;
-    font-size: 0.7rem;
+    color: var(--color-gold);
+    font-family: var(--font-nav);
+    font-weight: 500;
+    font-size: 0.68rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    background: var(--color-bg-elevated);
-    border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+    letter-spacing: 0.08em;
+    background: #070907;
+    border-bottom: 1px solid rgba(226, 193, 90, 0.4);
 }
 
 .standingsTable td {
@@ -837,7 +838,10 @@
 
 .standingsPlayerName {
     display: block;
+    font-family: var(--font-body);
     font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

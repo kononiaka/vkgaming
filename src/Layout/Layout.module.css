@@ -92,8 +92,8 @@
     top: var(--header-height);
     width: 100%;
     height: 60px;
-    background: linear-gradient(180deg, #1a1a2e 0%, #0f172a 100%);
-    border-bottom: 3px solid #ffd700;
+    background: #0c0f0a;
+    border-bottom: 1px solid rgba(226, 193, 90, 0.4);
     overflow: hidden;
     display: flex;
     align-items: center;

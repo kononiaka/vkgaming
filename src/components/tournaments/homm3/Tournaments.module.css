@@ -32,10 +32,12 @@
 .tournamentHeader {
     margin: 0 0 0.35rem;
     font-family: var(--font-display);
-    font-size: 1rem;
-    color: var(--color-gold);
-    letter-spacing: 0.06em;
-    line-height: 1.6;
+    font-size: var(--type-page-title-size);
+    font-weight: 600;
+    color: var(--color-text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
     text-shadow: none;
     border: none;
     box-shadow: none;
@@ -69,9 +71,9 @@
     justify-content: center;
     min-height: var(--control-height-md);
     padding: var(--control-pad-y) var(--control-pad-x);
-    border: 1px solid var(--color-gold-dim);
-    background: var(--color-gold);
-    color: var(--color-bg-deep);
+    border: 1px solid rgba(226, 193, 90, 0.55);
+    background: #12160f;
+    color: var(--color-text);
     font-family: var(--font-body);
     font-size: var(--control-font-size);
     font-weight: 700;
@@ -85,8 +87,9 @@
 }
 
 .addTournamentBtn:hover {
-    background: var(--color-gold-bright);
+    background: #1c2418;
     border-color: var(--color-gold-bright);
+    color: var(--color-gold-bright);
 }
 
 .addTournamentBtnMuted {
@@ -217,12 +220,13 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem 0.5rem;
-    color: var(--color-gold-bright) !important;
+    color: var(--color-text) !important;
     font-family: var(--font-display);
-    font-size: 0.72rem !important;
-    font-weight: 400 !important;
-    line-height: 1.55 !important;
+    font-size: var(--type-section-title-size) !important;
+    font-weight: 600 !important;
+    line-height: 1.05 !important;
     letter-spacing: 0.04em;
+    text-transform: uppercase;
     margin: 0 0 0.45rem 0 !important;
     text-shadow: none;
     border-bottom: none;

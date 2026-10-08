@@ -22,9 +22,11 @@
     border-radius: calc(var(--radius-md) - 2px);
     background: transparent;
     color: var(--color-text-muted);
-    font-family: var(--font-body);
-    font-size: 0.8125rem;
-    font-weight: 600;
+    font-family: var(--font-nav);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     cursor: pointer;
     transition:
         background 0.15s ease,
@@ -72,8 +74,9 @@
 
 .summaryLabel {
     display: block;
-    font-size: 0.65rem;
-    font-weight: 600;
+    font-family: var(--font-nav);
+    font-size: 0.68rem;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-text-dim);
@@ -81,6 +84,7 @@
 }
 
 .summaryValue {
+    font-family: var(--font-body);
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--color-gold-bright);
@@ -95,11 +99,13 @@
 
 .sectionTitle {
     margin: 0 0 0.65rem;
-    font-size: 0.8rem;
+    font-family: var(--font-display);
+    font-size: var(--type-section-title-size);
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
+    line-height: 1.05;
     text-transform: uppercase;
-    color: var(--color-gold);
+    color: var(--color-text);
 }
 
 .empty {
@@ -174,8 +180,11 @@
 }
 
 .playerName {
+    font-family: var(--font-body);
     font-size: 0.9rem;
     font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--color-text);
     overflow: hidden;
     text-overflow: ellipsis;

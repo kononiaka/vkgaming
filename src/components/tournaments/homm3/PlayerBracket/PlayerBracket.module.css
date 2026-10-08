@@ -334,10 +334,11 @@
 .playerNameUnder {
     display: block;
     width: 100%;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--color-text);
     white-space: nowrap;
     overflow: hidden;
@@ -447,8 +448,11 @@ a.playerNameUnder:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 700;
-    font-size: 1rem;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--color-text);
     text-decoration: none;
     transition: color 0.15s ease;
@@ -461,7 +465,11 @@ a.playerName:hover {
 .playerNameHint {
     white-space: normal;
     overflow: hidden;
-    font-size: 0.82rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--color-text-muted);
 }
 

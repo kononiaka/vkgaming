@@ -15,11 +15,13 @@
 
 .title {
     margin: 0 0 0.35rem;
-    font-family: var(--font-nav);
-    font-size: 1.35rem;
-    letter-spacing: 0.06em;
+    font-family: var(--font-display);
+    font-size: var(--type-page-title-size);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1;
     text-transform: uppercase;
-    color: var(--color-gold);
+    color: var(--color-text);
 }
 
 .subtitle {
