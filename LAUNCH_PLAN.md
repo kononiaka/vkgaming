@@ -1,10 +1,12 @@
 # Konoplay HoMM3 — Product positioning
 
-**Updated:** August 4, 2026  
+**Updated:** October 11, 2026  
 **Competitor:** [h3ladder.ru](https://h3ladder.ru) (season ladder)  
 **Wedge:** Open cups + deep stats + community funding — not “clone their league” on day one.
 
 Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
+
+**Readiness:** Launch scope below is built and **konoplay.com is live**. Checked October 10, 2026: homepage, Twitch callback, RTDB, `twitchStreamStatus`, `twitchAuth`, `youtubeAuth`, and `telegramMatchCard`. Remaining work is follow-up polish and the later bets in this file.
 
 ---
 
@@ -59,22 +61,22 @@ Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 
 **Tournament Meta**
 
-- [x] Hard min-sample gate (hide Cup WR / Δ until N≥5 per castle)
-- Persist castle counters under `/statistic/heroes3/tournaments/{id}/castles` on report
-- Pick/ban or template filters for special cup rules
-- Highlight meta outliers on Match Center / announcements
+- [x] Min-sample label (Cup WR / Δ still shown under 5 maps, marked “Early read”)
+- [ ] Persist castle counters under `/statistic/heroes3/tournaments/{id}/castles` on report
+- [ ] Pick/ban or template filters for special cup rules
+- [ ] Highlight meta outliers on Match Center / announcements
 
 **Tournament H2H / profile**
 
 - [x] Persist bans on report into durable `games[]` / game log (series + BO1)
 - [x] Ban insight confidence (≥3 bans and ≥50% of maps → “often bans X”)
-- Filter by specific cup / championship season
-- Shared cache for `/games/heroes3` + brackets scan (with Meta)
+- [ ] Filter by specific cup / championship season
+- [ ] Shared cache for `/games/heroes3` + brackets scan (with Meta)
 
 **Prize pool / donations**
 
-- Funding history only covers tips **after** the history deploy; older totals stay aggregate-only
-- Optional: backfill or admin note when ledger sum ≠ `communityFundingUsd`
+- [x] Admin note: funding history covers tips **after** the history deploy; older totals stay aggregate-only
+- [ ] Optional backfill when the ledger sum ≠ `communityFundingUsd`
 
 ---
 
