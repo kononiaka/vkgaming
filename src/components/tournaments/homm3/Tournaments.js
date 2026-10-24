@@ -6,7 +6,10 @@ import { lookForUserId, fetchLeaderboard, snapshotLeaderboardRanks, getTournamen
 import { resolveCountryCode } from '../../../utils/country';
 import AuthContext from '../../../store/auth-context';
 import { useAddTournament } from '../../../store/add-tournament-context';
+import { assignTournamentSeason, createSeason, fetchSeasons } from '../../../api/seasons';
 import { deleteTournament, getTournamentData } from '../../tournaments/tournament_api';
+import SeasonBar from './Seasons/SeasonBar';
+import { buildSeasonRows } from '../../../utils/seasonData';
 import SpinningWheel from '../../SpinningWheel/SpinningWheel';
 import StarsComponent from '../../Stars/Stars';
 import classes from './Tournaments.module.css';
@@ -276,6 +279,9 @@ const TournamentList = () => {
     const { openAddTournament, isAddTournamentDisabled, addTournamentHint } = useAddTournament();
     const [searchParams, setSearchParams] = useSearchParams();
     const [tournaments, setTournaments] = useState([]);
+    const [seasons, setSeasons] = useState([]);
+    const [seasonsError, setSeasonsError] = useState('');
+    const [seasonSavingId, setSeasonSavingId] = useState(null);
     const [clickedId, setClickedId] = useState([]);
     const [tournamentStatus, setTournamentStatus] = useState('');
     const [tournamentWinnersObject, setTournamentWinners] = useState('');
@@ -377,6 +383,65 @@ const TournamentList = () => {
         }
     };
 
+    const loadSeasons = async () => {
+        try {
+            const list = await fetchSeasons();
+            setSeasons(list);
+            setSeasonsError('');
+        } catch (error) {
+            console.error('Error fetching seasons:', error);
+            setSeasons([]);
+            setSeasonsError(error.message || 'Could not load seasons.');
+        }
+    };
+
+    const selectSeason = (seasonId) => {
+        const next = new URLSearchParams(searchParams);
+        if (seasonId) {
+            next.set('season', seasonId);
+        } else {
+            next.delete('season');
+        }
+        setSearchParams(next);
+    };
+
+    const handleCreateSeason = async ({ seasonId, name }) => {
+        const created = await createSeason({
+            seasonId,
+            name,
+            createdBy: userNickName || null,
+            createdByUid: getFirebaseUid()
+        });
+        await loadSeasons();
+        authCtx.setNotificationShown(true, `Season “${created.name}” is ready. Assign cups from their cards.`, 'success', 6);
+        return created;
+    };
+
+    const handleAssignSeason = async (cupId, seasonId) => {
+        setSeasonSavingId(cupId);
+        try {
+            const nextId = await assignTournamentSeason(cupId, seasonId);
+            setTournaments((prev) =>
+                prev.map((tournament) => {
+                    if (tournament.id !== cupId) {
+                        return tournament;
+                    }
+                    const next = { ...tournament };
+                    if (nextId) {
+                        next.seasonId = nextId;
+                    } else {
+                        delete next.seasonId;
+                    }
+                    return next;
+                })
+            );
+        } catch (error) {
+            authCtx.setNotificationShown(true, error.message || 'Could not update the season.', 'error', 6);
+        } finally {
+            setSeasonSavingId(null);
+        }
+    };
+
     const fetchAllPlayerNicknames = async () => {
         try {
             const response = await authFetch(`${FIREBASE_DATABASE_URL}/users.json`);
@@ -472,6 +537,7 @@ const TournamentList = () => {
     useEffect(() => {
         fetchTournaments();
         fetchAllPlayerNicknames();
+        loadSeasons();
     }, []);
 
     useEffect(() => {
@@ -2363,7 +2429,33 @@ const TournamentList = () => {
             ? tournaments.find((tournament) => tournament.id === tournamentId) || null
             : null;
     const isFullPageView = Boolean(activeTournament);
-    const activeEmptyState = filteredTournaments.length === 0 ? emptyStateCopy[statusFilter] : null;
+    const seasonFilter = searchParams.get('season') || '';
+    const sortedTournaments = [...filteredTournaments].sort((a, b) => {
+        const statusOrder = {
+            'Registration Started': 1,
+            Registration: 1,
+            'Started!': 2,
+            'Tournament Finished': 3
+        };
+        const statusDiff = (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
+        if (statusDiff !== 0) {
+            return statusDiff;
+        }
+        return new Date(b.date) - new Date(a.date);
+    });
+    const seasonRows = buildSeasonRows(sortedTournaments, seasons, seasonFilter);
+    const hasListedCups = seasonRows.some((row) => row.kind === 'cup');
+    const activeEmptyState = !hasListedCups
+        ? seasonFilter
+            ? {
+                  title: 'No cups in this season for the current filter.',
+                  text: 'Show all cups, or pick another status filter.'
+              }
+            : emptyStateCopy[statusFilter]
+        : null;
+    const activeSeasonName = activeTournament?.seasonId
+        ? seasons.find((season) => season.id === activeTournament.seasonId)?.name || ''
+        : '';
 
     const tournamentList =
         tournaments.length > 0 ? (
@@ -2388,21 +2480,19 @@ const TournamentList = () => {
                         )}
                     </li>
                 )}
-                {filteredTournaments
-                    .sort((a, b) => {
-                        const statusOrder = {
-                            'Registration Started': 1,
-                            Registration: 1,
-                            'Started!': 2,
-                            'Tournament Finished': 3
-                        };
-                        const statusDiff = (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
-                        if (statusDiff !== 0) {
-                            return statusDiff;
+                {seasonRows.map((row) => {
+                        if (row.kind === 'heading') {
+                            return (
+                                <li key={`season-${row.season.id}`} className={classes.seasonHeading}>
+                                    <h3>{row.season.name}</h3>
+                                    <span>
+                                        {row.count} {row.count === 1 ? 'cup' : 'cups'}
+                                    </span>
+                                </li>
+                            );
                         }
-                        return new Date(b.date) - new Date(a.date);
-                    })
-                    .map((tournament) => {
+
+                        const tournament = row.tournament;
                         maxTournamnetPlayers = tournament.maxPlayers;
 
                         const getPlaceLabel = (place) => {
@@ -2471,7 +2561,32 @@ const TournamentList = () => {
                                             {tournament.type === 'cs-swiss' ? (
                                                 <span className={classes.formatTag}>CS Swiss</span>
                                             ) : null}
+                                            {seasons.find((season) => season.id === tournament.seasonId)?.name ? (
+                                                <span className={classes.formatTag}>
+                                                    {seasons.find((season) => season.id === tournament.seasonId).name}
+                                                </span>
+                                            ) : null}
                                         </h3>
+                                        {(isAdmin || isTournamentCreator(tournament, userNickName)) && seasons.length > 0 ? (
+                                            <label className={classes.seasonAssign}>
+                                                Season
+                                                <select
+                                                    aria-label={`Season for ${tournament.name}`}
+                                                    value={tournament.seasonId || ''}
+                                                    disabled={seasonSavingId === tournament.id}
+                                                    onChange={(event) =>
+                                                        handleAssignSeason(tournament.id, event.target.value)
+                                                    }
+                                                >
+                                                    <option value="">No season</option>
+                                                    {seasons.map((season) => (
+                                                        <option key={season.id} value={season.id}>
+                                                            {season.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                        ) : null}
                                         <p className={classes.cardMeta}>
                                             <span>{dateLabel}</span>
                                             <span className={classes.metaDot} aria-hidden="true">
@@ -3182,7 +3297,10 @@ const TournamentList = () => {
                         ← Back to tournaments
                     </button>
                     <div className={classes.tournamentBanner}>
-                        <h2 className={classes.tournamentFullPageTitle}>{activeTournament.name}</h2>
+                        <h2 className={classes.tournamentFullPageTitle}>
+                            {activeTournament.name}
+                            {activeSeasonName ? <span className={classes.formatTag}>{activeSeasonName}</span> : null}
+                        </h2>
                         <span
                             className={`${classes.statusBadge} ${classes.tournamentBannerStatus} ${classes[getTournamentStatusClass(activeTournament.status)] || ''}`}
                         >
@@ -3222,7 +3340,7 @@ const TournamentList = () => {
             <div className={classes.pageHeader}>
                 <div className={classes.pageTitleBlock}>
                     <h2 className={classes.tournamentHeader}>Current tournaments</h2>
-                    <p className={classes.pageSubtitle}>Browse cups, register, and open brackets.</p>
+                    <p className={classes.pageSubtitle}>Browse seasons and cups, register, and open brackets.</p>
                 </div>
                 <div className={classes.headerActions}>
                     {isLogged && (
@@ -3260,6 +3378,15 @@ const TournamentList = () => {
                     </select>
                 </div>
             </div>
+            <SeasonBar
+                seasons={seasons}
+                tournaments={filteredTournaments}
+                selectedId={seasonFilter}
+                onSelect={selectSeason}
+                canCreate={isLogged}
+                onCreate={handleCreateSeason}
+                loadError={isLogged ? seasonsError : ''}
+            />
             {tournamentList}
         </div>
     );

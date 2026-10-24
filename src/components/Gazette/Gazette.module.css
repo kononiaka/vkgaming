@@ -529,6 +529,21 @@
     margin-top: 0.15rem;
 }
 
+.topicBody {
+    display: flex;
+    align-items: baseline;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.topicDate {
+    flex: 0 0 6.6rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
 .topicMark,
 .topicMarkNew {
     display: inline-block;

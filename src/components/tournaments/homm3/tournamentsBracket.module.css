@@ -328,23 +328,31 @@
     transform: scale(1.25);
 }
 
+.knockoutScroll {
+    overflow-x: hidden;
+    width: 100%;
+}
+
 .knockoutColumns {
     display: flex;
     width: 100%;
+    min-width: 0;
     align-items: stretch;
     gap: 1rem;
 }
 
-/* Keep current + next stage columns equal width so Semi-final / WB Final / LB
-   cards match Quarter-final width (including castle slot strip). */
+/* Both stages share the page width, so the bracket does not scroll sideways. */
 .knockoutColumns > .bracket-stage-single {
     flex: 1 1 0;
+    width: auto;
     min-width: 0;
+    max-width: none;
 }
 
 .knockoutColumns > .bracket-stage-single .game-block {
     width: 100%;
     max-width: none;
+    min-width: 0;
 }
 
 .knockoutColumnsMobile {
@@ -354,6 +362,8 @@
 
 .knockoutColumnsMobile .bracket-stage-single {
     width: 100%;
+    min-width: 0;
+    max-width: none;
     padding: 0 0.35rem 1rem;
 }
 
@@ -388,6 +398,7 @@
     align-items: center;
     gap: 0.75rem;
     width: 100%;
+    min-width: 0;
 }
 
 .bracket-stage-single .game-block {
@@ -402,7 +413,9 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+    width: 9.25rem;
+    flex-shrink: 0;
 }
 
 .knockoutReportBtn {

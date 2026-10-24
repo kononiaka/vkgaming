@@ -185,6 +185,55 @@
     flex: 1;
 }
 
+.seasonHeading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0.35rem 0 0;
+    padding: 0.15rem 0.1rem 0.35rem;
+    border-bottom: var(--border-subtle);
+}
+
+.seasonHeading h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+}
+
+.seasonHeading span {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+}
+
+.seasonAssign {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.45rem;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.seasonAssign select {
+    min-width: 11rem;
+    padding: 0.28rem 0.5rem;
+    border-radius: var(--radius-md);
+    border: var(--border-subtle);
+    background: var(--color-bg-deep);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .cardBody {
     display: flex;
     align-items: flex-start;

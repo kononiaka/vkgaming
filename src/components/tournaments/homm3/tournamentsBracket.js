@@ -3763,10 +3763,20 @@ export const TournamentBracket = ({
 
             // All stages done — mark pair and games as Processed only when there's an overall winner
             if (reportData.winner) {
+                const finishedAt = pair.finishedAt || new Date().toISOString();
+                pair.finishedAt = finishedAt;
                 pair.gameStatus = 'Processed';
                 reportData.games.forEach((game) => {
                     game.gameStatus = 'Processed';
+                    if (!game.reportedAt) {
+                        game.reportedAt = finishedAt;
+                    }
                 });
+                const storedPair = updatedPairs[selectedStageIndex]?.[selectedPairIndex];
+                if (storedPair) {
+                    storedPair.finishedAt = finishedAt;
+                    storedPair.gameStatus = 'Processed';
+                }
             }
             // Sync games back into updatedPairs
             updatedPairs[selectedStageIndex][selectedPairIndex].games = pair.games;
@@ -4402,7 +4412,7 @@ export const TournamentBracket = ({
                             (isCsSwiss && swissPhase === 'playoffs'));
 
                     return (
-                        <div className={classes.bracketBody} style={{ width: '100%' }}>
+                        <div className={`${classes.bracketBody} ${classes.knockoutScroll}`} style={{ width: '100%' }}>
                             {scheduleStageOffset > 0 && isCsSwiss ? (
                                 <CsSwissRulesBlock
                                     round={swissCurrentRound}
