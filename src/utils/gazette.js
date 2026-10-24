@@ -123,9 +123,41 @@ const isTrueFinalStage = (pair) => {
     );
 };
 
+const isSemiOrFinal = (pair) => {
+    const stage = String(pair?.stage || pair?.stageLabel || '').toLowerCase();
+    if (stage.includes('swiss')) {
+        return false;
+    }
+    return stage.includes('semi') || isTrueFinalStage(pair);
+};
+
+const isLiveKnockout = (tournament, pair) =>
+    /start/i.test(String(tournament?.status || '')) && isSemiOrFinal(pair);
+
 const eventTime = (value) => {
     const ms = value ? new Date(value).getTime() : 0;
     return Number.isFinite(ms) ? ms : 0;
+};
+
+const FINISH_TIME_KEY = 'konoplay-gazette-finish-times';
+
+const rememberedFinishTime = (eventId) => {
+    const now = Date.now();
+    if (typeof localStorage === 'undefined' || !eventId) {
+        return now;
+    }
+    try {
+        const stored = JSON.parse(localStorage.getItem(FINISH_TIME_KEY) || '{}');
+        const existing = eventTime(stored[eventId]);
+        if (existing) {
+            return existing;
+        }
+        stored[eventId] = new Date(now).toISOString();
+        localStorage.setItem(FINISH_TIME_KEY, JSON.stringify(stored));
+    } catch {
+        return now;
+    }
+    return now;
 };
 
 const oppositeColor = (color) => {
@@ -322,7 +354,15 @@ const collectCupEvents = (tournament, cup) => {
             (latest, game) => Math.max(latest, eventTime(game.at || game.reportedAt || game.finishedAt)),
             0
         );
-        const at = lastGameAt || eventTime(pair.updatedAt || pair.scheduledAt);
+        const finishedAt = eventTime(pair.finishedAt || pair.updatedAt);
+        const scheduledAtMs = eventTime(pair.scheduledAt);
+        const at = lastGameAt || finishedAt || scheduledAtMs;
+        const reportedLive =
+            pair.gameStatus === 'Processed' &&
+            isLiveKnockout(tournament, pair) &&
+            !lastGameAt &&
+            !finishedAt &&
+            scheduledAtMs > 0;
         const match = summarizeMatchDetails(pair, winnerSide);
 
         if (isTrueFinalStage(pair)) {
@@ -340,6 +380,8 @@ const collectCupEvents = (tournament, cup) => {
                 loserName: loser.name,
                 winnerStars: winner.stars,
                 loserStars: loser.stars,
+                reportedLive,
+                scheduledAtMs,
                 ...match
             });
             return;
@@ -358,10 +400,43 @@ const collectCupEvents = (tournament, cup) => {
                 loserName: loser.name,
                 winnerStars: winner.stars,
                 loserStars: loser.stars,
+                reportedLive,
+                scheduledAtMs,
+                ...match
+            });
+            return;
+        }
+
+        if (isSemiOrFinal(pair) && !isTrueFinalStage(pair)) {
+            events.push({
+                kind: 'result',
+                eventId: `result:${cup.id}:${stageIndex}:${pairIndex}`,
+                at,
+                score: 55,
+                cup,
+                winnerName: winner.name,
+                loserName: loser.name,
+                winnerStars: winner.stars,
+                loserStars: loser.stars,
+                reportedLive,
+                scheduledAtMs,
                 ...match
             });
         }
     });
+
+    const latestReported = events.reduce((best, event) => {
+        if (!event.reportedLive) {
+            return best;
+        }
+        if (!best || event.scheduledAtMs > best.scheduledAtMs) {
+            return event;
+        }
+        return best;
+    }, null);
+    if (latestReported) {
+        latestReported.at = rememberedFinishTime(latestReported.eventId);
+    }
 
     if (cup.finalsTeam1 && cup.finalsTeam2 && !cup.finalsWinner) {
         events.push({
@@ -378,6 +453,29 @@ const collectCupEvents = (tournament, cup) => {
 
 export const sortGazetteEvents = (events) =>
     [...(events || [])].sort((a, b) => b.score - a.score || b.at - a.at);
+
+export const sortGazetteEventsByDate = (events) =>
+    [...(events || [])].sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0) || b.score - a.score);
+
+export const gazetteEventDateLabel = (event) => {
+    const at = Number(event?.at) || 0;
+    if (!at) {
+        return '';
+    }
+    const date = new Date(at);
+    return `${date.getDate()}-${MONTHS[date.getMonth()]}-${date.getFullYear()}`;
+};
+
+export const GAZETTE_TOPIC_WINDOW_DAYS = 60;
+
+export const recentGazetteEvents = (events, now = new Date()) => {
+    const end = now.getTime();
+    const cutoff = end - GAZETTE_TOPIC_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    return sortGazetteEventsByDate(events).filter((event) => {
+        const at = Number(event.at) || 0;
+        return at >= cutoff && at <= end;
+    });
+};
 
 export const findGazetteEvent = (facts, eventId) =>
     (facts?.events || []).find((event) => event.eventId === eventId) || null;
@@ -414,6 +512,10 @@ export const describeGazetteEvent = (event) => {
         const team1 = event.cup?.finalsTeam1 || '';
         const team2 = event.cup?.finalsTeam2 || '';
         return team1 && team2 ? `Finals set · ${team1} vs ${team2} · ${cupName}` : `Finals set · ${cupName}`;
+    }
+    if (event?.kind === 'result') {
+        const towns = event.winnerCastle && event.loserCastle ? ` · ${event.winnerCastle} vs ${event.loserCastle}` : '';
+        return `Result · ${event.winnerName} over ${event.loserName}${towns} · ${cupName}`;
     }
     return cupName;
 };
@@ -476,6 +578,8 @@ const tokenValues = (facts) => {
         finalsOpponent: event.finalsOpponent || '',
         underdog: event.underdog || '',
         favorite: event.favorite || '',
+        winnerName: event.winnerName || event.underdog || event.finalsWinner || '',
+        loserName: event.loserName || event.favorite || event.finalsOpponent || '',
         donor: event.donor || '',
         giftAmount: event.giftAmount || '',
         scoreline: event.scoreline || '',
@@ -597,6 +701,21 @@ export const composeGazetteIssue = (facts, now = new Date()) => {
         };
     }
 
+    if (story === 'result') {
+        return {
+            headline: '{winnerName} defeats {loserName}',
+            body: '{winnerName} defeated {loserName} in {cupName}.{matchDetails} The Gazette records the result.',
+            artKey: 'castle',
+            dateLabel,
+            href: cup.href,
+            story,
+            eventId,
+            tournamentId: cup.id,
+            source: 'template',
+            ...townsFromEvent(facts.event)
+        };
+    }
+
     return {
         headline: 'The arena is quiet',
         body: 'The Gazette prints when something happens: an upset, a heavy gift to the purse, or a new champion.',
@@ -624,11 +743,29 @@ export const isGazetteTickerCopy = (issue) => {
 export const previewGazetteIssue = (facts, eventId, now = new Date()) => {
     const selected = selectGazetteFacts(facts, eventId);
     const issue = composeGazetteIssue(selected, now);
+    const eventDate = gazetteEventDateLabel(selected.event);
     return {
         ...issue,
+        dateLabel: eventDate || issue.dateLabel,
         headline: fillGazetteText(issue.headline, selected),
         body: fillGazetteText(issue.body, selected)
     };
+};
+
+export const frontPageGazetteIssue = (published, facts, now = new Date()) => {
+    const printed = published && !isGazetteTickerCopy(published) ? published : null;
+    const lead = recentGazetteEvents(facts?.events, now)[0] || sortGazetteEvents(facts?.events)[0] || null;
+    if (!lead) {
+        return printed;
+    }
+    if (printed?.eventId && printed.eventId === lead.eventId) {
+        return printed;
+    }
+    const preview = previewGazetteIssue(facts, lead.eventId, now);
+    if (!preview || preview.story === 'idle' || isGazetteTickerCopy(preview)) {
+        return printed;
+    }
+    return preview;
 };
 
 export const preferMatchingGazetteDraft = (local, remote, eventId) => {

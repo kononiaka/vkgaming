@@ -86,6 +86,9 @@
                     "prizePoolHistory": {
                         ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid)"
                     },
+                    "seasonId": {
+                        ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || root.child('tournaments').child('heroes3').child($tournamentId).child('createdByUid').val() === auth.uid) && (!newData.exists() || root.child('seasons').child('heroes3').child(newData.val()).exists())"
+                    },
                     ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('createdByUid').val() === auth.uid))"
                 },
                 ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid))"
@@ -162,6 +165,14 @@
             "issues": {
                 ".read": true,
                 ".write": "auth != null && root.child('meta').child('admins').child(auth.uid).val() === true"
+            }
+        },
+        "seasons": {
+            ".read": true,
+            "heroes3": {
+                "$seasonId": {
+                    ".write": "auth != null && (root.child('meta').child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('createdByUid').val() === auth.uid) || (data.exists() && data.child('createdByUid').val() === auth.uid))"
+                }
             }
         }
     }

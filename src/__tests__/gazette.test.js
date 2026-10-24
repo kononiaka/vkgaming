@@ -6,16 +6,20 @@ import {
     buildGazetteFacts,
     composeGazetteIssue,
     describeGazetteEvent,
+    gazetteEventDateLabel,
     isGazetteTickerCopy,
     listGazetteIssues,
     gazetteArchiveIdsForIssue,
     nextPublishedGazetteIssue,
     orientGazetteScoreline,
     preferMatchingGazetteDraft,
+    frontPageGazetteIssue,
     previewGazetteIssue,
+    recentGazetteEvents,
     resolveGazetteIssue,
     sanitizeGazetteIssue,
     selectGazetteFacts,
+    sortGazetteEventsByDate,
     unpublishedGazetteEvents
 } from '../utils/gazette';
 import * as gazetteApi from '../api/gazette';
@@ -156,6 +160,70 @@ describe('gazette utils', () => {
     test('lists underdog and donation topics for the newsroom', () => {
         const facts = buildGazetteFacts({ cup1: newsroomCup });
         expect(facts.events.map((event) => event.kind)).toEqual(['underdog', 'donation']);
+        expect(sortGazetteEventsByDate(facts.events).map((event) => event.kind)).toEqual(['donation', 'underdog']);
+        expect(gazetteEventDateLabel(facts.events[1])).toBe('24-AUG-2026');
+        expect(gazetteEventDateLabel(facts.events[0])).toBe('');
+        const now = new Date('2026-10-24T12:00:00.000Z');
+        const live = buildGazetteFacts({
+            cup1: {
+                ...quietCup,
+                name: 'Live Cup',
+                status: 'Started!',
+                bracket: {
+                    playoffPairs: [
+                        [
+                            {
+                                team1: 'Alice',
+                                team2: 'Bob',
+                                stage: 'Semi-final',
+                                stars1: 5,
+                                stars2: 2,
+                                ratings1: 1800,
+                                ratings2: 1400,
+                                winner: 'Alice',
+                                gameStatus: 'Processed',
+                                games: [{ gameWinner: 'Alice' }]
+                            }
+                        ],
+                        [
+                            {
+                                team1: 'KINOMAN',
+                                team2: 'Polt',
+                                stage: 'Semi-final',
+                                stars1: 2,
+                                stars2: 5,
+                                ratings1: 1400,
+                                ratings2: 1800,
+                                winner: 'Polt',
+                                gameStatus: 'Processed',
+                                scheduledAt: '2026-10-10T23:03:00.000Z',
+                                games: [{ gameWinner: 'Polt' }]
+                            }
+                        ],
+                        [
+                            {
+                                team1: 'Cara',
+                                team2: 'Dan',
+                                stage: 'Semi-final',
+                                stars1: 5,
+                                stars2: 2,
+                                ratings1: 1800,
+                                ratings2: 1400,
+                                winner: 'Cara',
+                                gameStatus: 'Processed',
+                                scheduledAt: '2026-05-01T12:00:00.000Z',
+                                games: [{ gameWinner: 'Cara' }]
+                            }
+                        ]
+                    ]
+                }
+            }
+        });
+        const recent = recentGazetteEvents(live.events, now);
+        expect(recent.map((event) => event.winnerName)).toEqual(['Polt']);
+        expect(gazetteEventDateLabel(recent[0])).toBe(
+            `${new Date().getDate()}-${['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][new Date().getMonth()]}-${new Date().getFullYear()}`
+        );
         expect(describeGazetteEvent(facts.events[0])).toContain('Upset · Alice over Bob · Castle vs Rampart');
         expect(describeGazetteEvent(facts.events[1])).toContain('Gift · Patron $120');
 
@@ -174,6 +242,31 @@ describe('gazette utils', () => {
         expect(previewGazetteIssue(facts, facts.events[0].eventId).loserName).toBe('Bob');
         expect(previewGazetteIssue(facts, facts.events[0].eventId).winnerStars).toBe(2);
         expect(previewGazetteIssue(facts, facts.events[0].eventId).loserStars).toBe(5);
+        const printed = {
+            eventId: facts.events[0].eventId,
+            headline: 'Old upset',
+            body: 'Yesterday.',
+            story: 'underdog',
+            dateLabel: '20-AUG-2026'
+        };
+        const newerFacts = buildGazetteFacts({
+            cup1: {
+                ...donationCup,
+                prizePoolHistory: {
+                    gift1: {
+                        type: 'donation',
+                        donorUsername: 'Patron',
+                        amountUsd: 120,
+                        at: '2026-10-11T10:00:00.000Z'
+                    }
+                }
+            },
+            cup2: underdogCup
+        });
+        const front = frontPageGazetteIssue(printed, newerFacts, new Date('2026-10-10T22:00:00.000Z'));
+        expect(front.headline).toBe('Alice upsets Bob');
+        expect(front.dateLabel).toBe('10-OCT-2026');
+        expect(frontPageGazetteIssue(printed, buildGazetteFacts({ cup1: underdogCup })).headline).toBe('Old upset');
         expect(isGazetteTickerCopy({ story: 'live', body: '9 maps have been reported.' })).toBe(true);
         expect(
             preferMatchingGazetteDraft(issue, { headline: '8 maps have been reported', story: 'live' }, facts.events[1].eventId)
@@ -426,12 +519,11 @@ describe('Gazette', () => {
             </MemoryRouter>
         );
 
-    test('hides the paper for visitors until an issue is published', async () => {
+    test('shows the newest story to visitors before it is published', async () => {
         gazetteApi.fetchGazetteFacts.mockResolvedValue(buildGazetteFacts({ cup1: underdogCup }));
-        const { container } = renderGazette(false);
-        await waitFor(() => {
-            expect(container).toBeEmptyDOMElement();
-        });
+        renderGazette(false);
+        expect(await screen.findByRole('heading', { name: 'Alice upsets Bob' })).toBeVisible();
+        expect(screen.queryByRole('button', { name: 'Generate this story' })).not.toBeInTheDocument();
     });
 
     test('shows a published issue to visitors and hides the newsroom', async () => {
@@ -460,6 +552,11 @@ describe('Gazette', () => {
 
     test('lets an admin pick a topic, generate, and publish on the Gazette page', async () => {
         const facts = buildGazetteFacts({ cup1: newsroomCup });
+        const now = Date.now();
+        facts.events = facts.events.map((event, index) => ({
+            ...event,
+            at: now - index * 24 * 60 * 60 * 1000
+        }));
         gazetteApi.fetchGazetteFacts.mockResolvedValue(facts);
         renderGazette(true, { variant: 'page', path: '/gazette' });
 

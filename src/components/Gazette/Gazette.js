@@ -23,9 +23,11 @@ import {
     isGazetteTickerCopy,
     isSameGazetteIssue,
     orientGazetteScoreline,
+    frontPageGazetteIssue,
+    gazetteEventDateLabel,
     previewGazetteIssue,
+    recentGazetteEvents,
     resolveGazetteIssue,
-    sortGazetteEvents,
     unpublishedGazetteEvents
 } from '../../utils/gazette';
 import classes from './Gazette.module.css';
@@ -276,6 +278,7 @@ const Gazette = ({ variant = 'home' }) => {
     const selectedArchive = isPage && issueId ? issues.find((issue) => String(issue.id) === String(issueId)) : null;
     const viewingArchive = Boolean(selectedArchive);
     const publicIssue = published && !isGazetteTickerCopy(published) ? published : null;
+    const frontPage = !isPage ? frontPageGazetteIssue(published, facts) : null;
     const draftMatchesTopic = Boolean(draft && selectedEventId && draft.eventId === selectedEventId);
     const topicPreview =
         isPage && isAdmin && selectedEventId && !viewingArchive ? previewGazetteIssue(facts, selectedEventId) : null;
@@ -285,9 +288,9 @@ const Gazette = ({ variant = 'home' }) => {
           ? draftMatchesTopic
             ? draft
             : topicPreview || draft || publicIssue
-          : publicIssue;
+          : frontPage || publicIssue;
     const viewing = resolveGazetteIssue(stored, facts);
-    const topics = sortGazetteEvents(facts?.events).slice(0, TOPIC_LIMIT);
+    const topics = recentGazetteEvents(facts?.events).slice(0, TOPIC_LIMIT);
     const unpublished = unpublishedGazetteEvents(facts, published?.eventId);
     const newsCount = unpublished.length;
     const showNewsroom = isAdmin && isPage;
@@ -312,17 +315,23 @@ const Gazette = ({ variant = 'home' }) => {
                     setFacts(nextFacts);
                     setIssues(nextIssues);
                     const nextUnpublished = unpublishedGazetteEvents(nextFacts, current?.eventId);
+                    const newest = recentGazetteEvents(nextFacts?.events)[0];
                     const nextEventId =
-                        usableDraft?.eventId || nextUnpublished[0]?.eventId || nextFacts?.events?.[0]?.eventId || '';
+                        newest?.eventId ||
+                        usableDraft?.eventId ||
+                        nextUnpublished[0]?.eventId ||
+                        nextFacts?.events?.[0]?.eventId ||
+                        '';
                     setSelectedEventId(nextEventId);
                     const preview = nextEventId ? previewGazetteIssue(nextFacts, nextEventId) : null;
+                    const draftIsNewest = Boolean(usableDraft?.eventId && usableDraft.eventId === nextEventId);
                     const issue =
-                        usableDraft ||
+                        (draftIsNewest ? usableDraft : null) ||
                         (preview && preview.story !== 'idle' ? preview : null) ||
                         (current && !isGazetteTickerCopy(current) ? current : null);
                     setHeadline(issue?.headline || '');
                     setBody(issue?.body || '');
-                    if (!usableDraft && preview && preview.story !== 'idle') {
+                    if (!draftIsNewest && preview && preview.story !== 'idle') {
                         setDraft(preview);
                     }
                 }
@@ -486,11 +495,11 @@ const Gazette = ({ variant = 'home' }) => {
         ) : null;
     }
 
-    if (!isPage && !publicIssue && !isAdmin) {
+    if (!isPage && !frontPage && !isAdmin) {
         return null;
     }
 
-    if (!isPage && !publicIssue && isAdmin) {
+    if (!isPage && !frontPage && isAdmin) {
         if (!newsCount) {
             return null;
         }
@@ -573,7 +582,7 @@ const Gazette = ({ variant = 'home' }) => {
                     )}
                 </article>
             </div>
-            {!isPage && publicIssue ? (
+            {!isPage && (frontPage || publicIssue) ? (
                 <p className={classes.archiveHomeLink}>
                     <Link to="/gazette">Read past issues in the Gazette →</Link>
                 </p>
@@ -645,6 +654,7 @@ const Gazette = ({ variant = 'home' }) => {
                             <legend className={classes.topicsLegend}>Proposed topics</legend>
                             {topics.map((event) => {
                                 const isPublishedTopic = event.eventId === published?.eventId;
+                                const dateLabel = gazetteEventDateLabel(event);
                                 return (
                                     <label key={event.eventId} className={classes.topic}>
                                         <input
@@ -655,13 +665,16 @@ const Gazette = ({ variant = 'home' }) => {
                                             onChange={() => showTopic(event.eventId)}
                                             disabled={busy}
                                         />
-                                        <span>
-                                            {describeGazetteEvent(event)}
-                                            {isPublishedTopic ? (
-                                                <span className={classes.topicMark}>On the stands</span>
-                                            ) : (
-                                                <span className={classes.topicMarkNew}>New</span>
-                                            )}
+                                        <span className={classes.topicBody}>
+                                            {dateLabel ? <span className={classes.topicDate}>{dateLabel}</span> : null}
+                                            <span>
+                                                {describeGazetteEvent(event)}
+                                                {isPublishedTopic ? (
+                                                    <span className={classes.topicMark}>On the stands</span>
+                                                ) : (
+                                                    <span className={classes.topicMarkNew}>New</span>
+                                                )}
+                                            </span>
                                         </span>
                                     </label>
                                 );

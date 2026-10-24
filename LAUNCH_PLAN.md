@@ -31,6 +31,7 @@ Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 - `/support`, `/rules`, donations (DA + BMC + Stripe host seed / attendance)
 - Admin prize-pool **funding history** (new tips logged under `prizePoolHistory`)
 - Player profiles, leaderboard, Live Arena / match hub
+- Seasons wrap cups (`seasons/heroes3/2026-s1`; each cup stores `seasonId`)
 - Production on **konoplay.com**
 
 ---
@@ -49,8 +50,7 @@ Domain / OAuth / hosting: **`LAUNCH_KONOPLAY_COM.md`** (cutover **DONE**).
 
 | Gap | Notes |
 |---|---|
-| **Season ladder tiers** (Top / A / B) + promotion/relegation | New data model |
-| **Season entity** wrapping cups | e.g. `seasons/2026-s1` |
+| **Season ladder tiers** (Top / A / B) + promotion/relegation | New data model. Seasons exist; tiers do not. |
 | **Formal warnings / discipline** | Rules + admin log |
 | **Streaming enforcement** | Twitch/VOD requirements |
 | **Application workflow** | Apply → admin approve |

@@ -432,7 +432,9 @@ export const PlayerBracket = (props) => {
 
     const renderCastleStrip = () => (
         <div
-            className={`${classes.playerCastles} ${isMultiGameLayout ? classes.playerCastlesBo3 : ''}`}
+            className={`${classes.playerCastles} ${isMultiGameLayout ? classes.playerCastlesBo3 : ''} ${
+                gamesCount >= 4 ? classes.playerCastlesLong : ''
+            }`}
             style={{ minWidth: showCastleSlots ? gamesStripMinWidth : '52px' }}
         >
             {showCastleSlots &&
